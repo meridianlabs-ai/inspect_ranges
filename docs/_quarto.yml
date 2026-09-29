@@ -1,0 +1,17 @@
+project:
+  type: meridianlabs-ai/inspect-docs
+
+inspect-docs:
+  title: Inspect Ranges
+  description: |
+    Inspect AI extension for ranges.
+  url: https://meridianlabs-ai.github.io/inspect_ranges
+  module: inspect_ranges
+  repo: meridianlabs-ai/inspect_ranges
+  org: Meridian Labs
+  navigation:
+    - text: Getting Started
+      href: index.qmd
+  sidebar: unified
+  external_refs:
+    inspect_ai: https://inspect.aisi.org.uk
