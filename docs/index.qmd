@@ -1,0 +1,17 @@
+---
+title: "Inspect Ranges"
+description: "Inspect AI extension for ranges."
+llms-description: "What Inspect Ranges is and how to install it."
+---
+
+## Overview
+
+Welcome to Inspect Ranges, an extension for [Inspect AI](https://inspect.aisi.org.uk).
+
+## Installation
+
+Install Inspect Ranges from PyPI with:
+
+```{.bash filename="Terminal"}
+pip install inspect_ranges
+```
