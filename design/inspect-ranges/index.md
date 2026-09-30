@@ -4,6 +4,7 @@ Working folder for **`inspect_ranges`** — a new [Inspect](https://inspect.aisi
 
 * [Small realistic cyber ranges — source survey](survey.md) - what public artifacts define small, realistic, quickly-runnable ranges with machine-readable configs; the six selected for the baseline; catalog of everything surveyed; finding: the full MHBench corpus is public, with a measured assessment
 * [range.yaml — draft schema swag (v0.1)](range-yaml-swag.md) - the working strawman schema the six examples exercise: the L1–L9 range anatomy and D0–D5 defense spectrum, the networking-requirements table (each requirement → its libvirt realization → the example that forces it), and the attack_path concept mapped across surveyed formats
+* [Decision: own the libvirt sandbox provider](docker-provider-reuse.md) - why we write our own provider rather than reusing Inspect's Docker provider, what we give up, and which pieces we port (with attribution) vs rewrite
 * [Upstream licenses and attribution](LICENSES.md) - what is vendored under each `upstream/` directory, from where, and under which license
 
 ## Example ranges (development/testing baseline)
