@@ -14,6 +14,16 @@ uv sync --group dev
 
 This installs Inspect Ranges in editable mode along with the dev tools (ruff, pyright, pytest), and puts the `inspect-ranges` CLI on your path.
 
+### Remote development
+
+Running ranges requires Linux with KVM and nested virtualization, so day-to-day development happens on an EC2 devbox:
+
+```bash
+uv run devbox/devbox.py --profile <profile> --region <region> up
+```
+
+This provisions the box, clones the repo onto it, and sets up SSH so you can connect with `ssh inspect-ranges-devbox` or VS Code Remote-SSH. The box stops itself when idle. See [`devbox/README.md`](devbox/README.md) for prerequisites, the security model, and the required IAM permissions.
+
 ## Checks and tests
 
 Before opening a PR, make sure these pass:
