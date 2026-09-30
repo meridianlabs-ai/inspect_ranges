@@ -17,7 +17,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from functools import cached_property
 from pathlib import Path
@@ -29,7 +28,7 @@ from botocore.exceptions import ClientError
 
 PROJECT = "inspect-ranges-devbox"
 REPO = "meridianlabs-ai/inspect_ranges"
-REPO_SSH_URL = f"git@github.com:{REPO}.git"
+REPO_URL = f"https://github.com/{REPO}.git"
 VPC_CIDR = "10.42.0.0/16"
 UBUNTU_AMI_PARAM = (
     "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
@@ -94,6 +93,16 @@ class Devbox:
     @property
     def host_alias(self) -> str:
         return PROJECT if self.name == default_name() else f"{PROJECT}-{self.name}"
+
+    @property
+    def cli_options(self) -> str:
+        """Global options that re-address this devbox, for commands we tell the user to run."""
+        options = f" --region {self.region}"
+        if self.profile:
+            options += f" --profile {self.profile}"
+        if self.name != default_name():
+            options += f" --name {self.name}"
+        return options
 
     @property
     def alarm_name(self) -> str:
@@ -534,11 +543,14 @@ Host {self.host_alias}
     def known_hosts_file(self) -> Path:
         return SSH_KNOWN_HOSTS_D / self.host_alias
 
-    def ssh(self, command: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    def ssh(
+        self, command: str, check: bool = True, input: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             ["ssh", "-o", "BatchMode=yes", self.host_alias, command],
             text=True,
             capture_output=True,
+            input=input,
         )
         if check and result.returncode != 0:
             raise click.ClickException(
@@ -599,50 +611,22 @@ def ensure_ssh_include() -> None:
         config.chmod(0o600)
 
 
-def gh(*args: str) -> str:
-    return subprocess.run(
-        ["gh", *args], check=True, text=True, capture_output=True
-    ).stdout
-
-
-def deploy_key_title(name: str, instance_id: str) -> str:
-    return f"devbox-{name}-{instance_id}"
-
-
-def register_deploy_key(devbox: Devbox, instance_id: str) -> None:
-    public_key = devbox.ssh("cat ~/.ssh/github_deploy.pub").stdout.strip()
-    key_body = " ".join(public_key.split()[:2])
-    existing = json.loads(
-        gh("repo", "deploy-key", "list", "--repo", REPO, "--json", "key")
+def github_authenticated(devbox: Devbox) -> bool:
+    return (
+        devbox.ssh("gh auth status --hostname github.com", check=False).returncode == 0
     )
-    if any(k["key"] == key_body for k in existing):
-        return
-    log(f"Registering write deploy key on {REPO}")
-    with tempfile.TemporaryDirectory() as tmp:
-        key_file = Path(tmp) / "github_deploy.pub"
-        key_file.write_text(public_key + "\n")
-        title = deploy_key_title(devbox.name, instance_id)
-        gh(
-            "repo",
-            "deploy-key",
-            "add",
-            str(key_file),
-            "--repo",
-            REPO,
-            "--allow-write",
-            "--title",
-            title,
-        )
 
 
-def remove_deploy_key(devbox: Devbox, instance_id: str) -> None:
-    title = deploy_key_title(devbox.name, instance_id)
-    for key in json.loads(
-        gh("repo", "deploy-key", "list", "--repo", REPO, "--json", "id,title")
-    ):
-        if key["title"] == title:
-            gh("repo", "deploy-key", "delete", str(key["id"]), "--repo", REPO)
-            log(f"Removed deploy key {title}")
+def sync_repo(devbox: Devbox) -> None:
+    for key in ("user.name", "user.email"):
+        value = local_git_config(key)
+        if value:
+            devbox.ssh(f"git config --global {key} {shlex.quote(value)}")
+    log("Syncing ~/inspect_ranges")
+    devbox.ssh(
+        f"test -d ~/inspect_ranges || git clone -q {REPO_URL} ~/inspect_ranges; "
+        "cd ~/inspect_ranges && ~/.local/bin/uv sync --quiet --group dev"
+    )
 
 
 def local_git_config(key: str) -> str | None:
@@ -655,7 +639,7 @@ def local_git_config(key: str) -> str | None:
 def check_prerequisites() -> None:
     missing = [
         tool
-        for tool in ("aws", "session-manager-plugin", "gh", "ssh", "uv")
+        for tool in ("aws", "session-manager-plugin", "ssh", "uv")
         if shutil.which(tool) is None
     ]
     if missing:
@@ -754,22 +738,22 @@ def up(
         raise click.ClickException(
             "/dev/kvm is missing on the devbox: nested virtualization is not enabled."
         )
+    log(
+        f"Host provisioned ({instance_id}); SSH config: {SSH_CONFIG_D / devbox.host_alias}"
+    )
 
     devbox.ssh(
         f"echo IDLE_MINUTES={idle_minutes} | sudo tee /etc/devbox.conf >/dev/null"
     )
     devbox.put_backstop_alarm(instance_id, backstop_hours)
 
-    register_deploy_key(devbox, instance_id)
-    for key in ("user.name", "user.email"):
-        value = local_git_config(key)
-        if value:
-            devbox.ssh(f"git config --global {key} {shlex.quote(value)}")
-    log("Syncing ~/inspect_ranges")
-    devbox.ssh(
-        f"test -d ~/inspect_ranges || git clone -q {REPO_SSH_URL} ~/inspect_ranges; "
-        "cd ~/inspect_ranges && ~/.local/bin/uv sync --quiet --group dev"
-    )
+    if not github_authenticated(devbox):
+        raise click.ClickException(
+            "The devbox has no GitHub token yet. Create a fine-grained token limited to "
+            f"{REPO} (see devbox/README.md), copy it, then run:\n"
+            f"  pbpaste | uv run devbox/devbox.py{devbox.cli_options} github-token"
+        )
+    sync_repo(devbox)
 
     log(f"\nDevbox '{devbox.name}' is ready ({instance_id}).")
     log(f"  ssh {devbox.host_alias}")
@@ -779,6 +763,34 @@ def up(
     log(
         f"  Auto-stop after {idle_minutes} idle minutes; `devbox-keepalive 4h` on the box to hold it."
     )
+
+
+@cli.command("github-token")
+@click.pass_obj
+def github_token(devbox: Devbox) -> None:
+    """Store a GitHub token on the devbox (read from stdin), then clone the repo.
+
+    Use a fine-grained token limited to meridianlabs-ai/inspect_ranges. Reading it from stdin keeps it out of your shell history, the terminal, and process listings.
+    """
+    token = sys.stdin.read().strip()
+    # fine-grained tokens are github_pat_..., classic ones ghp_...; catch a wrong clipboard before sending it anywhere
+    if not token.startswith(("github_pat_", "ghp_")) or any(c.isspace() for c in token):
+        raise click.UsageError(
+            "stdin doesn't look like a GitHub token (expected github_pat_...)."
+        )
+    if not token:
+        raise click.UsageError("No token on stdin; e.g. `pbpaste | ... github-token`.")
+    devbox.require_instance()
+    # gh stores the token (0600, ~/.config/gh/hosts.yml) and serves it to git as a credential helper
+    devbox.ssh(
+        "gh auth login --hostname github.com --git-protocol https --with-token",
+        input=token,
+    )
+    devbox.ssh("gh auth setup-git --hostname github.com")
+    if not github_authenticated(devbox):
+        raise click.ClickException("GitHub rejected the token.")
+    sync_repo(devbox)
+    log(f"GitHub access configured; ~/inspect_ranges is ready on {devbox.host_alias}.")
 
 
 @cli.command()
@@ -865,7 +877,7 @@ def proxy(devbox: Devbox, port: str) -> None:
 @click.option("--yes", is_flag=True, help="Don't ask for confirmation.")
 @click.pass_obj
 def destroy(devbox: Devbox, destroy_all: bool, yes: bool) -> None:
-    """Terminate the devbox (its disk is deleted) and remove its GitHub deploy key."""
+    """Terminate the devbox (its disk, including its GitHub token, is deleted)."""
     instance = devbox.instance()
     if instance is not None:
         instance_id = instance["InstanceId"]
@@ -874,7 +886,6 @@ def destroy(devbox: Devbox, destroy_all: bool, yes: bool) -> None:
                 f"Terminate devbox '{devbox.name}' ({instance_id}) and delete its disk?",
                 abort=True,
             )
-        remove_deploy_key(devbox, instance_id)
         devbox.ec2.modify_instance_attribute(
             InstanceId=instance_id, DisableApiTermination={"Value": False}
         )
