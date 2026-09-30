@@ -25,6 +25,7 @@ range:
       - upstream/README.txt           # CVE description + reproduction (verbatim)
     upstream_substrate: Docker Compose
     fetched: 2026-09-30
+    commit: 8fd63916f7a8711e2e01dda0d27237e4d6175d38   # upstream commit; every file in upstream/ matches it byte-for-byte
 
 networks:
   - name: lab

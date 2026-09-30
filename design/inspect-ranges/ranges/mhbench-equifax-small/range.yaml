@@ -28,6 +28,7 @@ range:
       - upstream/setupStruts.yml            # webserver provisioning playbook
     upstream_substrate: OpenStack (Terraform + Ansible)
     fetched: 2026-09-30
+    commit: 3b3db857cb2277da01e121c418966966c2104ee6   # upstream commit; files in upstream/ match it byte-for-byte (except incalmo-prompts/: see ../../LICENSES.md)
 
 networks:
   - name: webserver_network
