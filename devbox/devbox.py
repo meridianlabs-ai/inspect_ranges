@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["boto3>=1.40", "click>=8.0"]
+# dependencies = ["boto3[crt]>=1.40", "click>=8.0"]
 # ///
 """Provision and manage an inspect_ranges remote development box on EC2.
 
@@ -194,7 +194,8 @@ class Devbox:
                 GatewayId=igw["InternetGatewayId"],
             )
 
-    def ensure_subnet(self, vpc_id: str, instance_type: str) -> str:
+    def candidate_zones(self, vpc_id: str, instance_type: str) -> list[str]:
+        """Zones offering `instance_type`, those where we already have a subnet first."""
         offered = sorted(
             o["Location"]
             for o in self.ec2.describe_instance_type_offerings(
@@ -206,13 +207,13 @@ class Devbox:
             raise click.ClickException(
                 f"{instance_type} is not offered in any availability zone in {self.region}."
             )
-        existing = self.ec2.describe_subnets(
-            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
-        )["Subnets"]
-        for subnet in existing:
-            if subnet["AvailabilityZone"] in offered:
+        existing = {s["AvailabilityZone"] for s in self._subnets(vpc_id)}
+        return sorted(offered, key=lambda az: az not in existing)
+
+    def ensure_subnet(self, vpc_id: str, az: str) -> str:
+        for subnet in self._subnets(vpc_id):
+            if subnet["AvailabilityZone"] == az:
                 return subnet["SubnetId"]
-        az = offered[0]
         # one /24 per zone, numbered by the zone's letter
         cidr = f"10.42.{ord(az[-1]) - ord('a')}.0/24"
         log(f"Creating subnet {cidr} in {az}")
@@ -222,6 +223,11 @@ class Devbox:
             AvailabilityZone=az,
             TagSpecifications=self.tag_spec("subnet", f"{PROJECT}-{az}"),
         )["Subnet"]["SubnetId"]
+
+    def _subnets(self, vpc_id: str) -> list[dict[str, Any]]:
+        return self.ec2.describe_subnets(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )["Subnets"]
 
     def ensure_security_group(self, vpc_id: str) -> str:
         sg = self._find_one(
@@ -306,7 +312,7 @@ class Devbox:
     ) -> dict[str, Any]:
         vpc_id = self.ensure_vpc()
         self.ensure_internet_route(vpc_id)
-        subnet_id = self.ensure_subnet(vpc_id, instance_type)
+        zones = self.candidate_zones(vpc_id, instance_type)
         sg_id = self.ensure_security_group(vpc_id)
         profile_name = self.ensure_instance_profile()
 
@@ -346,7 +352,6 @@ class Devbox:
             NetworkInterfaces=[
                 {
                     "DeviceIndex": 0,
-                    "SubnetId": subnet_id,
                     "Groups": [sg_id],
                     # outbound only: the security group admits nothing inbound
                     "AssociatePublicIpAddress": True,
@@ -366,6 +371,20 @@ class Devbox:
                 ),
             ],
         )
+        # capacity for large 8i types varies by zone, so fall through the zones that offer it
+        for az in zones:
+            params["NetworkInterfaces"][0]["SubnetId"] = self.ensure_subnet(vpc_id, az)
+            try:
+                return self._run_instance(params)
+            except ClientError as ex:
+                if ex.response["Error"]["Code"] != "InsufficientInstanceCapacity":
+                    raise
+                log(f"No {instance_type} capacity in {az}; trying the next zone")
+        raise click.ClickException(
+            f"No {instance_type} capacity in any zone in {self.region}; try again later or another type."
+        )
+
+    def _run_instance(self, params: dict[str, Any]) -> dict[str, Any]:
         # a just-created instance profile takes a few seconds to become usable by EC2
         for attempt in range(12):
             try:
@@ -376,9 +395,11 @@ class Devbox:
                 time.sleep(5)
         raise AssertionError("unreachable")
 
-    def start(self) -> dict[str, Any]:
-        instance = self.require_instance()
+    def start(self, instance: dict[str, Any] | None = None) -> dict[str, Any]:
+        # `up` passes the instance it just launched: tag-filtered lookups lag a new instance
+        instance = instance or self.require_instance()
         instance_id = instance["InstanceId"]
+        self.ec2.get_waiter("instance_exists").wait(InstanceIds=[instance_id])
         state = instance["State"]["Name"]
         if state == "stopping":
             log("Waiting for the instance to finish stopping")
@@ -720,7 +741,7 @@ def up(
         )
     instance_id = instance["InstanceId"]
     devbox.write_ssh_config(instance_id)
-    devbox.start()
+    devbox.start(instance)
 
     log("Waiting for host provisioning (first boot takes several minutes)")
     status = devbox.ssh("cloud-init status --wait", check=False)
