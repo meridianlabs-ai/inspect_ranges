@@ -14,7 +14,7 @@ Then in VS Code: **Remote-SSH: Connect to Host...** → `inspect-ranges-devbox` 
 Locally:
 
 - [`uv`](https://docs.astral.sh/uv/), `aws` CLI v2, and the [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) (`brew install awscli session-manager-plugin`)
-- `gh`, authenticated as someone with admin access to `meridianlabs-ai/inspect_ranges` (needed to register deploy keys)
+- A GitHub fine-grained personal access token for the box (see [GitHub access](#github-access))
 - AWS credentials with the permissions listed [below](#iam-permissions)
 
 VS Code: install the **Remote - SSH** extension and raise its connect timeout, because connecting to a stopped box starts it first, which takes a minute or two:
@@ -33,7 +33,8 @@ Global options: `--profile`, `--region` (these default to `AWS_PROFILE`/`AWS_REG
 | `start` / `stop` | Start or stop the box. Stopping keeps the disk. |
 | `status` | Show state, instance type, and auto-stop setting. |
 | `ssh-config` | Rewrite the local SSH entry (`~/.ssh/config.d/inspect-ranges-devbox`). |
-| `destroy [--all]` | Terminate the box (deleting its disk) and remove its deploy key. `--all` also removes the shared VPC and IAM role when no devboxes remain. |
+| `github-token` | Store a GitHub token on the box (read from stdin), then clone and sync the repo. |
+| `destroy [--all]` | Terminate the box (deleting its disk, including its GitHub token). `--all` also removes the shared VPC and IAM role when no devboxes remain. |
 
 `up` options (the instance options apply only when the box is created): `--instance-type` (default `m8i.8xlarge`; must be c8i/m8i/r8i for nested virtualization), `--volume-size` (500 GiB), `--iops` (6000), `--throughput` (500 MiB/s), `--idle-minutes` (60), `--backstop-hours` (6).
 
@@ -72,18 +73,38 @@ The design doc (§5, §10) assumes that anything running on a range host may esc
 | Measure | How |
 |---|---|
 | No exposed ports | The security group has **no inbound rules**. SSH is tunnelled over SSM Session Manager (`AWS-StartSSHSession`), so every connection is IAM-authenticated and recorded in CloudTrail. The public IP is used only for outbound traffic. |
-| Restricted egress | The dedicated VPC allows outbound **TCP 80/443 only**. Git uses `ssh.github.com:443`. |
+| Restricted egress | The dedicated VPC allows outbound **TCP 80/443 only**. Git uses HTTPS. |
 | IMDSv2, hop limit 1 | Instance metadata requires session tokens, and containers and VMs on the box can't reach it. |
 | Minimal instance role | `AmazonSSMManagedInstanceCore` only. There are no AWS credentials on the box, and auto-stop needs no EC2 permissions. |
-| GitHub access limited to one repo | The box generates its own SSH key, which **never leaves the box**. `up` registers it as a write **deploy key on `meridianlabs-ai/inspect_ranges` only**. No SSH agent or credential forwarding. `destroy` removes the key. |
+| GitHub access limited to one repo | A fine-grained token that can change **contents and pull requests of `meridianlabs-ai/inspect_ranges` only**, and nothing about workflows. No SSH agent or credential forwarding. See [GitHub access](#github-access). |
 | Dedicated SSH key | `~/.ssh/inspect_ranges_devbox` is used only for the devbox. Host keys are pinned per box in `~/.ssh/known_hosts.d/`. |
 | Encryption at rest | The EBS root volume is encrypted. |
 
 Recommendations:
 
-- **Protect `main`** with branch protection. Otherwise a write deploy key can push to it directly.
+- **Protect `main`** with branch protection. Otherwise the box's token can push to it directly.
 - **Use a separate AWS account** for devboxes if you can, so a compromised box can't reach anything else in the account.
-- `gh` associates deploy keys with its auth token. If you log out of or de-authorize the GitHub CLI, the key is removed; re-run `up` to register it again.
+
+## GitHub access
+
+The box authenticates to GitHub with a **fine-grained personal access token** limited to this one repo. (The `meridianlabs-ai` org disables deploy keys, and forwarding your own GitHub login would give anything running on the box access to every repo you can push to, workflows included.)
+
+Create the token at <https://github.com/settings/personal-access-tokens/new>:
+
+- **Resource owner:** `meridianlabs-ai`
+- **Expiration:** your choice (e.g. 90 days)
+- **Repository access:** *Only select repositories* → `inspect_ranges`
+- **Permissions → Repository:** *Contents: Read and write*, *Pull requests: Read and write* (*Metadata: Read-only* is added automatically). Nothing else. In particular, not *Workflows*.
+
+If the org requires approval for fine-grained tokens, an org admin approves it under Org settings → Personal access tokens.
+
+Copy the token and pipe it in, so it never appears in your terminal or shell history:
+
+```bash
+pbpaste | uv run devbox/devbox.py --profile <profile> --region <region> github-token
+```
+
+On the box, `gh` stores the token (`~/.config/gh/hosts.yml`, mode 0600) and acts as git's credential helper, so both `git push` and `gh pr create` work from any terminal. Because the token has no *Workflows* permission, pushes that change `.github/workflows/` are rejected; make those changes from your own machine. When the token expires, create a new one and run `github-token` again. To revoke it, delete it in GitHub settings.
 
 ## IAM permissions
 
@@ -149,6 +170,7 @@ The credentials that run `devbox.py` need roughly this policy. Replace `ACCOUNT`
 
 ## Troubleshooting
 
+- **`up` says the box has no GitHub token:** create one and run `github-token` (see [GitHub access](#github-access)); `up` finishes the remaining setup after that.
 - **`up` fails during provisioning:** run `ssh inspect-ranges-devbox sudo tail -100 /var/log/devbox-bootstrap.log`.
 - **`/dev/kvm is missing`:** the instance type doesn't support nested virtualization, or it was launched without it. `destroy` and `up` with a c8i/m8i/r8i type.
 - **VS Code times out connecting:** raise `remote.SSH.connectTimeout` (see [Prerequisites](#prerequisites)).

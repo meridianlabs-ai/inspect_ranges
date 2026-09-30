@@ -128,27 +128,10 @@ chmod 755 /usr/local/bin/devbox-keepalive
 systemctl daemon-reload
 systemctl enable --now devbox-idle.timer
 
-# --- developer user: GitHub over 443 with an on-box deploy key; uv; Claude Code
-github_keys=$(curl -fsSL https://api.github.com/meta | jq -r '.ssh_keys[]')
-sudo -u $DEV_USER -H GITHUB_KEYS="$github_keys" bash <<'EOF'
+# --- developer user: uv and Claude Code (GitHub access is added later by `devbox.py github-token`)
+sudo -u $DEV_USER -H bash <<'EOF'
 set -euo pipefail
 cd ~
-# the private key never leaves this box; `devbox.py up` registers the public
-# half as a deploy key on the one repo it may push to
-[[ -f ~/.ssh/github_deploy ]] || ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/github_deploy -C "inspect-ranges-devbox"
-cat >~/.ssh/config <<'CFG'
-Host github.com
-  HostName ssh.github.com
-  Port 443
-  User git
-  HostKeyAlias github.com
-  IdentityFile ~/.ssh/github_deploy
-  IdentitiesOnly yes
-CFG
-chmod 600 ~/.ssh/config
-# host keys fetched over TLS from GitHub's API rather than trusted on first use
-echo "$GITHUB_KEYS" | sed 's/^/github.com /' >~/.ssh/known_hosts
-
 command -v ~/.local/bin/uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 command -v ~/.local/bin/claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 EOF
