@@ -77,6 +77,14 @@ modprobe vhost_net
 modprobe tun
 # nested virtualization is a launch-time CPU option; without it there is no /dev/kvm
 [[ -e /dev/kvm ]] || touch "$STATE/kvm-missing"
+# libguestfs (virt-customize) reads the host kernel to build its appliance; Ubuntu
+# installs kernels 0600, so keep them world-readable, including future kernels
+cat >/etc/kernel/postinst.d/zz-devbox-kernel-readable <<'EOF'
+#!/bin/sh
+chmod 0644 /boot/vmlinuz-*
+EOF
+chmod 755 /etc/kernel/postinst.d/zz-devbox-kernel-readable
+chmod 0644 /boot/vmlinuz-*
 
 # security updates without automatic reboots (a reboot would kill running ranges)
 cat >/etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
