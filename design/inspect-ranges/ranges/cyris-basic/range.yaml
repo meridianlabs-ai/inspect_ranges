@@ -23,6 +23,7 @@ range:
       - upstream/basic-multi_host.yml   # minimal two-physical-host variant (verbatim)
     upstream_substrate: KVM (libvirt); base images defined by libvirt XML (basevm_*.xml)
     fetched: 2026-09-30
+    commit: 8b65a30581cdd8e126c7b1fa26db2a4b770b7f17   # upstream commit; every file in upstream/ matches it byte-for-byte
 
 # CyRIS deployment plumbing (host_settings): one physical KVM host, management
 # bridge virbr0 at 192.168.122.1, management account cyuser. Kept here because

@@ -22,6 +22,7 @@ range:
       - upstream/splunk_windows_aws.yml   # full template (verbatim)
     upstream_substrate: Terraform + Ansible on AWS (v5 is cloud-only; Ludus-derived roles)
     fetched: 2026-09-30
+    commit: fc9b9e719d8835da0bbb5c20d46c52a9778d64e2   # upstream commit; every file in upstream/ matches it byte-for-byte
 
 variables:
   attack_range_password: "changeme123!"   # single shared credential (template default)
