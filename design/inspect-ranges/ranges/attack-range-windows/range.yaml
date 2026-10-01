@@ -1,4 +1,4 @@
-# range.yaml — draft schema v0.1 (see ../../range-yaml-swag.md)
+# range.yaml — schema v0.1 (core sections only; deferred content in ./deferred.yaml)
 # Faithful translation of Splunk attack_range v5, AWS "splunk_windows" template —
 # the instrumented/blue-team example. Values sourced from ./upstream/ unless
 # marked "default:" or "to-verify". Provenance detail: ./notes.md
@@ -24,70 +24,30 @@ range:
     fetched: 2026-09-30
     commit: fc9b9e719d8835da0bbb5c20d46c52a9778d64e2   # upstream commit; every file in upstream/ matches it byte-for-byte
 
-variables:
-  attack_range_password: "changeme123!"   # single shared credential (template default)
-  ip_whitelist: 0.0.0.0/0                 # management-plane ingress allowlist
-
 networks:
   - name: lab
     cidr: 10.0.2.0/24            # to-verify: hosts are 10.0.2.10/.11 via ip_last_octet;
                                  # exact VPC subnet CIDR set by attack_range terraform
     mode: nat                    # cloud VPC; instances need egress for install
     dhcp: false                  # addresses pinned via ip_last_octet
-    ingress:                     # management-plane access from outside the range
-      - { from: "{{ ip_whitelist }}", to: [ssh, rdp, splunk-web, guacamole] }
 
 hosts:
   - name: splunk
-    os: { type: linux, distro: ubuntu-22.04 }   # AMI ubuntu-jammy-22.04, owner 099720109477
-    resources: { instance_type: t3.xlarge }
+    os: { type: linux, distro: ubuntu-22.04 }
+    image: ubuntu-jammy-22.04    # default: AMI ubuntu-jammy-22.04, owner 099720109477
+    resources: { cpus: 4, memory_mb: 16384 }   # default: translated from instance_type t3.xlarge
     interfaces: [{ network: lab, ip: 10.0.2.10 }]   # ip_last_octet: 10
-    users: [{ name: ubuntu, password: "{{ attack_range_password }}" }]
-    services:
-      - { name: splunk-enterprise, version: 10.2.2,
-          note: "role P4T12ICK.ludus_ar_splunk; web UI port 8000 — default: port not in template" }
-      - { name: guacamole,
-          note: "role P4T12ICK.ar_guacamole; brokers ssh->splunk:22 (ubuntu) and rdp->win:3389 (Administrator)" }
 
   - name: win
-    os: { type: windows, version: server-2022 }   # AMI Windows_Server-2022-English-Full-Base
-    resources: { instance_type: t3.large }
+    os: { type: windows, version: server-2022 }
+    image: Windows_Server-2022-English-Full-Base   # default: AMI from the template
+    resources: { cpus: 2, memory_mb: 8192 }    # default: translated from instance_type t3.large
     interfaces: [{ network: lab, ip: 10.0.2.11 }]   # ip_last_octet: 11
-    users: [{ name: Administrator, password: "{{ attack_range_password }}" }]
-    services:
-      - { name: rdp, port: 3389 }
-    provisioning:
-      - { role: P4T12ICK.ludus_ar_windows,
-          vars: { splunk_ip: 10.0.2.10 },
-          note: "installs forwarder + telemetry stack; Sysmon/WinEventLog/PowerShell logging per role docs (to-verify: exact source list)" }
 
 attacker:
   entry: operator                # attack_range's model: the operator (or Atomic Red Team
                                  # automation) executes techniques ON the win host; there
                                  # is no separate attacker VM in this template
-  access: via guacamole RDP/SSH with the shared password
-
-defense:
-  tier: D2
-  description: >
-    Full endpoint telemetry (Windows endpoint -> Splunk) — detections are
-    recorded and searchable, not acted on. No blocking EDR in this template.
-  telemetry:
-    - { source: win, collector: "Sysmon/WinEventLog/PowerShell (per ludus_ar_windows role)",
-        sink: "splunk @ 10.0.2.10" }
-
-goals:
-  - id: detection-verified       # default: attack_range scores nothing; its purpose is
-    type: detection              # technique execution + detection lookup. For an eval,
-    description: >               # the natural oracle inverts the usual one:
-      Execute a given ATT&CK technique on the win host and produce (or evade)
-      the corresponding detection in Splunk.
-    oracle: Splunk search over forwarded indexes   # default
-
-attack_path: n/a                 # detection lab; no planted multi-host path
-
-lifecycle:
-  isolation: per-deployment VPC + ip_whitelist
-  reset: rebuild via terraform (tens of minutes) or AMI snapshot
-  clock_sync: ntp
-  notes: v5 is cloud-only (AWS/Azure/GCP); local Vagrant support was dropped.
+  interfaces: [{ network: lab }] # default: operator access brokered in-lab (guacamole);
+                                 # see deferred.yaml for the upstream access description
+  egress: none                   # default: not an attacker-egress range

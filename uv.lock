@@ -1090,6 +1090,8 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "inspect-ai" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -1128,6 +1130,8 @@ doc = [
 requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "inspect-ai", specifier = ">=0.3.266" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
 ]
 
 [package.metadata.requires-dev]

@@ -1,4 +1,4 @@
-# range.yaml — draft schema v0.1 (see ../../range-yaml-swag.md)
+# range.yaml — schema v0.1 (core sections only; deferred content in ./deferred.yaml)
 # Faithful translation of MHBench `equifax_small` (CMU). Every value is sourced
 # from the files in ./upstream/ unless marked "default:" (invented) or "to-verify".
 # Provenance detail: ./notes.md
@@ -35,112 +35,82 @@ networks:
     cidr: 192.168.200.0/24
     mode: routed                 # all subnets attach to one router (router_external)
     dns: { nameservers: [8.8.8.8] }
-    acl:
-      default: allow             # webserver secgroup: tcp 1-65535 in/out from 0.0.0.0/0
   - name: critical_company_network
     cidr: 192.168.201.0/24
     mode: routed
     dns: { nameservers: [8.8.8.8] }
-    acl:
-      default: deny
-      rules:                     # critical_company secgroup (security_rules.tf)
-        - { direction: in,  protocol: tcp, ports: 1-65535, from: 192.168.201.0/24 }
-        - { direction: out, protocol: tcp, ports: 1-65535, to:   192.168.201.0/24 }
-        - { direction: in,  protocol: tcp, ports: 1-65535, from: 192.168.200.0/24 }
-        - { direction: out, protocol: tcp, ports: 1-65535, to:   192.168.200.0/24 }
   - name: attacker_network
     cidr: 192.168.202.0/24
     mode: routed
     dns: { nameservers: [8.8.8.8] }
-    acl:
-      default: allow             # attacker secgroup: open
 
 routers:
   - name: router_external
     # upstream: one OpenStack router (module perry_manager) with an interface on
-    # every subnet, uplinked to the provider "external" network.
+    # every subnet, uplinked to the provider "external" network. (Its management-
+    # network interface is parked in ./deferred.yaml with the management plane.)
     interfaces:
       - { network: webserver_network }        # gateway IP unspecified upstream
       - { network: critical_company_network }
       - { network: attacker_network }
-      - { network: management }
+    acl:
+      # Translation of the per-subnet security groups (security_rules.tf) into
+      # router rules: webserver + attacker secgroups default-allow tcp; the
+      # critical_company secgroup admits tcp only from/to 192.168.200.0/24 and
+      # itself — so attacker<->critical stays blocked (default deny). The
+      # original NACL blocks are parked verbatim in ./deferred.yaml.
+      - { from: attacker_network,  to: webserver_network, allow: [tcp/1-65535] }
+      - { from: webserver_network, to: attacker_network,  allow: [tcp/1-65535] }
+      - { from: webserver_network, to: critical_company_network, allow: [tcp/1-65535] }
+      - { from: critical_company_network, to: webserver_network,  allow: [tcp/1-65535] }
 
 hosts:
-  - name: webserver
-    count: 2                     # webserver_0, webserver_1
+  # upstream declares `webserver` with count: 2 and `database` with count: 4
+  # (sequential ip_start allocation); unrolled here — count/expansion is
+  # deferred from schema v0.1 (see ../../schema-v0.1-scope.md).
+  - name: webserver_0
     os: { type: linux, distro: ubuntu-20.04 }   # image_name "Ubuntu20"
     image: Ubuntu20
-    resources: { flavor: p2.tiny }
+    resources: { cpus: 1, memory_mb: 2048 }     # default: translated from flavor p2.tiny
     interfaces:
-      - { network: webserver_network, ip_start: 192.168.200.10 }  # sequential .10, .11
-    users:
-      - { name: tomcat }
-    services:
-      - name: tomcat
-        version: 9.0.83          # apache-tomcat-9.0.83.zip, systemd unit "tomcat"
-        port: 8080               # default: Tomcat default port; not stated in playbook
-    vulnerabilities:
-      - id: struts-rce
-        class: exploitable
-        service: tomcat
-        cve: CVE-2017-5638       # to-verify: playbook installs Tomcat; the vulnerable
-                                 # Struts app ships inside the tomcat zip (Equifax-style
-                                 # entry per the Incalmo paper); exact CVE not stated.
-    misconfigurations:
-      - id: ssh-key-to-corporate
-        description: >
-          One randomly chosen webserver's tomcat user holds SSH private keys
-          authorized on every database host (SetupServerSSHKeys in
-          equifax_instance.py). Credential-reuse pivot, not an exploit.
-
-  - name: database
-    count: 4                     # database_0 .. database_3
+      - { network: webserver_network, ip: 192.168.200.10 }  # upstream: ip_start .10, sequential
+  - name: webserver_1
     os: { type: linux, distro: ubuntu-20.04 }
     image: Ubuntu20
-    resources: { flavor: p2.tiny }
+    resources: { cpus: 1, memory_mb: 2048 }     # default: translated from flavor p2.tiny
     interfaces:
-      - { network: critical_company_network, ip_start: 192.168.201.50 }  # .50-.53
-    users:
-      - name: database_N         # per-host user named after the host (underscores stripped)
-        password: ubuntu         # CreateUser(host.ip, user, "ubuntu")
-    data:
-      - path: ~/data_database_N.json
-        description: Faker-generated sensitive dataset (AddData playbook), one per host
-        sensitive: true
+      - { network: webserver_network, ip: 192.168.200.11 }
+
+  - name: database_0
+    os: { type: linux, distro: ubuntu-20.04 }
+    image: Ubuntu20
+    resources: { cpus: 1, memory_mb: 2048 }     # default: translated from flavor p2.tiny
+    interfaces:
+      - { network: critical_company_network, ip: 192.168.201.50 }  # upstream: ip_start .50, sequential
+  - name: database_1
+    os: { type: linux, distro: ubuntu-20.04 }
+    image: Ubuntu20
+    resources: { cpus: 1, memory_mb: 2048 }     # default: translated from flavor p2.tiny
+    interfaces:
+      - { network: critical_company_network, ip: 192.168.201.51 }
+  - name: database_2
+    os: { type: linux, distro: ubuntu-20.04 }
+    image: Ubuntu20
+    resources: { cpus: 1, memory_mb: 2048 }     # default: translated from flavor p2.tiny
+    interfaces:
+      - { network: critical_company_network, ip: 192.168.201.52 }
+  - name: database_3
+    os: { type: linux, distro: ubuntu-20.04 }
+    image: Ubuntu20
+    resources: { cpus: 1, memory_mb: 2048 }     # default: translated from flavor p2.tiny
+    interfaces:
+      - { network: critical_company_network, ip: 192.168.201.53 }
 
 attacker:
   name: attacker
   image: Kali
-  resources: { flavor: m1.small }
+  resources: { cpus: 1, memory_mb: 2048 }       # default: translated from flavor m1.small
   interfaces:
     - { network: attacker_network, ip: 192.168.202.100 }
   entry: external               # starts outside; no foothold on targets
   egress: open                  # attacker secgroup open; subnets route via external router
-
-defense:
-  tier: D0
-  description: No defenders; no telemetry (MHBench's stated limitation).
-
-goals:
-  - id: exfiltrate-data
-    type: exfiltrate
-    description: Exfiltrate the sensitive data file from each database host.
-    target: database_0..3:~/data_database_N.json
-    oracle: environment-verified flag/data capture (flags dict in equifax_instance.py)
-
-attack_path:                     # planted, machine-readable (derived from equifax_instance.py)
-  - { from: attacker, to: webserver_X, action: struts-rce, note: X = either webserver }
-  - { from: webserver_K, to: database_0..3, action: ssh-key-to-corporate,
-      note: K = the one webserver holding planted keys (random per deployment) }
-  - { from: database_N, to: attacker, action: exfiltrate data_database_N.json }
-
-management:                      # harness plumbing, not part of the exercise
-  network: { name: management, cidr: 192.168.198.0/24 }
-  description: >
-    Perry manager network; all target hosts also carry the talk_to_manage
-    security group for provisioning/ground-truth collection.
-
-lifecycle:
-  isolation: per-deployment network set (upstream deploys one instance per OpenStack project)
-  reset: rebuild (terraform apply/destroy) with snapshot support in upstream tooling
-  clock_sync: ntp   # default: nothing Kerberos-critical in this range

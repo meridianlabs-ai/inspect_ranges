@@ -42,3 +42,5 @@ GOAD is GPL-3.0. `upstream/` files are verbatim copies for provenance (GPL permi
 ## What this example exercises in the schema
 
 An `active_directory:` block (domains, trust shape, identity data), **static addressing + authoritative DNS chain** as hard constraints, per-host **defender toggles** (D1↔D4 within one range), **scheduled bot activity** (dc02's scripts), vulns expressed as **named roles with variables** rather than CVEs, and the Kerberos **clock-sync lifecycle constraint** (snapshot/resume clock skew produces auth failures that masquerade as agent failure).
+
+> Schema v0.1 carve-out (2026-10-01): sections awaiting schema design (goals, attack_path, guest config, ...) moved verbatim from `range.yaml` to [`deferred.yaml`](deferred.yaml); see [schema-v0.1-scope](../../schema-v0.1-scope.md).
