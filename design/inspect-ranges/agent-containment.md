@@ -54,6 +54,25 @@ Bridge adjacency adds little kernel surface beyond what the agent's in-VM root a
 
 The range container remains the hypervisor's packaging and lifecycle system: libvirtd+QEMU pinned and distributed as an image, decoupled from the host OS; per-sample bridges and nftables scoped in a netns created and destroyed atomically with the container (the §8a single-source-of-truth story); per-sample cgroup limits; the integration seam with the AWS fleet layer (handoff §11).
 
+## How hard is the QEMU boundary? (grading the escape tiers)
+
+Not all VM boundaries are equal, and we should not claim otherwise. The honest ordering, hardest first: **Nitro** (hardware/firmware hypervisor, no public escape ever documented, carries EC2's entire multi-tenant business) > **Firecracker** (~50K lines of Rust, deliberately tiny device model, seccomp jailer, proven as a production multi-tenant boundary in Lambda/Fargate) > **QEMU/KVM** (large C codebase with a long device-emulation CVE history; escapes are demonstrated at security contests on a recurring basis). Two qualifiers keep the QEMU tier acceptable here: (1) nearly all historical escapes land in the **QEMU userspace process** — which for us is inside an unprivileged, credential-free container, not the host — while KVM-module escapes (straight to host kernel) are far rarer; (2) the practical surface is the *configured* device model — minimal for us once backlog item 3 lands. (Not yet true: the spike guests carry virt-install defaults — USB controller, memballoon, SATA cdrom for seed ISOs — and `seccomp_sandbox` is unset. Verified by `--print-xml` probe, 2026-10-01.) The architecture then pairs boundary strength to stakes: the hardest boundary (Nitro) guards the highest stakes (inter-sample/tenant isolation); QEMU guards intra-sample stakes (eval validity), where a breach costs one sample, detectably. If the agent boundary ever needs a Firecracker-class upgrade, the candidate is running the *agent* VM under a rust-vmm hypervisor (e.g. cloud-hypervisor) while targets stay on QEMU — noted, not planned.
+
+
+
+
+## Hardening backlog (2026-10-01, ranked)
+
+1. **Branch protection + required review on `main`, signed commits** (org/GitHub settings). The devbox GitHub token is the one asset reaching beyond any single box; this converts token theft from silent supply-chain compromise into a noisy failed attempt.
+2. **Evidence streaming off-instance implemented early.** It is the integrity story for the whole posture; until it exists, detection-over-prevention is a plan, not a property.
+3. **QEMU surface reduction in the range container** — not yet done (spike guests have virt-install defaults: USB controller, memballoon, SATA cdrom). Two profiles, because minimality and realism pull apart by role: the **agent VM** gets strict-minimal (virtio disk/net/vsock + serial console + virtio-rng; no USB, no video, no memballoon, no cdrom once the daemon is baked in); **target VMs** get minimal-consistent-with-realism (video only where the scenario needs screenshots/console, seed data via virtio disk rather than SATA cdrom where the OS allows). Plus `seccomp_sandbox = 1` in qemu.conf, QEMU pinned and current, and the range.yaml compiler emitting every device explicitly (single-source-of-truth: no tool defaults deciding the attack surface).
+4. **Deny `AF_VSOCK` to non-range containers on dev boxes** (seccomp): CIDs are host-global, so this closes "some other container connects to a guest CID". Prod is covered by one-sample-per-instance.
+5. **Tripwires:** alert on abnormal QEMU exits (a failed escape looks like a crash); canary credentials inside the range container that phone home on use.
+6. **Replace `apparmor=unconfined` on the range container with a tailored profile** (unconfined was spike convenience, not a decision).
+7. **Devbox egress tightening** (allowlist proxy for GitHub/apt/PyPI rather than all of 443) and the burn-after-risky-run practice (`destroy`/`up`) as documented habit.
+
+Residual risks accepted, with eyes open: a QEMU 0-day unwinds the main intra-sample boundary (mitigated by items 3 and 5, blast radius capped at one sample by Nitro); the devbox always holds richer assets than prod (mitigated by item 1 and by keeping adversarial runs on prod).
+
 ## Revisit if
 
 - Multi-sample-per-instance packing is proposed — boundary re-derivation from scratch, including the global CID space.
