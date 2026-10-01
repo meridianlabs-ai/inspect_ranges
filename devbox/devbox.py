@@ -36,6 +36,8 @@ UBUNTU_AMI_PARAM = (
 SSM_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 # nested virtualization is only offered on 8th-generation Intel types and their flex variants
 NESTED_VIRT_TYPES = re.compile(r"^(c8i|m8i|r8i)(-flex)?\.")
+# metal instances run KVM natively, no launch-time CPU option needed (x86 only: the AMI is amd64)
+METAL_TYPES = re.compile(r"\.metal(-\d+xl)?$")
 
 HERE = Path(__file__).resolve().parent
 SSH_DIR = Path.home() / ".ssh"
@@ -336,7 +338,6 @@ class Devbox:
             InstanceType=instance_type,
             MinCount=1,
             MaxCount=1,
-            CpuOptions={"NestedVirtualization": "enabled"},
             # IMDSv2 only, and a hop limit of 1 so containers and VMs on the box can't reach it
             MetadataOptions={
                 "HttpEndpoint": "enabled",
@@ -380,6 +381,9 @@ class Devbox:
                 ),
             ],
         )
+        # metal instances have KVM natively; CpuOptions is invalid for them
+        if not METAL_TYPES.search(instance_type):
+            params["CpuOptions"] = {"NestedVirtualization": "enabled"}
         # capacity for large 8i types varies by zone, so fall through the zones that offer it
         for az in zones:
             params["NetworkInterfaces"][0]["SubnetId"] = self.ensure_subnet(vpc_id, az)
@@ -673,7 +677,7 @@ def cli(ctx: click.Context, name: str, profile: str | None, region: str | None) 
     "--instance-type",
     default="m8i.8xlarge",
     show_default=True,
-    help="c8i/m8i/r8i family (nested virt).",
+    help="c8i/m8i/r8i family (nested virt) or an x86 metal instance.",
 )
 @click.option(
     "--volume-size", default=500, show_default=True, help="Root volume size (GiB)."
@@ -707,9 +711,11 @@ def up(
 ) -> None:
     """Create (or start) the devbox and bring it fully up to date."""
     check_prerequisites()
-    if not NESTED_VIRT_TYPES.match(instance_type):
+    if not (
+        NESTED_VIRT_TYPES.match(instance_type) or METAL_TYPES.search(instance_type)
+    ):
         raise click.UsageError(
-            f"{instance_type} does not support nested virtualization (use c8i, m8i, or r8i)."
+            f"{instance_type} cannot run KVM (use a metal instance, or c8i/m8i/r8i for nested virtualization)."
         )
 
     instance = devbox.instance()
@@ -736,7 +742,7 @@ def up(
         )
     if devbox.ssh("test -e /var/lib/devbox/kvm-missing", check=False).returncode == 0:
         raise click.ClickException(
-            "/dev/kvm is missing on the devbox: nested virtualization is not enabled."
+            "/dev/kvm is missing on the devbox: not a metal instance and nested virtualization is not enabled."
         )
     log(
         f"Host provisioned ({instance_id}); SSH config: {SSH_CONFIG_D / devbox.host_alias}"
