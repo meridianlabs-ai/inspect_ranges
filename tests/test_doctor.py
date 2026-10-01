@@ -11,6 +11,7 @@ from inspect_ranges._doctor._checks import (
     check_image_tools,
     check_ipv6,
     check_kernel_readable,
+    check_virtualization,
     parse_version,
 )
 
@@ -125,6 +126,28 @@ def test_check_docker(
     if fix_mentions is not None:
         fixes = " ".join(result.fix or "" for result in results)
         assert fix_mentions in fixes
+
+
+@pytest.mark.parametrize(
+    ("device", "expected"),
+    [
+        ("net/tun", "fail"),
+        ("vhost-net", "warn"),
+        ("vhost-vsock", "fail"),
+    ],
+)
+def test_check_virtualization_missing_device(
+    tmp_path: Path, device: str, expected: CheckStatus
+) -> None:
+    for name in ("kvm", "net/tun", "vhost-net", "vhost-vsock"):
+        if name != device:
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
+    statuses = {result.name: result.status for result in check_virtualization(tmp_path)}
+    assert statuses[(tmp_path / device).as_posix()] == expected
+    present = tmp_path / "vhost-net" if device != "vhost-net" else tmp_path / "kvm"
+    assert statuses[present.as_posix()] == "ok"
 
 
 @pytest.mark.parametrize(

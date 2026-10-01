@@ -1,0 +1,24 @@
+# vsock exec spike: one range container, one NIC-less VM, control via vsock.
+# Note: no cap_add at all — testing whether a vsock-only range needs zero
+# network capabilities.
+services:
+  range:
+    build: ./range
+    init: true
+    devices:
+      - /dev/kvm
+      - /dev/vhost-vsock
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ${IMAGE_CACHE:-~/.cache/inspect-ranges/images}:/images:ro
+      - scratch:/scratch
+      - ./assets:/assets:ro
+    healthcheck:
+      test: ["CMD", "test", "-e", "/run/range-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  scratch:
