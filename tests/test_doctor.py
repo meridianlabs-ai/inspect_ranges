@@ -4,7 +4,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from inspect_ranges._doctor import CheckResult, CheckStatus, passed, render_text
+from inspect_ranges._doctor import (
+    CheckResult,
+    CheckStatus,
+    passed,
+    render_fix_script,
+    render_text,
+)
 from inspect_ranges._doctor._checks import (
     check_br_netfilter,
     check_docker,
@@ -225,3 +231,57 @@ def test_render_text_shows_fixes_only_for_problems() -> None:
     assert "fix: run the fix" in text
     assert "unused fix" not in text
     assert text.endswith("1 ok, 0 warning(s), 1 failed, 0 skipped")
+
+
+def test_render_text_hints_fix_script_when_fixes_are_runnable() -> None:
+    results = [
+        CheckResult(
+            "G", "broken", "fail", "x", fix="f", fix_command="apt-get install -y x"
+        )
+    ]
+    assert "doctor --fix-script" in render_text(results)
+    assert "doctor --fix-script" not in render_text(
+        [CheckResult("G", "broken", "fail", "x", fix="advice only")]
+    )
+
+
+def test_render_fix_script_includes_only_runnable_fixes_for_problems() -> None:
+    results = [
+        CheckResult(
+            "G", "fine", "ok", "x", fix="f", fix_command="echo should-not-appear"
+        ),
+        CheckResult(
+            "G",
+            "pkg",
+            "fail",
+            "x",
+            fix="f",
+            fix_command="apt-get install -y qemu-utils",
+        ),
+        CheckResult(
+            "G",
+            "group",
+            "warn",
+            "x",
+            fix="f",
+            fix_command='usermod -aG kvm "$SUDO_USER"',
+        ),
+        CheckResult("G", "platform", "fail", "x", fix="use another machine"),
+    ]
+    script = render_fix_script(results)
+    assert script.startswith("#!/bin/sh")
+    assert "set -eu" in script
+    assert '[ "$(id -u)" -eq 0 ]' in script  # refuses to run unprivileged
+    assert "${SUDO_USER:?" in script  # usermod fix needs the invoking user
+    assert script.index("apt-get update") < script.index(
+        "apt-get install -y qemu-utils"
+    )
+    assert 'usermod -aG kvm "$SUDO_USER"' in script
+    assert "should-not-appear" not in script
+    assert "#   G / platform: use another machine" in script  # advice stays a comment
+
+
+def test_render_fix_script_with_nothing_to_fix() -> None:
+    script = render_fix_script([CheckResult("G", "fine", "ok", "x")])
+    assert "no runnable fixes needed" in script
+    assert "id -u" not in script

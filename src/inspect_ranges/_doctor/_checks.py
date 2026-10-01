@@ -88,6 +88,7 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
                 "warn",
                 "not accessible by this user (needed only by tools run directly on the host, e.g. qemu-img, virt-install)",
                 fix="sudo usermod -aG kvm $USER, then log in again",
+                fix_command='usermod -aG kvm "$SUDO_USER"',
             )
         )
     results.append(
@@ -95,6 +96,7 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
             dev / "net" / "tun",
             "fail",
             "sudo modprobe tun && echo tun | sudo tee /etc/modules-load.d/tun.conf",
+            fix_command="modprobe tun && echo tun > /etc/modules-load.d/tun.conf",
         )
     )
     results.append(
@@ -102,6 +104,7 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
             dev / "vhost-net",
             "warn",
             "sudo modprobe vhost_net && echo vhost_net | sudo tee /etc/modules-load.d/vhost_net.conf",
+            fix_command="modprobe vhost_net && echo vhost_net > /etc/modules-load.d/vhost_net.conf",
             missing="missing (VM networking works but is slower)",
         )
     )
@@ -110,6 +113,7 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
             dev / "vhost-vsock",
             "fail",
             "sudo modprobe vhost_vsock && echo vhost_vsock | sudo tee /etc/modules-load.d/vhost_vsock.conf",
+            fix_command="modprobe vhost_vsock && echo vhost_vsock > /etc/modules-load.d/vhost_vsock.conf",
             missing="missing (vsock is the exec/file control channel for VMs)",
         )
     )
@@ -138,14 +142,20 @@ def check_docker(
     server_version = str(data.get("ServerVersion") or "")
     if info.returncode != 0 or not server_version:
         error = _first_line(info.stderr) or "no server version reported"
+        permission = "permission denied" in error.lower()
         fix = (
             "sudo usermod -aG docker $USER, then log in again"
-            if "permission denied" in error.lower()
+            if permission
             else "Start the daemon (sudo systemctl start docker), or check DOCKER_HOST / the current docker context."
         )
         return [
             CheckResult(
-                DOCKER, "Docker daemon", "fail", f"unreachable: {error}", fix=fix
+                DOCKER,
+                "Docker daemon",
+                "fail",
+                f"unreachable: {error}",
+                fix=fix,
+                fix_command='usermod -aG docker "$SUDO_USER"' if permission else None,
             ),
             *_skipped(DOCKER, dependents, "Docker daemon unavailable"),
         ]
@@ -171,6 +181,7 @@ def check_docker(
                 "fail",
                 "Docker Compose plugin not found",
                 fix="sudo apt-get install docker-compose-plugin",
+                fix_command="apt-get install -y docker-compose-plugin",
             )
         )
     else:
@@ -180,6 +191,7 @@ def check_docker(
                 compose_version,
                 DOCKER_COMPOSE_MIN_VERSION,
                 "sudo apt-get install --only-upgrade docker-compose-plugin",
+                fix_command="apt-get install -y --only-upgrade docker-compose-plugin",
             )
         )
 
@@ -213,6 +225,7 @@ def check_br_netfilter(proc_sys: Path) -> CheckResult:
         "warn",
         "loaded with bridge-nf-call-iptables=1 (host iptables rules can filter bridged range traffic)",
         fix="sudo sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0",
+        fix_command="sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0",
     )
 
 
@@ -234,6 +247,7 @@ def check_ipv6(proc_sys: Path) -> CheckResult:
         "warn",
         "disabled (ranges that rely on IPv6, e.g. mitm6 scenarios, won't work)",
         fix="sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0",
+        fix_command="sysctl -w net.ipv6.conf.all.disable_ipv6=0",
     )
 
 
@@ -253,6 +267,7 @@ def check_image_tools(which: Callable[[str], str | None]) -> list[CheckResult]:
                     "fail",
                     "not found",
                     fix=f"sudo apt-get install {package}",
+                    fix_command=f"apt-get install -y {package}",
                 )
             )
     return results
@@ -283,6 +298,11 @@ def check_kernel_readable(boot: Path) -> CheckResult:
         f"not readable by this user: {', '.join(unreadable)} (virt-customize will fail)",
         fix="sudo chmod 0644 /boot/vmlinuz-*, and install the kernel hook from devbox/bootstrap.sh "
         + "(/etc/kernel/postinst.d/zz-devbox-kernel-readable) so future kernels stay readable",
+        fix_command=(
+            "chmod 0644 /boot/vmlinuz-*\n"
+            "printf '#!/bin/sh\\nchmod 0644 /boot/vmlinuz-*\\n' > /etc/kernel/postinst.d/zz-devbox-kernel-readable\n"
+            "chmod 755 /etc/kernel/postinst.d/zz-devbox-kernel-readable"
+        ),
     )
 
 
@@ -295,7 +315,11 @@ def parse_version(text: str) -> tuple[int, ...] | None:
 
 
 def _minimum_version(
-    name: str, version: str, minimum: tuple[int, ...], fix: str
+    name: str,
+    version: str,
+    minimum: tuple[int, ...],
+    fix: str,
+    fix_command: str | None = None,
 ) -> CheckResult:
     required = ".".join(str(part) for part in minimum)
     parsed = parse_version(version)
@@ -308,17 +332,33 @@ def _minimum_version(
         )
     if parsed < minimum:
         return CheckResult(
-            DOCKER, name, "fail", f"{version} (need >= {required})", fix=fix
+            DOCKER,
+            name,
+            "fail",
+            f"{version} (need >= {required})",
+            fix=fix,
+            fix_command=fix_command,
         )
     return CheckResult(DOCKER, name, "ok", version)
 
 
 def _device(
-    path: Path, severity: CheckStatus, fix: str, missing: str = "missing"
+    path: Path,
+    severity: CheckStatus,
+    fix: str,
+    fix_command: str | None = None,
+    missing: str = "missing",
 ) -> CheckResult:
     if path.exists():
         return CheckResult(VIRTUALIZATION, path.as_posix(), "ok", "present")
-    return CheckResult(VIRTUALIZATION, path.as_posix(), severity, missing, fix=fix)
+    return CheckResult(
+        VIRTUALIZATION,
+        path.as_posix(),
+        severity,
+        missing,
+        fix=fix,
+        fix_command=fix_command,
+    )
 
 
 def _skip(group: str, name: str, reason: str) -> CheckResult:
