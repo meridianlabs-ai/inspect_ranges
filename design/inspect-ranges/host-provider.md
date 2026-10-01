@@ -41,4 +41,17 @@ The containment preconditions, restated as dispatch constraints:
 
 ## The deferred fallback, for the record
 
-A pluggable `HostProvider` (`acquire(sample) → RangeHost`, `release(host)`) returning a per-sample Docker endpoint (`unix://`/`ssh://`/`tcp+tls`), with the exec/file plane tunneled through one long-lived `docker exec` stdio↔vsock bridge per sample (setup ~45 ms once, then network RTT + the 1.1 ms vsock hop per call — see [the vsock-exec spike](../spikes/vsock-exec/README.md)). Everything above the channel abstraction is already transport-agnostic, so building this later is additive. If it is ever built for production use, the bridge gets the same conformance testing (`self_check`) as the fast path — not fallback status.
+A pluggable `HostProvider` returning a per-sample Docker endpoint, with the exec/file plane tunneled through one long-lived `docker exec` stdio↔vsock bridge per sample (setup ~45 ms once, then network RTT + the 1.1 ms vsock hop per call — see [the vsock-exec spike](../spikes/vsock-exec/README.md)). Interface sketch, so picking this up later starts from a design rather than a blank page:
+
+```python
+class RangeHost(Protocol):
+    docker: DockerEndpoint        # DOCKER_HOST-style URL (unix:// | ssh:// | tcp+tls) + credentials
+    isolation: Literal["instance", "shared"]   # claimed by the provider, logged per sample
+    facts: HostFacts              # image cache path, CID allocation scope, arch
+
+class HostProvider(Protocol):
+    async def acquire(self, sample: SampleSpec) -> RangeHost: ...
+    async def release(self, host: RangeHost) -> None: ...
+```
+
+Providers would register through the same entry-point mechanism as other inspect_ranges components; `acquire` gates on `doctor` readiness and fails the sample fast with the report. Everything above the channel abstraction is already transport-agnostic, so building this later is additive. If it is ever built for production use, the bridge gets the same conformance testing (`self_check`) as the fast path — not fallback status.
