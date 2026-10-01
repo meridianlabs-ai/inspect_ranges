@@ -20,7 +20,7 @@ timestamp: 2026-10-01
 
 ## Why
 
-**The vsock-exec spike removed the performance case for a container agent** (measured on m6i.metal, 2026-10-01): exec round-trip 1.1 ms median over vsock vs 44.5 ms for `docker exec`; file inject/extract at ~400/~700 MB/s (so runtime binary injection into standard images is cheap); exec_remote-style polling overhead is noise; background processes survive exec returns; boot-to-ready 9.6 s with the daemon baked into the image. One exec/file mechanism then serves agent and targets alike.
+**The vsock-exec spike removed the performance case for a container agent** (measured on m6i.metal, 2026-10-01): exec round-trip 1.1 ms median over vsock vs 44.5 ms for `docker exec`; file inject/extract at ~400/~700 MB/s (so runtime binary injection into standard images is cheap); exec_remote-style polling overhead is noise; background processes survive exec returns; boot-to-ready 9.6 s with the daemon baked into the image. One exec/file mechanism then serves the agent and Linux targets alike. (**Windows exception**, confirmed by [the win-guest spike](../spikes/win-guest/README.md): virtio-vsock has no Windows guest driver — `DEV_1053` stays unbound even after a full virtio-win install — so Windows targets use the QEMU guest agent for exec and ISO/disk hotplug for bulk file transfer. The agent box is Linux, so the agent's control plane is unaffected.)
 
 **The VM boundary buys something real: eval validity.** Within a sample, the strongest reason for agent isolation isn't infrastructure (Nitro handles that) — it's that an agent escaping a *container* on the eval host gets the Docker socket, and with it the range spec, planted flags, and `attack_path`: the ability to cheat quietly rather than solve. A KVM boundary in front of `NET_ADMIN`/`NET_RAW` tooling (the historically buggiest kernel LPE surfaces: nf_tables, AF_PACKET, tc/qdisc) closes the cheap version of that path. And the containment conversation is simply over: the answer to every isolation question about the agent is "it's a KVM guest."
 
@@ -39,6 +39,7 @@ timestamp: 2026-10-01
 - **Daemons are baked into the standard images**, not delivered by cloud-init (a NIC-less guest stalls ~2 min on `systemd-networkd-wait-online` before cloud-init's final stage; baked boot is ~10 s).
 - The production daemon needs (beyond the spike prototype): timeout enforcement with process-tree kill, stdout/stderr separation, output limits, careful write semantics, a vsock↔loopback `forward` op for injected proxies, and Inspect's sandbox `self_check` conformance in CI.
 - Hosts need the `vhost_vsock` module (doctor checks `/dev/vhost-vsock`; devbox bootstrap loads it).
+- **Windows guests are outside the vsock plane** (no guest driver exists): exec via qemu-ga `guest-exec` (acceptable latency; drive it through the libvirt API, not virsh CLI, whose argument limit caps payloads at ~64 KB), bulk files via ISO/disk hotplug (~0.6 MB/s over qemu-ga makes it unusable for bulk). Memory snapshots (1.4 s restore measured) are the Windows boot-storm answer.
 
 ## L2 exposure: rules
 
