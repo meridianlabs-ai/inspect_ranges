@@ -23,3 +23,6 @@ class CheckResult:
 
     fix: str | None = None
     """How to fix a `warn` or `fail`, as exact commands where possible."""
+
+    fix_command: str | None = None
+    """Shell command(s) applying the fix, written to run as root (no `sudo` prefix), with `"$SUDO_USER"` standing for the invoking user; `None` when the fix needs human judgment."""
