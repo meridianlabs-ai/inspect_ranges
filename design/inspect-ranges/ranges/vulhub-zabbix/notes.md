@@ -34,3 +34,5 @@ Translation of `vulhub/zabbix/CVE-2016-10134` (`github.com/vulhub/vulhub`, MIT, 
 ## What this example exercises in the schema
 
 The **minimal case**: one flat network, name-based service discovery (DNS records instead of static IPs), inter-service credentials as config, a **real public CVE** as the entry vuln, no defense, and a canary-style oracle. The floor every schema draft must express trivially.
+
+> Schema v0.1 carve-out (2026-10-01): sections awaiting schema design (goals, attack_path, guest config, ...) moved verbatim from `range.yaml` to [`deferred.yaml`](deferred.yaml); see [schema-v0.1-scope](../../schema-v0.1-scope.md).

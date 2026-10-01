@@ -38,3 +38,5 @@ Translation of MHBench's `equifax_small` topology (repo `github.com/bsinger98/MH
 ## What this example exercises in the schema
 
 Multi-subnet segmentation with **asymmetric per-subnet ACLs** (open DMZ, restricted corporate), `count:` host expansion with sequential static IPs, a planted credential-reuse path kept distinct from the exploitable entry vuln (the exploitable-vs-misconfiguration split), a management plane that must be declared but excluded from play, and a machine-readable planted attack path (L5 — see [../../range-yaml-swag.md](../../range-yaml-swag.md) §0 and §3).
+
+> Schema v0.1 carve-out (2026-10-01): sections awaiting schema design (goals, attack_path, guest config, ...) moved verbatim from `range.yaml` to [`deferred.yaml`](deferred.yaml); see [schema-v0.1-scope](../../schema-v0.1-scope.md).

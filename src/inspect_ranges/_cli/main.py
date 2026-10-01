@@ -2,6 +2,8 @@ import click
 
 from .. import __version__
 from .doctor import doctor
+from .schema import schema
+from .validate import validate
 
 
 @click.group()
@@ -11,6 +13,8 @@ def ranges() -> None:
 
 
 ranges.add_command(doctor)
+ranges.add_command(schema)
+ranges.add_command(validate)
 
 
 def main() -> None:
