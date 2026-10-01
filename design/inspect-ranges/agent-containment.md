@@ -50,9 +50,18 @@ Bridge adjacency adds little kernel surface beyond what the agent's in-VM root a
 4. **Within-segment L2 games (MAC spoofing, CAM flooding) are in-scope agent behavior**; cross-segment isolation comes from separate bridges with no trunking.
 5. `br_netfilter` stays off (doctor checks). For `nat`-mode segments, egress policy is enforced in the range netns nftables *and* the security group; "agent reaches the internet through a NAT'd segment" is a mandatory negative test.
 
-## What Docker still provides (none of it is agent isolation)
+## What Docker still provides (none of it is agent isolation) — and the alternatives considered
 
-The range container remains the hypervisor's packaging and lifecycle system: libvirtd+QEMU pinned and distributed as an image, decoupled from the host OS; per-sample bridges and nftables scoped in a netns created and destroyed atomically with the container (the §8a single-source-of-truth story); per-sample cgroup limits; the integration seam with the AWS fleet layer (handoff §11).
+After always-`kind: vm`, Docker touches exactly one thing — the range container — in five roles: (1) packaging/distribution of the hypervisor stack as a pinned, content-addressed OCI image, decoupled from the host OS and sharing registry infrastructure with the VM golden images; (2) lifecycle atomicity — `compose up/down` is the sample boundary, QEMU dies with the container, scratch volumes die with the project; (3) netns scoping of the whole range network, so bridges/nftables are created and destroyed atomically and never touch the host firewall (the §8a single-source-of-truth story); (4) **the second escape boundary** — the jail that turns a QEMU escape into "unprivileged process" rather than "host root" (device allowlist, zero-to-one capabilities, seccomp, tailored AppArmor per backlog item 6); (5) per-sample cgroup limits. Runtime weight is negligible: one container per sample, ~3 s `compose up` (spikes), no measurable QEMU overhead (handoff §6).
+
+Alternatives weighed (2026-10-01), and why Docker stays:
+
+- **libvirtd on the host (no container)** — lighter, and strictly worse on all five roles; collapses the escape chain to guest→QEMU→host. Rejected.
+- **Podman, especially rootless** — the one alternative with a real security argument: daemonless (no root dockerd/socket) and container-root-as-unprivileged-uid. Device access works via the `kvm` group. Rejected for now because the ecosystem speaks Docker (fleet integration, inspect_ai's ported Docker CLI resilience code, devbox, compose fidelity), and both gains have in-place equivalents: the socket is already unreachable from the range container, and **Docker userns-remap** (backlog item 8) delivers unprivileged container root without leaving the ecosystem. If userns-remap proves painful and the post-escape position still needs demotion, Podman's Docker-compatible socket makes this a swap at the seam, not a redesign.
+- **containerd/nerdctl, systemd-nspawn, raw runc** — remove dockerd, then reimplement image distribution, lifecycle, and limits with less tooling. Rejected.
+- **gVisor / Kata / Firecracker / outer VM as the container layer** — structurally unfit: gVisor cannot pass KVM ioctls; the others reintroduce nesting or cannot expose KVM at all. Rejected above.
+
+**Open question (not an action): libvirtd itself.** The heavyweight surface inside the range container is libvirtd, of which we use a thin slice (domain lifecycle, console, screenshot, hotplug). Driving QEMU directly would shrink the container's daemon surface at the cost of reimplementing that slice. Same trade-off structure as the Docker question; park until the sandbox provider's real libvirt usage is known.
 
 ## How hard is the QEMU boundary? (grading the escape tiers)
 
@@ -76,6 +85,7 @@ Existing eval sandboxes run **Nitro → Firecracker → Docker**; ranges run **N
 5. **Tripwires:** alert on abnormal QEMU exits (a failed escape looks like a crash); canary credentials inside the range container that phone home on use.
 6. **Replace `apparmor=unconfined` on the range container with a tailored profile** (unconfined was spike convenience, not a decision).
 7. **Devbox egress tightening** (allowlist proxy for GitHub/apt/PyPI rather than all of 443) and the burn-after-risky-run practice (`destroy`/`up`) as documented habit.
+8. **Evaluate Docker userns-remap for the range container**: container root becomes an unprivileged host uid, demoting the post-QEMU-escape position further. The work is device-access plumbing (group ACLs on `/dev/kvm`, `/dev/vhost-net`, `/dev/vhost-vsock`, `/dev/net/tun` for the remapped uid) — contained and testable. If it proves painful, rootless Podman via its Docker-compatible socket is the recorded fallback.
 
 Residual risks accepted, with eyes open: a QEMU 0-day unwinds the main intra-sample boundary (mitigated by items 3 and 5, blast radius capped at one sample by Nitro); the devbox always holds richer assets than prod (mitigated by item 1 and by keeping adversarial runs on prod).
 
