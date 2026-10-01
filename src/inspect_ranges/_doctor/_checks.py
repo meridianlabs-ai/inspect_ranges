@@ -105,6 +105,14 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
             missing="missing (VM networking works but is slower)",
         )
     )
+    results.append(
+        _device(
+            dev / "vhost-vsock",
+            "fail",
+            "sudo modprobe vhost_vsock && echo vhost_vsock | sudo tee /etc/modules-load.d/vhost_vsock.conf",
+            missing="missing (vsock is the exec/file control channel for VMs)",
+        )
+    )
     return results
 
 

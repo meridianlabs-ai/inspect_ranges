@@ -43,7 +43,18 @@ Not needed at all (they exist because users author compose files; ours are gener
 - Run Inspect's sandbox conformance suite (`self_check`) against our agent container in CI from day one ([handoff §10](../inspect_ranges_handoff.md)). It verifies the exec/read/write behavior we ported.
 - Occasionally diff the ported functions against upstream; cheap while the provider is stable.
 
+## Revision 2026-10-01: always-`kind: vm` narrows the ported surface
+
+The [agent-containment decision](agent-containment.md) (after the [vsock-exec spike](../spikes/vsock-exec/README.md)) makes the agent a VM, so there is no agent container and no `docker exec` hot path. This changes the table above:
+
+- **Agent-container `exec` and `write_file`/`read_file`: no longer ported.** The agent and the target VMs share one exec/file mechanism — the vsock daemon. The upstream code's *behavioral contract* still guides the daemon's design (timeout kills the process tree, timeout-vs-OOM disambiguation, partial output on timeout, output limits, the exception mapping `self_check` exercises), but as a specification, not copied code.
+- **Failure classification: adapt the idea, not the code.** "Sandbox dead vs command failed" with narrow matching remains the model; the signals are now VM/vsock-health ones, not Docker ones.
+- **Docker CLI resilience (`compose_command`): still ported.** We drive compose for the range container; the hang/retry/concurrency fixes apply unchanged.
+- **Lifecycle and cleanup: still rewritten** modelled on upstream (now also covering VM overlays and kept-alive failed ranges; veth pairs are gone from the cleanup story).
+- Inspect's `self_check` conformance suite now runs against the vsock exec path in CI — it is the acceptance test for the daemon replacing the ported exec code.
+
 ## Revisit if
 
 - Inspect exposes a public, supported Docker-exec building block that we could depend on instead of porting.
 - The upstream provider changes substantially in the areas we ported (e.g. new exec or failure-classification fixes).
+- A `kind: container` agent is ever introduced as an optimization — the exec/file porting rows above come back into scope.
