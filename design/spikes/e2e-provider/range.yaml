@@ -1,0 +1,34 @@
+# Minimal schema-v0.1 range for the end-to-end provider spike: one isolated
+# segment, one Linux target, one dedicated attack VM. Both guests run the
+# spike's vsockd2 daemon (baked into the noble-e2e image).
+range:
+  name: e2e-smoke
+  title: End-to-end provider spike — one segment, one target, one agent
+  schema_version: "0.1"
+  description: >
+    Smoke-test range for the Inspect sandbox-provider spike: validates the
+    chain eval -> provider -> compiled range -> booted VMs -> vsock exec.
+  source:
+    artifact: inspect_ranges spike (no upstream)
+    license: MIT
+    files: []
+    upstream_substrate: none
+    fetched: 2026-10-01
+    commit: "0000000000000000000000000000000000000000"
+
+networks:
+  - name: lab
+    cidr: 10.90.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux, distro: ubuntu-24.04 }
+    image: noble-e2e
+    interfaces: [{ network: lab, ip: 10.90.10.10 }]
+
+attacker:
+  interfaces: [{ network: lab, ip: 10.90.10.2 }]
+  image: noble-e2e
+  entry: external
+  egress: none
