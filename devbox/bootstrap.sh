@@ -75,7 +75,7 @@ usermod -aG kvm,libvirt,docker $DEV_USER
 printf 'vhost_net\ntun\n' >/etc/modules-load.d/devbox.conf
 modprobe vhost_net
 modprobe tun
-# nested virtualization is a launch-time CPU option; without it there is no /dev/kvm
+# KVM needs a metal instance or nested virtualization (a launch-time CPU option); without either there is no /dev/kvm
 [[ -e /dev/kvm ]] || touch "$STATE/kvm-missing"
 # libguestfs (virt-customize) reads the host kernel to build its appliance; Ubuntu
 # installs kernels 0600, so keep them world-readable, including future kernels

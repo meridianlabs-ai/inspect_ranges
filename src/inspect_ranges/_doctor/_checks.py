@@ -66,7 +66,7 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
         _device(
             kvm,
             "fail",
-            "Use a KVM-capable host: on EC2 a c8i/m8i/r8i instance launched with nested virtualization; elsewhere enable VT-x in firmware and load kvm_intel.",
+            "Use a KVM-capable host: on EC2 a metal instance (e.g. m6i.metal) or a c8i/m8i/r8i instance launched with nested virtualization; elsewhere enable VT-x in firmware and load kvm_intel.",
         )
     ]
     if not kvm.exists():

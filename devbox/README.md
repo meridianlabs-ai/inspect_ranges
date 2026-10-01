@@ -1,6 +1,6 @@
 # Remote development box
 
-inspect_ranges needs Linux with KVM (libvirt/QEMU inside containers, nested virtualization, Docker), so development happens on an EC2 devbox rather than locally. `devbox.py` provisions one per developer and manages its lifecycle.
+inspect_ranges needs Linux with KVM (libvirt/QEMU inside containers, via a metal instance or nested virtualization, plus Docker), so development happens on an EC2 devbox rather than locally. `devbox.py` provisions one per developer and manages its lifecycle.
 
 ```bash
 uv run devbox/devbox.py --profile <profile> --region <region> up
@@ -36,7 +36,7 @@ Global options: `--profile`, `--region` (these default to `AWS_PROFILE`/`AWS_REG
 | `github-token` | Store a GitHub token on the box (read from stdin), then clone and sync the repo. |
 | `destroy [--all]` | Terminate the box (deleting its disk, including its GitHub token). `--all` also removes the shared VPC and IAM role when no devboxes remain. |
 
-`up` options (the instance options apply only when the box is created): `--instance-type` (default `m8i.8xlarge`; must be c8i/m8i/r8i for nested virtualization), `--volume-size` (500 GiB), `--iops` (6000), `--throughput` (500 MiB/s), `--idle-minutes` (60), `--backstop-hours` (6).
+`up` options (the instance options apply only when the box is created): `--instance-type` (default `m8i.8xlarge`; must be c8i/m8i/r8i for nested virtualization, or an x86 metal instance such as `m6i.metal`), `--volume-size` (500 GiB), `--iops` (6000), `--throughput` (500 MiB/s), `--idle-minutes` (60), `--backstop-hours` (6).
 
 You rarely need `start`. SSH and VS Code connect through a `ProxyCommand` that starts a stopped box automatically.
 
@@ -172,6 +172,6 @@ The credentials that run `devbox.py` need roughly this policy. Replace `ACCOUNT`
 
 - **`up` says the box has no GitHub token:** create one and run `github-token` (see [GitHub access](#github-access)); `up` finishes the remaining setup after that.
 - **`up` fails during provisioning:** run `ssh inspect-ranges-devbox sudo tail -100 /var/log/devbox-bootstrap.log`.
-- **`/dev/kvm is missing`:** the instance type doesn't support nested virtualization, or it was launched without it. `destroy` and `up` with a c8i/m8i/r8i type.
+- **`/dev/kvm is missing`:** the instance type can't run KVM (not metal, and nested virtualization unsupported or not enabled at launch). `destroy` and `up` with a c8i/m8i/r8i type or an x86 metal instance.
 - **VS Code times out connecting:** raise `remote.SSH.connectTimeout` (see [Prerequisites](#prerequisites)).
 - **Host key warning after re-creating a box:** `up` clears the pinned key automatically. Otherwise delete `~/.ssh/known_hosts.d/inspect-ranges-devbox`.
