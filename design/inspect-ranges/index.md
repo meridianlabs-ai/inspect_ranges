@@ -6,6 +6,7 @@ Working folder for **`inspect_ranges`** — a new [Inspect](https://inspect.aisi
 * [range.yaml — draft schema swag (v0.1)](range-yaml-swag.md) - the working strawman schema the six examples exercise: the L1–L9 range anatomy and D0–D5 defense spectrum, the networking-requirements table (each requirement → its libvirt realization → the example that forces it), and the attack_path concept mapped across surveyed formats
 * [Decision: own the libvirt sandbox provider](docker-provider-reuse.md) - why we write our own provider rather than reusing Inspect's Docker provider, what we give up, and which pieces we port (with attribution) vs rewrite
 * [Decision: untrusted-agent containment](agent-containment.md) - the agent is always a VM (`kind: vm`) controlled over virtio-vsock, no privileged components anywhere; Nitro one-sample-per-instance is the inter-sample boundary; vsock control-plane and L2 exposure rules
+* [Decision: deployment seam](host-provider.md) - sharded Inspect with strictly local realization (worker on each Nitro instance, direct vsock); the remote `HostProvider`/Docker-endpoint path is deferred — a documented fallback built only if sharding proves unviable; isolation is a logged per-sample claim
 * [Upstream licenses and attribution](LICENSES.md) - what is vendored under each `upstream/` directory, from where, and under which license
 
 ## Example ranges (development/testing baseline)
