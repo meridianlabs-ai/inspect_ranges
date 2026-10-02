@@ -126,7 +126,7 @@ The Proxmox provider (MIT) encodes the qemu-ga edge cases we would otherwise red
 
 ### Images
 
-Pinned upstream cloud images → derived goldens via offline `virt-customize` (daemon baked in; package installation belongs in Packer CI — `--install` is broken on noble hosts); qcow2 overlays per guest on read-only goldens, never in a container layer; backing references must be relative (cache mounts at a different path in-container); publication via OCI/ORAS by digest (designed, unbuilt).
+Pinned upstream cloud images → derived goldens via offline `virt-customize` (daemon baked in; package installation belongs in Packer CI — `--install` is broken on noble hosts); qcow2 overlays per guest on read-only goldens, never in a container layer; backing references must be relative (cache mounts at a different path in-container); publication as **content-addressed qcow2 delta layers over OCI/ORAS** — Docker's distribution model with backing chains in place of overlayfs — with EBS-snapshot/FSR caches as the fleet cold-start path and lazy HTTP backing (`curl` driver + copy-on-read; measured: 0.4 s boot penalty, chains resolve over HTTP, self-warming cache) as the registry-direct path ([image-distribution](image-distribution.md), [lazy-pull spike](../spikes/lazy-pull/README.md)). Standard agent/guest images ship **zero network listeners** (`ss -tlnp` empty at boot — access is vsock-only); the current spike images violate this (cloud-image sshd), recorded as hardening backlog item 9.
 
 ## 6. Security posture
 
@@ -143,6 +143,8 @@ Pinned upstream cloud images → derived goldens via offline `virt-customize` (d
 **Why the VM boundary earns its cost: eval validity.** An agent that escapes a *container* on the eval host gets the Docker socket — and with it the range spec, planted flags, and the answer key: the ability to cheat quietly rather than solve. Behind KVM, that costs a hypervisor escape first. Detection (evidence streaming) covers tampering; the VM boundary covers *reading the answers*, which is quieter than tampering.
 
 **vsock-plane security.** CIDs are host-kernel-global (not namespaced): allocation is deterministic per host, guests' daemons accept only CID 2 (the hypervisor host), and isolation of the control plane between samples leans on one-sample-per-instance — restated as a dispatch constraint in §7. Guest daemons are untrusted endpoints (above).
+
+**Defender→agent isolation.** In-range defenders cannot *connect* to the agent (the control plane has no IP endpoint; standard images ship zero network listeners — the only connectable surface is a port the agent opened as tradecraft), can *detect* only its transmitted traffic (interior, control channel, and oracle are invisible to in-guest defenders; fingerprinting is homogeneous with targets), and cannot *own* it remotely except by hack-back through the agent's own tooling — a per-range D5 policy decision; even then an owned agent box cannot pivot (vsock is host↔guest only) and costs one detectable sample. Defender→agent port scans returning zero open ports are mandatory range conformance checks. Full analysis in [agent-containment](agent-containment.md).
 
 **Precondition, stated loudly: one sample per instance.** The entire posture is derived from this asset layout. If multi-sample packing is ever proposed, the container boundary becomes load-bearing between tenants and everything in this section must be re-derived.
 
@@ -193,6 +195,8 @@ The oracle sees everything; defenders see only what the agent transmits. pcap ca
 | Windows boot → exec-responsive | 6.5 s |
 | Windows 4 GB snapshot save / restore | 10.1 s / 1.4 s |
 | Agent VM boot → daemon ready (baked image) | 9.6 s |
+| Full `inspect eval` vs 2-VM range (boot→solve→score→teardown) | 15–16 s |
+| Lazy-pull boot (HTTP backing, no pre-download) vs local | 10.2 s vs 9.8 s; warm reboot 7.2 s (+11 MB) |
 
 Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal deltas, cold-start economics (warm pools, Fast Snapshot Restore) — handoff §13 experiments 3–5.
 
@@ -207,7 +211,7 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 | Compiled networking (IPAM→nftables) | **Demonstrated** (spike-grade compiler) | net-compile, 9/9 checks |
 | vsock exec/file plane | **Demonstrated** (prototype daemon) | vsock-exec |
 | Windows guests + qemu-ga + snapshots | **Demonstrated** | win-guest |
-| Sandbox provider (`SandboxEnvironment`) + `self_check` | **Designed, next up** | docker-provider-reuse, guest-exec-lessons |
+| Sandbox provider (`SandboxEnvironment`) + `self_check` | **Demonstrated** (spike): `inspect eval` end-to-end, accuracy 1.0 in ~15 s; `self_check` 41/44 (all 3 failures = daemon-as-root permission semantics) | [e2e-provider spike](../spikes/e2e-provider/README.md) |
 | Production vsockd (idempotent, validated, hostile-tested) | Designed | guest-exec-lessons punch list |
 | Evidence streaming off-instance | Designed | backlog item 2; §7 dependency |
 | Image pipeline (Packer CI, ORAS registry) | Designed | handoff §7 |

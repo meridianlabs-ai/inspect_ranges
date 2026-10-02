@@ -11,6 +11,7 @@ Working folder for **`inspect_ranges`** — a new [Inspect](https://inspect.aisi
 * [Decision: untrusted-agent containment](agent-containment.md) - the agent is always a VM (`kind: vm`) controlled over virtio-vsock, no privileged components anywhere; Nitro one-sample-per-instance is the inter-sample boundary; vsock control-plane and L2 exposure rules
 * [Decision: deployment seam](host-provider.md) - sharded Inspect with strictly local realization (worker on each Nitro instance, direct vsock); the remote `HostProvider`/Docker-endpoint path is deferred — a documented fallback built only if sharding proves unviable; isolation is a logged per-sample claim
 * [Guest exec/file edge cases](guest-exec-lessons.md) - lessons mined from the Proxmox provider's qemu-ga handling (single-shot exec-status, flock-guarded launches, ~5–7% Windows channel flake, tamper validation) and the contract they impose on the vsock daemon
+* [Image distribution](image-distribution.md) - qcow2 backing chains as content-addressed OCI layers (Docker's distribution model transplanted), EBS/FSR as the fleet cold-start path, curl+copy-on-read lazy pull, CDC held for base-rebuild churn
 * [Upstream licenses and attribution](LICENSES.md) - what is vendored under each `upstream/` directory, from where, and under which license
 
 ## Example ranges (development/testing baseline)

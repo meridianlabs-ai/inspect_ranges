@@ -58,17 +58,18 @@ def _vsock_request(cid: int, header: dict[str, Any], payload: bytes = b"") -> tu
         s.sendall((json.dumps(header) + "\n").encode())
         if payload:
             s.sendall(payload)
-        line = b""
-        while not line.endswith(b"\n"):
-            c = s.recv(1)
-            if not c:
+        buf = b""
+        while b"\n" not in buf:
+            chunk = s.recv(65536)
+            if not chunk:
                 raise ConnectionError("eof from daemon")
-            line += c
+            buf += chunk
+        line, _, rest = buf.partition(b"\n")
         reply: dict[str, Any] = json.loads(line)
         body = b""
         if header["op"] == "read" and "size" in reply:
-            remaining = reply["size"]
-            chunks = []
+            chunks = [rest[: reply["size"]]]
+            remaining = reply["size"] - len(chunks[0])
             while remaining:
                 chunk = s.recv(min(1 << 20, remaining))
                 if not chunk:
@@ -115,6 +116,10 @@ class RangesSpikeSandboxEnvironment(SandboxEnvironment):
         allocation = compile_range(spec, HERE / "tmp" / "render")
 
         def up() -> None:
+            try:  # idempotent init: a stale project means stale VMs on old images
+                _compose("down", "-v")
+            except subprocess.CalledProcessError:
+                pass
             _compose("up", "-d", "--build", "--wait")
             _compose("exec", "range", "bash", "/render/boot-vms.sh")
 
@@ -169,10 +174,11 @@ class RangesSpikeSandboxEnvironment(SandboxEnvironment):
         concurrency: bool = True,
     ) -> ExecResult[str]:
         header: dict[str, Any] = {"op": "exec", "cmd": cmd, "cwd": cwd, "env": env, "user": user, "timeout": timeout}
+        payload = b""
         if input is not None:
-            raw = input.encode() if isinstance(input, str) else input
-            header["input"] = base64.b64encode(raw).decode()
-        reply, _ = await asyncio.to_thread(_vsock_request, self.cid, header)
+            payload = input.encode() if isinstance(input, str) else input
+            header["input_size"] = len(payload)
+        reply, _ = await asyncio.to_thread(_vsock_request, self.cid, header, payload)
         if reply.get("timeout"):
             raise TimeoutError("Command timed out")
         if "error" in reply:
@@ -185,6 +191,8 @@ class RangesSpikeSandboxEnvironment(SandboxEnvironment):
         if reply.get("stdout_truncated") or reply.get("stderr_truncated"):
             raise OutputLimitExceededError("16 MiB", stdout)
         rc = reply["rc"]
+        if rc < 0:  # Popen reports signal death as -N; the shell convention is 128+N
+            rc = 128 - rc
         if rc == 126 and "permission denied" in stderr.lower():
             raise PermissionError(stderr.strip())
         return ExecResult(success=rc == 0, returncode=rc, stdout=stdout, stderr=stderr)
