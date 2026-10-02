@@ -50,6 +50,15 @@ Bridge adjacency adds little kernel surface beyond what the agent's in-VM root a
 3. **Prefer static addressing (cloud-init/IPAM) over DHCP.** A dnsmasq on an agent-facing segment is agent-reachable userspace attack surface (DNSpooq-class history); where DHCP/DNS is required, scope it per segment and prefer a router *guest*.
 4. **Within-segment L2 games (MAC spoofing, CAM flooding) are in-scope agent behavior**; cross-segment isolation comes from separate bridges with no trunking.
 5. `br_netfilter` stays off (doctor checks). For `nat`-mode segments, egress policy is enforced in the range netns nftables *and* the security group; "agent reaches the internet through a NAT'd segment" is a mandatory negative test.
+6. **Defender→agent negative tests are mandatory range conformance checks**: port-scan the agent VM from a target → zero open ports (unless the task itself opened them); assert no IP-reachable management endpoint exists on any segment (the control plane must not be scannable).
+
+## Defender-facing posture: the agent's sanctuary
+
+How we ensure in-range defenders (D2 telemetry through D5 adaptive) cannot own, detect, or connect to the agent box — three guarantees with three mechanisms, and two things deliberately *not* guaranteed:
+
+- **Connect:** there is nothing to connect to. The control plane is vsock — no IP endpoint, no management NIC, no management subnet to discover; `vsockd` binds `AF_VSOCK` only and accepts only CID 2. Standard agent images ship **zero network listeners** (backlog item 9), so the only connectable surface is a port the agent itself opened as tradecraft. Router ACLs apply symmetrically toward the agent's segment, so defenders in other segments may not even reach its IP (the asymmetric-deny direction proven in the net-compile spike).
+- **Detect:** the agent's *transmitted traffic* is detectable and must be — that is D2+ realism, not a leak. Everything else is invisible to in-guest defenders: the agent's interior (no EDR/telemetry on the attack box; defenders live inside target VMs with no hypervisor access), the control channel (zero frames on any bridge; a NIC-less VM is fully controllable, per the vsock-exec spike), and the oracle (pcap capture on bridges in the range container, outside every VM). Fingerprinting is homogeneous: same QEMU MAC OUI and virtio devices as targets, static addressing (no DHCP chatter).
+- **Own:** with no listeners, remote compromise requires hack-back *through the agent's own tooling* (a counter-exploitable handler). Whether that is in-scope is a **per-range D5 policy decision**: D0–D4 defenders do not counterattack; if a range enables adaptive counterattack, "can't own" correctly becomes a measured outcome rather than a guarantee, and the range must say so. If the agent box is owned anyway, the blast radius is the mirror of the agent-owns-target case: vsock is strictly host↔guest (no guest↔guest pivot), the daemon's replies are already untrusted input to the harness, and the damage is one invalidated sample, visible in evidence.
 
 ## What Docker still provides (none of it is agent isolation) — and the alternatives considered
 
@@ -81,6 +90,7 @@ Not all VM boundaries are equal, and we should not claim otherwise. The honest o
 6. **Replace `apparmor=unconfined` on the range container with a tailored profile** (unconfined was spike convenience, not a decision).
 7. **Devbox egress tightening** (allowlist proxy for GitHub/apt/PyPI rather than all of 443) and the burn-after-risky-run practice (`destroy`/`up`) as documented habit.
 8. **Evaluate Docker userns-remap for the range container**: container root becomes an unprivileged host uid, demoting the post-QEMU-escape position further. The work is device-access plumbing (group ACLs on `/dev/kvm`, `/dev/vhost-net`, `/dev/vhost-vsock`, `/dev/net/tun` for the remapped uid) — contained and testable. If it proves painful, rootless Podman via its Docker-compatible socket is the recorded fallback.
+9. **Standard agent/guest images ship zero network listeners by default** (disable/remove sshd and socket-activated services; acceptance check: `ss -tlnp` empty at boot). Access is vsock-only; any listening port is the agent's own doing. Motivating finding: the spike guest images run sshd (Ubuntu cloud-image default once host keys exist), so the e2e spike's agent box has port 22 open on the lab segment — fine for a spike, disqualifying for production images.
 
 Residual risks accepted, with eyes open: a QEMU 0-day unwinds the main intra-sample boundary (mitigated by items 3 and 5, blast radius capped at one sample by Nitro); the devbox always holds richer assets than prod (mitigated by item 1 and by keeping adversarial runs on prod).
 

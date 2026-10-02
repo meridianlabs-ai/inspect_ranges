@@ -22,13 +22,27 @@ OUTPUT_CAP = 16 * 1024 * 1024  # per stream
 
 
 def recv_line(conn):
+    """Buffered header read; returns (line, remainder) — remainder is payload prefix."""
     buf = b""
-    while not buf.endswith(b"\n"):
-        c = conn.recv(1)
-        if not c:
-            return None
-        buf += c
-    return buf
+    while b"\n" not in buf:
+        chunk = conn.recv(65536)
+        if not chunk:
+            return None, b""
+        buf += chunk
+    line, _, rest = buf.partition(b"\n")
+    return line, rest
+
+
+def recv_exact(conn, prefix, n):
+    chunks = [prefix[:n]]
+    remaining = n - len(chunks[0])
+    while remaining:
+        chunk = conn.recv(min(1 << 20, remaining))
+        if not chunk:
+            raise ConnectionError("short stream")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
 
 
 def send_json(conn, obj):
@@ -42,11 +56,10 @@ def errno_name(err):
         return str(err)
 
 
-def do_exec(req):
+def do_exec(req, stdin):
     cmd = req["cmd"]
     if req.get("user"):
         cmd = ["runuser", "-u", req["user"], "--"] + cmd
-    stdin = base64.b64decode(req["input"]) if req.get("input") is not None else None
     env = dict(os.environ)
     env.update(req.get("env") or {})
     cwd = req.get("cwd")
@@ -89,7 +102,7 @@ def do_exec(req):
 
 def handle(conn):
     try:
-        line = recv_line(conn)
+        line, rest = recv_line(conn)
         if line is None:
             return
         req = json.loads(line)
@@ -97,7 +110,10 @@ def handle(conn):
         if op == "ping":
             send_json(conn, {"ok": True})
         elif op == "exec":
-            send_json(conn, do_exec(req))
+            stdin = None
+            if req.get("input_size") is not None:
+                stdin = recv_exact(conn, rest, req["input_size"])
+            send_json(conn, do_exec(req, stdin))
         elif op == "stat":
             try:
                 st = os.stat(req["path"])
@@ -105,28 +121,16 @@ def handle(conn):
             except OSError as e:
                 send_json(conn, {"error": str(e), "errno": errno_name(e.errno)})
         elif op == "write":
-            remaining = req["size"]
+            data = recv_exact(conn, rest, req["size"])
             try:
                 parent = os.path.dirname(req["path"])
                 if parent:
                     os.makedirs(parent, exist_ok=True)
-                f = open(req["path"], "wb")
+                with open(req["path"], "wb") as f:
+                    f.write(data)
             except OSError as e:
-                # drain the stream so the client doesn't block, then report
-                while remaining:
-                    chunk = conn.recv(min(1 << 20, remaining))
-                    if not chunk:
-                        break
-                    remaining -= len(chunk)
                 send_json(conn, {"error": str(e), "errno": errno_name(e.errno)})
                 return
-            with f:
-                while remaining:
-                    chunk = conn.recv(min(1 << 20, remaining))
-                    if not chunk:
-                        raise ConnectionError("short write stream")
-                    f.write(chunk)
-                    remaining -= len(chunk)
             send_json(conn, {"ok": True})
         elif op == "read":
             try:
