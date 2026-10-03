@@ -171,7 +171,7 @@ Inspect's sharding layer dispatches samples to instances; a worker runs on each 
 
 What we require from the sharding layer: at most one resident sample per instance; the worker told its isolation level (for the logged claim); **mid-run log/evidence sync** off-instance — *open external dependency: confirm Inspect sharding supports mid-run sync; if end-of-shard only, evidence streaming needs its own channel.*
 
-The remote path (pluggable `HostProvider` returning per-sample Docker endpoints, exec bridged over a held-open `docker exec`↔vsock stream) is **designed, documented, deliberately unbuilt**, with falsifiable triggers for building it. The only code-level insurance: the vsock client sits behind a thin channel interface; nothing above it may know its transport.
+A second, fully supported topology (revised 2026-10-03) separates the scaffold from the range: a pluggable `HostProvider` lets an orchestration layer allocate a machine per sandbox, with exec bridged over a held-open `docker exec`↔vsock stream. This is the **stronger posture** — the worker's model credentials and eval state live outside the attackable instance — and is preferred for untrusted-model runs; co-resident sharding remains the simpler default. The vsock client sits behind a thin channel interface; nothing above it may know its transport.
 
 ## 8. Host story: `doctor`
 

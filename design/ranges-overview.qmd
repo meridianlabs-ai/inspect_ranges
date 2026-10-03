@@ -2,15 +2,13 @@
 
 Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for evaluating models and agents on network intrusion and defense tasks. The goal is support for a wide variety of complex networks while still preserving ease of development and deployment:
 
-1.  Cyber ranges are defined in a YAML format (`range.yaml`) covering networks, routers and their ACLs, hosts, attacker foothold, dynamic range generation, defenders, and attack-path definitions.
+1.  Cyber ranges are defined in a YAML format (`range.yaml`) covering networks, routers, hosts, attacker foothold, dynamic range generation, defenders, and attack-path definitions.
 
-2.  Ranges run as libvirt/KVM virtual machines orchestrated by an unprivileged container, on any Linux host with KVM (bare metal, or cloud instances with nested virtualization). Windows guests are supported, including Active Directory networks.
+2.  Ranges can run on any Linux host with KVM (bare metal, or cloud instances with nested virtualization) using libvirt/KVM virtual machines. Windows guests are supported, including Active Directory networks.
 
-3.  Range control runs over a hypervisor channel, not a network, so nothing in-range can discover, firewall, or connect to it: defenders see only the traffic the agent chooses to send. The agent runs inside its own VM, contained by KVM and an outer unprivileged container.
+3.  Attacker agents run inside a dedicated VM, and are contained by KVM, an outer unprivileged container, and a cloud hypervisor (e.g. AWS Nitro).
 
-4.  Evaluations scale horizontally: each sample runs on its own EC2 instance, with the Nitro hypervisor as the isolation boundary.
-
-5.  For scoring integrity, evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle sees everything.
+4.  Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle can see everything.
 
 ## Range Definition
 
@@ -56,8 +54,6 @@ attacker:
   entry: external
 ```
 
-Addresses may be pinned or left to deterministic allocation, and anything not declared is denied by default: the attacker reaches the database only through the router's single allowed port.
-
 Beyond this minimal example, range definitions may cover:
 
 - Per-network addressing (static or DHCP) and DNS.
@@ -73,7 +69,7 @@ At startup, the definition is compiled into libvirt/KVM infrastructure: networks
 
 ## Evaluation
 
-Datasets consist of one or more challenges that an attacker agent runs on the range (an Inspect "libvirt" sandbox):
+Datasets provide challenges that an attacker agent runs on the range (an Inspect "libvirt_range" sandbox):
 
 ``` python
 from inspect_ai import Task, task
@@ -90,15 +86,13 @@ def dmz_pivot():
         dataset=challenge_dataset("challenges.yaml"),
         solver=react(tools=[bash()]),
         scorer=challenge_scorer(),
-        sandbox=("libvirt", "range.yaml"),
+        sandbox=("libvirt_range", "range.yaml"),
     )
 ```
 
 ### Challenges
 
-Challenges are defined separately from the range as ranges may serve many evaluations: a milestone ladder, single-objective runs, or technique-per-sample families all against the same environment.
-
-Each challenge pairs an agent-facing prompt with a typed goal that `challenge_scorer()` knows how to verify. For the range above, a `challenges.yaml` might be:
+Challenges are defined separately from the range as ranges may serve many evaluations. Each challenge pairs an agent-facing prompt with a typed goal that `challenge_scorer()` verifies. For the range above, a `challenges.yaml` might be:
 
 ``` yaml
 challenges:
@@ -130,36 +124,36 @@ challenges:
       path: /root/flag.txt
 ```
 
-`challenge_dataset()` turns each entry into an Inspect sample. Goals provide both scorer's verification criteria and drive per-sample setup where needed (e.g. a `flag` goal plants a per-epoch randomized flag value at the declared path before the agent starts).
+`challenge_dataset()` turns each entry into an Inspect sample. Goals both provide the scorer's verification criteria and drive per-sample setup where needed (e.g. a `flag` goal plants a per-epoch randomized flag value at the declared path before the agent starts).
 
 ### Attacker
 
-Any Inspect agent can be used as the attacker, including built-in agents like `react()` and `deepagent()` and full coding-agent scaffolds like Claude Code and Codex (via `inspect_swe`). Agent tools execute on the attack box through the standard `sandbox()` API.
+Any Inspect agent can be used as the attacker, including built-in agents like [react()](https://inspect.aisi.org.uk/react-agent.html) and [deepagent()](https://inspect.aisi.org.uk/deepagent.html) and full coding-agent scaffolds like Claude Code and Codex (via [inspect_swe](https://meridianlabs-ai.github.io/inspect_swe/)). Agent tools execute on the attack box through the standard `sandbox()` API.
 
-The attack box itself is a VM like any other guest: a real NIC in the broadcast domain, where poisoning and relay tradecraft work exactly as on physical networks. Its control channel, by contrast, rides a hypervisor channel on no network at all: nothing in-range can observe, firewall, or connect to it (see [Security Model](#security-model)).
+The attack box runs in a dedicated VM like any other guest with a real NIC in the broadcast domain, so poisoning and relay tradecraft work as on physical networks. Its control channel (the means of sending `exec()` commands), by contrast, is a hypervisor channel out of band from the network: nothing in-range can observe, firewall, or connect to it (see [Security Model](#security-model)).
 
 ### Scoring
 
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
 | Goal | Checked by |
-|------------------------|-----------------------------------------------|
+|--------------------------|----------------------------------------------|
 | `flag` | the submitted value matches the planted flag |
 | `exfiltrate` | the file actually arrived on the attack box |
 | `execute` | an execution marker was left on the target host |
 | `privilege` | state on the target (e.g. group membership) |
 | `detection` | the telemetry sink does (or does not) contain the expected alert |
 
-Scorers (built-in or custom) can also draw on captured evidence — for example, per-segment packet captures, console logs, and screenshots, all collected outside the VMs. Useful for partial credit (which segments were reached), stealth objectives (no alert fired), and verifying what the transcript claims.
+Scorers (built-in or custom) can also draw on captured evidence collected outside the VMs (e.g. per-segment packet captures, console logs, and screenshots). This is useful for partial credit (which segments were reached), stealth objectives (no alert fired), and other types of verification.
 
 ## Architecture
 
 ### Compilation {#compilation}
 
-Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically (the same spec always produces the same addresses). Each element of the spec then lands in libvirt/QEMU as follows:
+Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically (the same spec always yields the same addresses). Each element of the spec then maps to libvirt/QEMU as follows:
 
 | `range.yaml` | Becomes |
-|------------------------|-----------------------------------------------|
+|--------------------------|----------------------------------------------|
 | network | Linux bridge, private to the range, with no IP of its own |
 | host, router, or attacker | KVM/libvirt domain with virtio devices, booted from a copy-on-write overlay on a read-only golden image |
 | interface | Virtio NIC on the named bridge, with its allocated MAC; the guest's addressing and hostname are delivered by a generated cloud-init seed. |
@@ -175,39 +169,38 @@ Range startup consists of:
 
 ### Range Container
 
-Each range is a single Docker container running the hypervisor stack (libvirtd and QEMU) and hosts every guest as a VM, including the attack box. Docker's job is packaging and lifecycle:
+Each range is a single Docker container running the hypervisor stack (libvirtd and QEMU) and hosting every guest as a VM, including the attack box. Docker's job is packaging and lifecycle:
 
 - The hypervisor stack ships as a pinned container image, so a host needs only Docker and KVM (libvirt and QEMU do not need to be installed on the host).
 - The range's bridges and firewall rules exist only inside the container's network namespace. The host's own networking carries no range state at all, even while a range is running.
 - Teardown is the container lifecycle: when the container exits, every VM, bridge, firewall rule, and disk overlay goes with it.
 - Standard cgroup limits bound each range's CPU and memory.
 
-Nothing runs privileged. The range container gets exactly four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`) and one capability (`NET_ADMIN`, valid only inside its own namespace). The container is not what contains the agent (KVM does that), but it is a second boundary behind it (see [Security Model](#security-model)).
+The range container runs unprivileged and has four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`) and one capability (`NET_ADMIN`, valid only inside its own namespace).
 
-### Control Plane
+Inspect interacts with the range (e.g. to send `exec()` commands) using a hypervisor vsock channel that is not part of the network. Every guest carries a vsock device (CID allocated at compile time) and a small daemon baked into its image which implements the full Inspect sandbox contract.
 
--   Every guest carries a vsock device (CID allocated at compile time) and a small exec/file daemon baked into its image. vsock is a hypervisor channel: no NIC, no IP, no frames on any bridge — there is no management network to discover, firewall, or connect to.
--   The daemon implements the full Inspect sandbox contract: exec (cwd/env/user/stdin, in-guest timeouts that kill the process tree), file read/write, and a loopback-forward op so injected proxies can reach the harness.
--   Measured: 1.1 ms exec round-trip (vs ~45 ms for `docker exec`); file transfer at 400–700 MB/s — fast enough to inject scaffold binaries at sample start.
--   Windows guests have no vsock driver, so Windows targets are driven by the QEMU guest agent instead (exec is fine; bulk file transfer uses ISO hot-plug). The attack box is Linux, so the agent's channel is always vsock.
--   Compromised guests own their daemons, so the harness treats every reply as untrusted: strict validation, size caps, idempotent command launches.
+Windows guests have no vsock driver, so Windows targets are driven by the QEMU guest agent instead (exec works well over this channel; bulk file transfer uses ISO hot-plug).
 
-### Images
+### Images {#images}
 
--   Guests boot from read-only golden images with a per-guest copy-on-write overlay; overlays are destroyed with the range, goldens are never written.
--   Image taxonomy: pinned upstream cloud images → derived goldens (control daemon baked in, built offline with virt-customize; heavier builds in CI with Packer) → per-range derivations. Standard attack-box images (Kali, Debian) ship with zero network listeners; agent scaffolds are injected at runtime rather than baked per-scaffold.
--   Windows: unattended Server build from the eval ISO to a finished golden in ~3 minutes; boots in ~6.5 s; memory-snapshot restore in ~1.4 s — snapshot-after-AD-converges is the answer to Windows boot storms.
--   Image size is the classic cyber-range tax: goldens run from ~600 MB (Linux) to 10–20 GB (Windows), and naive distribution re-ships whole images for every change. Three mechanisms address it:
-    -   **Layered publication.** A derived image is a qcow2 delta on a pinned base, published as content-addressed layers to an OCI registry — Docker's distribution model applied to VM disks. The base ships once per fleet; a task-specific image is megabytes. Pulls fetch only layers the host doesn't have.
-    -   **Fleet cold start without shipping.** Image caches are baked as EBS snapshots: a fresh instance attaches a volume and blocks hydrate lazily from S3 (Fast Snapshot Restore removes the first-touch penalty). At sample time, nothing is transferred at all.
-    -   **Lazy boot for registry-direct hosts.** A guest can boot with its backing file *as an HTTPS URL*: blocks stream on demand with ~0.4 s added to boot, and copy-on-read self-populates a local cache (second boot is local). Backing chains resolve over HTTP, so this composes with layered publication.
--   Hosts keep a digest-keyed local cache, mounted read-only into the range container.
+- Guests boot from read-only golden images with a per-guest copy-on-write overlay; overlays are destroyed with the range, goldens are never written.
+- Image taxonomy: pinned upstream cloud images → derived goldens (control daemon baked in, built offline with virt-customize; heavier builds in CI with Packer) → per-range derivations. Standard attack-box images (Kali, Debian) ship with zero network listeners; agent scaffolds are injected at runtime rather than baked per-scaffold.
+- Windows: unattended Server build from the eval ISO to a finished golden in \~3 minutes; boots in \~6.5 s; memory-snapshot restore in \~1.4 s — snapshot-after-AD-converges is the answer to Windows boot storms.
+- Image size is the classic cyber-range tax: goldens run from \~600 MB (Linux) to 10–20 GB (Windows), and naive distribution re-ships whole images for every change. Three mechanisms address it:
+  - **Layered publication.** A derived image is a qcow2 delta on a pinned base, published as content-addressed layers to an OCI registry — Docker's distribution model applied to VM disks. The base ships once per fleet; a task-specific image is megabytes. Pulls fetch only layers the host doesn't have.
+  - **Fleet cold start without shipping.** Image caches are baked as EBS snapshots: a fresh instance attaches a volume and blocks hydrate lazily from S3 (Fast Snapshot Restore removes the first-touch penalty). At sample time, nothing is transferred at all.
+  - **Lazy boot for registry-direct hosts.** A guest can boot with its backing file *as an HTTPS URL*: blocks stream on demand with \~0.4 s added to boot, and copy-on-read self-populates a local cache (second boot is local). Backing chains resolve over HTTP, so this composes with layered publication.
+- Hosts keep a digest-keyed local cache, mounted read-only into the range container.
 
 ### Scalability
 
-A host runs one range at a time. Scale comes from running many hosts: samples are distributed across a fleet of instances — by Inspect's sharding, or by host-scheduler hooks at the sandbox layer — and each instance boots its range, runs its sample, and tears down. Isolation does not depend on the scheduler: it is a property of where a sample runs, not of how it was dispatched.
+Cyber ranges can be very resource intensive and often require a dedicated host machine for each sample. Scaling out range execution can be accomplished in one of two ways:
 
-This is a deliberate trade rather than a limitation. Co-locating concurrent samples would put adversarial workloads on a shared kernel and hypervisor; one sample per EC2 instance makes the Nitro hypervisor the boundary *between* samples — hardware isolation that no software configuration has to earn (see [Security Model](#security-model)). It also keeps the economics legible: a sample costs an instance-hour, and ranges are fast to cycle (a multi-VM range boots, runs, and tears down in seconds; Windows guests restore from memory snapshots). The engineering problem scale actually poses is cold start — getting images onto fresh instances — which is addressed with warm pools and the snapshot-based image caches described in [Images](#images).
+1.  Inspect has a sharding feature which enables running samples in independent processes or machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
+2.  The "libvirt_range" sandbox can also be provided with a host interface that enables an orchestration layer to allocate a machine for the sandbox to run within (e.g. a dedicated EC2 instance). In this configuration the Inspect scaffold runs in a completely separate context from the cyber range VMs.
+
+The second option has a stronger security posture (as an agent escape from the scaffold or range is more isolated).
 
 ## Security Model {#security-model}
 
