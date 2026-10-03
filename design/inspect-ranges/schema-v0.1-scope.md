@@ -23,7 +23,7 @@ timestamp: 2026-10-01
 |---|---|---|
 | `attack_path` | Edge-type vocabulary doesn't exist (MHBench covers only credential-reuse/privesc; AD tradecraft edges are ours to define) | Building GOAD-class ranges; scoring experience |
 | `variables` / generation | The whole L2 layer (randomization → topology generation) needs real thinking | Range-building experience; the generation-policy design effort |
-| `goals` / oracles | Oracle language unclear (flags, env checks, Splunk searches all appear); scorers live in Inspect tasks anyway, so nothing blocks on it | Real scorers written against running ranges |
+| `goals` / oracles | Oracle language unclear (flags, env checks, Splunk searches all appear); scorers live in Inspect tasks anyway, so nothing blocks on it. **Direction settled 2026-10-03**: the goal vocabulary lands *task-side* — normalized `challenges.yaml` entries (goal types: flag, exfiltrate, execute, privilege, detection) consumed by a paired `challenge_scorer()` with oracle privileges; `range.yaml` never grows a `goals` section | Implementing `challenge_dataset()`/`challenge_scorer()` against running ranges |
 | `defense` (incl. per-host toggles, telemetry) | D0–D5 is a vocabulary, not yet an implementable schema | Implementing D2+ ranges |
 | `vulnerabilities` / `misconfigurations` | Vocabulary question (CVE ids vs classes vs named roles) open since swag §5 | A provisioning layer that consumes them |
 | guest config (`users`, `services`, `provisioning`, `data`, host `dns`, `roles`, `scheduled_activity`) | The L4 provisioning layer doesn't exist; schema would be fiction | The image/provisioning pipeline design |

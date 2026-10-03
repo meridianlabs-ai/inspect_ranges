@@ -19,7 +19,7 @@ Translation of GOAD-Light from `github.com/Orange-Cyberdefense/GOAD` (`ad/GOAD-L
 | domain data: users, passwords, groups, SPNs, OUs, ACL-abuse chain, anonymous RPC | `config.json` `domains` | ACL chain quoted in range.yaml comment; SPNs on sql_svc/sansa/jon |
 | IPs and DNS chain | `provider-vmware-inventory.ini` | .10/.11/.22; `dns_domain=dc01` for dc01+dc02, `dns_domain=dc02` for srv02; forwarder 1.1.1.1 (from `inventory.ini` [all:vars]) |
 | VM images and sizing | `Vagrantfile` | StefanScherer/windows_2019 v2021.05.15; 2cpu/3GB (DCs), 2cpu/6GB (srv02) |
-| task prompt + OSINT username list (`tasks.yaml`) | `upstream/cochise/` (from github.com/andreashappe/cochise, MIT) | verbatim `scenario.md` pentest objective + rules, and the 80-name `osint_users.txt` planted on the attacker host |
+| task prompt + OSINT username list (`challenges.yaml`) | `upstream/cochise/` (from github.com/andreashappe/cochise, MIT) | verbatim `scenario.md` pentest objective + rules, and the 80-name `osint_users.txt` planted on the attacker host |
 
 ## Tagged defaults / judgment calls
 

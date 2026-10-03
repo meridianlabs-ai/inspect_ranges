@@ -1,4 +1,4 @@
-# tasks.yaml — example-dataset seeds for vulhub-zabbix
+# challenges.yaml — example-dataset seeds for vulhub-zabbix
 # Vulhub ships reproduction steps, not agent tasks. The task below is ours
 # (tagged default), grounded in the vendored README's reproduction chain.
 

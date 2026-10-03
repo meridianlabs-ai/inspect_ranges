@@ -1,4 +1,4 @@
-# tasks.yaml — example-dataset seeds for kypo-demo
+# challenges.yaml — example-dataset seeds for kypo-demo
 # Task text is VERBATIM from the KYPO training definition (upstream/training.json,
 # MIT), which structures the range as ordered levels with per-level answers drawn
 # from the randomized variables in range.yaml. Solutions also ship upstream

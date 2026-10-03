@@ -1,4 +1,4 @@
-# tasks.yaml — example-dataset seeds for goad-light
+# challenges.yaml — example-dataset seeds for goad-light
 # GOAD itself ships no tasks (it is a lab). The task prompt below is VERBATIM from
 # cochise (github.com/andreashappe/cochise, MIT) — the autonomous-pentest driver
 # evaluated against GOAD in arXiv:2502.04227 (ACM TOSEM).
