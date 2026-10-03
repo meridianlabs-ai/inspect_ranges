@@ -115,7 +115,7 @@ Measured (metal): exec round-trip **1.1 ms median** (vs 44.5 ms for `docker exec
 
 **virtio-vsock has no Windows guest driver** (confirmed empirically: the vsock PCI device stays unbound in Error state after a full virtio-win install). So the exec plane splits by guest OS: **vsock for the agent and Linux targets; QEMU guest agent for Windows targets**, with ISO/disk hot-plug as the Windows bulk-transfer path (qemu-ga files measured at ~0.6 MB/s — unusable for bulk).
 
-Windows economics measured on metal: unattended Server 2022 install → finalized golden image **189 s**; boot from golden overlay to exec-responsive **6.5 s**; memory snapshot save **10.1 s** (4 GB → 1.16 GB state), **restore 1.3 s** with the agent responsive 0.1 s later. Snapshot-after-AD-converges is the Windows boot-storm answer.
+Windows economics measured on metal: unattended Server 2022 install → finalized golden image **189 s**; boot from golden overlay to exec-responsive **6.5 s**; memory snapshot save **10.1 s** (4 GB → 1.16 GB state), **restore 1.3 s** with the agent responsive 0.1 s later. Snapshot-after-AD-converges is the Windows boot-storm answer — now demonstrated, not hypothesized: the [ad-domain spike](../spikes/ad-domain/README.md) built a working forest (promotion 177 s, join 20 s) and restored the converged pair in 3 s with the Kerberos secure channel intact. Its one hard finding: clones joining a domain whose DC shares their golden image are refused outright (domain SID = machine SID), so **AD-bound golden images must be sysprep-generalized** (~3.5 min specialize per clone, paid at range build, not per sample).
 
 ### The exec/file contract (the hard-won part)
 
@@ -199,6 +199,10 @@ The oracle sees everything; defenders see only what the agent transmits. pcap ca
 | Agent VM boot → daemon ready (baked image) | 9.6 s |
 | Full `inspect eval` vs 2-VM range (boot→solve→score→teardown) | 15–16 s |
 | Lazy-pull boot (HTTP backing, no pre-download) vs local | 10.2 s vs 9.8 s; warm reboot 7.2 s (+11 MB) |
+| AD forest promotion (Server 2022, via qemu-ga) → AD DS answering | 177 s |
+| `sysprep /generalize` → specialized clone (new SID) | 208 s |
+| Domain join post-sysprep → rebooted into domain | 20 s |
+| Converged DC+member pair: save / restore (secure channel intact) | 19 s / 3 s |
 
 Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal deltas, cold-start economics (warm pools, Fast Snapshot Restore) — handoff §13 experiments 3–5.
 
@@ -235,11 +239,11 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 
 Architecture claims that are believed sound but not yet demonstrated; each gets a spike once the review copy settles.
 
-1. **Active Directory range** — boot `goad-light` (or a minimal DC + member join) through our pipeline. The risk is not KVM (AD forests run on it routinely) but our own inventions: golden-image clones vs `sysprep /generalize` (and its interaction with memory-snapshot restore), cross-host provisioning ordering (DC promoted and ready before members join, reboots included), compiled DNS delegating to the in-range DC, and qemu-ga reliability across promotion reboots.
+1. **Active Directory range** — **done**, see [ad-domain](../spikes/ad-domain/README.md). DC promotion + member join from clones of one golden image works end to end over qemu-ga; the one hard finding is that unsysprepped clones are refused ("domain SID identical to machine SID"), so AD-bound images must be sysprep-generalized (208 s specialize per clone, once per range build). Promotion 177 s, join 20 s, converged pair restores from snapshot in 3 s with the secure channel intact — AD convergence is a range-build-time cost, not per-sample. Remaining: Linux guests resolving the AD zone (dnsmasq forwarding), and a full `goad-light` (parent+child forest) build.
 2. **Inspect sharding mid-run log sync** — the open question in §12 item 1, confirmable with a small sharded run; load-bearing for continuous off-instance evidence in the co-resident topology.
 3. **Evidence streaming path** — §9 is designed, unbuilt; spike the minimal version (per-segment pcap + console to durable append-only storage, bypassing the scaffold).
 4. **EBS/FSR cold start** — the fleet distribution path (image-distribution.md) is designed from documented AWS behavior; measure an actual lazy-start boot, since only the HTTP lazy-pull path has numbers.
 
 ## 14. Reading map
 
-Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).
+Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md), [ad-domain](../spikes/ad-domain/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).
