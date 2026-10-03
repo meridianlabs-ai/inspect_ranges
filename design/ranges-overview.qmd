@@ -90,6 +90,8 @@ def dmz_pivot():
     )
 ```
 
+Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs.
+
 ### Challenges
 
 Challenges are defined separately from the range because a range may serve many evaluations. Each challenge pairs an agent-facing prompt with a typed goal that `challenge_scorer()` verifies. For the range above, a `challenges.yaml` might be:
@@ -137,7 +139,7 @@ The attack box runs in a dedicated VM like any other guest with a real NIC in th
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
 | Goal | Checked by |
-|--------------------------|----------------------------------------------|
+|---------------------------|---------------------------------------------|
 | `flag` | the submitted value matches the planted flag |
 | `exfiltrate` | the file actually arrived on the attack box |
 | `execute` | an execution marker was left on the target host |
@@ -153,7 +155,7 @@ Scorers (built-in or custom) can also draw on captured evidence collected outsid
 Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically (the same spec always yields the same addresses). Each element of the spec then maps to libvirt/QEMU as follows:
 
 | `range.yaml` | Becomes |
-|--------------------------|----------------------------------------------|
+|---------------------------|---------------------------------------------|
 | network | Linux bridge, private to the range, with no IP of its own |
 | host, router, or attacker | KVM/libvirt domain with virtio devices, booted from a copy-on-write overlay on a read-only golden image |
 | interface | Virtio NIC on the named bridge, with its allocated MAC; the guest's addressing and hostname are delivered by a generated cloud-init seed |
@@ -178,7 +180,7 @@ Each range is a single Docker container running the hypervisor stack (libvirtd a
 
 The range container runs unprivileged and has four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`) and one capability (`NET_ADMIN`, valid only inside its own namespace).
 
-Inspect interacts with the range (e.g. to send `exec()` commands) using a hypervisor vsock channel that is not part of the network. Every guest carries a vsock device (CID allocated at compile time) and a small daemon baked into its image that implements the full Inspect sandbox contract.
+Inspect interacts with the range (e.g. to send `exec()` commands) using a hypervisor vsock channel that is not part of the network. Every guest carries a vsock device (CID allocated at compile time) and a small daemon baked into its image that implements the Inspect sandbox contract.
 
 Windows guests have no vsock driver, so Windows targets are driven by the QEMU guest agent instead (exec runs over this channel; bulk file transfer uses ISO hot-plug).
 
@@ -196,18 +198,20 @@ Sharing solves size, but not startup time: a disk image captures a machine that 
 
 Cyber ranges are resource intensive, often requiring a dedicated host machine per sample. Scaling out range execution can be accomplished in one of two ways:
 
-1.  Inspect has a sharding feature that enables running samples in independent processes or machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
+1.  Inspect has a sharding feature that distributes samples across machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
 2.  The `libvirt_range` sandbox can also be provided with a host interface that enables an orchestration layer to allocate a machine for the sandbox to run within (e.g. a dedicated EC2 instance). In this configuration the Inspect scaffold runs in a completely separate context from the cyber range VMs.
 
 The second option has a stronger security posture: an agent that escapes the range cannot reach the Inspect scaffold, its model credentials, or its logs.
 
 ## Security Model {#security-model}
 
-Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. The security model therefore protects only what lies outside the sample, and the integrity of its score.
+Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. The security model therefore protects only what lies outside the sample, and the integrity of its score. Note that the model also assumes that the deployment uses a distinct instance for each sample's range. By default the agent has no egress: unless the range sets `egress: open`, nothing outside the range is reachable from inside it.
 
-Three nested boundaries separate the range from the outside. The agent first must escape from the KVM hypervisor (not impossible, but not a commodity escape). Success lands in the range container, which is unprivileged and holds no credentials, so reaching the host requires a second, unrelated exploit. The host is itself a dedicated AWS instance: even full compromise yields only the sample context, with the Nitro hypervisor between it and everything else.
+Three nested boundaries separate the range from the outside. The agent first must escape its VM (not impossible, but not a commodity escape). Nearly all such escapes break out through the QEMU process and land in the range container, which is unprivileged and holds no credentials, so reaching the host requires a second, unrelated exploit; the rarer KVM kernel escapes reach the host directly. Either way the host is a dedicated AWS instance: even full compromise yields only the sample context, with the Nitro hypervisor between it and everything else.
 
 Escapes are therefore treated as possible but unprofitable. An agent that escapes gains an instance that holds no secrets and a sample that is simply discarded. Since evidence (packet captures, consoles, logs) streams off the instance continuously, it cannot rewrite the record of what it did before escaping. Score integrity rests on detection rather than prevention.
+
+The Inspect scaffold process may serve many samples and parses attacker-controlled output, so its compromise is also assumed possible. The scaffold therefore should store no credentials of value and ensure that evidence once written cannot be changed.
 
 In the other direction, defenders inside the range can detect and react to everything the agent transmits, but they cannot observe its interior, connect to it (it runs no services), or reach the channel controlling it.
 

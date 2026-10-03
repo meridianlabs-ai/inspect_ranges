@@ -230,6 +230,15 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 5. **The deferral table** (schema-v0.1-scope): does any deferred section need to move up for your use cases — particularly `goals`/oracles for scoring?
 6. **Dual-use posture** (handoff §12): tooling public, generation pipelines/held-out content controlled — unchanged by this architecture, but review-worthy alongside it.
 
-## 13. Reading map
+## 13. Queued confirmation spikes
+
+Architecture claims that are believed sound but not yet demonstrated; each gets a spike once the review copy settles.
+
+1. **Active Directory range** — boot `goad-light` (or a minimal DC + member join) through our pipeline. The risk is not KVM (AD forests run on it routinely) but our own inventions: golden-image clones vs `sysprep /generalize` (and its interaction with memory-snapshot restore), cross-host provisioning ordering (DC promoted and ready before members join, reboots included), compiled DNS delegating to the in-range DC, and qemu-ga reliability across promotion reboots.
+2. **Inspect sharding mid-run log sync** — the open question in §12 item 1, confirmable with a small sharded run; load-bearing for continuous off-instance evidence in the co-resident topology.
+3. **Evidence streaming path** — §9 is designed, unbuilt; spike the minimal version (per-segment pcap + console to durable append-only storage, bypassing the scaffold).
+4. **EBS/FSR cold start** — the fleet distribution path (image-distribution.md) is designed from documented AWS behavior; measure an actual lazy-start boot, since only the HTTP lazy-pull path has numbers.
+
+## 14. Reading map
 
 Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).
