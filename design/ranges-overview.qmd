@@ -6,9 +6,11 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 2.  Ranges run as libvirt/KVM virtual machines orchestrated by an unprivileged container, on any Linux host with KVM (bare metal, or cloud instances with nested virtualization). Windows guests are supported, including Active Directory networks.
 
-3.  Range control runs over a hypervisor channel, not a network, so nothing in-range can discover, firewall, or connect to it: defenders see only the traffic the agent chooses to send. The agent runs inside its own VM, contained by KVM and an outer unprivileged container..
+3.  Range control runs over a hypervisor channel, not a network, so nothing in-range can discover, firewall, or connect to it: defenders see only the traffic the agent chooses to send. The agent runs inside its own VM, contained by KVM and an outer unprivileged container.
 
-4.  For scoring integrity, evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle sees everything.
+4.  Evaluations scale horizontally: each sample runs on its own EC2 instance, with the Nitro hypervisor as the isolation boundary.
+
+5.  For scoring integrity, evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle sees everything.
 
 ## Range Definition
 
@@ -184,11 +186,32 @@ Nothing runs privileged. The range container gets exactly four device nodes (`/d
 
 ### Control Plane
 
+-   Every guest carries a vsock device (CID allocated at compile time) and a small exec/file daemon baked into its image. vsock is a hypervisor channel: no NIC, no IP, no frames on any bridge — there is no management network to discover, firewall, or connect to.
+-   The daemon implements the full Inspect sandbox contract: exec (cwd/env/user/stdin, in-guest timeouts that kill the process tree), file read/write, and a loopback-forward op so injected proxies can reach the harness.
+-   Measured: 1.1 ms exec round-trip (vs ~45 ms for `docker exec`); file transfer at 400–700 MB/s — fast enough to inject scaffold binaries at sample start.
+-   Windows guests have no vsock driver, so Windows targets are driven by the QEMU guest agent instead (exec is fine; bulk file transfer uses ISO hot-plug). The attack box is Linux, so the agent's channel is always vsock.
+-   Compromised guests own their daemons, so the harness treats every reply as untrusted: strict validation, size caps, idempotent command launches.
+
 ### Images
+
+-   Guests boot from read-only golden images with a per-guest copy-on-write overlay; overlays are destroyed with the range, goldens are never written.
+-   Image taxonomy: pinned upstream cloud images → derived goldens (control daemon baked in, built offline with virt-customize; heavier builds in CI with Packer) → per-range derivations. Standard attack-box images (Kali, Debian) ship with zero network listeners; agent scaffolds are injected at runtime rather than baked per-scaffold.
+-   Windows: unattended Server build from the eval ISO to a finished golden in ~3 minutes; boots in ~6.5 s; memory-snapshot restore in ~1.4 s — snapshot-after-AD-converges is the answer to Windows boot storms.
+-   Image size is the classic cyber-range tax: goldens run from ~600 MB (Linux) to 10–20 GB (Windows), and naive distribution re-ships whole images for every change. Three mechanisms address it:
+    -   **Layered publication.** A derived image is a qcow2 delta on a pinned base, published as content-addressed layers to an OCI registry — Docker's distribution model applied to VM disks. The base ships once per fleet; a task-specific image is megabytes. Pulls fetch only layers the host doesn't have.
+    -   **Fleet cold start without shipping.** Image caches are baked as EBS snapshots: a fresh instance attaches a volume and blocks hydrate lazily from S3 (Fast Snapshot Restore removes the first-touch penalty). At sample time, nothing is transferred at all.
+    -   **Lazy boot for registry-direct hosts.** A guest can boot with its backing file *as an HTTPS URL*: blocks stream on demand with ~0.4 s added to boot, and copy-on-read self-populates a local cache (second boot is local). Backing chains resolve over HTTP, so this composes with layered publication.
+-   Hosts keep a digest-keyed local cache, mounted read-only into the range container.
+
+### Scalability
+
+A host runs one range at a time. Scale comes from running many hosts: samples are distributed across a fleet of instances — by Inspect's sharding, or by host-scheduler hooks at the sandbox layer — and each instance boots its range, runs its sample, and tears down. Isolation does not depend on the scheduler: it is a property of where a sample runs, not of how it was dispatched.
+
+This is a deliberate trade rather than a limitation. Co-locating concurrent samples would put adversarial workloads on a shared kernel and hypervisor; one sample per EC2 instance makes the Nitro hypervisor the boundary *between* samples — hardware isolation that no software configuration has to earn (see [Security Model](#security-model)). It also keeps the economics legible: a sample costs an instance-hour, and ranges are fast to cycle (a multi-VM range boots, runs, and tears down in seconds; Windows guests restore from memory snapshots). The engineering problem scale actually poses is cold start — getting images onto fresh instances — which is addressed with warm pools and the snapshot-based image caches described in [Images](#images).
 
 ## Security Model {#security-model}
 
-## Development Setup
+## Setup
 
 Ranges can be developed on any Linux host with KVM. To provision a remote EC2 instance as a development environment, use the `devbox` command. For example:
 
