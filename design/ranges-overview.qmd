@@ -1,0 +1,51 @@
+# Inspect Ranges
+
+Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for evaluating models and agents on multi-host cyber ranges. The goal is support for a wide variety of complex networks while still preserving ease of development and deployment:
+
+1.  Ranges are defined in a strict, validated YAML spec (`range.yaml`) covering networks, routers and their ACLs, hosts, attacker foothold, dynamic range generation, defenders, and attack-path definitions.
+
+2.  Ranges run as libvirt/KVM virtual machines orchestrated by an unprivileged container, on any Linux host with KVM (bare metal, or cloud instances with nested virtualization). Windows guests are supported, including Active Directory networks.
+
+3.  Range control runs over the virtio-vsock hypervisor channel, not a network, so nothing in-range can discover, firewall, or connect to the control plane or the agent. The agent runs inside its own VM, contained by KVM and an outer unprivileged container.
+
+4.  For scoring integrity, evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle sees everything.
+
+5.  The design emphasizes speed: a complete eval against a multi-VM range boots, solves, scores, and tears down in about 15 seconds. Windows golden images build unattended in ~3 minutes and restore from memory snapshot in ~1.4 seconds.
+
+## Development
+
+the authoring loop: write range.yaml, validate catches errors immediately, render shows the exact generated artifacts before boot; the six translated example ranges as starting points; "runs anywhere Linux+KVM" with doctor as the readiness check. (This section also owns the ~15s iteration-cycle number.)
+
+## Evaluation
+
+### Datasets
+
+this is the natural home of the range/task split, which hasn't had a home anywhere until now: one range serves many tasks, tasks.yaml as example-dataset seeds, samples targeting flags/objectives. Worth stating explicitly since it's a design decision mirroring Inspect's sandbox/task split.
+
+### Agents
+
+solvers drive guests through the standard sandbox() API, including named sandboxes per host; scaffolds work unmodified (binary injection at ~400MB/s covers inspect_swe-style agents); no egress means tooling is baked or injected.
+
+### Scoring
+
+oracles verified in the environment (exec on targets), evidence off-instance, the defender/oracle asymmetry.
+
+## Architecture
+
+Compilation ends up carrying the single-source-of-truth proof, Control Plane ends on the not-a-network property that Security Model picks up.
+
+### Compilation
+
+### Containers
+
+### Control Plane
+
+### Images
+
+## Security Model
+
+## Status
+
+implemented-vs-designed ledger condensed, pointer to the architecture review doc, and the schema-version staging statement.
+
+
