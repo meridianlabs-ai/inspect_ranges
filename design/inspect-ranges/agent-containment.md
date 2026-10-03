@@ -31,6 +31,8 @@ timestamp: 2026-10-01
 - **Kata**: "run it in a VM" is what `kind: vm` does natively, without pushing L2 attachment through shim/CNI plumbing.
 - **An outer wrapper VM moves the fence without adding one**: everything must live inside it and evidence already leaves the machine, so nothing valuable sits outside it on the host — while every range VM becomes a nested guest (the VM-exit tax metal was chosen to avoid). Firecracker specifically cannot host this workload (no nested KVM).
 
+**Topology note (2026-10-03).** The "asset-free host" framing above has one qualification: in the co-resident deployment topology, the Inspect worker — with its model API credentials and live eval state — shares the instance. The separated host-interface topology ([host-provider](host-provider.md)) moves the scaffold and its credentials entirely off the attackable instance and is the preferred configuration where the agent is genuinely untrusted.
+
 **Precondition — single sample per instance.** This posture is derived from the asset layout: one sample per instance, evidence off-instance, no secrets on-box. If multi-sample-per-instance packing is ever proposed (e.g. for cost), the boundary between tenants must be re-derived from scratch. The vsock plane leans on this too (below).
 
 ## The vsock control plane: rules
