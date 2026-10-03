@@ -1,10 +1,6 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["boto3[crt]>=1.40", "click>=8.0"]
-# ///
 """Provision and manage an inspect_ranges remote development box on EC2.
 
-Run with `uv run devbox/devbox.py <command>`. See `devbox/README.md` for the security model and prerequisites.
+Run with `inspect-ranges devbox <command>`. See `devbox/README.md` for the security model and prerequisites.
 """
 
 import base64
@@ -72,7 +68,9 @@ class Devbox:
 
     @property
     def region(self) -> str:
-        return self.session.region_name
+        region = self.session.region_name
+        assert region is not None  # enforced when the session is created
+        return region
 
     @cached_property
     def ec2(self) -> Any:
@@ -390,7 +388,10 @@ class Devbox:
             try:
                 return self._run_instance(params)
             except ClientError as ex:
-                if ex.response["Error"]["Code"] != "InsufficientInstanceCapacity":
+                if (
+                    ex.response.get("Error", {}).get("Code")
+                    != "InsufficientInstanceCapacity"
+                ):
                     raise
                 log(f"No {instance_type} capacity in {az}; trying the next zone")
         raise click.ClickException(
@@ -504,17 +505,11 @@ class Devbox:
     # --- ssh ------------------------------------------------------------------
 
     def write_ssh_config(self, instance_id: str) -> None:
-        uv = shutil.which("uv")
-        if uv is None:
-            raise click.ClickException(
-                "uv is not on PATH; it is needed for the SSH ProxyCommand."
-            )
         proxy = [
-            uv,
-            "run",
-            "--quiet",
-            "--script",
-            str(HERE / "devbox.py"),
+            sys.executable,
+            "-m",
+            "inspect_ranges",
+            "devbox",
             "--name",
             self.name,
             "--region",
@@ -527,7 +522,7 @@ class Devbox:
         SSH_CONFIG_D.mkdir(mode=0o700, parents=True, exist_ok=True)
         SSH_KNOWN_HOSTS_D.mkdir(mode=0o700, parents=True, exist_ok=True)
         (SSH_CONFIG_D / self.host_alias).write_text(
-            f"""# written by inspect_ranges devbox/devbox.py
+            f"""# written by `inspect-ranges devbox`
 Host {self.host_alias}
   HostName {instance_id}
   User ubuntu
@@ -655,7 +650,7 @@ def check_prerequisites() -> None:
 # --- cli ----------------------------------------------------------------------
 
 
-@click.group()
+@click.group(name="devbox")
 @click.option(
     "--name",
     default=default_name,
@@ -667,12 +662,14 @@ def check_prerequisites() -> None:
     "--region", envvar="AWS_REGION", help="AWS region (defaults to the profile's)."
 )
 @click.pass_context
-def cli(ctx: click.Context, name: str, profile: str | None, region: str | None) -> None:
+def devbox_group(
+    ctx: click.Context, name: str, profile: str | None, region: str | None
+) -> None:
     """Provision and manage an inspect_ranges development box on EC2."""
     ctx.obj = Devbox(name, profile, region)
 
 
-@cli.command()
+@devbox_group.command()
 @click.option(
     "--instance-type",
     default="m8i.8xlarge",
@@ -757,7 +754,7 @@ def up(
         raise click.ClickException(
             "The devbox has no GitHub token yet. Create a fine-grained token limited to "
             f"{REPO} (see devbox/README.md), copy it, then run:\n"
-            f"  pbpaste | uv run devbox/devbox.py{devbox.cli_options} github-token"
+            f"  pbpaste | uv run inspect-ranges devbox{devbox.cli_options} github-token"
         )
     sync_repo(devbox)
 
@@ -771,7 +768,7 @@ def up(
     )
 
 
-@cli.command("github-token")
+@devbox_group.command("github-token")
 @click.pass_obj
 def github_token(devbox: Devbox) -> None:
     """Store a GitHub token on the devbox (read from stdin), then clone the repo.
@@ -799,7 +796,7 @@ def github_token(devbox: Devbox) -> None:
     log(f"GitHub access configured; ~/inspect_ranges is ready on {devbox.host_alias}.")
 
 
-@cli.command()
+@devbox_group.command()
 @click.pass_obj
 def start(devbox: Devbox) -> None:
     """Start the devbox and wait until it accepts connections."""
@@ -807,7 +804,7 @@ def start(devbox: Devbox) -> None:
     log(f"Devbox '{devbox.name}' is running: ssh {devbox.host_alias}")
 
 
-@cli.command()
+@devbox_group.command()
 @click.pass_obj
 def stop(devbox: Devbox) -> None:
     """Stop the devbox (the disk is kept)."""
@@ -816,7 +813,7 @@ def stop(devbox: Devbox) -> None:
     log(f"Stopping {instance['InstanceId']}")
 
 
-@cli.command()
+@devbox_group.command()
 @click.pass_obj
 def status(devbox: Devbox) -> None:
     """Show the devbox's state."""
@@ -837,7 +834,7 @@ def status(devbox: Devbox) -> None:
             log(f"auto-stop: {conf}")
 
 
-@cli.command("ssh-config")
+@devbox_group.command("ssh-config")
 @click.pass_obj
 def ssh_config(devbox: Devbox) -> None:
     """(Re)write the local SSH config entry for the devbox."""
@@ -846,7 +843,7 @@ def ssh_config(devbox: Devbox) -> None:
     log(f"Wrote {SSH_CONFIG_D / devbox.host_alias}")
 
 
-@cli.command(hidden=True)
+@devbox_group.command(hidden=True)
 @click.argument("port")
 @click.pass_obj
 def proxy(devbox: Devbox, port: str) -> None:
@@ -873,7 +870,7 @@ def proxy(devbox: Devbox, port: str) -> None:
     os.execvp(command[0], command)
 
 
-@cli.command()
+@devbox_group.command()
 @click.option(
     "--all",
     "destroy_all",
@@ -915,7 +912,3 @@ def destroy(devbox: Devbox, destroy_all: bool, yes: bool) -> None:
                 f"Shared infrastructure is still in use by: {names}"
             )
         devbox.destroy_shared()
-
-
-if __name__ == "__main__":
-    cli()

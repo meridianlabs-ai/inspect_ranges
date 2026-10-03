@@ -3,11 +3,10 @@
 # Upstream is docker-compose; expressed here substrate-agnostically as small guests
 # (inspect_ranges targets libvirt — the images/services, not the container runtime,
 # are what we replicate). Values sourced from ./upstream/ unless marked "default:".
-# Provenance detail: ./notes.md
+# Provenance: ./source.md (upstream) and ./notes.md (per-field detail)
 
 range:
   name: vulhub-zabbix
-  title: Vulhub Zabbix CVE-2016-10134 — flat single-subnet service stack, real CVE
   schema_version: "0.1"
   description: >
     The smallest example: a realistic 4-host monitoring stack (Zabbix 3.0.3
@@ -17,15 +16,6 @@ range:
     hijack and RCE through the Zabbix server's command execution on the agent.
     Boots in seconds as containers upstream; minutes as small VMs. The fast
     smoke-test range.
-  source:
-    artifact: vulhub (github.com/vulhub/vulhub), zabbix/CVE-2016-10134/
-    license: MIT
-    files:
-      - upstream/docker-compose.yml   # services, images, wiring (verbatim)
-      - upstream/README.txt           # CVE description + reproduction (verbatim)
-    upstream_substrate: Docker Compose
-    fetched: 2026-09-30
-    commit: 8fd63916f7a8711e2e01dda0d27237e4d6175d38   # upstream commit; every file in upstream/ matches it byte-for-byte
 
 networks:
   - name: lab
