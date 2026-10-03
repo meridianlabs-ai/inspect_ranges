@@ -28,6 +28,12 @@ def test_validate_accepts_example_and_rejects_bad_file(tmp_path: Path) -> None:
     assert "unknown_section" in failed.output
 
 
+def test_devbox_command_registered() -> None:
+    result = CliRunner().invoke(ranges, ["devbox", "--help"])
+    assert result.exit_code == 0
+    assert "development box" in result.output
+
+
 def test_schema_outputs_json() -> None:
     result = CliRunner().invoke(ranges, ["schema"])
     assert result.exit_code == 0

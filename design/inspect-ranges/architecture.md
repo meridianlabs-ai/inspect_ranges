@@ -45,7 +45,9 @@ A complete valid range (the smoke-test example, abridged):
 range:
   name: vulhub-zabbix
   schema_version: "0.1"
-  source: { artifact: vulhub ..., license: MIT, ... }   # provenance is schema, not comments
+  description: >
+    A realistic 4-host Zabbix monitoring stack on one flat network ...
+  # upstream provenance lives in source.md beside the spec (convention, not schema)
 
 networks:
   - name: lab

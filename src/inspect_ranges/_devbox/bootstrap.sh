@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Provisions an inspect_ranges development host (Ubuntu 24.04, x86_64, KVM).
 #
-# Delivered as EC2 user-data by `devbox.py up`, which fills in the three
+# Delivered as EC2 user-data by `inspect-ranges devbox up`, which fills in the three
 # placeholders below; cloud-init runs it once, as root, on first boot. It is
 # idempotent and self-contained so it can later seed `inspect-ranges host
 # install` and the eval-host AMI.
@@ -21,7 +21,7 @@ APT="apt-get -y -o DPkg::Lock::Timeout=600"
 mkdir -p "$STATE"
 rm -f "$STATE/bootstrap-complete" "$STATE/kvm-missing"
 
-# --- ssh access first, so `devbox.py up` can connect and wait on cloud-init --
+# --- ssh access first, so `inspect-ranges devbox up` can connect and wait on cloud-init --
 install -d -m 700 -o $DEV_USER -g $DEV_USER "$DEV_HOME/.ssh"
 touch "$DEV_HOME/.ssh/authorized_keys"
 grep -qxF "$DEVBOX_SSH_PUBKEY" "$DEV_HOME/.ssh/authorized_keys" ||
@@ -137,7 +137,7 @@ chmod 755 /usr/local/bin/devbox-keepalive
 systemctl daemon-reload
 systemctl enable --now devbox-idle.timer
 
-# --- developer user: uv and Claude Code (GitHub access is added later by `devbox.py github-token`)
+# --- developer user: uv and Claude Code (GitHub access is added later by `inspect-ranges devbox github-token`)
 sudo -u $DEV_USER -H bash <<'EOF'
 set -euo pipefail
 cd ~

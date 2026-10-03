@@ -1,12 +1,11 @@
 # range.yaml — schema v0.1 (core sections only; deferred content in ./deferred.yaml)
 # Faithful translation of GOAD-Light (Orange Cyberdefense "Game of Active Directory").
 # Every value is sourced from ./upstream/ unless marked "default:" or "to-verify".
-# Provenance detail: ./notes.md   License note: GOAD is GPLv3; upstream files are
+# Provenance: ./source.md (upstream) and ./notes.md (per-field detail)   License note: GOAD is GPLv3; upstream files are
 # vendored verbatim for provenance, this translation is a derived description.
 
 range:
   name: goad-light
-  title: GOAD-Light — 3-VM Windows AD forest (parent+child domain) with seeded misconfigurations
   schema_version: "0.1"
   description: >
     The light variant of Game of Active Directory: one forest, two domains
@@ -19,17 +18,6 @@ range:
     abuse chain to Domain Admin. Windows Defender is ON for both DCs and OFF
     for the member server. The exemplar of what AD forces a range format to
     express: static DC addressing, AD-integrated DNS, identity data as config.
-  source:
-    artifact: GOAD (github.com/Orange-Cyberdefense/GOAD), ad/GOAD-Light/
-    license: GPL-3.0
-    files:
-      - upstream/inventory.ini                  # lab inventory: groups, role tags, defender toggles (verbatim)
-      - upstream/config.json                    # hosts, vulns, domains, users, ACLs (verbatim)
-      - upstream/provider-vmware-inventory.ini  # per-host IPs and DNS chain (verbatim)
-      - upstream/Vagrantfile                    # VM images and sizing (verbatim)
-    upstream_substrate: VMs via Vagrant/Ansible-over-WinRM (VirtualBox/VMware/Proxmox/Ludus/AWS/Azure)
-    fetched: 2026-09-30
-    commit: 992307adf944b934a3b76a2f56a637104c54b805   # upstream commit; files in upstream/ match it byte-for-byte (except cochise/: see ../../LICENSES.md)
 
 networks:
   - name: lab

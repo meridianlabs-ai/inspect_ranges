@@ -1,9 +1,9 @@
 # Remote development box
 
-inspect_ranges needs Linux with KVM (libvirt/QEMU inside containers, via a metal instance or nested virtualization, plus Docker), so development happens on an EC2 devbox rather than locally. `devbox.py` provisions one per developer and manages its lifecycle.
+inspect_ranges needs Linux with KVM (libvirt/QEMU inside containers, via a metal instance or nested virtualization, plus Docker), so development happens on an EC2 devbox rather than locally. `inspect-ranges devbox` provisions one per developer and manages its lifecycle.
 
 ```bash
-uv run devbox/devbox.py --profile <profile> --region <region> up
+uv run inspect-ranges devbox --profile <profile> --region <region> up
 ssh inspect-ranges-devbox
 ```
 
@@ -101,14 +101,14 @@ If the org requires approval for fine-grained tokens, an org admin approves it u
 Copy the token and pipe it in, so it never appears in your terminal or shell history:
 
 ```bash
-pbpaste | uv run devbox/devbox.py --profile <profile> --region <region> github-token
+pbpaste | uv run inspect-ranges devbox --profile <profile> --region <region> github-token
 ```
 
 On the box, `gh` stores the token (`~/.config/gh/hosts.yml`, mode 0600) and acts as git's credential helper, so both `git push` and `gh pr create` work from any terminal. Because the token has no *Workflows* permission, pushes that change `.github/workflows/` are rejected; make those changes from your own machine. When the token expires, create a new one and run `github-token` again. To revoke it, delete it in GitHub settings.
 
 ## IAM permissions
 
-The credentials that run `devbox.py` need roughly this policy. Replace `ACCOUNT`.
+The credentials that run `inspect-ranges devbox` need roughly this policy. Replace `ACCOUNT`.
 
 ```json
 {

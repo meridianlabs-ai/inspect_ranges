@@ -12,7 +12,8 @@ timestamp: 2026-10-01
 
 ## Decision
 
-- **v0.1 sections: `range` (identity + provenance), `networks`, `routers` (with the ACL), `hosts`, `attacker`.** Validation is uniformly strict: unknown keys are errors everywhere, no reserved-key tier, no passthrough. Everything in the schema is consumed by the runtime; nothing is decorative.
+- **v0.1 sections: `range` (identity: name, schema_version, description), `networks`, `routers` (with the ACL), `hosts`, `attacker`.** Validation is uniformly strict: unknown keys are errors everywhere, no reserved-key tier, no passthrough. Everything in the schema is consumed by the runtime; nothing is decorative.
+- **Provenance is a convention, not schema** (revised 2026-10-03): the original `source:` block and `title:` field were documentation wearing a schema costume — the runtime consumes neither, which violated the rule above. Each range records upstream provenance in a `source.md` beside its `range.yaml` (the six examples' blocks moved there verbatim); `notes.md` keeps per-field detail.
 - **Deferred material is excluded entirely** — not parsed, not warned about. The six example ranges were purified to validate cleanly; carved content sits verbatim (comments preserved) in each example's `deferred.yaml`, clearly headed as not-valid-range.yaml, for mechanical migration when the real designs land. `schema_version` (enforced, literal `"0.1"`) is the migration seam.
 - **No sentinels in typed values**: `to-verify` and friends live in comments only; typed slots carry real (possibly `default:`-tagged) values.
 

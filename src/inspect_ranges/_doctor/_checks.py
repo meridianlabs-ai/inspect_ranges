@@ -296,7 +296,7 @@ def check_kernel_readable(boot: Path) -> CheckResult:
         "host kernel readable",
         "fail",
         f"not readable by this user: {', '.join(unreadable)} (virt-customize will fail)",
-        fix="sudo chmod 0644 /boot/vmlinuz-*, and install the kernel hook from devbox/bootstrap.sh "
+        fix="sudo chmod 0644 /boot/vmlinuz-*, and install the kernel hook from the devbox bootstrap "
         + "(/etc/kernel/postinst.d/zz-devbox-kernel-readable) so future kernels stay readable",
         fix_command=(
             "chmod 0644 /boot/vmlinuz-*\n"

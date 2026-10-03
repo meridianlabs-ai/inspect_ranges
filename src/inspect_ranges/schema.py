@@ -6,7 +6,6 @@ Load a spec with `load_range`, or validate pre-parsed data with `RangeSpec.model
 """
 
 import re
-from datetime import date
 from ipaddress import IPv4Address, IPv4Network
 from pathlib import Path
 from typing import Any, Literal
@@ -23,45 +22,20 @@ class _StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
-class SourceMeta(_StrictModel):
-    """Provenance of a range definition: the upstream artifact it derives from."""
-
-    artifact: str
-    """The upstream artifact, e.g. `vulhub (github.com/vulhub/vulhub), zabbix/CVE-2016-10134/`."""
-
-    license: str
-    """Upstream license identifier, e.g. `MIT`."""
-
-    files: list[str]
-    """Vendored upstream files this definition was translated from."""
-
-    upstream_substrate: str
-    """What the upstream artifact runs on, e.g. `Docker Compose`."""
-
-    fetched: date
-    """When the upstream files were fetched."""
-
-    commit: str
-    """Upstream commit the vendored files match."""
-
-
 class RangeMeta(_StrictModel):
-    """Identity and provenance of the range."""
+    """Identity of the range.
+
+    Upstream provenance is a convention, not schema: record it in a `source.md` next to the `range.yaml`.
+    """
 
     name: str
     """Short identifier, e.g. `vulhub-zabbix`."""
 
-    title: str
-    """One-line human-readable title."""
-
-    schema_version: Literal["0.1"]
-    """Schema version this definition targets."""
+    schema_version: Literal["0.1"] = "0.1"
+    """Schema version this definition targets (omitted means the current version)."""
 
     description: str
     """What the range is and why it exists."""
-
-    source: SourceMeta
-    """Upstream provenance."""
 
 
 class DnsRecord(_StrictModel):

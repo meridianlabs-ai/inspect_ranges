@@ -13,16 +13,7 @@ EXAMPLES = sorted(
 MINIMAL = """
 range:
   name: minimal
-  title: minimal
-  schema_version: "0.1"
   description: minimal valid range
-  source:
-    artifact: none
-    license: MIT
-    files: []
-    upstream_substrate: none
-    fetched: 2026-10-01
-    commit: "0000000000000000000000000000000000000000"
 networks:
   - { name: lab, cidr: 10.0.0.0/24, mode: isolated }
 hosts:
