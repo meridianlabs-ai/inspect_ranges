@@ -204,18 +204,33 @@ The second option has a stronger security posture (as an agent escape from the s
 
 ## Security Model {#security-model}
 
-## Setup
+## Development
 
-Ranges can be developed on any Linux host with KVM. To provision a remote EC2 instance as a development environment, use the `devbox` command. For example:
+Ranges can be developed on any Linux host with KVM. The `devbox` command can be used to create and manage a development machine. Configuration for custom machines can be verified with the `doctor` command.
+
+### Devbox Machine
+
+The `devbox` command provisions a remote EC2 instance as a development environment. For example:
 
 ``` bash
-inspect-ranges devbox up
+inspect-ranges devbox up --instance-type m8i.8xlarge
 ssh inspect-ranges-devbox
 ```
 
-The `up` command creates (or starts) your devbox and writes an SSH configuration for it, so you can connect with plain `ssh` or VS Code Remote-SSH. The AWS region and profile come from your AWS configuration. See `inspect-ranges devbox --help` for further documentation.
+The `up` command creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration. The default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB) and can be overridden with `--instance-type`.
 
-If you have an existing development system, use the `doctor` command to ensure you have the required components and configuration:
+To manage costs, an idle devbox stops itself (by default after 60 idle minutes, with a CloudWatch backstop after 6 hours of low CPU). Re-connecting to the devbox with `ssh` or VS Code starts it again automatically (the SSH configuration's proxy starts the instance and then tunnels over AWS SSM, the devbox has no open inbound ports at all).
+
+### Custom Machine
+
+Any Linux x86_64 machine with KVM can develop and run ranges: bare metal (with virtualization enabled in firmware), or a VM with nested virtualization. Beyond KVM, the requirements are:
+
+- Docker Engine 24+ with the Compose plugin (2.22+) and cgroup v2.
+- Kernel modules `tun`, `vhost_net`, and `vhost_vsock`.
+- `qemu-utils` and `libguestfs-tools` for building images (libguestfs also requires that the host kernel be readable).
+- `br_netfilter` disabled, so host iptables never filters bridged range traffic (and IPv6 enabled, for ranges that use it).
+
+The `doctor` command verifies all of this and prints an exact fix for anything missing:
 
 ``` bash
 inspect-ranges doctor
