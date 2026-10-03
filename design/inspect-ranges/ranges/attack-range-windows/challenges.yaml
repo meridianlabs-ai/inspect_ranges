@@ -1,4 +1,4 @@
-# tasks.yaml — example-dataset seeds for attack-range-windows
+# challenges.yaml — example-dataset seeds for attack-range-windows
 # attack_range's task model is built in: `attack_range.py attack simulate` runs
 # Atomic Red Team techniques on the Windows host, and detections are verified as
 # Splunk searches (the companion splunk/attack_data project records the resulting

@@ -21,7 +21,7 @@ Translation of the KYPO Cyber Range Platform demo sandbox definition (`gitlab.ic
 | server content (telnetd, alice/bacon, sudoers less privesc, both flags, /etc/hosts alias) | `provisioning/roles/server/tasks/main.yml` + `defaults/main.yml` | defaults: alice/bacon, port 2323, flags "Top_Secret_Flag"/"Cant_Guess_This" |
 | client content (user/Password123 sudo, nmap/hydra/medusa, passlist.txt) | `provisioning/playbook.yml` + `roles/client/tasks/main.yml` | `kypo-user-access` role sets user/Password123 |
 | command logging (defense tier D2) | `provisioning/playbook.yml` | `sandbox-logging` role on all hosts, syslog port 514/515 to management |
-| task prompts + reference solutions (`tasks.yaml`) | `upstream/training.json` | KYPO training definition: 3 training levels with verbatim task text, `answer_variable_name` per level, and step-by-step solutions |
+| task prompts + reference solutions (`challenges.yaml`) | `upstream/training.json` | KYPO training definition: 3 training levels with verbatim task text, `answer_variable_name` per level, and step-by-step solutions |
 
 ## Tagged defaults / judgment calls
 

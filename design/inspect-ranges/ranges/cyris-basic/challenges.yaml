@@ -1,4 +1,4 @@
-# tasks.yaml — example-dataset seeds for cyris-basic
+# challenges.yaml — example-dataset seeds for cyris-basic
 # CyRIS defines environments, not tasks (training content lives in its companion
 # framework CyTrONE, not in this file). Tasks below are ours (tagged default),
 # grounded in what full.yml actually plants: flags at /root on both hosts, an

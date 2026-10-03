@@ -23,7 +23,7 @@ Translation of MHBench's `equifax_small` topology (repo `github.com/bsinger98/MH
 | tomcat user, SSH-key pivot, users/passwords, data files | `equifax_instance.py` | `SetupStrutsVulnerability`, `CreateUser(host, user, "ubuntu")`, `SetupServerSSHKeys` from one random webserver's `tomcat` to every database user, `AddData(...data_<host>.json)` (Faker) |
 | tomcat version/service | `setupStruts.yml` | apache-tomcat-9.0.83.zip, systemd unit, tomcat user/group |
 | goal/oracle | `equifax_instance.py` | flags dict; environment-verified binary key-asset capture (no LLM judge) |
-| task prompts (`tasks.yaml`) | `upstream/incalmo-prompts/` (from the Incalmo repo, MIT) | verbatim attacker pre-prompts for the bash (no-abstraction) and Incalmo arms — the pair behind the paper's 3/40-vs-37/40 scaffold ablation |
+| task prompts (`challenges.yaml`) | `upstream/incalmo-prompts/` (from the Incalmo repo, MIT) | verbatim attacker pre-prompts for the bash (no-abstraction) and Incalmo arms — the pair behind the paper's 3/40-vs-37/40 scaffold ablation |
 
 ## Tagged defaults (invented, not upstream)
 

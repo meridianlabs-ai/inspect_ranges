@@ -23,9 +23,9 @@ Each example range vendors verbatim copies of its source's configuration (and, w
 
 Notes:
 
-- The GOAD files are unmodified copies of configuration data distributed under GPL-3.0; this folder redistributes them with attribution and this notice. Our `range.yaml`/`tasks.yaml`/`notes.md` are independent factual descriptions, not derivative code.
+- The GOAD files are unmodified copies of configuration data distributed under GPL-3.0; this folder redistributes them with attribution and this notice. Our `range.yaml`/`challenges.yaml`/`notes.md` are independent factual descriptions, not derivative code.
 - `ranges/vulhub-zabbix/upstream/README.txt` and `ranges/goad-light/upstream/cochise/scenario.txt` are upstream Markdown files renamed to `.txt` (kept byte-identical).
-- Our own files in this folder (every `range.yaml`, `tasks.yaml`, `notes.md`, and the documents at the folder root) carry this repository's license.
+- Our own files in this folder (every `range.yaml`, `challenges.yaml`, `notes.md`, and the documents at the folder root) carry this repository's license.
 
 ## Pinned upstream sources
 

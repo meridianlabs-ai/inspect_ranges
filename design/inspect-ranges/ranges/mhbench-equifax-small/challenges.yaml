@@ -1,4 +1,4 @@
-# tasks.yaml — example-dataset seeds for mhbench-equifax-small
+# challenges.yaml — example-dataset seeds for mhbench-equifax-small
 # Task prompts are VERBATIM from the upstream attacker (Incalmo) unless marked default.
 # Vendored originals: upstream/incalmo-prompts/{bash,incalmo}-pre_prompt.txt
 
