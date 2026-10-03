@@ -14,7 +14,7 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 Ranges are specified using a `range.yaml` file. For example, this definition boots four guests — two targets, a router joining two segments, and a dedicated attack VM:
 
-```yaml
+``` yaml
 range:
   name: dmz-pivot
   description: >
@@ -58,14 +58,14 @@ Addresses may be pinned or left to deterministic allocation, and anything not de
 
 Beyond this minimal example, range definitions may cover:
 
--   Per-network addressing (static or DHCP) and DNS.
--   NAT and routed egress postures.
--   Attackers that start from a foothold on an existing host rather than a dedicated box.
--   Per-instance randomization and dynamic range generation.
--   Guest configuration: planted services, credentials, vulnerabilities, and misconfigurations.
--   Active Directory identity data.
--   Defenders and telemetry.
--   Machine-readable attack-path definitions.
+- Per-network addressing (static or DHCP) and DNS.
+- NAT and routed egress postures.
+- Attackers that start from a foothold on an existing host rather than a dedicated box.
+- Per-instance randomization and dynamic range generation.
+- Guest configuration: planted services, credentials, vulnerabilities, and misconfigurations.
+- Active Directory identity data.
+- Defenders and telemetry.
+- Machine-readable attack-path definitions.
 
 At startup, the definition is compiled into libvirt/KVM infrastructure: networks become private Linux bridges, guests become VMs booted from their images, and the `acl` becomes the router's firewall (see [Compilation](#compilation) for details).
 
@@ -73,7 +73,7 @@ At startup, the definition is compiled into libvirt/KVM infrastructure: networks
 
 Datasets consist of one or more challenges that an attacker agent runs on the range (an Inspect "libvirt" sandbox):
 
-```python
+``` python
 from inspect_ai import Task, task
 from inspect_ai.agent import react
 from inspect_ai.tool import bash
@@ -94,11 +94,11 @@ def dmz_pivot():
 
 ### Challenges
 
-Challenges are defined separately from the range as ranges may serve many evaluations: a milestone ladder, single-objective runs, or technique-per-sample families all against the same environment. 
+Challenges are defined separately from the range as ranges may serve many evaluations: a milestone ladder, single-objective runs, or technique-per-sample families all against the same environment.
 
 Each challenge pairs an agent-facing prompt with a typed goal that `challenge_scorer()` knows how to verify. For the range above, a `challenges.yaml` might be:
 
-```yaml
+``` yaml
 challenges:
   - id: web-foothold
     prompt: >
@@ -128,20 +128,20 @@ challenges:
       path: /root/flag.txt
 ```
 
-`challenge_dataset()` turns each entry into an Inspect sample. Goals provide both scorer's verification criteria and drive per-sample setup where needed  (e.g. a `flag` goal plants a per-epoch randomized flag value at the declared path before the agent starts).
+`challenge_dataset()` turns each entry into an Inspect sample. Goals provide both scorer's verification criteria and drive per-sample setup where needed (e.g. a `flag` goal plants a per-epoch randomized flag value at the declared path before the agent starts).
 
 ### Attacker
 
 Any Inspect agent can be used as the attacker, including built-in agents like `react()` and `deepagent()` and full coding-agent scaffolds like Claude Code and Codex (via `inspect_swe`). Agent tools execute on the attack box through the standard `sandbox()` API.
 
-The attack box itself is a VM like any other guest: a real NIC in the broadcast domain, where poisoning and relay tradecraft work exactly as on physical networks. Its control channel, by contrast, rides a hypervisor channel on no network at all — nothing in-range can observe, firewall, or connect to it (see [Security Model](#security-model)).
+The attack box itself is a VM like any other guest: a real NIC in the broadcast domain, where poisoning and relay tradecraft work exactly as on physical networks. Its control channel, by contrast, rides a hypervisor channel on no network at all: nothing in-range can observe, firewall, or connect to it (see [Security Model](#security-model)).
 
 ### Scoring
 
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
 | Goal | Checked by |
-|------|-------------|
+|------------------------|-----------------------------------------------|
 | `flag` | the submitted value matches the planted flag |
 | `exfiltrate` | the file actually arrived on the attack box |
 | `execute` | an execution marker was left on the target host |
@@ -152,39 +152,47 @@ Scorers (built-in or custom) can also draw on captured evidence — for example,
 
 ## Architecture
 
-Compilation ends up carrying the single-source-of-truth proof, Control Plane ends on the not-a-network property that Security Model picks up.
+### Compilation {#compilation}
 
-### Compilation
+Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically (the same spec always produces the same addresses). Each element of the spec then lands in libvirt/QEMU as follows:
 
-A `range.yaml` is compiled into the concrete artifacts the runtime consumes:
+| `range.yaml` | Becomes |
+|------------------------|-----------------------------------------------|
+| network | Linux bridge, private to the range, with no IP of its own |
+| host, router, or attacker | KVM/libvirt domain with virtio devices, booted from a copy-on-write overlay on a read-only golden image |
+| interface | Virtio NIC on the named bridge, with its allocated MAC; the guest's addressing and hostname are delivered by a generated cloud-init seed. |
+| router `acl` | nftables ruleset loaded on the router guest: default-deny, stateful |
+| (implicit) | Vsock device per guest, with an allocated channel ID (the control plane for exec and file transfer). |
 
-```default
-allocation.json   # every IP, MAC, hostname, and
-                  # control-channel ID (deterministic)
-bridges           # one Linux bridge per network,
-                  # private to the range
-nftables.conf     # router firewall generated from
-                  # the declared acl (default-deny)
-vms/<name>/seed   # per-guest addressing + hostname
-boot plan         # per-guest copy-on-write overlay
-                  # + VM definition
-```
+Range startup consists of:
 
+1.  Create the bridges and load the generated firewall invariants.
+2.  Create each guest's overlay and define its domain.
+3.  Boot all guests in parallel.
+4.  Wait for every guest to finish provisioning. A range is ready when its configuration is *applied*, not merely when its guests answer.
 
-### Containers
+### Range Container
+
+Each range is a single Docker container running the hypervisor stack (libvirtd and QEMU) and hosts every guest as a VM, including the attack box. Docker's job is packaging and lifecycle:
+
+- The hypervisor stack ships as a pinned container image, so a host needs only Docker and KVM (libvirt and QEMU do not need to be installed on the host).
+- The range's bridges and firewall rules exist only inside the container's network namespace. The host's own networking carries no range state at all, even while a range is running.
+- Teardown is the container lifecycle: when the container exits, every VM, bridge, firewall rule, and disk overlay goes with it.
+- Standard cgroup limits bound each range's CPU and memory.
+
+Nothing runs privileged. The range container gets exactly four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`) and one capability (`NET_ADMIN`, valid only inside its own namespace). The container is not what contains the agent (KVM does that), but it is a second boundary behind it (see [Security Model](#security-model)).
 
 ### Control Plane
 
 ### Images
 
-## Security Model
-
+## Security Model {#security-model}
 
 ## Development Setup
 
 Ranges can be developed on any Linux host with KVM. To provision a remote EC2 instance as a development environment, use the `devbox` command. For example:
 
-```bash
+``` bash
 inspect-ranges devbox up
 ssh inspect-ranges-devbox
 ```
@@ -193,8 +201,6 @@ The `up` command creates (or starts) your devbox and writes an SSH configuration
 
 If you have an existing development system, use the `doctor` command to ensure you have the required components and configuration:
 
-```bash
+``` bash
 inspect-ranges doctor
 ```
-
-
