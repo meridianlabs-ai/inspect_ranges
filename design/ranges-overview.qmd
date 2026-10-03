@@ -180,7 +180,7 @@ Each range is a single Docker container running the hypervisor stack (libvirtd a
 
 The range container runs unprivileged and has four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`) and one capability (`NET_ADMIN`, valid only inside its own namespace).
 
-Inspect interacts with the range (e.g. to send `exec()` commands) using a hypervisor vsock channel that is not part of the network. Every guest carries a vsock device (CID allocated at compile time) and a small daemon baked into its image that implements the Inspect sandbox contract.
+Inspect interacts with the range (e.g. to send `exec()` commands) using a hypervisor vsock channel that is not part of the network. Every guest carries a vsock device (CID allocated at compile time) and a small daemon baked into its image that implements the Inspect sandbox contract. The channel is trusted in only one direction: replies come from guests the agent may have compromised, so everything received over it is treated as untrusted input.
 
 Windows guests have no vsock driver, so Windows targets are driven by the QEMU guest agent instead (exec runs over this channel; bulk file transfer uses ISO hot-plug).
 
