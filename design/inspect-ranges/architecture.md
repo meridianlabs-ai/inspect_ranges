@@ -154,7 +154,7 @@ Pinned upstream cloud images → derived goldens via offline `virt-customize` (d
 **Hardening backlog** (ranked; items 3 and 6 are "make QEMU-in-a-jail approximate Firecracker-in-a-jailer"):
 1. Branch protection + required review on `main` (blunts the one asset that reaches beyond any box — the devbox GitHub token).
 2. Evidence streaming off-instance implemented early (it *is* the integrity story).
-3. QEMU surface reduction — **not yet done**: spike guests carry virt-install defaults (USB controller, memballoon, SATA cdrom; verified by `--print-xml` probe) and `seccomp_sandbox` is unset. Two device profiles: agent VM strict-minimal; targets minimal-consistent-with-realism. The compiler must emit every device explicitly — tool defaults must never decide attack surface.
+3. QEMU surface reduction — **done** ([min-devices spike](../spikes/min-devices/README.md)): explicit per-role domain XML (agent strict-minimal: virtio disk/net/vsock/rng + serial only; targets add video where scenarios need it); guest-visible PCI 25 → 15; seed moved to a virtio disk; the qemu-ga channel dropped from Linux guests; full battery green under the hardened profile at 44.1 s range-ready. `seccomp_sandbox` on since hardened-container.
 4. Deny `AF_VSOCK` to non-range containers on dev boxes.
 5. Tripwires: alert on abnormal QEMU exits; canary credentials in the range container.
 6. ~~Tailored AppArmor profile for the range container~~ **resolved cheaper than planned** (hardened-container spike): Docker's *default* AppArmor profile suffices once libvirt's mount namespace is disabled (`namespaces = []`); `apparmor=unconfined` is gone from the production profile. A tailored profile remains an optional tightening.
@@ -204,6 +204,7 @@ The oracle sees everything; defenders see only what the agent transmits. pcap ca
 | Converged DC+member pair: save / restore (secure channel intact) | 19 s / 3 s |
 | Checkpoint bundle: capture / per-sample instantiation (overlays + restore pair + clocks) | 19 s / **3 s** |
 | Hardened container profile vs prototype profile (4-VM enforced-ready) | 49.8 s vs ~50 s (no cost) |
+| Minimal device model + hardened profile (4-VM enforced-ready; guest PCI 25 → 15) | 44.1 s |
 | Windows vsock daemon: channel RTT / exec RTT | 0.36 ms / 17.3 ms (vs ~2 s qemu-ga exec) |
 | Windows vsock file plane (100 MB, verified) | 400 / 281 MB/s (vs 0.6 MB/s qemu-ga) |
 
@@ -229,7 +230,7 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 | Production vsockd (idempotent, validated, hostile-tested) | Designed | guest-exec-lessons punch list |
 | Evidence streaming off-instance | Designed | backlog item 2; §7 dependency |
 | Image pipeline (Packer CI, ORAS registry) | Designed | handoff §7 |
-| QEMU device minimization | Designed (seccomp/AppArmor halves now demonstrated) | backlog item 3; hardened-container |
+| QEMU device minimization (explicit per-role XML) | **Demonstrated** | min-devices: PCI 25 → 15, battery green, 44.1 s |
 | Semantic schema validators (duplicate IPs, DNS refs, ACL attachment) | **Implemented** | `schema.py`, 68 tests |
 | Deferred schema sections (attack_path, goals, variables, defense, guest config) | Deliberately deferred | schema-v0.1-scope deferral table |
 | Separated HostProvider topology | Designed, supported; implementation not started | host-provider (revised 2026-10-03) |
@@ -253,6 +254,7 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 3. **Checkpoint cloning** (finding 4) — [checkpoint-clone](../spikes/checkpoint-clone/README.md). Bundled disk+memory+XML checkpoint of a converged AD pair on a named CPU model; destructive sample then a pristine second sample at 3 s per instantiation; survives container recreation. Remaining: cross-instance-family restore, bundle checksums/manifest.
 4. **Windows vsock** (finding 8) — [viosock](../spikes/viosock/README.md). WHQL-signed driver on the stock ISO; binds via pnputil; native Winsock listener exchanged data with a Linux host client.
 5. **Windows vsock daemon port** — [vsockd-win](../spikes/vsockd-win/README.md). Parity port of the v2 protocol (C#, in-box compiler, SYSTEM service): self_check 40/44 with zero unexpected failures, 15/15 native checks, 570/570 soak (zero flake), save/restore + reboot recovery, 400/281 MB/s files. Unifies the control plane; ISO hot-plug retired for Windows targets; qemu-ga back to build-time only. Remaining: production image recipe integration, checkpoint-flow behavior.
+6. **Minimal QEMU device model** (backlog item 3) — [min-devices](../spikes/min-devices/README.md). Explicit per-role domain XML under the hardened profile: guest-visible PCI 25 → 15 (USB, memballoon, qemu-ga channel, 8 root ports removed; seed on virtio), full battery green incl. save/restore, 44.1 s range-ready (faster than defaults). No ease-on-failure entries were needed.
 
 **Queued:**
 
@@ -271,4 +273,4 @@ From the [external review](external-review.md) triage; these shape the provider/
 
 ## 15. Reading map
 
-Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [scoring-integrity](scoring-integrity.md) (proof contracts), [range-build](range-build.md) (build manifest + checkpoints), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract), [external-review](external-review.md) (findings triage). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md), [ad-domain](../spikes/ad-domain/README.md), [hardened-container](../spikes/hardened-container/README.md), [checkpoint-clone](../spikes/checkpoint-clone/README.md), [viosock](../spikes/viosock/README.md), [vsockd-win](../spikes/vsockd-win/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).
+Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [scoring-integrity](scoring-integrity.md) (proof contracts), [range-build](range-build.md) (build manifest + checkpoints), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract), [external-review](external-review.md) (findings triage). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md), [ad-domain](../spikes/ad-domain/README.md), [hardened-container](../spikes/hardened-container/README.md), [checkpoint-clone](../spikes/checkpoint-clone/README.md), [viosock](../spikes/viosock/README.md), [vsockd-win](../spikes/vsockd-win/README.md), [min-devices](../spikes/min-devices/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).
