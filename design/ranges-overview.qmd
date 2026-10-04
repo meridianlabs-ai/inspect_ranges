@@ -224,11 +224,11 @@ Sharing solves size, but not startup time: a disk image captures a machine that 
 
 ### Range Host {#range-host}
 
-A range always runs on a host machine the deployment provides: the local machine in development, a dedicated instance in production. What a host provides is deliberately small, exactly three things:
+Ranges run on a host machine the deployment provides: the local machine in development, a dedicated instance in production. The extensible `HostProvider` interface must provide three things:
 
-- A **lease** on the machine, with an identity, an expiry, and the isolation claim recorded in the eval log. In production the claim is `instance`: one sample per instance lifetime, with release destroying the instance.
-- A **control channel** for the sample: realize the range, exec and file transfer against guests, teardown.
-- **Declared capabilities**, so a range that needs something the deployment cannot provide fails at planning rather than degrading silently.
+- A **lease** on the machine. The machine belongs to the sample until released, and in production release destroys it: instances are never reused across samples. The eval log records this isolation claim.
+- A **control channel** for the sample: build the range, run commands and transfer files on its guests, tear it down.
+- **Declared capabilities**. A range that needs something the deployment cannot provide fails at planning instead of running degraded.
 
 ![](../docs/diagrams/range-host.excalidraw.svg){fig-alt="The deployment seam: the Inspect scaffold (compile and render, agent loop, model credentials) and an append-only evidence store on the left, the range host with its applier and range container on the right, separated by a dashed trust boundary crossed by three flows: the realization bundle going in, the control channel (exec, read_file, write_file) in both directions, and evidence streaming out."}
 
