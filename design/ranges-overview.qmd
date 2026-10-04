@@ -146,7 +146,7 @@ The attack box runs in a dedicated VM like any other guest with a real NIC in th
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
 | Goal | Checked by |
-|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+|--------------------|----------------------------------------------------|
 | `flag` | the submitted value matches the planted flag |
 | `exfiltrate` | the file actually arrived on the attack box |
 | `execute` | an execution marker was left on the target host |
@@ -180,7 +180,7 @@ In the other direction, defenders inside the range can detect and react to every
 Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically. Each element of the spec then maps to libvirt/QEMU as follows:
 
 | `range.yaml` | Becomes |
-|-----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+|------------------------|------------------------------------------------|
 | network | Linux bridge, private to the range, with no IP of its own |
 | host, router, or attacker | KVM/libvirt domain with virtio devices, booted from a copy-on-write overlay on a read-only golden image |
 | interface | Virtio NIC on the named bridge, with its allocated MAC; the guest's addressing and hostname are delivered by a generated cloud-init seed |
@@ -230,7 +230,7 @@ A range always runs on a host machine the deployment provides: the local machine
 - A **control channel** for the sample: realize the range, exec and file transfer against guests, teardown.
 - **Declared capabilities**, so a range that needs something the deployment cannot provide fails at planning rather than degrading silently.
 
-![](../docs/diagrams/range-host.excalidraw.svg){fig-alt="The deployment seam: the Inspect scaffold (compile and render, agent loop, model credentials) and an append-only evidence store on the left, the range host with its applier and range container on the right, separated by a dashed trust boundary crossed by three flows: the realization bundle going in, the control channel (exec, read_file, write_file, forward) in both directions, and evidence streaming out."}
+![](../docs/diagrams/range-host.excalidraw.svg){fig-alt="The deployment seam: the Inspect scaffold (compile and render, agent loop, model credentials) and an append-only evidence store on the left, the range host with its applier and range container on the right, separated by a dashed trust boundary crossed by three flows: the realization bundle going in, the control channel (exec, read_file, write_file) in both directions, and evidence streaming out."}
 
 Everything is compiled and rendered up front, on the scaffold's side: the host receives one self-contained, digest-pinned bundle (the resolved plan plus every generated artifact) and realizes it with no further round trips, reporting staged progress (fetch, construct, boot, verify). The agent starts only after the verify stage passes the containment checks. Evidence streams back out as a declared output, durable and append-only, so neither a compromised guest nor a compromised scaffold can rewrite it.
 

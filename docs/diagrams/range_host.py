@@ -178,7 +178,7 @@ def build() -> Elements:
     _, e = make_text(
         285,
         121,
-        "exec() · read_file()\nwrite_file() · forward()",
+        "exec() · read_file()\nwrite_file() · …",
         10,
         CONTROL,
         align="center",
