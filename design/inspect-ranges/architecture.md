@@ -113,7 +113,7 @@ Measured (metal): exec round-trip **1.1 ms median** (vs 44.5 ms for `docker exec
 
 ([win-guest spike](../spikes/win-guest/README.md); [guest-exec-lessons](guest-exec-lessons.md).)
 
-**virtio-vsock has no Windows guest driver** (confirmed empirically: the vsock PCI device stays unbound in Error state after a full virtio-win install). So the exec plane splits by guest OS: **vsock for the agent and Linux targets; QEMU guest agent for Windows targets**, with ISO/disk hot-plug as the Windows bulk-transfer path (qemu-ga files measured at ~0.6 MB/s — unusable for bulk).
+**The control plane is unified: Windows targets speak the same vsock protocol as Linux guests.** The win-guest spike observed the vsock device unbound after a guest-tools install; the [viosock spike](../spikes/viosock/README.md) established why: the stable virtio-win ISO ships a **WHQL-signed** `viosock` driver (2k16–2k25, w10/w11) that the guest-tools MSI simply doesn't install — one `pnputil` call binds it and registers a Winsock provider (AF 40). The [vsockd-win spike](../spikes/vsockd-win/README.md) (2026-10-04) then **ported the daemon** (C# 5 / .NET Framework 4.8, compiled in-guest by the in-box `csc.exe`, SYSTEM service with restart-on-failure, Job-Object process-tree kill, `LogonUser`+`CreateProcessAsUser` for `user=`): identical wire protocol, driven by the identical host-side provider code — **`self_check` 40/44 with zero unexpected failures** (the four xfails are platform facts: no POSIX read-permission bit, adduser-provisioned user test, the 32,767-char Windows command-line cap → clean `E2BIG`, no signal-death exit codes), 15/15 native supplement, **570/570 soak with zero flake** (vs qemu-ga's ~5–7%), clean recovery across save/restore and reboot, file plane **400/281 MB/s** (~500× qemu-ga's 0.6 MB/s). **ISO hot-plug retires as the Windows bulk path; qemu-ga returns to being a build-time image tool.** The port encodes the viosock provider's quirks (no blocking mode — recv `WSAEWOULDBLOCK` / send `STATUS_BUFFER_TOO_SMALL` on empty/full buffers; single sends capped ~32 KiB; no select or overlapped I/O), none of which hurt throughput with a prompt reader.
 
 Windows economics measured on metal: unattended Server 2022 install → finalized golden image **189 s**; boot from golden overlay to exec-responsive **6.5 s**; memory snapshot save **10.1 s** (4 GB → 1.16 GB state), **restore 1.3 s** with the agent responsive 0.1 s later. Snapshot-after-AD-converges is the Windows boot-storm answer — now demonstrated, not hypothesized: the [ad-domain spike](../spikes/ad-domain/README.md) built a working forest (promotion 177 s, join 20 s) and restored the converged pair in 3 s with the Kerberos secure channel intact. Its one hard finding: clones joining a domain whose DC shares their golden image are refused outright (domain SID = machine SID), so **AD-bound golden images must be sysprep-generalized** (~3.5 min specialize per clone, paid at range build, not per sample).
 
@@ -136,7 +136,7 @@ Pinned upstream cloud images → derived goldens via offline `virt-customize` (d
 
 **Threat model.** The untrusted principal is the agent (potentially a frontier model) with root and raw-network tooling inside its VM — `NET_ADMIN`/`NET_RAW`-class capabilities are the product, not a privilege to withhold. Targets become attacker-controlled *by design* once compromised, so their daemons' outputs are untrusted too. Assets: (inter-sample) other tenants' samples; (intra-sample) eval validity — scoring artifacts, flags, evidence.
 
-**Boundary stack and escape chain.** The agent faces, in order: (1) **KVM** — a hypervisor escape through a minimal virtio device model is the only opening move; commodity container escapes don't apply. (2) Landing in the QEMU process means landing in an **unprivileged, credential-free container** (no Docker socket, read-only goldens, IMDS blocked by hop-limit-1, `NET_ADMIN` scoped to its own netns; the l2-attach/vsock spikes ran it with zero-to-one capabilities and no `--privileged` anywhere — the previously-privileged veth helper is deleted by the always-VM design). (3) Host root requires a *second, independent* kernel/runc exploit. (4) The host is deliberately **asset-free**: no secrets, evidence streamed off-instance, Nitro caps the blast radius at one invalidated sample.
+**Boundary stack and escape chain.** The agent faces, in order: (1) **KVM** — a hypervisor escape through a minimal virtio device model is the only opening move; commodity container escapes don't apply. (2) Landing in the QEMU process means landing as an **unprivileged user inside an unprivileged, credential-free container**: the [hardened-container spike](../spikes/hardened-container/README.md) (2026-10-04) demonstrated the full stack with `cap_drop: ALL` plus an explicit eight-capability list (each justified by an observed failure when removed), QEMU running as `libvirt-qemu` (not container root) with `-sandbox on,elevateprivileges=deny,spawn=deny`, Docker's default seccomp and AppArmor (`docker-default (enforce)`) applied, `no-new-privileges`, no Docker socket, read-only goldens, IMDS blocked by hop-limit-1, `NET_ADMIN` scoped to its own netns — at zero measured cost (49.8 s to enforced-ready vs ~50 s unhardened). (3) Host root requires a *second, independent* kernel/runc exploit. (4) The host is deliberately **asset-free**: no secrets, evidence streamed off-instance, Nitro caps the blast radius at one invalidated sample.
 
 **Honest tier grading.** Nitro (no public escape; carries EC2 multi-tenancy) > Firecracker (~50 K lines Rust, tiny device model, production multi-tenant boundary) > QEMU/KVM (large C codebase, recurring contest escapes — but nearly all land in the QEMU *process*, i.e. our jailed container, and the practical surface is the *configured* device model). The architecture pairs boundary strength to stakes: Nitro guards tenants; QEMU guards one sample's validity, where a breach is detectable and discardable.
 
@@ -157,7 +157,7 @@ Pinned upstream cloud images → derived goldens via offline `virt-customize` (d
 3. QEMU surface reduction — **not yet done**: spike guests carry virt-install defaults (USB controller, memballoon, SATA cdrom; verified by `--print-xml` probe) and `seccomp_sandbox` is unset. Two device profiles: agent VM strict-minimal; targets minimal-consistent-with-realism. The compiler must emit every device explicitly — tool defaults must never decide attack surface.
 4. Deny `AF_VSOCK` to non-range containers on dev boxes.
 5. Tripwires: alert on abnormal QEMU exits; canary credentials in the range container.
-6. Tailored AppArmor profile for the range container (currently `apparmor=unconfined` — spike convenience, not a decision).
+6. ~~Tailored AppArmor profile for the range container~~ **resolved cheaper than planned** (hardened-container spike): Docker's *default* AppArmor profile suffices once libvirt's mount namespace is disabled (`namespaces = []`); `apparmor=unconfined` is gone from the production profile. A tailored profile remains an optional tightening.
 7. Devbox egress allowlisting; burn-after-risky-run practice.
 8. Evaluate Docker userns-remap (container root → unprivileged host uid); rootless Podman via its Docker-compatible socket is the recorded fallback.
 
@@ -169,7 +169,7 @@ Pinned upstream cloud images → derived goldens via offline `virt-customize` (d
 
 Inspect's sharding layer dispatches samples to instances; a worker runs on each instance and drives `inspect_ranges` against the **local** Docker daemon — the vsock fast path everywhere, no remote plumbing. Both target environments converge: the orchestration environment's integration is "provision a Nitro instance (our bootstrap/AMI: Docker + host prerequisites, gated by `inspect-ranges doctor --json`, fixable by `doctor --fix-script`) → run the worker on it"; the run-inside-Nitro environment already works this way. Docker's role is precisely scoped: packaging/lifecycle/netns-scoping/cgroups for the hypervisor stack — never agent isolation (alternatives analysis in [agent-containment](agent-containment.md): host-libvirtd, Podman, containerd, gVisor/Kata all weighed and rejected or deferred).
 
-What we require from the sharding layer: at most one resident sample per instance; the worker told its isolation level (for the logged claim); **mid-run log/evidence sync** off-instance — *open external dependency: confirm Inspect sharding supports mid-run sync; if end-of-shard only, evidence streaming needs its own channel.*
+What we require from the sharding layer: **one sample per instance lifetime** — release destroys the instance or hands it to independent reprovisioning; a used instance never returns to a warm pool (sequential reuse would let a compromised host persist into the next sample); the worker told its isolation level (for the logged claim); **mid-run log/evidence sync** off-instance — *open external dependency: confirm Inspect sharding supports mid-run sync; if end-of-shard only, evidence streaming needs its own channel.*
 
 A second, fully supported topology (revised 2026-10-03) separates the scaffold from the range: a pluggable `HostProvider` lets an orchestration layer allocate a machine per sandbox, with exec bridged over a held-open `docker exec`↔vsock stream. This is the **stronger posture** — the worker's model credentials and eval state live outside the attackable instance — and is preferred for untrusted-model runs; co-resident sharding remains the simpler default. The vsock client sits behind a thin channel interface; nothing above it may know its transport.
 
@@ -202,6 +202,10 @@ The oracle sees everything; defenders see only what the agent transmits. pcap ca
 | `sysprep /generalize` → specialized clone (new SID) | 208 s |
 | Domain join post-sysprep → rebooted into domain | 20 s |
 | Converged DC+member pair: save / restore (secure channel intact) | 19 s / 3 s |
+| Checkpoint bundle: capture / per-sample instantiation (overlays + restore pair + clocks) | 19 s / **3 s** |
+| Hardened container profile vs prototype profile (4-VM enforced-ready) | 49.8 s vs ~50 s (no cost) |
+| Windows vsock daemon: channel RTT / exec RTT | 0.36 ms / 17.3 ms (vs ~2 s qemu-ga exec) |
+| Windows vsock file plane (100 MB, verified) | 400 / 281 MB/s (vs 0.6 MB/s qemu-ga) |
 
 Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal deltas, cold-start economics (warm pools, Fast Snapshot Restore) — handoff §13 experiments 3–5.
 
@@ -213,6 +217,11 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 | `doctor` + `--fix-script` | **Implemented** | CLI + tests; in daily use on the devbox |
 | Devbox tooling (metal + nested) | **Implemented** | `devbox/` |
 | Unprivileged libvirt-in-Docker runtime | **Demonstrated** (spike) | l2-attach, net-compile |
+| Hardened container profile (cap floor, non-root QEMU, default seccomp/AppArmor, QEMU sandbox) | **Demonstrated** | hardened-container, 23/23 checks, zero cost |
+| AD domain build through the pipeline (promotion, sysprep, join) | **Demonstrated** | ad-domain |
+| Checkpoint cloning (fresh independent samples from a converged bundle) | **Demonstrated** | checkpoint-clone, 3 s/sample, named CPU model |
+| Windows vsock transport (signed driver, data path) | **Validated** | viosock |
+| Windows vsock daemon (unified control plane) | **Demonstrated** | vsockd-win: self_check 40/44 (0 unexpected), 570/570 soak, 400/281 MB/s |
 | Compiled networking (IPAM→nftables) | **Demonstrated** (spike-grade compiler) | net-compile, 9/9 checks |
 | vsock exec/file plane | **Demonstrated** (prototype daemon) | vsock-exec |
 | Windows guests + qemu-ga + snapshots | **Demonstrated** | win-guest |
@@ -220,9 +229,10 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 | Production vsockd (idempotent, validated, hostile-tested) | Designed | guest-exec-lessons punch list |
 | Evidence streaming off-instance | Designed | backlog item 2; §7 dependency |
 | Image pipeline (Packer CI, ORAS registry) | Designed | handoff §7 |
-| QEMU device minimization + seccomp + AppArmor | Designed | backlog items 3, 6 |
+| QEMU device minimization | Designed (seccomp/AppArmor halves now demonstrated) | backlog item 3; hardened-container |
+| Semantic schema validators (duplicate IPs, DNS refs, ACL attachment) | **Implemented** | `schema.py`, 68 tests |
 | Deferred schema sections (attack_path, goals, variables, defense, guest config) | Deliberately deferred | schema-v0.1-scope deferral table |
-| Remote HostProvider path | Deferred with triggers | host-provider |
+| Separated HostProvider topology | Designed, supported; implementation not started | host-provider (revised 2026-10-03) |
 | KubeVirt / Proxmox / EC2-routed backends | Future | handoff §9 (capability declarations) |
 
 ## 12. Open questions for reviewers
@@ -234,15 +244,31 @@ Not yet measured: boot storms / gp3 saturation, nested-virt (c8i) vs metal delta
 5. **The deferral table** (schema-v0.1-scope): does any deferred section need to move up for your use cases — particularly `goals`/oracles for scoring?
 6. **Dual-use posture** (handoff §12): tooling public, generation pipelines/held-out content controlled — unchanged by this architecture, but review-worthy alongside it.
 
-## 13. Queued confirmation spikes
+## 13. Confirmation spikes: done and queued
 
-Architecture claims that are believed sound but not yet demonstrated; each gets a spike once the review copy settles.
+**Done** (2026-10-03/04):
 
-1. **Active Directory range** — **done**, see [ad-domain](../spikes/ad-domain/README.md). DC promotion + member join from clones of one golden image works end to end over qemu-ga; the one hard finding is that unsysprepped clones are refused ("domain SID identical to machine SID"), so AD-bound images must be sysprep-generalized (208 s specialize per clone, once per range build). Promotion 177 s, join 20 s, converged pair restores from snapshot in 3 s with the secure channel intact — AD convergence is a range-build-time cost, not per-sample. Remaining: Linux guests resolving the AD zone (dnsmasq forwarding), and a full `goad-light` (parent+child forest) build.
-2. **Inspect sharding mid-run log sync** — the open question in §12 item 1, confirmable with a small sharded run; load-bearing for continuous off-instance evidence in the co-resident topology.
-3. **Evidence streaming path** — §9 is designed, unbuilt; spike the minimal version (per-segment pcap + console to durable append-only storage, bypassing the scaffold).
-4. **EBS/FSR cold start** — the fleet distribution path (image-distribution.md) is designed from documented AWS behavior; measure an actual lazy-start boot, since only the HTTP lazy-pull path has numbers.
+1. **Active Directory range** — [ad-domain](../spikes/ad-domain/README.md). DC promotion + member join from clones of one golden image works end to end over qemu-ga; the one hard finding is that unsysprepped clones are refused ("domain SID identical to machine SID"), so AD-bound images must be sysprep-generalized (208 s specialize per clone, once per range build). Promotion 177 s, join 20 s. Remaining: Linux guests resolving the AD zone (dnsmasq forwarding), full `goad-light` (parent+child forest).
+2. **Hardened container profile** ([external review](external-review.md) finding 3) — [hardened-container](../spikes/hardened-container/README.md). The measured capability floor (eight, each justified by an observed failure), non-root QEMU, default seccomp/AppArmor, QEMU sandbox; zero cost; egress conformance holds before and after simulated router compromise.
+3. **Checkpoint cloning** (finding 4) — [checkpoint-clone](../spikes/checkpoint-clone/README.md). Bundled disk+memory+XML checkpoint of a converged AD pair on a named CPU model; destructive sample then a pristine second sample at 3 s per instantiation; survives container recreation. Remaining: cross-instance-family restore, bundle checksums/manifest.
+4. **Windows vsock** (finding 8) — [viosock](../spikes/viosock/README.md). WHQL-signed driver on the stock ISO; binds via pnputil; native Winsock listener exchanged data with a Linux host client.
+5. **Windows vsock daemon port** — [vsockd-win](../spikes/vsockd-win/README.md). Parity port of the v2 protocol (C#, in-box compiler, SYSTEM service): self_check 40/44 with zero unexpected failures, 15/15 native checks, 570/570 soak (zero flake), save/restore + reboot recovery, 400/281 MB/s files. Unifies the control plane; ISO hot-plug retired for Windows targets; qemu-ga back to build-time only. Remaining: production image recipe integration, checkpoint-flow behavior.
 
-## 14. Reading map
+**Queued:**
 
-Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md), [ad-domain](../spikes/ad-domain/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).
+1. **Inspect sharding mid-run log sync** — the open question in §12 item 1, confirmable with a small sharded run; load-bearing for continuous off-instance evidence in the co-resident topology.
+2. **Evidence streaming path** — §9 is designed, unbuilt; spike the minimal version (per-segment pcap + console to durable append-only storage, bypassing the scaffold).
+3. **EBS/FSR cold start** — the fleet distribution path (image-distribution.md) is designed from documented AWS behavior; measure an actual lazy-start boot, since only the HTTP lazy-pull path has numbers.
+4. **NAT-granted egress conformance** — the hardened-container spike verified the no-egress case structurally; the case where a range legitimately requests egress needs the compiler's `nat` realization plus the layer-3 conformance battery ([agent-containment](agent-containment.md) network-authority section).
+
+## 14. Next-phase design directions (recorded, not built)
+
+From the [external review](external-review.md) triage; these shape the provider/compiler implementation phase and are deliberately design-only here.
+
+- **The compiler emits an immutable resolved plan before any mutation** (finding 6): allocations (IPs, MACs, CIDs), routes and DNS roles per host, image digests, required host capabilities, resource totals, generated infrastructure names. Unsupported feature combinations fail at planning, not mid-boot. Scenario identifiers (IPs/MACs, deliberately repeatable across isolated samples) are distinguished from runtime identifiers (host-global CIDs, compose project names — collision-free by allocation). `validate`, `render`, admission, execution, and the eval log all consume the same plan.
+- **The provider is a sample state machine, not a try/finally** (findings 2, 10): acquire (leased, with identity and expiry) → prepare → verify (containment conformance, collectors ready) → execute (agent starts only after verification) → finalize evidence → destroy. An independent reaper reclaims from recorded ownership; infrastructure failure is distinguishable from agent failure; admission limits include overlay growth, evidence volume, and process counts, and evidence-storage exhaustion yields an *indeterminate* sample, never a silent ordinary score ([scoring-integrity](scoring-integrity.md)).
+- **Image distribution ships integrity-first** (finding 9): published blobs use a canonical relative-path layout so they materialize unchanged (digest-verifiable); verified eager pulls and immutable caches first; lazy registry reads only with chunk/block verification or an explicitly trusted immutable backing service (a whole-blob SHA-256 cannot authenticate arbitrary blocks mid-fetch). The measured local layering and EBS/FSR paths are unaffected.
+
+## 15. Reading map
+
+Decision records: [agent-containment](agent-containment.md) (security), [host-provider](host-provider.md) (deployment), [scoring-integrity](scoring-integrity.md) (proof contracts), [range-build](range-build.md) (build manifest + checkpoints), [docker-provider-reuse](docker-provider-reuse.md) (what we port), [schema-v0.1-scope](schema-v0.1-scope.md) (spec), [guest-exec-lessons](guest-exec-lessons.md) (exec contract), [external-review](external-review.md) (findings triage). Evidence: [l2-attach](../spikes/l2-attach/README.md), [vsock-exec](../spikes/vsock-exec/README.md), [net-compile](../spikes/net-compile/README.md), [win-guest](../spikes/win-guest/README.md), [ad-domain](../spikes/ad-domain/README.md), [hardened-container](../spikes/hardened-container/README.md), [checkpoint-clone](../spikes/checkpoint-clone/README.md), [viosock](../spikes/viosock/README.md), [vsockd-win](../spikes/vsockd-win/README.md) — each reproducible via its `run.sh`. Background: [the design handoff](../inspect_ranges_handoff.md), [survey](survey.md), [range-yaml-swag](range-yaml-swag.md), the six examples under [ranges/](ranges/).

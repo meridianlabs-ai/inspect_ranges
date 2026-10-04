@@ -12,7 +12,7 @@ timestamp: 2026-10-01
 
 ## Decision
 
-**Sharding is the deployment model; `inspect_ranges` only ever realizes ranges against the local Docker daemon.**
+**Sharding is the default deployment model; `inspect_ranges` realizes ranges against the Docker endpoint the deployment supplies** — the local daemon under sharding, or a `HostProvider`-supplied per-sample endpoint in the separated topology. Everything below the endpoint (compose generation, range container, VM boot, vsock exec/file, evidence, teardown) is identical in both.
 
 - Inspect's sharding layer dispatches samples to instances; an Inspect worker runs on each instance and drives `inspect_ranges` in place. The "where" (instance provisioning, sample dispatch) belongs to the sharding layer and the caller's orchestration; the "what" (compose generation, range container, VM boot, vsock exec/file, evidence, teardown) is ours and is strictly host-local.
 - Both deployment environments converge on the identical on-instance story. The orchestration environment's integration is: provision a Nitro instance its way (our bootstrap/AMI provides Docker + host prerequisites, gated by `inspect-ranges doctor --json`, fixable by `doctor --fix-script`) → run the worker on it. No inspect_ranges-specific provisioning interface to implement.
@@ -23,7 +23,7 @@ timestamp: 2026-10-01
 
 The containment preconditions, restated as dispatch constraints:
 
-- **At most one resident sample per instance at a time** — the entire [containment posture](agent-containment.md) is derived from this.
+- **One sample per instance lifetime** — the entire [containment posture](agent-containment.md) is derived from this, and "at a time" is not enough: under the threat model a compromised host can persist into the next sample even after every VM and container is removed. Release means the instance is destroyed or handed to an independently controlled reprovisioning process; a warm pool may hold only never-used instances, and a used instance never returns to one.
 - The worker is told its isolation level (`instance` in production, `shared` on dev boxes) so the per-sample eval-log claim stays truthful; `shared` warns for untrusted-model evals.
 - **Mid-run log/evidence sync off-instance**, not end-of-shard collection — prompt streaming is load-bearing for detection-over-prevention (agent-containment backlog item 2). This must be confirmed against Inspect's sharding semantics early; if sync is end-of-run only, evidence streaming needs its own channel.
 
@@ -53,3 +53,9 @@ class HostProvider(Protocol):
 ```
 
 Providers would register through the same entry-point mechanism as other inspect_ranges components; `acquire` gates on `doctor` readiness and fails the sample fast with the report. Everything above the channel abstraction is transport-agnostic, and the bridge is subject to the same conformance testing (`self_check`) as the local fast path.
+
+The sketch is deliberately minimal; the production contract additionally needs (external review 2026-10-04, finding 10):
+
+- **Lease semantics**: `acquire` returns a lease with an identity and an expiry; a sample that outlives its lease is reclaimed. Controller crashes, interrupted acquisition, partial boots, and network partitions are normal cases, not exceptions.
+- **An independent reaper**: cleanup must be idempotent and recoverable from recorded resource ownership (instance tags, compose project names), never dependent on the original Python process reaching `finally`. The e2e spike demonstrated the failure concretely: `pkill` on the harness leaves the range running.
+- **Release is destruction**: per the dispatch constraint above, `release` destroys the instance or hands it to independent reprovisioning; it never returns a used instance to a pool.

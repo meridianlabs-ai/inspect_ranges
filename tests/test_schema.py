@@ -102,23 +102,125 @@ def test_minimal_spec_validates() -> None:
         ),
         pytest.param(
             """
+            networks:
+              - { name: lab, cidr: 10.0.0.0/24, mode: isolated }
+              - { name: dmz, cidr: 10.0.1.0/24, mode: isolated }
             routers:
               - name: r
-                interfaces: [{ network: lab }, { network: lab }]
-                acl: [{ from: lab, to: lab, allow: ["25"] }]
+                interfaces: [{ network: lab }, { network: dmz }]
+                acl: [{ from: lab, to: dmz, allow: ["25"] }]
             """,
             "proto/port",
             id="bad-allow-entry",
         ),
         pytest.param(
             """
+            networks:
+              - { name: lab, cidr: 10.0.0.0/24, mode: isolated }
+              - { name: dmz, cidr: 10.0.1.0/24, mode: isolated }
             routers:
               - name: r
-                interfaces: [{ network: lab }, { network: lab }]
+                interfaces: [{ network: lab }, { network: dmz }]
                 acl: [{ from: lab, to: wan, allow: [] }]
             """,
             "undeclared network",
             id="acl-dangling-network",
+        ),
+        pytest.param(
+            """
+            networks:
+              - { name: lab, cidr: 10.0.0.0/24, mode: isolated }
+              - { name: dmz, cidr: 10.0.1.0/24, mode: isolated }
+              - { name: ext, cidr: 10.0.2.0/24, mode: isolated }
+            routers:
+              - name: r
+                interfaces: [{ network: lab }, { network: dmz }]
+                acl: [{ from: lab, to: ext, allow: [] }]
+            """,
+            "not attached",
+            id="acl-unattached-network",
+        ),
+        pytest.param(
+            """
+            networks:
+              - { name: lab, cidr: 10.0.0.0/24, mode: isolated }
+              - { name: dmz, cidr: 10.0.1.0/24, mode: isolated }
+            routers:
+              - name: r
+                interfaces: [{ network: lab }, { network: dmz }]
+                acl: [{ from: lab, to: lab, allow: [] }]
+            """,
+            "same-segment",
+            id="acl-from-equals-to",
+        ),
+        pytest.param(
+            """
+            routers:
+              - name: r
+                interfaces: [{ network: lab }, { network: lab }]
+            """,
+            "more than once",
+            id="router-duplicate-attachment",
+        ),
+        pytest.param(
+            """
+            hosts:
+              - name: web
+                os: { type: linux }
+                image: img
+                interfaces: [{ network: lab, ip: 10.0.0.10 }]
+              - name: db
+                os: { type: linux }
+                image: img
+                interfaces: [{ network: lab, ip: 10.0.0.10 }]
+            """,
+            "both use",
+            id="duplicate-ip-on-segment",
+        ),
+        pytest.param(
+            """
+            hosts:
+              - name: web
+                os: { type: linux }
+                image: img
+                interfaces: [{ network: lab, ip: 10.0.0.0 }]
+            """,
+            "network or broadcast",
+            id="network-address-as-ip",
+        ),
+        pytest.param(
+            """
+            hosts:
+              - name: web
+                os: { type: linux }
+                image: img
+                interfaces: [{ network: lab, ip: 10.0.0.255 }]
+            """,
+            "network or broadcast",
+            id="broadcast-address-as-ip",
+        ),
+        pytest.param(
+            """
+            networks:
+              - name: lab
+                cidr: 10.0.0.0/24
+                mode: isolated
+                dns: { authoritative: [ghost] }
+            """,
+            "undeclared guest",
+            id="dns-authoritative-undeclared-guest",
+        ),
+        pytest.param(
+            """
+            networks:
+              - { name: lab, cidr: 10.0.0.0/24, mode: isolated }
+              - name: dmz
+                cidr: 10.0.1.0/24
+                mode: isolated
+                dns: { authoritative: [web] }
+            """,
+            "not attached",
+            id="dns-authoritative-not-attached",
         ),
         pytest.param(
             "attacker: { host: nosuch, entry: assumed-breach }",
@@ -158,13 +260,34 @@ def test_bad_schema_version_rejected() -> None:
 def test_valid_allow_entries(entry: str) -> None:
     data = _with(
         f"""
+        networks:
+          - {{ name: lab, cidr: 10.0.0.0/24, mode: isolated }}
+          - {{ name: dmz, cidr: 10.0.1.0/24, mode: isolated }}
         routers:
           - name: r
-            interfaces: [{{ network: lab }}, {{ network: lab }}]
-            acl: [{{ from: lab, to: lab, allow: [{entry}] }}]
+            interfaces: [{{ network: lab }}, {{ network: dmz }}]
+            acl: [{{ from: lab, to: dmz, allow: [{entry}] }}]
         """
     )
     RangeSpec.model_validate(data)
+
+
+def test_dns_config_validates() -> None:
+    data = _with(
+        """
+        networks:
+          - name: lab
+            cidr: 10.0.0.0/24
+            mode: isolated
+            dns:
+              records: [{ name: files.corp.local, ip: 10.0.0.50 }]
+              authoritative: [web]
+              forwarder: 1.1.1.1
+        """
+    )
+    spec = RangeSpec.model_validate(data)
+    assert spec.networks[0].dns is not None
+    assert spec.networks[0].dns.authoritative == ["web"]
 
 
 def test_json_schema_exports_aliases() -> None:

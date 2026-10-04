@@ -8,6 +8,8 @@ timestamp: 2026-09-30
 
 # goad-light — source note
 
+*Status: translated requirements fixture. `range.yaml` validates against schema v0.1 and preserves upstream semantics; it has not been built or booted as a VM range (images are logical references, provisioning is deferred). Promotion to a runnable range requires the build pipeline and behavioral verification.*
+
 Translation of GOAD-Light from `github.com/Orange-Cyberdefense/GOAD` (`ad/GOAD-Light/`, GPL-3.0, cloned 2026-09-30). This is the testbed behind the cochise autonomous-AD-pentest evaluation (arXiv:2502.04227, ACM TOSEM — that paper used full GOADv3; Light is the 3-VM variant). It is the example that forces AD realities into the format: static DC addressing, AD-integrated DNS chains, identity data (users/groups/ACLs/SPNs) as first-class configuration, and per-host defender toggles.
 
 ## Where each fact comes from (vendored in `upstream/`)

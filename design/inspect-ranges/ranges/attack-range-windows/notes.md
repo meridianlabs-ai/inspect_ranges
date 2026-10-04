@@ -8,6 +8,8 @@ timestamp: 2026-09-30
 
 # attack-range-windows — source note
 
+*Status: translated requirements fixture. `range.yaml` validates against schema v0.1 and preserves upstream semantics; it has not been built or booted as a VM range (images are logical references, provisioning is deferred). Promotion to a runnable range requires the build pipeline and behavioral verification.*
+
 Translation of Splunk attack_range v5's AWS `splunk_windows` template (`github.com/splunk/attack_range`, Apache-2.0, fetched 2026-09-30). The instrumented/blue example: its entire purpose is telemetry (endpoint logs → Splunk), which forces a `defense.telemetry` section and a detection-flavored oracle that none of the red-only examples need.
 
 ## Where each fact comes from (vendored in `upstream/`)

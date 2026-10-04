@@ -8,6 +8,8 @@ timestamp: 2026-09-30
 
 # mhbench-equifax-small — source note
 
+*Status: translated requirements fixture. `range.yaml` validates against schema v0.1 and preserves upstream semantics; it has not been built or booted as a VM range (images are logical references, provisioning is deferred). Promotion to a runnable range requires the build pipeline and behavioral verification.*
+
 Translation of MHBench's `equifax_small` topology (repo `github.com/bsinger98/MHBench`, MIT, cloned 2026-09-30; companion paper arXiv:2501.16466). **The full MHBench repo is public**, including all 40 network definitions: 10 hand-designed under `src/environments/terraform/topologies/` + specs, 30 generated as JSON under `src/environments/generated/` (corpus assessment in [../../survey.md](../../survey.md) §1a).
 
 ## Where each fact comes from (all files vendored in `upstream/`)

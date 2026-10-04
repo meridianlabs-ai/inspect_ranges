@@ -7,7 +7,9 @@ tags: [inspect-ranges, sandbox, qemu-guest-agent, vsock, exec, prior-art]
 timestamp: 2026-10-01
 ---
 
-# Guest exec/file edge cases: lessons from the Proxmox provider (and what they imply for the vsock daemon)
+# Guest exec/file edge cases
+
+*Status note (2026-10-04): with the Windows daemon ported ([vsockd-win](../spikes/vsockd-win/README.md)), qemu-ga is no longer a runtime exec plane — its mechanics below apply to build-time image work and as background for why the contract items exist. The contract requirements themselves (request IDs, durable results, budgets, hostile-daemon shim) bind the vsock daemon on both OSes and are protocol-v3 scope.*: lessons from the Proxmox provider (and what they imply for the vsock daemon)
 
 *On the Proxmox provider author's advice ("proxmox basically just wraps the QEMU API in exec/read_file/write_file, and you'll run into the same edge cases"), surveyed `UKGovernmentBEIS/inspect_proxmox_sandbox` (MIT, surveyed 2026-10-01: `_impl/agent_commands.py`, `_impl/qga_responses.py`, `_proxmox_sandbox_environment.py`, `tests/..._hostile_guest_agent_e2e.py`). Everything below is encoded behavior, not documentation — exactly the hard-won class of knowledge the [docker-provider-reuse](docker-provider-reuse.md) decision ports from Inspect's Docker provider. This doc splits the findings into: facts about qemu-ga we inherit directly (our Windows-target path, per [agent-containment](agent-containment.md)), and contract lessons the vsock daemon must satisfy even though its transport avoids most of the mechanics.*
 

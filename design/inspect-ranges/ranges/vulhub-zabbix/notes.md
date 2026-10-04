@@ -8,6 +8,8 @@ timestamp: 2026-09-30
 
 # vulhub-zabbix — source note
 
+*Status: translated requirements fixture. `range.yaml` validates against schema v0.1 and preserves upstream semantics; it has not been built or booted as a VM range (images are logical references, provisioning is deferred). Promotion to a runnable range requires the build pipeline and behavioral verification.*
+
 Translation of `vulhub/zabbix/CVE-2016-10134` (`github.com/vulhub/vulhub`, MIT, cloned 2026-09-30). Chosen as the minimal/smoke-test example over a single-container CVE because it is a genuine 4-host service stack (web, server, agent, database) while still booting in seconds upstream. Upstream is docker-compose; per the project decision (2026-09-30), we express it substrate-agnostically — the images/services are what we replicate, not the container runtime.
 
 ## Where each fact comes from (vendored in `upstream/`)

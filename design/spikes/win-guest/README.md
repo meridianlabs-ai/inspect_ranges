@@ -4,7 +4,7 @@
 
 ## Verdict
 
-Windows under this stack is **unexpectedly cheap** — 3-minute unattended install, 6.5 s boot-to-exec, 1.4 s snapshot restore — but **virtio-vsock has no Windows driver**, confirmed empirically. The exec-plane claim becomes: **vsock for the agent and Linux targets; QEMU guest agent for Windows targets.** qemu-ga exec is fine; its file plane is ~three orders of magnitude slower than vsock, so bulk transfer to Windows guests needs the ISO/disk-hotplug fallback.
+Windows under this stack is **unexpectedly cheap** — 3-minute unattended install, 6.5 s boot-to-exec, 1.4 s snapshot restore — but **the shipped virtio-win package leaves the vsock device unbound**, confirmed empirically. (Upstream maintains a `viosock` driver this spike did not evaluate; its packaging/signing status is a queued investigation — this spike establishes only that a standard guest-tools install does not provide vsock.) The exec-plane claim becomes: **vsock for the agent and Linux targets; QEMU guest agent for Windows targets.** qemu-ga exec is fine; its file plane is ~three orders of magnitude slower than vsock, so bulk transfer to Windows guests needs the ISO/disk-hotplug fallback.
 
 ## Measurements (metal, EBS gp3, Server 2022 Standard Core eval)
 

@@ -62,3 +62,9 @@ Every vendored file was matched to its upstream repository by git blob hash (che
 | `github.com/andreashappe/cochise` @ `3abdb11f577dbdc8c4cf219c1b289d8c858f2877` | `goad-light/upstream/cochise/scenario.txt` | `src/cochise/templates/scenario.md` |
 | | `goad-light/upstream/cochise/osint_users.txt` | `scenario-data/users.txt` |
 | `github.com/splunk/attack_range` @ `fc9b9e719d8835da0bbb5c20d46c52a9778d64e2` | `attack-range-windows/upstream/splunk_windows_aws.yml` | `templates/aws/splunk_windows_aws.yml` |
+
+## Tooling fetched at spike run time (not vendored)
+
+| Fetched to | Project | License | Use |
+|---|---|---|---|
+| `$IMAGE_CACHE/busybox.exe` (downloaded by `spikes/vsockd-win/run.sh`) | [busybox-w32](https://frippery.org/busybox/) | GPL-2.0 | POSIX userland staged into the vsockd-win spike's **test image only** (never production goldens), so inspect_ai's `self_check` suite can run against the Windows daemon |

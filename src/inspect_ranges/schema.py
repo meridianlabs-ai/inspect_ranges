@@ -280,25 +280,73 @@ class RangeSpec(_StrictModel):
         if len(set(names)) != len(names):
             raise ValueError("guest names (hosts, routers, attacker) must be unique")
 
+        used_ips: dict[tuple[str, IPv4Address], str] = {}
         for name, interfaces in guests:
+            attached: set[str] = set()
             for interface in interfaces:
                 network = networks.get(interface.network)
                 if network is None:
                     raise ValueError(
                         f"guest {name!r} attaches to undeclared network {interface.network!r}"
                     )
-                if interface.ip is not None and interface.ip not in network.cidr:
+                if interface.network in attached:
+                    raise ValueError(
+                        f"guest {name!r} attaches to network {interface.network!r} more than once"
+                    )
+                attached.add(interface.network)
+                if interface.ip is None:
+                    continue
+                if interface.ip not in network.cidr:
                     raise ValueError(
                         f"guest {name!r} address {interface.ip} is outside {network.name!r} ({network.cidr})"
                     )
+                if network.cidr.num_addresses > 2 and interface.ip in (
+                    network.cidr.network_address,
+                    network.cidr.broadcast_address,
+                ):
+                    raise ValueError(
+                        f"guest {name!r} address {interface.ip} is the network or broadcast address of {network.name!r} ({network.cidr})"
+                    )
+                claimed = used_ips.setdefault((interface.network, interface.ip), name)
+                if claimed != name:
+                    raise ValueError(
+                        f"guests {claimed!r} and {name!r} both use {interface.ip} on {interface.network!r}"
+                    )
 
         for router in self.routers:
+            router_networks = {interface.network for interface in router.interfaces}
             for rule in router.acl:
                 for endpoint in (rule.from_, rule.to):
                     if endpoint not in networks:
                         raise ValueError(
                             f"router {router.name!r} ACL references undeclared network {endpoint!r}"
                         )
+                    if endpoint not in router_networks:
+                        raise ValueError(
+                            f"router {router.name!r} ACL references network {endpoint!r} it is not attached to"
+                        )
+                if rule.from_ == rule.to:
+                    raise ValueError(
+                        f"router {router.name!r} ACL rule from/to are both {rule.to!r}: same-segment traffic does not traverse the router"
+                    )
+
+        guest_networks = {
+            name: {interface.network for interface in interfaces}
+            for name, interfaces in guests
+        }
+        for network_spec in self.networks:
+            if network_spec.dns is None or not network_spec.dns.authoritative:
+                continue
+            for server in network_spec.dns.authoritative:
+                server_networks = guest_networks.get(server)
+                if server_networks is None:
+                    raise ValueError(
+                        f"network {network_spec.name!r} dns.authoritative references undeclared guest {server!r}"
+                    )
+                if network_spec.name not in server_networks:
+                    raise ValueError(
+                        f"network {network_spec.name!r} dns.authoritative guest {server!r} is not attached to it"
+                    )
 
         if self.attacker.host is not None and self.attacker.host not in {
             host.name for host in self.hosts
