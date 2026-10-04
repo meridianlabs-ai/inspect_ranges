@@ -11,7 +11,7 @@
 - **Trust boundary**: a vertical dashed muted line in the gap between the panels, labeled "trust boundary" above it. All flow labels end left of the line so text never collides with it.
 - **Three flows crossing the gap** (labels above their arrows, right-aligned to a common edge):
   - "realization bundle" → (gray), compile + render → applier.
-  - "control channel" ↔ (CONTROL violet, both arrowheads), agent loop ↔ range container. Violet deliberately matches the containment diagram's sandbox-control port and vsock notches, so the port and the channel read as the same thing.
+  - "control channel" ↔ (CONTROL violet, both arrowheads), agent loop ↔ range container, with the guest-control verbs ("exec() · read_file() / write_file() · forward()", small mono) under the arrow — the diagram carries the interface on its own, so the overview section needs no Python block. Violet deliberately matches the containment diagram's sandbox-control port and vsock notches, so the port and the channel read as the same thing.
   - "evidence" ← (EVIDENCE amber), range host → evidence store, matching the containment diagram's amber evidence arrow.
 
 ## Deliberate silences

@@ -159,6 +159,8 @@ def build() -> Elements:
     els += e
 
     # Flow 2: the control channel, agent loop ↔ range (both directions).
+    # The verbs below the arrow carry what the code block would otherwise
+    # have to; centered in the gap, ending short of the boundary line.
     _, e = make_text(350, 91, "control channel", 12, CONTROL, align="right")
     els += e
     channel_id, e = make_arrow(
@@ -172,6 +174,16 @@ def build() -> Elements:
         end_id=container_id,
     )
     e[0]["startArrowhead"] = "triangle"
+    els += e
+    _, e = make_text(
+        285,
+        121,
+        "exec() · read_file()\nwrite_file() · forward()",
+        10,
+        CONTROL,
+        align="center",
+        font_family=FONT_MONO,
+    )
     els += e
 
     # Flow 3: evidence, range host → append-only store.
