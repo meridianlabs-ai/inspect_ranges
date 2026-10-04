@@ -140,7 +140,6 @@ Pinned upstream cloud images → derived goldens via offline `virt-customize` (d
 
 **Honest tier grading.** Nitro (no public escape; carries EC2 multi-tenancy) > Firecracker (~50 K lines Rust, tiny device model, production multi-tenant boundary) > QEMU/KVM (large C codebase, recurring contest escapes — but nearly all land in the QEMU *process*, i.e. our jailed container, and the practical surface is the *configured* device model). The architecture pairs boundary strength to stakes: Nitro guards tenants; QEMU guards one sample's validity, where a breach is detectable and discardable.
 
-
 **Why the VM boundary earns its cost: eval validity.** An agent that escapes a *container* on the eval host gets the Docker socket — and with it the range spec, planted flags, and the answer key: the ability to cheat quietly rather than solve. Behind KVM, that costs a hypervisor escape first. Detection (evidence streaming) covers tampering; the VM boundary covers *reading the answers*, which is quieter than tampering.
 
 **vsock-plane security.** CIDs are host-kernel-global (not namespaced): allocation is deterministic per host, guests' daemons accept only CID 2 (the hypervisor host), and isolation of the control plane between samples leans on one-sample-per-instance — restated as a dispatch constraint in §7. Guest daemons are untrusted endpoints (above).

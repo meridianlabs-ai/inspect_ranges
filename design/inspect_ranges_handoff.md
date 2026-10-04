@@ -258,11 +258,11 @@ the shared library so every backend and tool uses the same logic.
 
 ## 11. Deployment seam
 
-Open design question: separate **where** from **what**. Preferred: an orchestration layer provisions an instance
-(one sample per instance) and exposes its Docker daemon; `inspect_ranges` realizes the range there.
-Alternative: ranges sandbox hands a Compose project to the orchestration layer (then attach step + VM exec
-need hooks there). Don't depend on Inspect Docker sandbox private internals — call the Docker
-CLI/API directly.
+Open design question: separate **where** from **what**. Preferred: an orchestration layer
+provisions an instance (one sample per instance) and exposes its Docker daemon; `inspect_ranges`
+realizes the range there. Alternative: ranges sandbox hands a Compose project to the orchestration
+layer (then attach step + VM exec need hooks there). Don't depend on Inspect Docker sandbox private
+internals — call the Docker CLI/API directly.
 
 Also raise Inspect's sandbox setup timeout for range tasks (Windows DC boot under nesting).
 
