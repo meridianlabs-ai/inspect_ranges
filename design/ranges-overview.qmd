@@ -1,4 +1,7 @@
-# Inspect Ranges
+---
+title: "Insepct Ranges"
+tbl-colwidths: [30,70]
+---
 
 Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for evaluating models and agents on network intrusion and defense tasks. The goal is support for a wide variety of complex networks while preserving ease of development and deployment:
 
@@ -143,7 +146,7 @@ The attack box runs in a dedicated VM like any other guest with a real NIC in th
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
 | Goal | Checked by |
-|---------------------------|---------------------------------------------|
+|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | `flag` | the submitted value matches the planted flag |
 | `exfiltrate` | the file actually arrived on the attack box |
 | `execute` | an execution marker was left on the target host |
@@ -154,6 +157,22 @@ Checks that read state from inside a guest are not intrinsically trustworthy (as
 
 Scorers (built-in or custom) can also draw on captured evidence collected outside the VMs (e.g. per-segment packet captures, console logs, and screenshots). This supports partial credit (which segments were reached), stealth objectives (no alert fired), and other custom measurements.
 
+## Security Model {#security-model}
+
+Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. Containment is correspondingly strict, protecting what lies outside the sample and the integrity of its score. The model also assumes that the deployment uses a distinct instance for each sample's range.
+
+![](../docs/diagrams/containment.excalidraw.svg){fig-alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router, target, and agent VMs connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."}
+
+Three nested boundaries separate the range from the outside. The agent first must escape its VM (not impossible, but not a commodity escape). The escape surface is kept small and declared: each guest's virtual hardware is compiled explicitly per role, and the attack box sees only virtio disk, network, vsock, serial console, and entropy devices. Nearly all such escapes break out through the QEMU process and land in the range container, so reaching the host requires a second, unrelated exploit; the rarer KVM kernel escapes reach the host directly. Either way the host is a dedicated AWS instance: even full compromise yields only the sample context, with the Nitro hypervisor between it and everything else.
+
+The middle container boundary is run with reduced privilege. The range container holds no credentials and runs with Docker's default capabilities dropped (eight added back: `NET_ADMIN` plus the file-ownership and user-switching set that lets QEMU run as a non-root user), four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`), and the standard seccomp and AppArmor profiles. QEMU itself runs with its default syscall sandbox on.
+
+Escapes are therefore treated as possible but unprofitable. An agent that escapes gains an instance that holds no secrets and a sample that is simply discarded. Evidence (packet captures, consoles, logs) streams off the instance continuously, so the record received before an escape cannot be rewritten. Streaming preserves that record but does not by itself detect an escape, so each goal type is scored against proof the agent cannot fabricate (see [Scoring](#scoring)). Score integrity rests on detection rather than prevention.
+
+The Inspect scaffold process may serve many samples and parses attacker-controlled output, so its compromise is also assumed possible. The scaffold therefore should store no credentials of value and ensure that evidence once written cannot be changed.
+
+In the other direction, defenders inside the range can detect and react to everything the agent transmits, but they cannot observe its interior, connect to it (it runs no services), or reach the channel controlling it.
+
 ## Architecture
 
 ### Compilation {#compilation}
@@ -161,7 +180,7 @@ Scorers (built-in or custom) can also draw on captured evidence collected outsid
 Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically. Each element of the spec then maps to libvirt/QEMU as follows:
 
 | `range.yaml` | Becomes |
-|---------------------------|---------------------------------------------|
+|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | network | Linux bridge, private to the range, with no IP of its own |
 | host, router, or attacker | KVM/libvirt domain with virtio devices, booted from a copy-on-write overlay on a read-only golden image |
 | interface | Virtio NIC on the named bridge, with its allocated MAC; the guest's addressing and hostname are delivered by a generated cloud-init seed |
@@ -211,22 +230,6 @@ Cyber ranges are resource intensive, often requiring a dedicated host machine pe
 2.  Inspect has a sharding feature that distributes samples across machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
 
 The first option has a stronger security posture: an agent that escapes the range cannot reach the Inspect scaffold, its model credentials, or its logs.
-
-## Security Model {#security-model}
-
-Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. Containment is correspondingly strict, protecting what lies outside the sample and the integrity of its score. The model also assumes that the deployment uses a distinct instance for each sample's range.
-
-![](../docs/diagrams/containment.excalidraw.svg){fig-alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router, target, and agent VMs connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."}
-
-Three nested boundaries separate the range from the outside. The agent first must escape its VM (not impossible, but not a commodity escape). The escape surface is kept small and declared: each guest's virtual hardware is compiled explicitly per role, and the attack box sees only virtio disk, network, vsock, serial console, and entropy devices. Nearly all such escapes break out through the QEMU process and land in the range container, so reaching the host requires a second, unrelated exploit; the rarer KVM kernel escapes reach the host directly. Either way the host is a dedicated AWS instance: even full compromise yields only the sample context, with the Nitro hypervisor between it and everything else.
-
-The middle container boundary is run with reduced privilege. The range container holds no credentials and runs with Docker's default capabilities dropped (eight added back: `NET_ADMIN` plus the file-ownership and user-switching set that lets QEMU run as a non-root user), four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`), and the standard seccomp and AppArmor profiles. QEMU itself runs with its default syscall sandbox on.
-
-Escapes are therefore treated as possible but unprofitable. An agent that escapes gains an instance that holds no secrets and a sample that is simply discarded. Evidence (packet captures, consoles, logs) streams off the instance continuously, so the record received before an escape cannot be rewritten. Streaming preserves that record but does not by itself detect an escape, so each goal type is scored against proof the agent cannot fabricate (see [Scoring](#scoring)). Score integrity rests on detection rather than prevention.
-
-The Inspect scaffold process may serve many samples and parses attacker-controlled output, so its compromise is also assumed possible. The scaffold therefore should store no credentials of value and ensure that evidence once written cannot be changed.
-
-In the other direction, defenders inside the range can detect and react to everything the agent transmits, but they cannot observe its interior, connect to it (it runs no services), or reach the channel controlling it.
 
 ## Development
 
