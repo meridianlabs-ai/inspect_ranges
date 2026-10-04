@@ -222,11 +222,49 @@ Disk images for range guests are large (roughly 600 MB for Linux and 10–20 GB 
 
 Sharing solves size, but not startup time: a disk image captures a machine that is powered off, so booting one means a full OS startup. These costs are mitigated with memory snapshots: a fully booted and settled VM is captured once, including its memory, and each sample restores it in about a second with a warm cache, resuming exactly where it left off.
 
+### Range Host {#range-host}
+
+A range always runs on a host machine the deployment provides: the local machine in development, a dedicated instance in production. What a host provides is deliberately small, exactly three things:
+
+- A **lease** on the machine, with an identity, an expiry, and the isolation claim recorded in the eval log. In production the claim is `instance`: one sample per instance lifetime, with release destroying the instance.
+- A **control channel** for the sample: realize the range, exec and file transfer against guests, teardown.
+- **Declared capabilities**, so a range that needs something the deployment cannot provide fails at planning rather than degrading silently.
+
+![](../docs/diagrams/range-host.excalidraw.svg){fig-alt="The deployment seam: the Inspect scaffold (compile and render, agent loop, model credentials) and an append-only evidence store on the left, the range host with its applier and range container on the right, separated by a dashed trust boundary crossed by three flows: the realization bundle going in, the control channel in both directions, and evidence streaming out."}
+
+Everything is compiled and rendered up front, on the scaffold's side: the host receives one self-contained, digest-pinned bundle (the resolved plan plus every generated artifact) and realizes it with no further round trips, reporting staged progress (fetch, construct, boot, verify). The agent starts only after the verify stage passes the containment checks. Evidence streams back out as a declared output, durable and append-only, so neither a compromised guest nor a compromised scaffold can rewrite it.
+
+In Python terms, a deployment implements:
+
+```python
+class RangeChannel(Protocol):
+    # transports: direct vsock (co-resident), bridged, or queued messages;
+    # nothing above this interface may know which
+    async def realize(self, bundle: RealizationBundle, grants: FetchGrants) -> AsyncIterator[StageReport]: ...
+    async def exec(self, guest: str, req: ExecRequest) -> ExecResult: ...
+    async def read_file(self, guest: str, path: str) -> bytes: ...
+    async def write_file(self, guest: str, path: str, data: bytes) -> None: ...
+    async def forward(self, guest: str, target: ForwardTarget) -> ForwardHandle: ...
+    async def teardown(self) -> None: ...
+
+class RangeHost(Protocol):
+    channel: RangeChannel
+    isolation: Literal["instance", "shared"]
+    capabilities: HostCapabilities
+    facts: HostFacts
+
+class HostProvider(Protocol):
+    async def acquire(self, sample: SampleSpec) -> RangeHost: ...
+    async def release(self, host: RangeHost) -> None: ...
+```
+
+The channel is transport-agnostic. When the scaffold is co-resident with the range it is direct vsock; when the scaffold lives elsewhere it can be a bridged connection, or queued messages through an intermediary for deployments that permit no inbound connection to the instance at all. Because replies arrive from a machine the agent may have compromised, everything received over the channel is validated as untrusted input.
+
 ### Scalability
 
 Cyber ranges are resource intensive, often requiring a dedicated host machine per sample. Scaling out range execution can be accomplished in one of two ways:
 
-1.  The `libvirt_range` sandbox can be provided with a host interface that enables an orchestration layer to allocate a machine for the sandbox to run within (e.g. a dedicated EC2 instance). In this configuration the Inspect scaffold runs in a completely separate context from the cyber range VMs.
+1.  The `libvirt_range` sandbox can be provided with a host interface (the `HostProvider` described in [Range Host](#range-host)) that enables an orchestration layer to allocate a machine per sample. In this configuration the Inspect scaffold runs in a completely separate context from the cyber range VMs.
 2.  Inspect has a sharding feature that distributes samples across machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
 
 The first option has a stronger security posture: an agent that escapes the range cannot reach the Inspect scaffold, its model credentials, or its logs.

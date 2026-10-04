@@ -228,7 +228,10 @@ the shared library so every backend and tool uses the same logic.
   and scales horizontally. It loses L2 (no broadcast/ARP/multicast), so it can't run AD
   poisoning attacks. That makes it the clearest case for **backend capability declarations**:
   a spec marks what it needs (e.g. `l2_broadcast`, Windows guests, nested virt), and a backend
-  that can't provide it refuses the spec rather than silently degrading (see §8).
+  that can't provide it refuses the spec rather than silently degrading (see §8). The same
+  mechanism extends to deployment capabilities — `forward_upstream`, `egress_grant`,
+  `image_delivery` (registry | granted-urls | pre-seeded) — with the same refuse-at-planning
+  semantics (see §11).
 - Libvirt remains the default, built-in engine. Other backends are opt-in plugins behind the same
   interface, so designing for multiple backends from the start costs little as long as the first
   implementation is libvirt only.
@@ -258,11 +261,13 @@ the shared library so every backend and tool uses the same logic.
 
 ## 11. Deployment seam
 
-Open design question: separate **where** from **what**. Preferred: an orchestration layer
-provisions an instance (one sample per instance) and exposes its Docker daemon; `inspect_ranges`
-realizes the range there. Alternative: ranges sandbox hands a Compose project to the orchestration
-layer (then attach step + VM exec need hooks there). Don't depend on Inspect Docker sandbox private
-internals — call the Docker CLI/API directly.
+Separate **where** from **what** (resolved; the full contract lives in the deployment-seam
+records). An orchestration layer provisions an instance (one sample per instance) and provides a
+`RangeHost`: a lease plus a transport-agnostic `RangeChannel`. The driver sends one
+self-sufficient, digest-pinned realization bundle; the host realizes it with no further driver
+round trips and streams evidence out as a declared output. A Docker endpoint is one transport of
+the channel, not the contract. Don't depend on Inspect Docker sandbox private internals — call the
+Docker CLI/API directly.
 
 Also raise Inspect's sandbox setup timeout for range tasks (Windows DC boot under nesting).
 

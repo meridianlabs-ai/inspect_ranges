@@ -20,8 +20,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import containment
 import dmz_pivot
 import image_layers
+import range_host
 
-DIAGRAMS = [dmz_pivot, containment, image_layers]
+DIAGRAMS = [dmz_pivot, containment, image_layers, range_host]
 
 
 def main() -> None:
