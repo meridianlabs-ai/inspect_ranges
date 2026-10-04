@@ -171,7 +171,7 @@ Install-WindowsFeature AD-Domain-Services -IncludeManagementTools | Out-Null
 \$pw = ConvertTo-SecureString '$PW' -AsPlainText -Force
 \$cred = New-Object System.Management.Automation.PSCredential('$FOREST_NETBIOS\\Administrator', \$pw)
 Install-ADDSDomain -NewDomainName $CHILD_NEW_NAME -ParentDomainName $FOREST_ROOT \`
-  -DomainType ChildDomain -DomainNetbiosName $CHILD_NETBIOS -InstallDns -CreateDnsDelegation \`
+  -DomainType ChildDomain -NewDomainNetbiosName $CHILD_NETBIOS -InstallDns -CreateDnsDelegation \`
   -Credential \$cred -SafeModeAdministratorPassword \$pw -Force -NoRebootOnCompletion \`
   -WarningAction SilentlyContinue | Out-Null
 & shutdown.exe /r /t 3

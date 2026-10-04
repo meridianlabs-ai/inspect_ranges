@@ -146,7 +146,7 @@ The attack box runs in a dedicated VM like any other guest with a real NIC in th
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
 | Goal | Checked by |
-|-----------------------|------------------------------------------------|
+|------------------------|------------------------------------------------|
 | `flag` | the submitted value matches the planted flag |
 | `exfiltrate` | the file actually arrived on the attack box |
 | `execute` | an execution marker was left on the target host |
@@ -180,7 +180,7 @@ In the other direction, defenders inside the range can detect and react to every
 Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically. Each element of the spec then maps to libvirt/QEMU as follows:
 
 | `range.yaml` | Becomes |
-|-----------------------|-------------------------------------------------|
+|------------------------|------------------------------------------------|
 | network | Linux bridge, private to the range, with no IP of its own |
 | host, router, or attacker | KVM/libvirt domain with virtio devices, booted from a copy-on-write overlay on a read-only golden image |
 | interface | Virtio NIC on the named bridge, with its allocated MAC; the guest's addressing and hostname are delivered by a generated cloud-init seed |
