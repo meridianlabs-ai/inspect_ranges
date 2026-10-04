@@ -54,6 +54,15 @@ def main() -> None:
             capture_output=True,
         )
         print(f"  wrote {svg}")
+        # The committed raster the design docs reference (SVG does not survive
+        # the docx render); 2x for print resolution, clamped to the text
+        # column by the renderer.
+        png = diagrams_dir / f"{src.name}.png"
+        subprocess.run(
+            ["rsvg-convert", "-z", "2", str(svg), "-o", str(png)],
+            check=True,
+        )
+        print(f"  wrote {png}")
 
 
 if __name__ == "__main__":

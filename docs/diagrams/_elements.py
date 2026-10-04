@@ -2,7 +2,7 @@
 
 Adapted from the diagram helpers used across the Meridian Labs docs (`inspect_petri`, `petri_bloom`, `inspect_steward`): flat JSON element constructors with clean lines (roughness 0), the Excalidraw font ids (2 = sans, 3 = mono), and rough text metrics. Estimates only need to be close because `.excalidraw` files carry pre-computed text dimensions, and the character advance of 0.6 em matches the measurement mock in the inspect-docs SVG converter.
 
-Both the `.excalidraw` file and its rendered SVG are committed (the SVG force-added past the docs build's generated gitignore), so documents outside the docs project (e.g. `design/ranges-overview.qmd`) render from a fresh clone with no regeneration step. After changing a generator, run `preview.py` and commit the refreshed SVGs alongside it.
+Both the `.excalidraw` file and its rendered PNG (`<name>.excalidraw.png`, 2x) are committed, so documents outside the docs project (e.g. `design/ranges-overview.qmd`) render from a fresh clone with no regeneration step. PNG rather than SVG because the design docs render to docx, where SVG does not survive. After changing a generator, run `preview.py` and commit the refreshed PNGs alongside it.
 """
 
 from __future__ import annotations
