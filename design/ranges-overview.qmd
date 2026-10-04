@@ -12,7 +12,11 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 ## Range Definition
 
-Ranges are specified using a `range.yaml` file. For example, this definition boots four guests (two targets, a router joining two segments, and a dedicated attack VM):
+Ranges are specified using a `range.yaml` file. For example, this network has four guests (two targets, a router joining two segments, and a dedicated attack VM):
+
+![](../docs/diagrams/dmz-pivot.excalidraw.svg){fig-alt="The dmz-pivot topology: an attacker VM and web server on the DMZ segment, a database on the internal segment, and a router joining the two segments whose ACL allows only tcp/5432 from dmz to internal."}
+
+Here is the definition for this network:
 
 ``` yaml
 range:
@@ -53,8 +57,6 @@ attacker:
   interfaces: [{ network: dmz }]
   entry: external
 ```
-
-![](../docs/diagrams/dmz-pivot.excalidraw.svg){fig-alt="The dmz-pivot topology: an attacker VM and web server on the DMZ segment, a database on the internal segment, and a router joining the two segments whose ACL allows only tcp/5432 from dmz to internal."}
 
 Beyond this minimal example, range definitions may cover:
 
@@ -136,7 +138,7 @@ Any Inspect agent can be used as the attacker, including built-in agents like [r
 
 The attack box runs in a dedicated VM like any other guest with a real NIC in the broadcast domain, so poisoning and relay tradecraft work as on physical networks. Its control channel (the means of sending `exec()` commands) is a hypervisor channel out of band from the network: nothing in-range can observe, firewall, or connect to it (see [Security Model](#security-model)).
 
-### Scoring
+### Scoring {#scoring}
 
 Each challenge declares a typed goal, and `challenge_scorer()` knows how to check each type directly in the environment:
 
@@ -148,15 +150,15 @@ Each challenge declares a typed goal, and `challenge_scorer()` knows how to chec
 | `privilege` | state on the target (e.g. group membership) |
 | `detection` | the telemetry sink does (or does not) contain the expected alert |
 
-Checks that read state from inside a guest are not intrinsically trustworthy (as the agent may control them when scoring occurs). Goals therefore also cary a proof contract: a value the agent must produce or corroboration from observers outside the VMs.
+Checks that read state from inside a guest are not intrinsically trustworthy (as the agent may control them when scoring occurs). Goals therefore also carry a proof contract: a value the agent must produce or corroboration from observers outside the VMs.
 
-Scorers (built-in or custom) can also draw on captured evidence collected outside the VMs (e.g. per-segment packet captures, console logs, and screenshots). This supports partial credit (which segments were reached) and stealth objectives (no alert fired).
+Scorers (built-in or custom) can also draw on captured evidence collected outside the VMs (e.g. per-segment packet captures, console logs, and screenshots). This supports partial credit (which segments were reached), stealth objectives (no alert fired), and other custom measurements.
 
 ## Architecture
 
 ### Compilation {#compilation}
 
-Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically (the same spec always yields the same addresses). Each element of the spec then maps to libvirt/QEMU as follows:
+Compilation starts with allocation: every IP, MAC address, hostname, and control-channel ID is assigned deterministically. Each element of the spec then maps to libvirt/QEMU as follows:
 
 | `range.yaml` | Becomes |
 |---------------------------|---------------------------------------------|
@@ -178,12 +180,12 @@ Range startup consists of:
 Each range is a single Docker container running the hypervisor stack (libvirtd and QEMU) and hosting every guest as a VM, including the attack box. Docker's job is packaging and lifecycle:
 
 - The hypervisor stack ships as a pinned container image, so a host needs only Docker and KVM (libvirt and QEMU do not need to be installed on the host).
+
 - The range's bridges and firewall rules exist only inside the container's network namespace. The host's own networking carries no range state, even while a range is running.
-- Teardown is the container lifecycle: removing the range container and its scratch volume destroys every VM, bridge, firewall rule, and disk overlay. 
+
+- Teardown is the container lifecycle: removing the range container and its scratch volume destroys every VM, bridge, firewall rule, and disk overlay.
 
 - Standard cgroup limits bound each range's CPU and memory.
-
-![](../docs/diagrams/containment.excalidraw.svg){fig-alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router, target, and agent VMs connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."}
 
 The range container runs unprivileged, under a small measured privilege profile described in the [Security Model](#security-model).
 
@@ -191,13 +193,13 @@ Inspect interacts with the range (e.g. to send `exec()` commands) using a hyperv
 
 ### Images {#images}
 
-Disk images for range guests are large (roughly 600 MB for Linux and 10–20 GB for Windows). This creates two problems: booting many identical VMs quickly for every sample, and getting multi-gigabyte images onto fleets of machines without endlessly copying them. These challenges are addressed by never copying full images. Rather, images are shared, and only differences are stored:
+Disk images for range guests are large (roughly 600 MB for Linux and 10–20 GB for Windows). This creates two problems: booting many identical VMs quickly for every sample, and getting multi-gigabyte images onto fleets of machines without expensive copying. These challenges are addressed by never copying full images. Rather, images are shared, and only differences are stored:
+
+![](../docs/diagrams/image-layers.excalidraw.svg){fig-alt="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above."}
 
 - Guests boot from shared, read-only "golden" images; each VM writes its changes to a small private overlay. Overlays are created instantly and deleted with the range, so every sample starts from a pristine disk.
 - A golden image is itself a small set of additions (the control daemon, settings) layered onto an upstream base image (e.g. Ubuntu's official cloud image, the same disk AWS boots), applied directly to the disk file without booting it. Windows golden images are built once by a scripted install (about 3 minutes) and treated the same way thereafter.
 - Images are published the way Docker publishes containers: as stacks of layers, each stored once and fetched only if a host doesn't already have it. So a base image ships only once, and task-specific images are megabytes in size. On EC2, image caches travel as EBS snapshots whose blocks load lazily from S3, so a sample can start before its images have fully downloaded.
-
-![](../docs/diagrams/image-layers.excalidraw.svg){fig-alt="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above."}
 
 Sharing solves size, but not startup time: a disk image captures a machine that is powered off, so booting one means a full OS startup. These costs are mitigated with memory snapshots: a fully booted and settled VM is captured once, including its memory, and each sample restores it in about a second with a warm cache, resuming exactly where it left off.
 
@@ -205,18 +207,20 @@ Sharing solves size, but not startup time: a disk image captures a machine that 
 
 Cyber ranges are resource intensive, often requiring a dedicated host machine per sample. Scaling out range execution can be accomplished in one of two ways:
 
-1.  Inspect has a sharding feature that distributes samples across machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
-2.  The `libvirt_range` sandbox can also be provided with a host interface that enables an orchestration layer to allocate a machine for the sandbox to run within (e.g. a dedicated EC2 instance). In this configuration the Inspect scaffold runs in a completely separate context from the cyber range VMs.
+1.  The `libvirt_range` sandbox can be provided with a host interface that enables an orchestration layer to allocate a machine for the sandbox to run within (e.g. a dedicated EC2 instance). In this configuration the Inspect scaffold runs in a completely separate context from the cyber range VMs.
+2.  Inspect has a sharding feature that distributes samples across machines, with the final log automatically consolidated when all samples complete. In this configuration the Inspect scaffold is co-resident with the cyber range VMs.
 
-The second option has a stronger security posture: an agent that escapes the range cannot reach the Inspect scaffold, its model credentials, or its logs.
+The first option has a stronger security posture: an agent that escapes the range cannot reach the Inspect scaffold, its model credentials, or its logs.
 
 ## Security Model {#security-model}
 
-Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. The security model therefore protects only what lies outside the sample, and the integrity of its score. Note that the model also assumes that the deployment uses a distinct instance for each sample's range. By default the agent has no egress: unless the range sets `egress: open`, nothing outside the range is reachable from inside it.
+Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. Containment is correspondingly strict, protecting what lies outside the sample and the integrity of its score. The model also assumes that the deployment uses a distinct instance for each sample's range.
+
+![](../docs/diagrams/containment.excalidraw.svg){fig-alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router, target, and agent VMs connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."}
 
 Three nested boundaries separate the range from the outside. The agent first must escape its VM (not impossible, but not a commodity escape). The escape surface is kept small and declared: each guest's virtual hardware is compiled explicitly per role, and the attack box sees only virtio disk, network, vsock, serial console, and entropy devices. Nearly all such escapes break out through the QEMU process and land in the range container, so reaching the host requires a second, unrelated exploit; the rarer KVM kernel escapes reach the host directly. Either way the host is a dedicated AWS instance: even full compromise yields only the sample context, with the Nitro hypervisor between it and everything else.
 
-The middle container boundary is run with reduced privilege. The range container holds no credentials and runs with Docker's default capabilities dropped (eight added back: `NET_ADMIN` plus the file-ownership and user-switching set that lets QEMU run as a non-root user), four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`), and the standard seccomp and AppArmor profiles. QEMU itself runs with its default syscall sandbox on. 
+The middle container boundary is run with reduced privilege. The range container holds no credentials and runs with Docker's default capabilities dropped (eight added back: `NET_ADMIN` plus the file-ownership and user-switching set that lets QEMU run as a non-root user), four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`), and the standard seccomp and AppArmor profiles. QEMU itself runs with its default syscall sandbox on.
 
 Escapes are therefore treated as possible but unprofitable. An agent that escapes gains an instance that holds no secrets and a sample that is simply discarded. Evidence (packet captures, consoles, logs) streams off the instance continuously, so the record received before an escape cannot be rewritten. Streaming preserves that record but does not by itself detect an escape, so each goal type is scored against proof the agent cannot fabricate (see [Scoring](#scoring)). Score integrity rests on detection rather than prevention.
 
