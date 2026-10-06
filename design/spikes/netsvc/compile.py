@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Egress conformance compiler: spec.yaml -> tmp/render, production stages where they exist.
+"""Network-services conformance compiler: spec.yaml -> tmp/render, production stages where they exist.
 
-Everything slices 2-3 own comes from the production compiler (`inspect_ranges._compiler`): deterministic allocation, gateway election (hypervisor NAT), and the range-netns egress ruleset. Seeds, bridges, and the boot plan remain spike-grade glue carried over from the net-compile spike.
+Everything slices 5 and 7 own comes from the production compiler (`inspect_ranges._compiler`): allocation (including the hypervisor service addresses), per-network dnsmasq configuration, and the resolver lists handed to guests. Seeds, bridges, and the boot plan remain spike-grade glue.
 """
 
 import sys
@@ -12,8 +12,11 @@ import yaml
 
 from inspect_ranges._compiler import (
     allocate,
+    bridge_name,
     elect_gateways,
+    render_dnsmasq_conf,
     render_egress_nftables,
+    resolvers_for,
 )
 from inspect_ranges.schema import load_range
 
@@ -22,17 +25,11 @@ RENDER = HERE / "tmp" / "render"
 GOLDEN = "/images/noble-range-guest.qcow2"
 
 
-def bridge(network: str) -> str:
-    return f"br-{network}"[:15]
-
-
 def main() -> None:
     spec = load_range(HERE / "spec.yaml")
     allocation = allocate(spec)
     networks = {network.name: network for network in spec.networks}
-
     gateways = elect_gateways(spec, allocation)
-    routers = {router.name: router for router in spec.routers}
 
     for guest in allocation.guests:
         vm_dir = RENDER / "vms" / guest.name
@@ -42,45 +39,51 @@ def main() -> None:
         )
         ethernets: dict[str, Any] = {}
         for index, interface in enumerate(guest.interfaces):
-            nic = f"eth{index}"  # must match router_nic_names() for the rendered ruleset
-            prefix = networks[interface.network].cidr.prefixlen
+            nic = f"eth{index}"
+            network = networks[interface.network]
             entry: dict[str, Any] = {
                 "match": {"macaddress": interface.mac},
                 "set-name": nic,
-                "addresses": [f"{interface.ip}/{prefix}"],
             }
-            if guest.kind != "router" and interface.network in gateways:
-                entry["routes"] = [
-                    {"to": "default", "via": str(gateways[interface.network])}
-                ]
-            if guest.kind == "router":
-                static = [
-                    {"to": str(route.to), "via": str(route.via)}
-                    for route in routers[guest.name].routes
-                    if route.via in networks[interface.network].cidr  # type: ignore[operator]
-                ]
-                if static:
-                    entry["routes"] = static
+            if network.dhcp:
+                # addressing, resolver, and (where elected) gateway all arrive via DHCP
+                entry["dhcp4"] = True
+            else:
+                entry["addresses"] = [f"{interface.ip}/{network.cidr.prefixlen}"]
+                if interface.network in gateways:
+                    entry["routes"] = [
+                        {"to": "default", "via": str(gateways[interface.network])}
+                    ]
+                resolvers = resolvers_for(spec, allocation, interface.network)
+                if resolvers:
+                    entry["nameservers"] = {
+                        "addresses": [str(address) for address in resolvers]
+                    }
             ethernets[nic] = entry
         (vm_dir / "network-config").write_text(
             yaml.safe_dump({"version": 2, "ethernets": ethernets}, sort_keys=False)
         )
-        user_data: dict[str, Any] = {"hostname": guest.name}
         (vm_dir / "user-data").write_text(
-            "#cloud-config\n" + yaml.safe_dump(user_data, sort_keys=False)
+            "#cloud-config\n" + yaml.safe_dump({"hostname": guest.name}, sort_keys=False)
         )
 
     RENDER.joinpath("bridges.txt").write_text(
-        "".join(f"{bridge(name)}\n" for name in networks)
+        "".join(f"{bridge_name(name)}\n" for name in networks)
     )
-    RENDER.joinpath("range-netns.nft").write_text(
-        render_egress_nftables(spec, allocation, uplink="eth0")
-    )
-    RENDER.joinpath("nat-gateways.txt").write_text(
+    RENDER.joinpath("hypervisor-addresses.txt").write_text(
         "".join(
-            f"{bridge(name)} {ip}/{networks[name].cidr.prefixlen}\n"
+            f"{bridge_name(name)} {ip}/{networks[name].cidr.prefixlen}\n"
             for name, ip in allocation.hypervisor_addresses.items()
         )
+    )
+    dnsmasq_dir = RENDER / "dnsmasq"
+    dnsmasq_dir.mkdir(parents=True, exist_ok=True)
+    for name in networks:
+        conf = render_dnsmasq_conf(spec, allocation, name)
+        if conf is not None:
+            (dnsmasq_dir / f"{name}.conf").write_text(conf)
+    RENDER.joinpath("range-netns.nft").write_text(
+        render_egress_nftables(spec, allocation, uplink="eth0")
     )
     RENDER.joinpath("allocation.json").write_text(
         allocation.model_dump_json(indent=2) + "\n"
@@ -89,7 +92,7 @@ def main() -> None:
     boot = ["#!/bin/bash", "# Generated by compile.py", "set -euxo pipefail"]
     for guest in allocation.guests:
         nics = " ".join(
-            f"--network bridge={bridge(interface.network)},model=virtio,mac={interface.mac}"
+            f"--network bridge={bridge_name(interface.network)},model=virtio,mac={interface.mac}"
             for interface in guest.interfaces
         )
         boot += [
