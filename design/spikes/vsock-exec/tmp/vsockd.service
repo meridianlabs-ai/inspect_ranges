@@ -1,0 +1,7 @@
+[Unit]
+Description=vsock exec daemon (spike)
+[Service]
+ExecStart=/usr/bin/python3 /opt/vsockd.py
+Restart=always
+[Install]
+WantedBy=multi-user.target

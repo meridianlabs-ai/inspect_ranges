@@ -1,0 +1,31 @@
+# Lazy image pull spike: an nginx "registry" serves the image cache over HTTP
+# (Range requests required by qemu's curl driver); the range container boots a
+# VM whose disk backing file is a URL.
+services:
+  imageserver:
+    image: nginx:alpine
+    volumes:
+      - ${IMAGE_CACHE:-~/.cache/inspect-ranges/images}:/usr/share/nginx/html:ro
+
+  range:
+    build: ./range
+    init: true
+    devices:
+      - /dev/kvm
+      - /dev/vhost-vsock
+    cap_add:
+      - NET_ADMIN   # entrypoint loads the generated range-netns nftables
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ${IMAGE_CACHE:-~/.cache/inspect-ranges/images}:/images:ro
+      - scratch:/scratch
+      - ./tmp/render:/render:ro
+    healthcheck:
+      test: ["CMD", "test", "-e", "/run/range-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  scratch:

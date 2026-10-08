@@ -1,0 +1,24 @@
+# Windows guest spike: one range container; installs then boots a Windows
+# Server 2022 eval guest. /dev/vhost-vsock is attached so the boot test can
+# prove whether Windows binds a vsock driver (expected: it cannot).
+services:
+  range:
+    build: ./range
+    init: true
+    devices:
+      - /dev/kvm
+      - /dev/vhost-vsock
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ${IMAGE_CACHE:-~/.cache/inspect-ranges/images}:/images:ro
+      - scratch:/scratch
+      - ./assets:/assets:ro
+    healthcheck:
+      test: ["CMD", "test", "-e", "/run/range-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  scratch:

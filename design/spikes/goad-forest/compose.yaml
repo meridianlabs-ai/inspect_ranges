@@ -1,0 +1,29 @@
+# GOAD-light forest spike: one range container, three Windows guests (forest
+# root DC, child-domain DC, child-domain member) plus the Linux attacker box,
+# all on one bridge per the example's range.yaml.
+services:
+  range:
+    build: ./range
+    init: true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+      - /dev/vhost-net
+      - /dev/vhost-vsock
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ${IMAGE_CACHE:-~/.cache/inspect-ranges/images}:/images:ro
+      - scratch:/scratch
+      - ./assets:/assets:ro
+      - ./tmp/plan:/plan:ro
+    healthcheck:
+      test: ["CMD", "test", "-e", "/run/range-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  scratch:
