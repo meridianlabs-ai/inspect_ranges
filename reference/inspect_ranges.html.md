@@ -8,7 +8,7 @@ Load a definition with `load_range`, or get complete diagnostics (every error at
 
 Load and validate a `range.yaml` file.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/381e2b477de3ec92e6e0377f527939bfb5945428/src/inspect_ranges/schema.py#L196)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/96c88cf2ba742011f10c089afd102fc091acbe67/src/inspect_ranges/schema.py#L196)
 
 ``` python
 def load_range(path: Path) -> RangeSpec
@@ -23,7 +23,7 @@ Validate a `range.yaml` file, reporting every detectable issue at once.
 
 Unlike `load_range`, this never raises on invalid content: YAML syntax errors, structural schema violations, and semantic cross-reference problems all become [Issue](../reference/types.html.md#issue) entries with stable codes, source positions, and hints where available. Field-level structural errors suppress the cross-reference pass (reflected in `ValidationReport.semantic_checked`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/381e2b477de3ec92e6e0377f527939bfb5945428/src/inspect_ranges/schema.py#L134)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/96c88cf2ba742011f10c089afd102fc091acbe67/src/inspect_ranges/schema.py#L134)
 
 ``` python
 def validate_range(path: Path) -> ValidationReport
@@ -38,7 +38,7 @@ Re-run full validation on a possibly mutated spec, returning a validated copy.
 
 Spec models are mutable for flexible programmatic construction, so validity at construction is a point-in-time property. Consumer boundaries (the sandbox provider, the compiler) call this at handoff: the spec round-trips through `model_validate`, which catches semantic drift and type-unsafe mutations alike.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/381e2b477de3ec92e6e0377f527939bfb5945428/src/inspect_ranges/schema.py#L219)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/96c88cf2ba742011f10c089afd102fc091acbe67/src/inspect_ranges/schema.py#L219)
 
 ``` python
 def revalidate_range(spec: RangeSpec) -> RangeSpec
@@ -55,7 +55,7 @@ Run every cross-reference check on a structurally valid spec, collecting all fin
 
 This is the single implementation of the semantic checks: [RangeSpec](../reference/types.html.md#rangespec) validation calls it (raising if any issue is found, so a freshly constructed spec is always consistent), and `validate_range` calls it via that same validation to report every issue at once.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/381e2b477de3ec92e6e0377f527939bfb5945428/src/inspect_ranges/types.py#L962)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/96c88cf2ba742011f10c089afd102fc091acbe67/src/inspect_ranges/types.py#L962)
 
 ``` python
 def semantic_issues(spec: RangeSpec) -> list[Issue]
@@ -68,7 +68,7 @@ A structurally valid range definition.
 
 Return the JSON Schema for `range.yaml` v0.1 (aliased field names, e.g. `from`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/381e2b477de3ec92e6e0377f527939bfb5945428/src/inspect_ranges/schema.py#L236)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/96c88cf2ba742011f10c089afd102fc091acbe67/src/inspect_ranges/schema.py#L236)
 
 ``` python
 def range_json_schema() -> dict[str, Any]
