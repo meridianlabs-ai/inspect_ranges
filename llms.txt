@@ -1,0 +1,19 @@
+# Inspect Ranges
+
+> Inspect AI extension for ranges.
+
+
+## Getting Started
+
+- [Getting Started](https://meridianlabs-ai.github.io/inspect_ranges/index.html.md): Inspect AI extension for ranges.
+
+## Defining Ranges
+
+- [Overview](https://meridianlabs-ai.github.io/inspect_ranges/ranges.html.md): What a range definition is: the anatomy of range.yaml, the typed Python surface, end-to-end examples, and the validation workflow.
+- [Guests](https://meridianlabs-ai.github.io/inspect_ranges/guests.html.md): The guest side of a range definition: hosts, images, resources, accounts, services, seeded weaknesses, defense, and Active Directory.
+- [Networks](https://meridianlabs-ai.github.io/inspect_ranges/networks.html.md): The range.yaml networking syntax, from a single flat network to multi-router enterprise topologies.
+
+## Reference
+
+- [Reference](https://meridianlabs-ai.github.io/inspect_ranges/reference/index.html.md): Command line reference for the inspect-ranges CLI.
+- [inspect_ranges](https://meridianlabs-ai.github.io/inspect_ranges/reference/inspect_ranges.html.md): Loading, validation, and revalidation of range definitions.

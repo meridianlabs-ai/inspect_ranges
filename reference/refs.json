@@ -1,0 +1,23 @@
+{
+  "load_range": "inspect_ranges.qmd#load_range",
+  "validate_range": "inspect_ranges.qmd#validate_range",
+  "revalidate_range": "inspect_ranges.qmd#revalidate_range",
+  "semantic_issues": "inspect_ranges.qmd#semantic_issues",
+  "range_json_schema": "inspect_ranges.qmd#range_json_schema",
+  "RangeSpec": "types.qmd#rangespec",
+  "RangeMeta": "types.qmd#rangemeta",
+  "Network": "types.qmd#network",
+  "Router": "types.qmd#router",
+  "Route": "types.qmd#route",
+  "AclRule": "types.qmd#aclrule",
+  "Host": "types.qmd#host",
+  "Attacker": "types.qmd#attacker",
+  "EgressPolicy": "types.qmd#egresspolicy",
+  "Interface": "types.qmd#interface",
+  "Os": "types.qmd#os",
+  "Resources": "types.qmd#resources",
+  "DnsConfig": "types.qmd#dnsconfig",
+  "DnsRecord": "types.qmd#dnsrecord",
+  "Issue": "types.qmd#issue",
+  "ValidationReport": "types.qmd#validationreport"
+}

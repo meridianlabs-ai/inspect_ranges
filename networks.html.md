@@ -1,0 +1,768 @@
+# Networks – Inspect Ranges
+
+## Overview
+
+This page covers the networking half of the definition language, starting with a single network and adding one construct at a time. For the anatomy of a full range definition, see the [Ranges](./ranges.html.md) overview; guest-side fields (images, resources, operating systems) are covered in [Guests](./guests.html.md).
+
+## Flat Network
+
+The smallest range: one network, one target, and the attacker:
+
+``` yaml
+range:
+  name: flat
+  description: One target on one flat network.
+
+networks:
+  - name: lab
+    cidr: 10.10.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: lab }]
+
+attacker:
+  interfaces: [{ network: lab }]
+  entry: external
+```
+
+``` python
+from inspect_ranges.types import (
+    Attacker, Host, Interface, Network, Os, RangeMeta, RangeSpec,
+)
+
+flat = RangeSpec(
+    meta=RangeMeta(
+        name="flat", description="One target on one flat network."
+    ),
+    networks=[
+        Network(name="lab", cidr="10.10.10.0/24", mode="isolated")
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="lab")],
+        )
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="lab")], entry="external"
+    ),
+)
+```
+
+Every guest attaches to networks explicitly through `interfaces`. The attacker is an ordinary guest (a dedicated VM with a real NIC in the broadcast domain), declared separately because evaluations map it to `sandbox("default")`. All models live in `inspect_ranges.types`; the import is shown once above, and later Python tabs omit it.
+
+`mode: isolated` means no traffic leaves the range from this network. Use it unless the range needs egress; `nat` and `routed` are covered [below](#egress).
+
+## Addressing
+
+Addresses are optional. When omitted, they are allocated deterministically: the same definition always produces the same addresses (routers take the first usable addresses, the attacker follows, hosts allocate from `.10` upward). Explicit addresses are validated against the subnet and for conflicts:
+
+``` yaml
+range:
+  name: addressing
+  description: Explicit and allocated addresses on one segment.
+
+networks:
+  - name: lab
+    cidr: 10.10.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: lab, ip: 10.10.10.80 }]  # explicit
+  - name: db
+    os: { type: linux }
+    image: acme/db-golden
+    interfaces: [{ network: lab }]  # allocated: 10.10.10.10
+
+attacker:
+  interfaces: [{ network: lab }]  # allocated: 10.10.10.2
+  entry: external
+```
+
+``` python
+addressing = RangeSpec(
+    meta=RangeMeta(
+        name="addressing",
+        description="Explicit and allocated addresses on one segment.",
+    ),
+    networks=[
+        Network(name="lab", cidr="10.10.10.0/24", mode="isolated")
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="lab", ip="10.10.10.80")],
+        ),
+        Host(
+            name="db",
+            os=Os(type="linux"),
+            image="acme/db-golden",
+            interfaces=[Interface(network="lab")],
+        ),
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="lab")], entry="external"
+    ),
+)
+```
+
+Networks can also address their guests over DHCP. DHCP is reservation-only: every lease comes from the deterministic allocation by MAC address, so DHCP addressing is as predictable as static addressing while a real DHCP service runs on the segment:
+
+``` yaml
+range:
+  name: dhcp
+  description: Guests addressed over reservation-only DHCP.
+
+networks:
+  - name: lab
+    cidr: 10.10.10.0/24
+    mode: isolated
+    dhcp: true
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+1    interfaces: [{ network: lab, ip: 10.10.10.80 }]
+
+attacker:
+  interfaces: [{ network: lab }]
+  entry: external
+```
+
+1  
+The lease is reserved for web’s MAC address.
+
+``` python
+dhcp = RangeSpec(
+    meta=RangeMeta(
+        name="dhcp",
+        description="Guests addressed over reservation-only DHCP.",
+    ),
+    networks=[
+        Network(
+            name="lab", cidr="10.10.10.0/24", mode="isolated", dhcp=True
+        )
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="lab", ip="10.10.10.80")],
+        )
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="lab")], entry="external"
+    ),
+)
+```
+
+## Name Resolution
+
+A network can declare DNS in three ways. `records` serves names from the range itself (for name-based discovery on flat networks); a record without an `ip` resolves to the named guest’s address:
+
+``` yaml
+range:
+  name: dns-records
+  description: Range-served name records, derived and explicit.
+
+networks:
+  - name: lab
+    cidr: 10.10.10.0/24
+    mode: isolated
+    dns:
+      records:
+        - { name: web }  # resolves to web's address
+        - { name: files.corp.example, ip: 10.10.10.200 }
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: lab }]
+
+attacker:
+  interfaces: [{ network: lab }]
+  entry: external
+```
+
+``` python
+dns_records = RangeSpec(
+    meta=RangeMeta(
+        name="dns-records",
+        description="Range-served name records, derived and explicit.",
+    ),
+    networks=[
+        Network(
+            name="lab",
+            cidr="10.10.10.0/24",
+            mode="isolated",
+            dns=DnsConfig(
+                records=[
+                    DnsRecord(name="web"),  # resolves to web's address
+                    DnsRecord(
+                        name="files.corp.example", ip="10.10.10.200"
+                    ),
+                ]
+            ),
+        )
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="lab")],
+        )
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="lab")], entry="external"
+    ),
+)
+```
+
+Networks with `records` hand their guests a derived search domain (`<network>.internal`), because modern stub resolvers do not send single-label names like `web` to DNS without one.
+
+`nameservers` points guests at external resolvers, and `authoritative` names guests (such as domain controllers) that are the network’s DNS servers, optionally chaining to a `forwarder`. This is the Active Directory pattern: the DC is the DNS server:
+
+``` yaml
+range:
+  name: dns-ad
+  description: An authoritative guest serves DNS, chaining to an upstream forwarder.
+
+networks:
+  - name: corp
+    cidr: 10.20.0.0/24
+    mode: isolated
+    dns:
+      authoritative: [dc01]
+      forwarder: 1.1.1.1
+
+hosts:
+  - name: dc01
+    hostname: dc01
+    fqdn: dc01.corp.example
+    os: { type: linux }
+    image: acme/dc-golden
+    interfaces: [{ network: corp, ip: 10.20.0.5 }]
+  - name: ws01
+    os: { type: linux }
+    image: acme/ws-golden
+    interfaces: [{ network: corp }]
+
+attacker:
+  interfaces: [{ network: corp }]
+  entry: assumed-breach
+```
+
+``` python
+dns_ad = RangeSpec(
+    meta=RangeMeta(
+        name="dns-ad",
+        description="An authoritative guest serves DNS, chaining to "
+        "an upstream forwarder.",
+    ),
+    networks=[
+        Network(
+            name="corp",
+            cidr="10.20.0.0/24",
+            mode="isolated",
+            dns=DnsConfig(authoritative=["dc01"], forwarder="1.1.1.1"),
+        )
+    ],
+    hosts=[
+        Host(
+            name="dc01",
+            hostname="dc01",
+            fqdn="dc01.corp.example",
+            os=Os(type="linux"),
+            image="acme/dc-golden",
+            interfaces=[Interface(network="corp", ip="10.20.0.5")],
+        ),
+        Host(
+            name="ws01",
+            os=Os(type="linux"),
+            image="acme/ws-golden",
+            interfaces=[Interface(network="corp")],
+        ),
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="corp")], entry="assumed-breach"
+    ),
+)
+```
+
+> **WARNING: Warning.local zones**
+>
+> Zones under `.local` (common in AD lab material) are reserved for mDNS: Linux stub resolvers never send them to unicast DNS. Definitions using them validate with a warning so you can decide whether to keep them:
+>
+>     ✓ range.yaml  1 warning
+>       12:11  hosts[0].fqdn  warning: host fqdn 'dc01.corp.local' is under '.local', which
+>                             Linux stub resolvers reserve for mDNS and never send to unicast DNS
+
+## Segmentation
+
+Routers join segments and carry the inter-segment policy. Rules are default-deny and stateful: anything not allowed is dropped, and return traffic of allowed flows always passes. For example, a DMZ pivot:
+
+``` yaml
+range:
+  name: dmz-pivot
+  description: >
+    An external attacker compromises a web server in the DMZ, then pivots to a
+    database on an internal segment reachable only through the router.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+  - name: internal
+    cidr: 10.80.20.0/24
+    mode: isolated
+
+routers:
+  - name: router
+    interfaces:
+      - { network: dmz, ip: 10.80.10.1 }
+      - { network: internal, ip: 10.80.20.1 }
+    acl:
+      - { from: dmz, to: internal, allow: [tcp/5432] }
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: dmz, ip: 10.80.10.10 }]
+  - name: db
+    os: { type: linux }
+    image: acme/db-golden
+    interfaces: [{ network: internal }]
+
+attacker:
+  interfaces: [{ network: dmz }]
+  entry: external
+```
+
+``` python
+dmz_pivot = RangeSpec(
+    meta=RangeMeta(
+        name="dmz-pivot",
+        description="An external attacker compromises a web server in "
+        "the DMZ, then pivots to a database on an internal segment "
+        "reachable only through the router.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated"),
+        Network(name="internal", cidr="10.80.20.0/24", mode="isolated"),
+    ],
+    routers=[
+        Router(
+            name="router",
+            interfaces=[
+                Interface(network="dmz", ip="10.80.10.1"),
+                Interface(network="internal", ip="10.80.20.1"),
+            ],
+            acl=[
+                AclRule(from_="dmz", to="internal", allow=["tcp/5432"])
+            ],
+        )
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="dmz", ip="10.80.10.10")],
+        ),
+        Host(
+            name="db",
+            os=Os(type="linux"),
+            image="acme/db-golden",
+            interfaces=[Interface(network="internal")],
+        ),
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="dmz")], entry="external"
+    ),
+)
+```
+
+Each segment is its own broadcast domain: L2 tradecraft like ARP and LLMNR poisoning works within a segment and stops at the router. The router is an ordinary guest running a generated nftables firewall that a defender inside the range can inspect.
+
+## Rules
+
+Rules evaluate first-match in declaration order, and each rule carries exactly one of `allow:` or `deny:`. Endpoints are a network name, a guest name (resolved to its allocated addresses at compile time), or a CIDR (`/32` for a single host, `0.0.0.0/0` for any). Services are `proto/port`, `proto/lo-hi` ranges, or bare `icmp`:
+
+``` yaml
+range:
+  name: policy
+  description: Ordered rules with carve-outs, guest endpoints, and CIDR endpoints.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+  - name: internal
+    cidr: 10.80.20.0/24
+    mode: isolated
+
+routers:
+  - name: router
+    interfaces: [{ network: dmz }, { network: internal }]
+    acl:
+1      - { from: dmz, to: db, deny: [tcp/22] }
+      - { from: dmz, to: internal, allow: [tcp/22, tcp/5432, icmp] }
+2      - { from: web, to: internal, allow: [tcp/80] }
+3      - { from: 10.80.10.0/28, to: internal, allow: [tcp/8080-8090] }
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: dmz, ip: 10.80.10.10 }]
+  - name: db
+    os: { type: linux }
+    image: acme/db-golden
+    interfaces: [{ network: internal }]
+
+attacker:
+  interfaces: [{ network: dmz }]
+  entry: external
+```
+
+1  
+A carve-out: ssh to the db host is dropped even though the next rule allows `tcp/22`.
+
+2  
+Only the web server may open http into the internal segment.
+
+3  
+A literal address range as an endpoint.
+
+``` python
+policy = RangeSpec(
+    meta=RangeMeta(
+        name="policy",
+        description="Ordered rules with carve-outs, guest endpoints, "
+        "and CIDR endpoints.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated"),
+        Network(name="internal", cidr="10.80.20.0/24", mode="isolated"),
+    ],
+    routers=[
+        Router(
+            name="router",
+            interfaces=[
+                Interface(network="dmz"),
+                Interface(network="internal"),
+            ],
+            acl=[
+1                AclRule(from_="dmz", to="db", deny=["tcp/22"]),
+                AclRule(
+                    from_="dmz",
+                    to="internal",
+                    allow=["tcp/22", "tcp/5432", "icmp"],
+                ),
+                AclRule(
+                    from_="web", to="internal", allow=["tcp/80"]
+2                ),
+                AclRule(
+                    from_="10.80.10.0/28",
+                    to="internal",
+                    allow=["tcp/8080-8090"],
+3                ),
+            ],
+        )
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="dmz", ip="10.80.10.10")],
+        ),
+        Host(
+            name="db",
+            os=Os(type="linux"),
+            image="acme/db-golden",
+            interfaces=[Interface(network="internal")],
+        ),
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="dmz")], entry="external"
+    ),
+)
+```
+
+1  
+A carve-out: ssh to the db host is dropped even though the next rule allows `tcp/22`.
+
+2  
+Only the web server may open http into the internal segment.
+
+3  
+A literal address range as an endpoint.
+
+Networks and guests share one namespace (a guest may not take a network’s name), so an endpoint is never ambiguous. Unknown endpoints are rejected at validation with a did-you-mean suggestion.
+
+## Topology
+
+Larger networks chain routers. Each network’s default gateway is elected implicitly when exactly one router attaches; a segment with more than one router must declare its `gateway:` (declaring none is an error; the compiler does not guess). Routers carry static `routes:` to segments they reach through other routers, and their rules may name routed segments as well as attached ones (each transit router enforces its own policy):
+
+``` yaml
+range:
+  name: chained
+  description: Three segments chained through two routers.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+  - name: core
+    cidr: 10.80.20.0/24
+    mode: isolated
+    gateway: r1  # two routers attach here: election must be explicit
+  - name: vault
+    cidr: 10.80.30.0/24
+    mode: isolated
+
+routers:
+  - name: r1
+    interfaces:
+      - { network: dmz, ip: 10.80.10.1 }
+      - { network: core, ip: 10.80.20.1 }
+    routes: [{ to: 10.80.30.0/24, via: 10.80.20.2 }]
+    acl:
+      - { from: dmz, to: vault, allow: [tcp/443] }
+  - name: r2
+    interfaces:
+      - { network: core, ip: 10.80.20.2 }
+      - { network: vault, ip: 10.80.30.1 }
+    routes: [{ to: 10.80.10.0/24, via: 10.80.20.1 }]
+    acl:
+      - { from: dmz, to: vault, allow: [tcp/443] }
+
+hosts:
+  - name: app
+    os: { type: linux }
+    image: acme/app-golden
+    interfaces: [{ network: core }]
+  - name: safe
+    os: { type: linux }
+    image: acme/safe-golden
+    interfaces: [{ network: vault }]
+
+attacker:
+  interfaces: [{ network: dmz }]
+  entry: external
+```
+
+``` python
+chained = RangeSpec(
+    meta=RangeMeta(
+        name="chained",
+        description="Three segments chained through two routers.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated"),
+        Network(
+            name="core",
+            cidr="10.80.20.0/24",
+            mode="isolated",
+            gateway="r1",
+        ),  # two routers attach: election must be explicit
+        Network(name="vault", cidr="10.80.30.0/24", mode="isolated"),
+    ],
+    routers=[
+        Router(
+            name="r1",
+            interfaces=[
+                Interface(network="dmz", ip="10.80.10.1"),
+                Interface(network="core", ip="10.80.20.1"),
+            ],
+            routes=[Route(to="10.80.30.0/24", via="10.80.20.2")],
+            acl=[AclRule(from_="dmz", to="vault", allow=["tcp/443"])],
+        ),
+        Router(
+            name="r2",
+            interfaces=[
+                Interface(network="core", ip="10.80.20.2"),
+                Interface(network="vault", ip="10.80.30.1"),
+            ],
+            routes=[Route(to="10.80.10.0/24", via="10.80.20.1")],
+            acl=[AclRule(from_="dmz", to="vault", allow=["tcp/443"])],
+        ),
+    ],
+    hosts=[
+        Host(
+            name="app",
+            os=Os(type="linux"),
+            image="acme/app-golden",
+            interfaces=[Interface(network="core")],
+        ),
+        Host(
+            name="safe",
+            os=Os(type="linux"),
+            image="acme/safe-golden",
+            interfaces=[Interface(network="vault")],
+        ),
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="dmz")], entry="external"
+    ),
+)
+```
+
+## Leaving the range
+
+Each network declares its egress posture through `mode`:
+
+- `isolated`: nothing leaves. The default posture.
+- `nat`: traffic leaves through hypervisor NAT, scoped by an explicit allowlist.
+- `routed`: the segment is routed toward the deployment’s uplink, in both directions, with real source addresses and no NAT.
+
+A `nat` network lists what may leave; everything else is dropped. Entries are `CIDR[:proto/port]` (a bare address is its `/32`; omitting the service allows all traffic to the CIDR):
+
+``` yaml
+range:
+  name: egress
+  description: A corp segment that may reach one https host and NTP, nothing else.
+
+networks:
+  - name: corp
+    cidr: 10.90.10.0/24
+    mode: nat
+    egress:
+      allow:
+        - "198.51.100.7:tcp/443"
+        - "0.0.0.0/0:udp/123"
+
+hosts:
+  - name: workstation
+    os: { type: linux }
+    image: acme/ws-golden
+    interfaces: [{ network: corp }]
+
+attacker:
+  interfaces: [{ network: corp }]
+  entry: assumed-breach
+  egress: none
+```
+
+``` python
+egress = RangeSpec(
+    meta=RangeMeta(
+        name="egress",
+        description="A corp segment that may reach one https host and "
+        "NTP, nothing else.",
+    ),
+    networks=[
+        Network(
+            name="corp",
+            cidr="10.90.10.0/24",
+            mode="nat",
+            egress=EgressPolicy(
+                allow=["198.51.100.7:tcp/443", "0.0.0.0/0:udp/123"]
+            ),
+        )
+    ],
+    hosts=[
+        Host(
+            name="workstation",
+            os=Os(type="linux"),
+            image="acme/ws-golden",
+            interfaces=[Interface(network="corp")],
+        )
+    ],
+    attacker=Attacker(
+        interfaces=[Interface(network="corp")],
+        entry="assumed-breach",
+        egress="none",
+    ),
+)
+```
+
+The attacker’s own `egress` composes ahead of network policy: `none` (the default) drops the attacker’s flows even on a network with an allowlist, `open` permits them, and the same `{allow: [...]}` form scopes them. Egress is enforced in the hypervisor’s network namespace, outside every VM: an attacker that compromises every guest, including the router, cannot widen it.
+
+Egress-by-name is part of the vocabulary but not yet realized, so it is rejected with a specific code:
+
+``` yaml
+range:
+  name: egress-fqdn
+  description: FQDN entries are in the vocabulary but gated.
+networks:
+  - name: corp
+    cidr: 10.90.10.0/24
+    mode: nat
+    egress:
+      allow: ["updates.example.com:tcp/443"]
+hosts:
+  - name: ws
+    os: { type: linux }
+    image: acme/ws-golden
+    interfaces: [{ network: corp }]
+attacker:
+  interfaces: [{ network: corp }]
+  entry: assumed-breach
+```
+
+## Attacker
+
+The attacker either boots as a dedicated attack box (declare `interfaces`, optionally `name`, `image`, and `resources`) or starts from a foothold on a declared host (assumed breach):
+
+``` yaml
+range:
+  name: foothold
+  description: The attacker starts from a foothold on the web server.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: dmz }]
+
+attacker:
+  host: web
+  entry: assumed-breach
+```
+
+``` python
+foothold = RangeSpec(
+    meta=RangeMeta(
+        name="foothold",
+        description="The attacker starts from a foothold on the web "
+        "server.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated")
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="dmz")],
+        )
+    ],
+    attacker=Attacker(host="web", entry="assumed-breach"),
+)
+```
+
+`entry` records how the attacker arrives (`external`, `assumed-breach`, or `operator`) for scorers and dataset builders.

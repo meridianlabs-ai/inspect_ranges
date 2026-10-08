@@ -1,0 +1,762 @@
+[
+  {
+    "objectID": "networks.html",
+    "href": "networks.html",
+    "title": "Networks",
+    "section": "",
+    "text": "This page covers the networking half of the definition language, starting with a single network and adding one construct at a time. For the anatomy of a full range definition, see the Ranges overview; guest-side fields (images, resources, operating systems) are covered in Guests.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#overview",
+    "href": "networks.html#overview",
+    "title": "Networks",
+    "section": "",
+    "text": "This page covers the networking half of the definition language, starting with a single network and adding one construct at a time. For the anatomy of a full range definition, see the Ranges overview; guest-side fields (images, resources, operating systems) are covered in Guests.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#flat-network",
+    "href": "networks.html#flat-network",
+    "title": "Networks",
+    "section": "Flat Network",
+    "text": "Flat Network\nThe smallest range: one network, one target, and the attacker:\n\nYAMLPython\n\n\nrange:\n  name: flat\n  description: One target on one flat network.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: lab }]\n\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nfrom inspect_ranges.types import (\n    Attacker, Host, Interface, Network, Os, RangeMeta, RangeSpec,\n)\n\nflat = RangeSpec(\n    meta=RangeMeta(\n        name=\"flat\", description=\"One target on one flat network.\"\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"lab\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)\n\n\n\nEvery guest attaches to networks explicitly through interfaces. The attacker is an ordinary guest (a dedicated VM with a real NIC in the broadcast domain), declared separately because evaluations map it to sandbox(\"default\"). All models live in inspect_ranges.types; the import is shown once above, and later Python tabs omit it.\nmode: isolated means no traffic leaves the range from this network. Use it unless the range needs egress; nat and routed are covered below.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#addressing",
+    "href": "networks.html#addressing",
+    "title": "Networks",
+    "section": "Addressing",
+    "text": "Addressing\nAddresses are optional. When omitted, they are allocated deterministically: the same definition always produces the same addresses (routers take the first usable addresses, the attacker follows, hosts allocate from .10 upward). Explicit addresses are validated against the subnet and for conflicts:\n\nYAMLPython\n\n\nrange:\n  name: addressing\n  description: Explicit and allocated addresses on one segment.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: lab, ip: 10.10.10.80 }]  # explicit\n  - name: db\n    os: { type: linux }\n    image: acme/db-golden\n    interfaces: [{ network: lab }]  # allocated: 10.10.10.10\n\nattacker:\n  interfaces: [{ network: lab }]  # allocated: 10.10.10.2\n  entry: external\n\n\naddressing = RangeSpec(\n    meta=RangeMeta(\n        name=\"addressing\",\n        description=\"Explicit and allocated addresses on one segment.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"lab\", ip=\"10.10.10.80\")],\n        ),\n        Host(\n            name=\"db\",\n            os=Os(type=\"linux\"),\n            image=\"acme/db-golden\",\n            interfaces=[Interface(network=\"lab\")],\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)\n\n\n\nNetworks can also address their guests over DHCP. DHCP is reservation-only: every lease comes from the deterministic allocation by MAC address, so DHCP addressing is as predictable as static addressing while a real DHCP service runs on the segment:\n\nYAMLPython\n\n\nrange:\n  name: dhcp\n  description: Guests addressed over reservation-only DHCP.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\n    dhcp: true\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n1    interfaces: [{ network: lab, ip: 10.10.10.80 }]\n\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n1\n\nThe lease is reserved for web’s MAC address.\n\n\n\n\ndhcp = RangeSpec(\n    meta=RangeMeta(\n        name=\"dhcp\",\n        description=\"Guests addressed over reservation-only DHCP.\",\n    ),\n    networks=[\n        Network(\n            name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\", dhcp=True\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"lab\", ip=\"10.10.10.80\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#name-resolution",
+    "href": "networks.html#name-resolution",
+    "title": "Networks",
+    "section": "Name Resolution",
+    "text": "Name Resolution\nA network can declare DNS in three ways. records serves names from the range itself (for name-based discovery on flat networks); a record without an ip resolves to the named guest’s address:\n\nYAMLPython\n\n\nrange:\n  name: dns-records\n  description: Range-served name records, derived and explicit.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\n    dns:\n      records:\n        - { name: web }  # resolves to web's address\n        - { name: files.corp.example, ip: 10.10.10.200 }\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: lab }]\n\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\ndns_records = RangeSpec(\n    meta=RangeMeta(\n        name=\"dns-records\",\n        description=\"Range-served name records, derived and explicit.\",\n    ),\n    networks=[\n        Network(\n            name=\"lab\",\n            cidr=\"10.10.10.0/24\",\n            mode=\"isolated\",\n            dns=DnsConfig(\n                records=[\n                    DnsRecord(name=\"web\"),  # resolves to web's address\n                    DnsRecord(\n                        name=\"files.corp.example\", ip=\"10.10.10.200\"\n                    ),\n                ]\n            ),\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"lab\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)\n\n\n\nNetworks with records hand their guests a derived search domain (&lt;network&gt;.internal), because modern stub resolvers do not send single-label names like web to DNS without one.\nnameservers points guests at external resolvers, and authoritative names guests (such as domain controllers) that are the network’s DNS servers, optionally chaining to a forwarder. This is the Active Directory pattern: the DC is the DNS server:\n\nYAMLPython\n\n\nrange:\n  name: dns-ad\n  description: An authoritative guest serves DNS, chaining to an upstream forwarder.\n\nnetworks:\n  - name: corp\n    cidr: 10.20.0.0/24\n    mode: isolated\n    dns:\n      authoritative: [dc01]\n      forwarder: 1.1.1.1\n\nhosts:\n  - name: dc01\n    hostname: dc01\n    fqdn: dc01.corp.example\n    os: { type: linux }\n    image: acme/dc-golden\n    interfaces: [{ network: corp, ip: 10.20.0.5 }]\n  - name: ws01\n    os: { type: linux }\n    image: acme/ws-golden\n    interfaces: [{ network: corp }]\n\nattacker:\n  interfaces: [{ network: corp }]\n  entry: assumed-breach\n\n\ndns_ad = RangeSpec(\n    meta=RangeMeta(\n        name=\"dns-ad\",\n        description=\"An authoritative guest serves DNS, chaining to \"\n        \"an upstream forwarder.\",\n    ),\n    networks=[\n        Network(\n            name=\"corp\",\n            cidr=\"10.20.0.0/24\",\n            mode=\"isolated\",\n            dns=DnsConfig(authoritative=[\"dc01\"], forwarder=\"1.1.1.1\"),\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"dc01\",\n            hostname=\"dc01\",\n            fqdn=\"dc01.corp.example\",\n            os=Os(type=\"linux\"),\n            image=\"acme/dc-golden\",\n            interfaces=[Interface(network=\"corp\", ip=\"10.20.0.5\")],\n        ),\n        Host(\n            name=\"ws01\",\n            os=Os(type=\"linux\"),\n            image=\"acme/ws-golden\",\n            interfaces=[Interface(network=\"corp\")],\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"corp\")], entry=\"assumed-breach\"\n    ),\n)\n\n\n\n\n\n\n\n\n\nWarning.local zones\n\n\n\nZones under .local (common in AD lab material) are reserved for mDNS: Linux stub resolvers never send them to unicast DNS. Definitions using them validate with a warning so you can decide whether to keep them:\n✓ range.yaml  1 warning\n  12:11  hosts[0].fqdn  warning: host fqdn 'dc01.corp.local' is under '.local', which\n                        Linux stub resolvers reserve for mDNS and never send to unicast DNS",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#segmentation",
+    "href": "networks.html#segmentation",
+    "title": "Networks",
+    "section": "Segmentation",
+    "text": "Segmentation\nRouters join segments and carry the inter-segment policy. Rules are default-deny and stateful: anything not allowed is dropped, and return traffic of allowed flows always passes. For example, a DMZ pivot:\n\nYAMLPython\n\n\nrange:\n  name: dmz-pivot\n  description: &gt;\n    An external attacker compromises a web server in the DMZ, then pivots to a\n    database on an internal segment reachable only through the router.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n  - name: internal\n    cidr: 10.80.20.0/24\n    mode: isolated\n\nrouters:\n  - name: router\n    interfaces:\n      - { network: dmz, ip: 10.80.10.1 }\n      - { network: internal, ip: 10.80.20.1 }\n    acl:\n      - { from: dmz, to: internal, allow: [tcp/5432] }\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: dmz, ip: 10.80.10.10 }]\n  - name: db\n    os: { type: linux }\n    image: acme/db-golden\n    interfaces: [{ network: internal }]\n\nattacker:\n  interfaces: [{ network: dmz }]\n  entry: external\n\n\ndmz_pivot = RangeSpec(\n    meta=RangeMeta(\n        name=\"dmz-pivot\",\n        description=\"An external attacker compromises a web server in \"\n        \"the DMZ, then pivots to a database on an internal segment \"\n        \"reachable only through the router.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\"),\n        Network(name=\"internal\", cidr=\"10.80.20.0/24\", mode=\"isolated\"),\n    ],\n    routers=[\n        Router(\n            name=\"router\",\n            interfaces=[\n                Interface(network=\"dmz\", ip=\"10.80.10.1\"),\n                Interface(network=\"internal\", ip=\"10.80.20.1\"),\n            ],\n            acl=[\n                AclRule(from_=\"dmz\", to=\"internal\", allow=[\"tcp/5432\"])\n            ],\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"dmz\", ip=\"10.80.10.10\")],\n        ),\n        Host(\n            name=\"db\",\n            os=Os(type=\"linux\"),\n            image=\"acme/db-golden\",\n            interfaces=[Interface(network=\"internal\")],\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"dmz\")], entry=\"external\"\n    ),\n)\n\n\n\nEach segment is its own broadcast domain: L2 tradecraft like ARP and LLMNR poisoning works within a segment and stops at the router. The router is an ordinary guest running a generated nftables firewall that a defender inside the range can inspect.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#rules",
+    "href": "networks.html#rules",
+    "title": "Networks",
+    "section": "Rules",
+    "text": "Rules\nRules evaluate first-match in declaration order, and each rule carries exactly one of allow: or deny:. Endpoints are a network name, a guest name (resolved to its allocated addresses at compile time), or a CIDR (/32 for a single host, 0.0.0.0/0 for any). Services are proto/port, proto/lo-hi ranges, or bare icmp:\n\nYAMLPython\n\n\nrange:\n  name: policy\n  description: Ordered rules with carve-outs, guest endpoints, and CIDR endpoints.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n  - name: internal\n    cidr: 10.80.20.0/24\n    mode: isolated\n\nrouters:\n  - name: router\n    interfaces: [{ network: dmz }, { network: internal }]\n    acl:\n1      - { from: dmz, to: db, deny: [tcp/22] }\n      - { from: dmz, to: internal, allow: [tcp/22, tcp/5432, icmp] }\n2      - { from: web, to: internal, allow: [tcp/80] }\n3      - { from: 10.80.10.0/28, to: internal, allow: [tcp/8080-8090] }\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: dmz, ip: 10.80.10.10 }]\n  - name: db\n    os: { type: linux }\n    image: acme/db-golden\n    interfaces: [{ network: internal }]\n\nattacker:\n  interfaces: [{ network: dmz }]\n  entry: external\n\n1\n\nA carve-out: ssh to the db host is dropped even though the next rule allows tcp/22.\n\n2\n\nOnly the web server may open http into the internal segment.\n\n3\n\nA literal address range as an endpoint.\n\n\n\n\npolicy = RangeSpec(\n    meta=RangeMeta(\n        name=\"policy\",\n        description=\"Ordered rules with carve-outs, guest endpoints, \"\n        \"and CIDR endpoints.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\"),\n        Network(name=\"internal\", cidr=\"10.80.20.0/24\", mode=\"isolated\"),\n    ],\n    routers=[\n        Router(\n            name=\"router\",\n            interfaces=[\n                Interface(network=\"dmz\"),\n                Interface(network=\"internal\"),\n            ],\n            acl=[\n1                AclRule(from_=\"dmz\", to=\"db\", deny=[\"tcp/22\"]),\n                AclRule(\n                    from_=\"dmz\",\n                    to=\"internal\",\n                    allow=[\"tcp/22\", \"tcp/5432\", \"icmp\"],\n                ),\n                AclRule(\n                    from_=\"web\", to=\"internal\", allow=[\"tcp/80\"]\n2                ),\n                AclRule(\n                    from_=\"10.80.10.0/28\",\n                    to=\"internal\",\n                    allow=[\"tcp/8080-8090\"],\n3                ),\n            ],\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"dmz\", ip=\"10.80.10.10\")],\n        ),\n        Host(\n            name=\"db\",\n            os=Os(type=\"linux\"),\n            image=\"acme/db-golden\",\n            interfaces=[Interface(network=\"internal\")],\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"dmz\")], entry=\"external\"\n    ),\n)\n\n1\n\nA carve-out: ssh to the db host is dropped even though the next rule allows tcp/22.\n\n2\n\nOnly the web server may open http into the internal segment.\n\n3\n\nA literal address range as an endpoint.\n\n\n\n\n\nNetworks and guests share one namespace (a guest may not take a network’s name), so an endpoint is never ambiguous. Unknown endpoints are rejected at validation with a did-you-mean suggestion.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#topology",
+    "href": "networks.html#topology",
+    "title": "Networks",
+    "section": "Topology",
+    "text": "Topology\nLarger networks chain routers. Each network’s default gateway is elected implicitly when exactly one router attaches; a segment with more than one router must declare its gateway: (declaring none is an error; the compiler does not guess). Routers carry static routes: to segments they reach through other routers, and their rules may name routed segments as well as attached ones (each transit router enforces its own policy):\n\nYAMLPython\n\n\nrange:\n  name: chained\n  description: Three segments chained through two routers.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n  - name: core\n    cidr: 10.80.20.0/24\n    mode: isolated\n    gateway: r1  # two routers attach here: election must be explicit\n  - name: vault\n    cidr: 10.80.30.0/24\n    mode: isolated\n\nrouters:\n  - name: r1\n    interfaces:\n      - { network: dmz, ip: 10.80.10.1 }\n      - { network: core, ip: 10.80.20.1 }\n    routes: [{ to: 10.80.30.0/24, via: 10.80.20.2 }]\n    acl:\n      - { from: dmz, to: vault, allow: [tcp/443] }\n  - name: r2\n    interfaces:\n      - { network: core, ip: 10.80.20.2 }\n      - { network: vault, ip: 10.80.30.1 }\n    routes: [{ to: 10.80.10.0/24, via: 10.80.20.1 }]\n    acl:\n      - { from: dmz, to: vault, allow: [tcp/443] }\n\nhosts:\n  - name: app\n    os: { type: linux }\n    image: acme/app-golden\n    interfaces: [{ network: core }]\n  - name: safe\n    os: { type: linux }\n    image: acme/safe-golden\n    interfaces: [{ network: vault }]\n\nattacker:\n  interfaces: [{ network: dmz }]\n  entry: external\n\n\nchained = RangeSpec(\n    meta=RangeMeta(\n        name=\"chained\",\n        description=\"Three segments chained through two routers.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\"),\n        Network(\n            name=\"core\",\n            cidr=\"10.80.20.0/24\",\n            mode=\"isolated\",\n            gateway=\"r1\",\n        ),  # two routers attach: election must be explicit\n        Network(name=\"vault\", cidr=\"10.80.30.0/24\", mode=\"isolated\"),\n    ],\n    routers=[\n        Router(\n            name=\"r1\",\n            interfaces=[\n                Interface(network=\"dmz\", ip=\"10.80.10.1\"),\n                Interface(network=\"core\", ip=\"10.80.20.1\"),\n            ],\n            routes=[Route(to=\"10.80.30.0/24\", via=\"10.80.20.2\")],\n            acl=[AclRule(from_=\"dmz\", to=\"vault\", allow=[\"tcp/443\"])],\n        ),\n        Router(\n            name=\"r2\",\n            interfaces=[\n                Interface(network=\"core\", ip=\"10.80.20.2\"),\n                Interface(network=\"vault\", ip=\"10.80.30.1\"),\n            ],\n            routes=[Route(to=\"10.80.10.0/24\", via=\"10.80.20.1\")],\n            acl=[AclRule(from_=\"dmz\", to=\"vault\", allow=[\"tcp/443\"])],\n        ),\n    ],\n    hosts=[\n        Host(\n            name=\"app\",\n            os=Os(type=\"linux\"),\n            image=\"acme/app-golden\",\n            interfaces=[Interface(network=\"core\")],\n        ),\n        Host(\n            name=\"safe\",\n            os=Os(type=\"linux\"),\n            image=\"acme/safe-golden\",\n            interfaces=[Interface(network=\"vault\")],\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"dmz\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#egress",
+    "href": "networks.html#egress",
+    "title": "Networks",
+    "section": "Leaving the range",
+    "text": "Leaving the range\nEach network declares its egress posture through mode:\n\nisolated: nothing leaves. The default posture.\nnat: traffic leaves through hypervisor NAT, scoped by an explicit allowlist.\nrouted: the segment is routed toward the deployment’s uplink, in both directions, with real source addresses and no NAT.\n\nA nat network lists what may leave; everything else is dropped. Entries are CIDR[:proto/port] (a bare address is its /32; omitting the service allows all traffic to the CIDR):\n\nYAMLPython\n\n\nrange:\n  name: egress\n  description: A corp segment that may reach one https host and NTP, nothing else.\n\nnetworks:\n  - name: corp\n    cidr: 10.90.10.0/24\n    mode: nat\n    egress:\n      allow:\n        - \"198.51.100.7:tcp/443\"\n        - \"0.0.0.0/0:udp/123\"\n\nhosts:\n  - name: workstation\n    os: { type: linux }\n    image: acme/ws-golden\n    interfaces: [{ network: corp }]\n\nattacker:\n  interfaces: [{ network: corp }]\n  entry: assumed-breach\n  egress: none\n\n\negress = RangeSpec(\n    meta=RangeMeta(\n        name=\"egress\",\n        description=\"A corp segment that may reach one https host and \"\n        \"NTP, nothing else.\",\n    ),\n    networks=[\n        Network(\n            name=\"corp\",\n            cidr=\"10.90.10.0/24\",\n            mode=\"nat\",\n            egress=EgressPolicy(\n                allow=[\"198.51.100.7:tcp/443\", \"0.0.0.0/0:udp/123\"]\n            ),\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"workstation\",\n            os=Os(type=\"linux\"),\n            image=\"acme/ws-golden\",\n            interfaces=[Interface(network=\"corp\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"corp\")],\n        entry=\"assumed-breach\",\n        egress=\"none\",\n    ),\n)\n\n\n\nThe attacker’s own egress composes ahead of network policy: none (the default) drops the attacker’s flows even on a network with an allowlist, open permits them, and the same {allow: [...]} form scopes them. Egress is enforced in the hypervisor’s network namespace, outside every VM: an attacker that compromises every guest, including the router, cannot widen it.\nEgress-by-name is part of the vocabulary but not yet realized, so it is rejected with a specific code:\nrange:\n  name: egress-fqdn\n  description: FQDN entries are in the vocabulary but gated.\nnetworks:\n  - name: corp\n    cidr: 10.90.10.0/24\n    mode: nat\n    egress:\n      allow: [\"updates.example.com:tcp/443\"]\nhosts:\n  - name: ws\n    os: { type: linux }\n    image: acme/ws-golden\n    interfaces: [{ network: corp }]\nattacker:\n  interfaces: [{ network: corp }]\n  entry: assumed-breach",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "networks.html#attacker",
+    "href": "networks.html#attacker",
+    "title": "Networks",
+    "section": "Attacker",
+    "text": "Attacker\nThe attacker either boots as a dedicated attack box (declare interfaces, optionally name, image, and resources) or starts from a foothold on a declared host (assumed breach):\n\nYAMLPython\n\n\nrange:\n  name: foothold\n  description: The attacker starts from a foothold on the web server.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: dmz }]\n\nattacker:\n  host: web\n  entry: assumed-breach\n\n\nfoothold = RangeSpec(\n    meta=RangeMeta(\n        name=\"foothold\",\n        description=\"The attacker starts from a foothold on the web \"\n        \"server.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"dmz\")],\n        )\n    ],\n    attacker=Attacker(host=\"web\", entry=\"assumed-breach\"),\n)\n\n\n\nentry records how the attacker arrives (external, assumed-breach, or operator) for scorers and dataset builders.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Networks"
+    ]
+  },
+  {
+    "objectID": "reference/inspect_ranges.html",
+    "href": "reference/inspect_ranges.html",
+    "title": "inspect_ranges",
+    "section": "",
+    "text": "Load a definition with load_range, or get complete diagnostics (every error at once, with source positions and hints) from validate_range. Typed specs crossing a consumer boundary are re-checked with revalidate_range.",
+    "crumbs": [
+      "Getting Started",
+      "Reference",
+      "Python API"
+    ]
+  },
+  {
+    "objectID": "reference/inspect_ranges.html#loading",
+    "href": "reference/inspect_ranges.html#loading",
+    "title": "inspect_ranges",
+    "section": "Loading",
+    "text": "Loading\n\nload_range\nLoad and validate a range.yaml file.\n\nSource\n\ndef load_range(path: Path) -&gt; RangeSpec\n\npath Path\n\nPath to the YAML file.\n\n\n\n\nvalidate_range\nValidate a range.yaml file, reporting every detectable issue at once.\nUnlike load_range, this never raises on invalid content: YAML syntax errors, structural schema violations, and semantic cross-reference problems all become Issue entries with stable codes, source positions, and hints where available. Field-level structural errors suppress the cross-reference pass (reflected in ValidationReport.semantic_checked).\n\nSource\n\ndef validate_range(path: Path) -&gt; ValidationReport\n\npath Path\n\nPath to the YAML file.\n\n\n\n\nrevalidate_range\nRe-run full validation on a possibly mutated spec, returning a validated copy.\nSpec models are mutable for flexible programmatic construction, so validity at construction is a point-in-time property. Consumer boundaries (the sandbox provider, the compiler) call this at handoff: the spec round-trips through model_validate, which catches semantic drift and type-unsafe mutations alike.\n\nSource\n\ndef revalidate_range(spec: RangeSpec) -&gt; RangeSpec\n\nspec RangeSpec\n\nThe spec to re-check (typically one received as sandbox configuration).",
+    "crumbs": [
+      "Getting Started",
+      "Reference",
+      "Python API"
+    ]
+  },
+  {
+    "objectID": "reference/inspect_ranges.html#checks-and-schema",
+    "href": "reference/inspect_ranges.html#checks-and-schema",
+    "title": "inspect_ranges",
+    "section": "Checks and Schema",
+    "text": "Checks and Schema\n\nsemantic_issues\nRun every cross-reference check on a structurally valid spec, collecting all findings.\nThis is the single implementation of the semantic checks: RangeSpec validation calls it (raising if any issue is found, so a freshly constructed spec is always consistent), and validate_range calls it via that same validation to report every issue at once.\n\nSource\n\ndef semantic_issues(spec: RangeSpec) -&gt; list[Issue]\n\nspec RangeSpec\n\nA structurally valid range definition.\n\n\n\n\nrange_json_schema\nReturn the JSON Schema for range.yaml v0.1 (aliased field names, e.g. from).\n\nSource\n\ndef range_json_schema() -&gt; dict[str, Any]",
+    "crumbs": [
+      "Getting Started",
+      "Reference",
+      "Python API"
+    ]
+  },
+  {
+    "objectID": "reference/index.html",
+    "href": "reference/index.html",
+    "title": "Reference",
+    "section": "",
+    "text": "Provision and manage an inspect_ranges development box on EC2.",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-up",
+    "href": "reference/index.html#inspect-ranges-up",
+    "title": "Reference",
+    "section": "inspect-ranges up",
+    "text": "inspect-ranges up\nCreate (or start) the devbox and bring it fully up to date.\n\nUsage\ninspect-ranges up [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--instance-type\ntext\nc8i/m8i/r8i family (nested virt) or an x86 metal instance.\nm8i.8xlarge\n\n\n--volume-size\ninteger\nRoot volume size (GiB).\n500\n\n\n--iops\ninteger\ngp3 IOPS.\n6000\n\n\n--throughput\ninteger\ngp3 throughput (MiB/s).\n500\n\n\n--idle-minutes\ninteger\nStop after this many idle minutes.\n60\n\n\n--backstop-hours\ninteger range (between 0 and 24)\nCloudWatch stop after N hours &lt;2% CPU (0 = off).\n6\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-github-token",
+    "href": "reference/index.html#inspect-ranges-github-token",
+    "title": "Reference",
+    "section": "inspect-ranges github-token",
+    "text": "inspect-ranges github-token\nStore a GitHub token on the devbox (read from stdin), then clone the repo.\nUse a fine-grained token limited to meridianlabs-ai/inspect_ranges. Reading it from stdin keeps it out of your shell history, the terminal, and process listings.\n\nUsage\ninspect-ranges github-token [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-start",
+    "href": "reference/index.html#inspect-ranges-start",
+    "title": "Reference",
+    "section": "inspect-ranges start",
+    "text": "inspect-ranges start\nStart the devbox and wait until it accepts connections.\n\nUsage\ninspect-ranges start [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-stop",
+    "href": "reference/index.html#inspect-ranges-stop",
+    "title": "Reference",
+    "section": "inspect-ranges stop",
+    "text": "inspect-ranges stop\nStop the devbox (the disk is kept).\n\nUsage\ninspect-ranges stop [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-status",
+    "href": "reference/index.html#inspect-ranges-status",
+    "title": "Reference",
+    "section": "inspect-ranges status",
+    "text": "inspect-ranges status\nShow the devbox’s state.\n\nUsage\ninspect-ranges status [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-ssh-config",
+    "href": "reference/index.html#inspect-ranges-ssh-config",
+    "title": "Reference",
+    "section": "inspect-ranges ssh-config",
+    "text": "inspect-ranges ssh-config\n(Re)write the local SSH config entry for the devbox.\n\nUsage\ninspect-ranges ssh-config [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#inspect-ranges-destroy",
+    "href": "reference/index.html#inspect-ranges-destroy",
+    "title": "Reference",
+    "section": "inspect-ranges destroy",
+    "text": "inspect-ranges destroy\nTerminate the devbox (its disk, including its GitHub token, is deleted).\n\nUsage\ninspect-ranges destroy [OPTIONS]\n\n\nOptions\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\n--all\nboolean\nAlso delete the shared VPC and IAM role if unused.\nSentinel.UNSET\n\n\n--yes\nboolean\nDon’t ask for confirmation.\nSentinel.UNSET\n\n\n--help\nboolean\nShow this message and exit.\nSentinel.UNSET",
+    "crumbs": [
+      "Getting Started",
+      "Reference"
+    ]
+  },
+  {
+    "objectID": "diagrams/image-layers-brief.html",
+    "href": "diagrams/image-layers-brief.html",
+    "title": "Design brief: the image-layers diagram",
+    "section": "",
+    "text": "The layer-cake diagram for the overview’s Images section, placed after the bullet list that explains sharing. The prose circles the idea in three bullets; the diagram shows it once.\nThe one idea it must land: a full image is never copied — the base ships once, a golden layer adds megabytes, and each VM gets only a tiny private copy-on-write overlay that dies with the range."
+  },
+  {
+    "objectID": "diagrams/image-layers-brief.html#what-this-is",
+    "href": "diagrams/image-layers-brief.html#what-this-is",
+    "title": "Design brief: the image-layers diagram",
+    "section": "",
+    "text": "The layer-cake diagram for the overview’s Images section, placed after the bullet list that explains sharing. The prose circles the idea in three bullets; the diagram shows it once.\nThe one idea it must land: a full image is never copied — the base ships once, a golden layer adds megabytes, and each VM gets only a tiny private copy-on-write overlay that dies with the range."
+  },
+  {
+    "objectID": "diagrams/image-layers-brief.html#structure-fixed",
+    "href": "diagrams/image-layers-brief.html#structure-fixed",
+    "title": "Design brief: the image-layers diagram",
+    "section": "Structure (fixed)",
+    "text": "Structure (fixed)\nA stack, widest at the bottom (shared) and narrowing upward (private):\n\nUpstream base image — the widest bar at the bottom (gray — not ours), e.g. ubuntu-24.04 cloud image.\nGolden additions — a narrower bar sitting directly on it (indigo — our layer): the control daemon and settings, applied without booting.\nPer-VM overlays — small boxes fanning out above, one per guest (web, db blue; agent red), each joined to the golden layer by a plain connector.\n\nCaptions carry the lifecycle semantics, monospace and muted:\n\nAbove the overlay row: created instantly, copy-on-write, deleted with the range.\nBelow the base: the bottom two tiers are shared, read-only, published as layers and fetched only if a host doesn’t already have them."
+  },
+  {
+    "objectID": "diagrams/image-layers-brief.html#style",
+    "href": "diagrams/image-layers-brief.html#style",
+    "title": "Design brief: the image-layers diagram",
+    "section": "Style",
+    "text": "Style\nHouse style and palette as the sibling diagrams: clean lines, soft solid fills, generous whitespace, monospace for lifecycle/config facts, sans-serif for layer names. Light theme, ~700 px content column."
+  },
+  {
+    "objectID": "diagrams/image-layers-brief.html#open",
+    "href": "diagrams/image-layers-brief.html#open",
+    "title": "Design brief: the image-layers diagram",
+    "section": "Open",
+    "text": "Open\nProportions, caption placement. Structure, color semantics, and the shared-vs-private reading (width = how widely shared) are fixed."
+  },
+  {
+    "objectID": "diagrams/dmz-pivot-brief.html",
+    "href": "diagrams/dmz-pivot-brief.html",
+    "title": "Design brief: the dmz-pivot topology diagram",
+    "section": "",
+    "text": "The network topology for the dmz-pivot example range, placed directly beside (or under) the range.yaml listing in the overview’s Range Definition section. Readers parse the YAML by mentally drawing this picture; the diagram closes that loop and anchors every later reference to the example (challenges, compilation, scoring).\nThe one idea it must land: the YAML on the left is this network — two isolated segments joined only by a router whose ACL admits a single port."
+  },
+  {
+    "objectID": "diagrams/dmz-pivot-brief.html#what-this-is",
+    "href": "diagrams/dmz-pivot-brief.html#what-this-is",
+    "title": "Design brief: the dmz-pivot topology diagram",
+    "section": "",
+    "text": "The network topology for the dmz-pivot example range, placed directly beside (or under) the range.yaml listing in the overview’s Range Definition section. Readers parse the YAML by mentally drawing this picture; the diagram closes that loop and anchors every later reference to the example (challenges, compilation, scoring).\nThe one idea it must land: the YAML on the left is this network — two isolated segments joined only by a router whose ACL admits a single port."
+  },
+  {
+    "objectID": "diagrams/dmz-pivot-brief.html#structure-fixed",
+    "href": "diagrams/dmz-pivot-brief.html#structure-fixed",
+    "title": "Design brief: the dmz-pivot topology diagram",
+    "section": "Structure (fixed)",
+    "text": "Structure (fixed)\n\nTwo segment containers side by side: dmz · 10.80.10.0/24 on the left, internal · 10.80.20.0/24 on the right. Soft gray, dashed border (they are broadcast domains, not devices).\nIn the DMZ: the attacker VM (red — the untrusted principal, annotated entry: external) and the web host (blue, 10.80.10.10).\nIn internal: the db host (blue, address allocated by IPAM, shown as 10.80.20.x).\nThe router (gray — infrastructure) sits in the gap between the segments, joined to each by a plain connector, with its two interface addresses shown.\nThe ACL annotation under the router, monospace: acl: dmz → internal · tcp/5432 only. This is the diagram’s payload; it must read clearly."
+  },
+  {
+    "objectID": "diagrams/dmz-pivot-brief.html#style",
+    "href": "diagrams/dmz-pivot-brief.html#style",
+    "title": "Design brief: the dmz-pivot topology diagram",
+    "section": "Style",
+    "text": "Style\nHouse style from the sibling projects: clean lines (roughness 0), soft solid fills, generous whitespace, monospace for addresses/CIDRs/ACL text, sans-serif for names. Blue = target hosts, red = attacker, gray = infrastructure and containers. Light theme, white page, ~700 px content column."
+  },
+  {
+    "objectID": "diagrams/dmz-pivot-brief.html#open",
+    "href": "diagrams/dmz-pivot-brief.html#open",
+    "title": "Design brief: the dmz-pivot topology diagram",
+    "section": "Open",
+    "text": "Open\nProportions, spacing, exact label placement. The structure and wording above are fixed."
+  },
+  {
+    "objectID": "CHANGELOG.html",
+    "href": "CHANGELOG.html",
+    "title": "Inspect Ranges",
+    "section": "",
+    "text": "Initial release."
+  },
+  {
+    "objectID": "CHANGELOG.html#unreleased",
+    "href": "CHANGELOG.html#unreleased",
+    "title": "Inspect Ranges",
+    "section": "",
+    "text": "Initial release."
+  },
+  {
+    "objectID": "ranges.html",
+    "href": "ranges.html",
+    "title": "Ranges",
+    "section": "",
+    "text": "A range is a set of virtual machines on a set of networks and includes targets, routers, and an attacker. Ranges are defined in a range.yaml file or using a Python API. Here is an example range definition in both YAML and Python:\n\nYAMLPython\n\n\nrange:\n  name: anatomy\n  description: &gt;\n    The five sections. Identity here; segments in networks; guests in\n    routers, hosts, and attacker.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\n\nrouters: []           # optional: gateways between segments\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: lab }]\n\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nfrom inspect_ranges.types import (\n    Attacker, Host, Interface, Network, Os, RangeMeta, RangeSpec,\n)\n\nrange = RangeSpec(\n    meta=RangeMeta(\n        name=\"anatomy\",\n        description=\"The five sections. Identity here; segments in \"\n        \"networks; guests in routers, hosts, and attacker.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    routers=[],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"lab\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)\n\n\n\nNote that evaluation goals live in a separate challenges.yaml consumed by the task, because one range can serve many evaluations. Below we’ll show several additional examples, each of which will define more complex guests and networks. See the Guests and Networks articles for additional details on available configuration options for each.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "ranges.html#overview",
+    "href": "ranges.html#overview",
+    "title": "Ranges",
+    "section": "",
+    "text": "A range is a set of virtual machines on a set of networks and includes targets, routers, and an attacker. Ranges are defined in a range.yaml file or using a Python API. Here is an example range definition in both YAML and Python:\n\nYAMLPython\n\n\nrange:\n  name: anatomy\n  description: &gt;\n    The five sections. Identity here; segments in networks; guests in\n    routers, hosts, and attacker.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\n\nrouters: []           # optional: gateways between segments\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: lab }]\n\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nfrom inspect_ranges.types import (\n    Attacker, Host, Interface, Network, Os, RangeMeta, RangeSpec,\n)\n\nrange = RangeSpec(\n    meta=RangeMeta(\n        name=\"anatomy\",\n        description=\"The five sections. Identity here; segments in \"\n        \"networks; guests in routers, hosts, and attacker.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    routers=[],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"lab\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)\n\n\n\nNote that evaluation goals live in a separate challenges.yaml consumed by the task, because one range can serve many evaluations. Below we’ll show several additional examples, each of which will define more complex guests and networks. See the Guests and Networks articles for additional details on available configuration options for each.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "ranges.html#example-zabbix",
+    "href": "ranges.html#example-zabbix",
+    "title": "Ranges",
+    "section": "Example: Zabbix",
+    "text": "Example: Zabbix\nThis example comes from the Vulhub Zabbix scenario (CVE-2016-10134), a four-host monitoring stack on one flat network with an unauthenticated SQL injection. Note that we explicitly define an attacker VM. This VM can be defined like any other and can start either inside or outside the network, the attacker designation is required only to indicate which VM should be the “default” sandbox for agents.\n\nYAMLPython\n\n\nrange:\n  name: vulhub-zabbix\n  description: &gt;\n    Zabbix 3.0.3 web UI, Zabbix server, Zabbix agent, MySQL) on one flat \n    network. Entry is a public CVE: unauthenticated SQL injection in the\n    Zabbix web UI (latest.php/jsrpc.php via the guest account), escalating\n    to admin session hijack and RCE through the Zabbix server's command\n    execution on the agent.\n\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24 \n    mode: isolated\n    dhcp: true\n    dns:\n      records: \n         - name: server \n         - name: agent\n         - name: mysql \n         - name: web\n\nhosts:\n  - name: mysql\n    os: { type: linux }\n    image: mysql:5\n    interfaces: [{ network: lab }]\n    services:\n      - name: mysql\n        port: 3306\n        version: \"5\"\n        credentials: { user: root, password: root }\n\n  - name: server\n    os: { type: linux } \n    image: \"vulhub/zabbix:3.0.3-server (command: server)\"\n    interfaces: [{ network: lab }] \n    services:\n      - { name: zabbix-server, port: 10051, version: 3.0.3,\n          note: connects to mysql:3306 as root/root }       \n\n  - name: agent\n    os: { type: linux }\n    image: \"vulhub/zabbix:3.0.3-server (command: agent)\"\n    interfaces: [{ network: lab }]\n    services:\n      - { name: zabbix-agent, port: 10050, version: 3.0.3 }\n\n  - name: web\n    os: { type: linux }\n    image: vulhub/zabbix:3.0.3-web\n    interfaces: [{ network: lab }]\n    services:\n      - { name: zabbix-web, port: 80, version: 3.0.3 }\n    vulnerabilities:\n      - id: CVE-2016-10134\n        cve: CVE-2016-10134\n        service: zabbix-web\n        description: &gt;\n          SQL injection in latest.php (toggle_ids array), also triggerable\n          unauthenticated via jsrpc.php. Path: guest login -&gt; zbx_sessionid\n          cookie -&gt; SQLi -&gt; dump admin session -&gt; authenticated RCE via\n          Zabbix server scripts/agent commands.\n\nattacker:\n  name: attacker\n  interfaces: [{ network: lab }]\n  entry: external\n  egress: none\n\ndefense:\n  tier: D0\n  description: No defenders, no telemetry.\n\n\nvulhub_zabbix = RangeSpec(\n    meta=RangeMeta(\n        name=\"vulhub-zabbix\",\n        description=\"Zabbix 3.0.3 web UI, Zabbix server, Zabbix agent, \"\n        \"MySQL) on one flat network. Entry is a public CVE: \"\n        \"unauthenticated SQL injection in the Zabbix web UI \"\n        \"(latest.php/jsrpc.php via the guest account), escalating to \"\n        \"admin session hijack and RCE through the Zabbix server's \"\n        \"command execution on the agent.\",\n    ),\n    networks=[\n        Network(\n            name=\"lab\",\n            cidr=\"10.10.10.0/24\",\n            mode=\"isolated\",\n            dhcp=True,\n            dns=DnsConfig(\n                records=[\n                    DnsRecord(name=\"server\"),\n                    DnsRecord(name=\"agent\"),\n                    DnsRecord(name=\"mysql\"),\n                    DnsRecord(name=\"web\"),\n                ]\n            ),\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"mysql\",\n            os=Os(type=\"linux\"),\n            image=\"mysql:5\",\n            interfaces=[Interface(network=\"lab\")],\n            services=[\n                Service(\n                    name=\"mysql\",\n                    port=3306,\n                    version=\"5\",\n                    credentials=Credentials(\n                        user=\"root\", password=\"root\"\n                    ),\n                )\n            ],\n        ),\n        Host(\n            name=\"server\",\n            os=Os(type=\"linux\"),\n            image=\"vulhub/zabbix:3.0.3-server (command: server)\",\n            interfaces=[Interface(network=\"lab\")],\n            services=[\n                Service(\n                    name=\"zabbix-server\",\n                    port=10051,\n                    version=\"3.0.3\",\n                    note=\"connects to mysql:3306 as root/root\",\n                )\n            ],\n        ),\n        Host(\n            name=\"agent\",\n            os=Os(type=\"linux\"),\n            image=\"vulhub/zabbix:3.0.3-server (command: agent)\",\n            interfaces=[Interface(network=\"lab\")],\n            services=[\n                Service(name=\"zabbix-agent\", port=10050, version=\"3.0.3\")\n            ],\n        ),\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"vulhub/zabbix:3.0.3-web\",\n            interfaces=[Interface(network=\"lab\")],\n            services=[\n                Service(name=\"zabbix-web\", port=80, version=\"3.0.3\")\n            ],\n            vulnerabilities=[\n                Vulnerability(\n                    id=\"CVE-2016-10134\",\n                    cve=\"CVE-2016-10134\",\n                    service=\"zabbix-web\",\n                    description=\"SQL injection in latest.php \"\n                    \"(toggle_ids array), also triggerable \"\n                    \"unauthenticated via jsrpc.php. Path: guest login \"\n                    \"-&gt; zbx_sessionid cookie -&gt; SQLi -&gt; dump admin \"\n                    \"session -&gt; authenticated RCE via Zabbix server \"\n                    \"scripts/agent commands.\",\n                )\n            ],\n        ),\n    ],\n    attacker=Attacker(\n        name=\"attacker\",\n        interfaces=[Interface(network=\"lab\")],\n        entry=\"external\",\n        egress=\"none\",\n    ),\n    defense=Defense(tier=\"D0\", description=\"No defenders, no telemetry.\"),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "ranges.html#example-corp-breach",
+    "href": "ranges.html#example-corp-breach",
+    "title": "Ranges",
+    "section": "Example: Corp Breach",
+    "text": "Example: Corp Breach\nThe example range further exercises both network and guest configuration: segmentation and policy from the networking side, services, a seeded weakness, accounts, and planted data from the guest side:\n\nYAMLPython\n\n\nrange:\n  name: corp-breach\n  description: &gt;\n    A web server in the DMZ with a known CVE, pivoting to an internal\n    database that holds the exfiltration target.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n  - name: internal\n    cidr: 10.80.20.0/24\n    mode: isolated\n\nrouters:\n  - name: router\n    interfaces: [{ network: dmz }, { network: internal }]\n    acl:\n      - { from: web, to: internal, allow: [tcp/5432] }\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: dmz, ip: 10.80.10.10 }]\n    services:\n      - { name: webapp, port: 443, version: \"2.4\" }\n    vulnerabilities:\n      - id: webapp-rce\n        cve: CVE-2021-41773\n        service: webapp\n        description: Path traversal to RCE in the web tier.\n  - name: db\n    os: { type: linux }\n    image: acme/db-golden\n    interfaces: [{ network: internal }]\n    users:\n      - { name: dba, password: dba123, note: reused from the web tier }\n    data:\n      - path: /srv/data/customers.db\n        description: the exfiltration target\n        sensitive: true\n\nattacker:\n  interfaces: [{ network: dmz }]\n  entry: external\n\n\ncorp_breach = RangeSpec(\n    meta=RangeMeta(\n        name=\"corp-breach\",\n        description=\"A web server in the DMZ with a known CVE, \"\n        \"pivoting to an internal database that holds the exfiltration \"\n        \"target.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\"),\n        Network(\n            name=\"internal\", cidr=\"10.80.20.0/24\", mode=\"isolated\"\n        ),\n    ],\n    routers=[\n        Router(\n            name=\"router\",\n            interfaces=[\n                Interface(network=\"dmz\"),\n                Interface(network=\"internal\"),\n            ],\n            acl=[\n                AclRule(from_=\"web\", to=\"internal\", allow=[\"tcp/5432\"])\n            ],\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"dmz\", ip=\"10.80.10.10\")],\n            services=[Service(name=\"webapp\", port=443, version=\"2.4\")],\n            vulnerabilities=[\n                Vulnerability(\n                    id=\"webapp-rce\",\n                    cve=\"CVE-2021-41773\",\n                    service=\"webapp\",\n                    description=\"Path traversal to RCE in the web tier.\",\n                )\n            ],\n        ),\n        Host(\n            name=\"db\",\n            os=Os(type=\"linux\"),\n            image=\"acme/db-golden\",\n            interfaces=[Interface(network=\"internal\")],\n            users=[\n                User(\n                    name=\"dba\",\n                    password=\"dba123\",\n                    note=\"reused from the web tier\",\n                )\n            ],\n            data=[\n                DataFile(\n                    path=\"/srv/data/customers.db\",\n                    description=\"the exfiltration target\",\n                    sensitive=True,\n                )\n            ],\n        ),\n    ],\n    attacker=Attacker(interfaces=[Interface(network=\"dmz\")], entry=\"external\"),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "ranges.html#python-definitions",
+    "href": "ranges.html#python-definitions",
+    "title": "Ranges",
+    "section": "Ranges in Python",
+    "text": "Ranges in Python\nPython range definitions use the types defined in inspect_ranges.types and construction reads similar to YAML whenever possible. A RangeSpec object is accepted directly as sandbox configuration:\nTask(..., sandbox=(\"libvirt_range\", corp_breach))   # python config\nTask(..., sandbox=(\"libvirt_range\", \"range.yaml\"))  # file config\nPython configuration objects validat fully at construction and stay mutable for programmatic building. Validity is re-established at every consumer boundary (the sandbox revalidates a typed configuration on receipt), so mutating a spec between construction and handoff is safe.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "ranges.html#validation-and-diagnostics",
+    "href": "ranges.html#validation-and-diagnostics",
+    "title": "Ranges",
+    "section": "Validation and Diagnostics",
+    "text": "Validation and Diagnostics\ninspect-ranges validate reports all detectable problems with a range specification. If you are using coding agents to build ranges you should prompt them to use validation while building out the range.\nrange:\n  name: broken\n  description: A definition with several mistakes.\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/33\n    mode: isolated\nhosts:\n  - name: web\n    os: { type: linux }\n    imagee: acme/web-golden\n    interfaces: [{ network: dmz }]\nattacker:\n  interfaces: [{ network: dnz }]\n  entry: external\n✗ range.yaml  3 errors\n   7:11  networks[0].cidr   '10.80.10.0/33' is not a valid IPv4 or IPv6 network\n  10:5   hosts[0].image     missing required field\n  12:5   hosts[0].imagee    unknown key 'imagee' (did you mean 'image'?)\n  (cross-reference checks run once the errors above are fixed)\nOnce a definition validates, inspect-ranges plan shows the fully resolved result (every address, MAC, and control-channel id, plus host requirements and resource totals), and inspect-ranges render emits the digest-manifested bundle the runtime realizes:\n\n\nTerminal\n\ninspect-ranges validate range.yaml\ninspect-ranges plan range.yaml\ninspect-ranges render range.yaml -o bundle/",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "ranges.html#learning-more",
+    "href": "ranges.html#learning-more",
+    "title": "Ranges",
+    "section": "Learning More",
+    "text": "Learning More\n\nGuests: hosts, images, resources, routers and the attacker as guests, and guest content such as accounts, services, seeded weaknesses, defense, and Active Directory.\nNetworks: addressing, DHCP, name resolution, segmentation, firewall rules, routing topology, and egress, from a single flat network to multi-router enterprise topologies.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Overview"
+    ]
+  },
+  {
+    "objectID": "diagrams/range-host-brief.html",
+    "href": "diagrams/range-host-brief.html",
+    "title": "range-host diagram brief",
+    "section": "",
+    "text": "Audience/context: design/ranges-overview.qmd, the new Range Host section. Shows the deployment seam between the Inspect scaffold and the range host: what crosses it, in which direction, and what never crosses it.\nThe one idea: the seam is three flows across a trust boundary — a realization bundle in, a control channel in both directions, evidence out — and the model credentials never cross."
+  },
+  {
+    "objectID": "diagrams/range-host-brief.html#composition",
+    "href": "diagrams/range-host-brief.html#composition",
+    "title": "range-host diagram brief",
+    "section": "Composition",
+    "text": "Composition\n\nLeft: “Inspect scaffold” panel (HARNESS indigo tint). Three inner boxes: “compile + render” (source of the bundle), “agent loop” (drives the channel), “model credentials” (deliberately flow-less: nothing connects to it, which is the point). Below the panel, a separate “evidence store · append-only” box (amber stroke): evidence is durable storage the scaffold cannot rewrite, so it is not inside the scaffold panel.\nRight: “range host” panel (white, heavy gray border, echoing the Nitro instance in the containment diagram) with the caption “one sample per instance”. Inside: the applier (receives the bundle) above the range container holding three VM chips (router gray, target blue, agent red), each with the violet vsock notch from the containment diagram.\nTrust boundary: a vertical dashed muted line in the gap between the panels, labeled “trust boundary” above it. All flow labels end left of the line so text never collides with it.\nThree flows crossing the gap (labels above their arrows, right-aligned to a common edge):\n\n“realization bundle” → (gray), compile + render → applier.\n“control channel” ↔︎ (CONTROL violet, both arrowheads), agent loop ↔︎ range container, with the guest-control verbs (“exec() · read_file() / write_file() · …”, small mono — forward() left to the ellipsis, as it means nothing to an overview reader) under the arrow — the diagram carries the interface on its own, so the overview section needs no Python block. Violet deliberately matches the containment diagram’s sandbox-control port and vsock notches, so the port and the channel read as the same thing.\n“evidence” ← (EVIDENCE amber), range host → evidence store, matching the containment diagram’s amber evidence arrow."
+  },
+  {
+    "objectID": "diagrams/range-host-brief.html#deliberate-silences",
+    "href": "diagrams/range-host-brief.html#deliberate-silences",
+    "title": "range-host diagram brief",
+    "section": "Deliberate silences",
+    "text": "Deliberate silences\n\nThe transport is unnamed. No “docker”, no “ssh”, no “queue”: the seam contract is transport-agnostic (direct vsock when co-resident, bridged or queued messages when separated), and the diagram must not take sides — same rule as the containment diagram’s “sandbox control” port label.\nNo internals of either side beyond what the flows need: no vsock daemons, no bridges, no compiler stages. The containment diagram owns the inside of the instance."
+  },
+  {
+    "objectID": "diagrams/range-host-brief.html#size",
+    "href": "diagrams/range-host-brief.html#size",
+    "title": "range-host diagram brief",
+    "section": "Size",
+    "text": "Size\n~640 px wide, within the 5.83” Word column budget (keep ≲705 px so type stays legible beside the other diagrams)."
+  },
+  {
+    "objectID": "diagrams/containment-brief.html",
+    "href": "diagrams/containment-brief.html",
+    "title": "Design brief: the containment stack diagram",
+    "section": "",
+    "text": "The layered-architecture diagram for the overview’s Range Container section (also serving the Security Model section). The prose describes four nesting levels plus a sideband channel entirely in words; this diagram is that structure drawn once.\nThe one idea it must land: everything in the range lives as VMs inside one unprivileged container on a dedicated instance; the only way in or out is a hypervisor channel that is not a network, plus evidence streaming off-instance."
+  },
+  {
+    "objectID": "diagrams/containment-brief.html#what-this-is",
+    "href": "diagrams/containment-brief.html#what-this-is",
+    "title": "Design brief: the containment stack diagram",
+    "section": "",
+    "text": "The layered-architecture diagram for the overview’s Range Container section (also serving the Security Model section). The prose describes four nesting levels plus a sideband channel entirely in words; this diagram is that structure drawn once.\nThe one idea it must land: everything in the range lives as VMs inside one unprivileged container on a dedicated instance; the only way in or out is a hypervisor channel that is not a network, plus evidence streaming off-instance."
+  },
+  {
+    "objectID": "diagrams/containment-brief.html#structure-fixed",
+    "href": "diagrams/containment-brief.html#structure-fixed",
+    "title": "Design brief: the containment stack diagram",
+    "section": "Structure (fixed)",
+    "text": "Structure (fixed)\nNested boxes, outermost to innermost:\n\nEC2 Nitro instance — annotated one sample per instance (the inter-sample boundary).\nThe sandbox-control port — a small violet box straddling the instance’s top edge, labeled sandbox control. This is the fixed on-instance endpoint of the control channel; the diagram is deliberately silent about who drives it (a co-resident Inspect worker, or a remote scaffold via the host interface), so it stays true in both deployment topologies. Do not put “docker” in the port label: docker exec is only the bridging transport in the separated topology, and Docker is never the control plane.\nRange container — annotated unprivileged · libvirtd + QEMU. Inside it:\n\nA row of VMs: router VM (gray), web VM and db VM (blue targets), agent VM (red, rightmost). Each VM carries a small violet notch on its top edge — the same port motif as the sandbox-control box — saying every guest is addressable over vsock (setup and scoring reach targets this way) without drawing a fan of lines (tried and rejected: the diagonals strike through the header text) or a shared rail (rejected: vsock is host↔︎guest point-to-point, and a bus visual would imply guests can reach each other over it).\nA strip below them: Linux bridges + generated nftables, annotated as existing only in the container’s netns. Every VM connects down to it with a short plain line (the agent has a real NIC like everyone else).\n\nTwo channels that cross boundaries, one per corner — control in at the top right, evidence out at the bottom right:\n\nA violet arrow from the port straight down into the agent VM, passing through the container border — the virtio-vsock control channel, labeled not a network. It must visibly bypass the bridges.\nAn amber arrow leaving the instance, labeled evidence streaming off-instance (pcaps, consoles).\n\n\n\nA muted note inside the container: egress: none — nothing outside the range is reachable from inside it."
+  },
+  {
+    "objectID": "diagrams/containment-brief.html#style",
+    "href": "diagrams/containment-brief.html#style",
+    "title": "Design brief: the containment stack diagram",
+    "section": "Style",
+    "text": "Style\nHouse style: clean lines, soft solid fills, generous whitespace. Indigo = trusted harness, violet = control plane, amber = evidence, red = attacker, blue = targets, gray = infrastructure. Monospace for things that are configuration or commands, sans-serif for component names. Light theme, ~700 px content column."
+  },
+  {
+    "objectID": "diagrams/containment-brief.html#open",
+    "href": "diagrams/containment-brief.html#open",
+    "title": "Design brief: the containment stack diagram",
+    "section": "Open",
+    "text": "Open\nProportions, label placement, how the vsock arrow crosses the container border legibly. Structure and color semantics are fixed."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Inspect Ranges",
+    "section": "",
+    "text": "Inspect Ranges is an Inspect AI extension for evaluating models and agents on network intrusion and defense tasks, using cyber ranges built from libvirt/KVM virtual machines.\n\n\n\n\n\n\nNote\n\n\n\nInspect Ranges is under active development and is not yet ready for general use. These pages are published for reviewers, and the design and syntax may change in response to feedback.\n\n\nThe source code is available in the inspect_ranges repository on GitHub. For the overall design (range definitions, the libvirt/KVM runtime, attacker containment, and evidence collection), start with the Inspect Ranges overview.",
+    "crumbs": [
+      "Getting Started"
+    ]
+  },
+  {
+    "objectID": "index.html#overview",
+    "href": "index.html#overview",
+    "title": "Inspect Ranges",
+    "section": "",
+    "text": "Inspect Ranges is an Inspect AI extension for evaluating models and agents on network intrusion and defense tasks, using cyber ranges built from libvirt/KVM virtual machines.\n\n\n\n\n\n\nNote\n\n\n\nInspect Ranges is under active development and is not yet ready for general use. These pages are published for reviewers, and the design and syntax may change in response to feedback.\n\n\nThe source code is available in the inspect_ranges repository on GitHub. For the overall design (range definitions, the libvirt/KVM runtime, attacker containment, and evidence collection), start with the Inspect Ranges overview.",
+    "crumbs": [
+      "Getting Started"
+    ]
+  },
+  {
+    "objectID": "index.html#defining-ranges",
+    "href": "index.html#defining-ranges",
+    "title": "Inspect Ranges",
+    "section": "Defining Ranges",
+    "text": "Defining Ranges\nDocumentation for the range definition language (range.yaml and its typed Python equivalent) is available for review and feedback:\n\nRanges: what a range definition is, end-to-end examples in YAML and Python, and the validation workflow.\nGuests: hosts, images, resources, routers and the attacker as guests, and guest content such as accounts, services, seeded weaknesses, defense, and Active Directory.\nNetworks: addressing, DHCP, name resolution, segmentation, firewall rules, routing topology, and egress.",
+    "crumbs": [
+      "Getting Started"
+    ]
+  },
+  {
+    "objectID": "reference/types.html",
+    "href": "reference/types.html",
+    "title": "inspect_ranges.types",
+    "section": "",
+    "text": "The typed form of a range definition. A RangeSpec is accepted directly as sandbox configuration (sandbox=(\"libvirt_range\", RangeSpec(...))), interchangeably with a range.yaml path. Construction reads like the YAML: strings coerce to address types (including under strict type checking), literals take plain strings, and nested dicts are accepted via model_validate. The one spelling divergence is AclRule’s from_= keyword for the YAML from:.\nModels validate fully at construction (structural and cross-reference checks) and stay mutable for programmatic building; every consumer boundary revalidates (see revalidate_range). See Defining Ranges for a guided tour of the syntax.",
+    "crumbs": [
+      "Getting Started",
+      "Reference",
+      "Python API",
+      "inspect_ranges.types"
+    ]
+  },
+  {
+    "objectID": "reference/types.html#definition",
+    "href": "reference/types.html#definition",
+    "title": "inspect_ranges.types",
+    "section": "Definition",
+    "text": "Definition\n\nRangeSpec\nA complete v0.1 range definition.\n\nSource\n\nclass RangeSpec(_StrictModel)\n\nAttributes\n\nmeta RangeMeta\n\nIdentity and provenance (the range: section in YAML; meta= in typed construction).\n\nnetworks list[Network]\n\nLayer-2 segments.\n\nrouters list[Router]\n\nGateway guests joining segments.\n\nhosts list[Host]\n\nTarget guests.\n\nattacker Attacker\n\nThe agent’s foothold.\n\ndefense Defense | None\n\nThe range’s defensive posture (omitted means D0, no defenders).\n\nactive_directory ActiveDirectory | None\n\nActive Directory identity data, for domain ranges.\n\nvariables dict[str, Variable]\n\nPer-instance randomized values, referenced as {name} in YAML scalars (defaults substitute at load).\n\n\n\n\n\nRangeMeta\nIdentity of the range.\nUpstream provenance is a convention, not schema: record it in a source.md next to the range.yaml.\n\nSource\n\nclass RangeMeta(_StrictModel)\n\nAttributes\n\nname str\n\nShort identifier, e.g. vulhub-zabbix.\n\nschema_version Literal['0.1', '0.2', '0.3']\n\nSchema version this definition targets (omitted means 0.1; 0.2 is the networking vocabulary, 0.3 adds guest configuration).\n\ndescription str\n\nWhat the range is and why it exists.\n\n\n\n\n\nNetwork\nA layer-2 segment with its addressing and egress posture.\n\nSource\n\nclass Network(_StrictModel)\n\nAttributes\n\nname str\n\nSegment name, unique within the range.\n\ncidr AnyIPNetwork\n\nSubnet, e.g. 10.10.10.0/24 (IPv6 subnets are gated by ipv6-not-realized until realization lands).\n\nmode Literal['isolated', 'nat', 'routed']\n\nEgress posture: isolated (no egress), nat, or routed.\n\ndhcp bool\n\nWhether guests on this network get addresses via DHCP (default: static).\n\ndns DnsConfig | None\n\nDNS behavior on this network.\n\ngateway str | None\n\nThe router that is this network’s default gateway; required only when more than one router attaches (a single attached router is elected implicitly).\n\negress EgressPolicy | None\n\nScoped egress allowlist; only meaningful with mode: nat (the hypervisor NATs exactly these flows out).\n\n\n\n\n\nRouter\nA gateway guest joining two or more networks, carrying the inter-segment ACL.\n\nSource\n\nclass Router(_StrictModel)\n\nAttributes\n\nname str\n\nGuest name, unique within the range.\n\nos Os | None\n\nOperating system, when the router is a full declared guest.\n\nimage str | None\n\nImage reference; omitted means the backend’s default router appliance.\n\nresources Resources | None\n\nSizing; omitted means backend defaults.\n\ninterfaces list[Interface]\n\nOne attachment per joined network (at least two).\n\nroutes list[Route]\n\nStatic routes to segments reached through other routers.\n\nusers list[User]\n\nLocal accounts (converged state; applied and verified at build).\n\nacl list[AclRule]\n\nInter-segment policy enforced on this router (default-deny, stateful; endpoints may be routed, not only attached).\n\n\n\n\n\nRoute\nA static route on a router, for traffic to segments it reaches through another router.\n\nSource\n\nclass Route(_StrictModel)\n\nAttributes\n\nto AnyIPNetwork\n\nDestination subnet.\n\nvia AnyIPAddress\n\nNext hop; must be an address inside one of the router’s attached networks.\n\n\n\n\n\nAclRule\nOne ordered rule on a router, carrying exactly one of allow: or deny:.\nRules evaluate first-match in list order against new connections from one endpoint to another; anything no rule matches is dropped (default-deny), and return traffic of allowed flows always passes (stateful). Endpoints are a network name, a guest name (resolved to its allocated addresses at plan time), or a CIDR (/32 for a literal host, 0.0.0.0/0 for any). deny exists for carve-outs inside a broader allow. In typed construction the source field is spelled from_ (the YAML surface keeps from:).\n\nSource\n\nclass AclRule(_StrictModel)\n\nAttributes\n\nfrom_ str\n\nSource endpoint: network name, guest name, or CIDR (from: in YAML; from_= in typed construction).\n\nto str\n\nDestination endpoint: network name, guest name, or CIDR.\n\nallow list[str] | None\n\nServices to allow, as proto/port, proto/lo-hi, or icmp entries, e.g. tcp/5432, tcp/1-65535; empty allows nothing.\n\ndeny list[str] | None\n\nServices to drop at this point in the rule order (same entry syntax as allow).\n\n\n\n\n\nHost\nA target guest.\n\nSource\n\nclass Host(_StrictModel)\n\nAttributes\n\nname str\n\nGuest name, unique within the range.\n\nhostname str | None\n\nIn-guest hostname, when it differs from name.\n\nfqdn str | None\n\nFully qualified name, when the range’s DNS should serve it.\n\nos Os\n\nOperating system.\n\nimage str\n\nImage reference the guest boots from.\n\nresources Resources | None\n\nSizing; omitted means backend defaults.\n\ninterfaces list[Interface]\n\nNetwork attachments (explicit; v0.1 has no implicit attachment).\n\nusers list[User]\n\nLocal accounts (converged state; applied and verified at build).\n\nservices list[Service]\n\nThe converged listening surface (assertions, verified at build).\n\nvulnerabilities list[Vulnerability]\n\nSeeded exploitable weaknesses.\n\nmisconfigurations list[Misconfiguration]\n\nSeeded misconfigurations.\n\ndata list[DataFile]\n\nPlanted scenario files.\n\ndefense HostDefense | None\n\nPer-host protection toggles.\n\nprovisioning list[ProvisioningStep]\n\nBuild-time recipe references, in order.\n\nroles list[str]\n\nFunctional role tags the build realizes (e.g. domain-controller, dns, adcs).\n\nscheduled_activity list[ScheduledActivity]\n\nRecurring in-guest behavior simulation.\n\n\n\n\n\nAttacker\nThe agent’s foothold: either a dedicated attack box or an existing host.\nDeclare host to start on a declared host (assumed breach), or interfaces (plus optionally name, image, resources) to boot a dedicated attack box.\n\nSource\n\nclass Attacker(_StrictModel)\n\nAttributes\n\nname str\n\nAttack box guest name (ignored when host is set).\n\nhost str | None\n\nName of a declared host to use as the foothold instead of a dedicated box.\n\nimage str | None\n\nAttack box image; omitted means the backend’s standard attack image.\n\nresources Resources | None\n\nAttack box sizing.\n\ninterfaces list[Interface] | None\n\nAttack box network attachments (required unless host is set).\n\nentry Literal['external', 'assumed-breach', 'operator']\n\nHow the attacker arrives: from outside, pre-positioned, or operator-driven.\n\negress Literal['none', 'open'] | EgressPolicy\n\nAttacker-reachable egress from the range: none (default), open, or a scoped allowlist. Attacker egress composes ahead of network egress: none drops the attacker’s flows even on a network with an allowlist.\n\n\n\n\n\nEgressPolicy\nA scoped egress allowlist: exactly what may leave, nothing else.\nEntries are CIDR[:proto/port] (a bare address is its /32; omitting the service allows all traffic to the CIDR) or FQDN:proto/port. FQDN entries are in the vocabulary but gated by egress-fqdn-not-realized until their realization lands (networking-v0.2 §3).\n\nSource\n\nclass EgressPolicy(_StrictModel)\n\nAttributes\n\nallow list[str]\n\nAllowlist entries, e.g. 198.51.100.7:tcp/443, 0.0.0.0/0:udp/123; empty allows nothing.\n\n\n\n\n\nInterface\nA guest’s attachment to a network.\n\nSource\n\nclass Interface(_StrictModel)\n\nAttributes\n\nnetwork str\n\nName of a declared network.\n\nip AnyIPAddress | None\n\nStatic address within the network’s subnet; omitted means IPAM-allocated.\n\n\n\n\n\nOs\nGuest operating system.\n\nSource\n\nclass Os(_StrictModel)\n\nAttributes\n\ntype Literal['linux', 'windows']\n\nOS family.\n\ndistro str | None\n\nLinux distribution, e.g. ubuntu-20.04.\n\nversion str | None\n\nWindows version, e.g. server-2019.\n\n\n\n\n\nResources\nBackend-neutral guest sizing.\n\nSource\n\nclass Resources(_StrictModel)\n\nAttributes\n\ncpus int\n\nVirtual CPU count.\n\nmemory_mb int\n\nMemory in MiB.\n\ndisk_gb int | None\n\nDisk size in GiB, when the image default is not enough.\n\n\n\n\n\nDnsConfig\nPer-network DNS, as a union of the shapes real ranges need.\nrecords serves name-based discovery on flat networks; nameservers points guests at external resolvers; authoritative names guests (e.g. domain controllers) that are the network’s DNS servers, optionally chaining to forwarder.\n\nSource\n\nclass DnsConfig(_StrictModel)\n\nAttributes\n\nrecords list[DnsRecord] | None\n\nName records served by the range for this network.\n\nnameservers list[AnyIPAddress] | None\n\nExternal resolvers handed to guests.\n\nauthoritative list[str] | None\n\nGuests that act as this network’s DNS servers, in resolution order.\n\nforwarder AnyIPAddress | None\n\nUpstream forwarder for the authoritative chain.\n\n\n\n\n\nDnsRecord\nA name record served on a network.\n\nSource\n\nclass DnsRecord(_StrictModel)\n\nAttributes\n\nname str\n\nHostname to resolve.\n\nip AnyIPAddress | None\n\nAddress, when not derivable from the named guest’s interface.",
+    "crumbs": [
+      "Getting Started",
+      "Reference",
+      "Python API",
+      "inspect_ranges.types"
+    ]
+  },
+  {
+    "objectID": "reference/types.html#diagnostics",
+    "href": "reference/types.html#diagnostics",
+    "title": "inspect_ranges.types",
+    "section": "Diagnostics",
+    "text": "Diagnostics\n\nIssue\nOne problem found in a range definition.\n\nSource\n\nclass Issue(BaseModel)\n\nAttributes\n\ncode str\n\nStable kebab-case identifier, e.g. undeclared-network.\n\nseverity Severity\n\nWhether the issue blocks use of the spec.\n\npath tuple[PathElement, ...]\n\nLocation within the spec, e.g. (\"networks\", 0, \"cidr\").\n\nline int | None\n\n1-based source line, when the YAML parse can supply it.\n\ncol int | None\n\n1-based source column, when the YAML parse can supply it.\n\nmessage str\n\nWhat is wrong.\n\nhint str | None\n\nActionable suggestion, e.g. a did-you-mean or where deferred content goes.\n\npath_str str\n\nThe path rendered as networks[0].cidr, or (root) for the document root.\n\n\n\n\n\nValidationReport\nEvery issue found in one range.yaml, with rendering helpers.\n\nSource\n\nclass ValidationReport(BaseModel)\n\nAttributes\n\nfile str\n\nThe validated file path, as given.\n\nissues list[Issue]\n\nAll issues found, in source order where positions are known.\n\nsemantic_checked bool\n\nFalse when structural errors prevented the cross-reference checks from running.\n\nspec Any | None\n\nThe validated RangeSpec when the file is valid, for callers that need it.\n\nvalid bool\n\nTrue when no error-severity issues were found.\n\n\n\n\nMethods\n\nrender\n\nRender the report as aligned, human-readable text (warnings do not invalidate).\n\nSource\n\ndef render(self) -&gt; str\n\n\n\n\nto_json\n\nReturn the report as JSON-serializable data with stable field names.\n\nSource\n\ndef to_json(self) -&gt; dict[str, Any]",
+    "crumbs": [
+      "Getting Started",
+      "Reference",
+      "Python API",
+      "inspect_ranges.types"
+    ]
+  },
+  {
+    "objectID": "guests.html",
+    "href": "guests.html",
+    "title": "Guests",
+    "section": "",
+    "text": "Guests are the virtual machines in a range. They come in three kinds: hosts (the targets), routers (gateways between network segments), and the attacker. In a definition, “host” on its own always means a target not the physical machine the range runs on. This page covers the guest half of a range definition. Network addressing, segmentation, and routing are covered in Networks.\nThis article is organized as follows:\n\nDefining guests: Hosts covers identity and naming, Images and Resources cover what a guest boots from and how it is sized, and two sections show how routers and the attacker are defined as guests.\nGuest content: What a guest contains once built: users, services, vulnerabilities and misconfigurations, planted data, defense, and Active Directory. Provisioning references, scheduled activity, and variables cover how that content is produced and varied.\nRuntime behavior: How configuration reaches a guest describes how compiled configuration is delivered at boot.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#overview",
+    "href": "guests.html#overview",
+    "title": "Guests",
+    "section": "",
+    "text": "Guests are the virtual machines in a range. They come in three kinds: hosts (the targets), routers (gateways between network segments), and the attacker. In a definition, “host” on its own always means a target not the physical machine the range runs on. This page covers the guest half of a range definition. Network addressing, segmentation, and routing are covered in Networks.\nThis article is organized as follows:\n\nDefining guests: Hosts covers identity and naming, Images and Resources cover what a guest boots from and how it is sized, and two sections show how routers and the attacker are defined as guests.\nGuest content: What a guest contains once built: users, services, vulnerabilities and misconfigurations, planted data, defense, and Active Directory. Provisioning references, scheduled activity, and variables cover how that content is produced and varied.\nRuntime behavior: How configuration reaches a guest describes how compiled configuration is delivered at boot.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#hosts",
+    "href": "guests.html#hosts",
+    "title": "Guests",
+    "section": "Hosts",
+    "text": "Hosts\nHosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under Guest content.\nThis example defines a single host:\n\nYAMLPython\n\n\nrange:\n  name: hosts\n  description: Host identity fields and what consumes them.\n\nnetworks:\n  - name: corp\n    cidr: 10.20.0.0/24\n    mode: isolated\n\nhosts:\n1  - name: dc01\n2    hostname: dc01-nyc\n3    fqdn: dc01.corp.example\n    os: { type: linux, distro: ubuntu-24.04 }\n    image: acme/dc-golden\n    resources: { cpus: 2, memory_mb: 4096 }\n    interfaces: [{ network: corp, ip: 10.20.0.5 }]\n\nattacker:\n  interfaces: [{ network: corp }]\n  entry: external\n\n1\n\nThe definition-wide identifier (exec targets, ACL endpoints).\n\n2\n\nThe in-guest hostname, when it differs from name.\n\n3\n\nThe fully qualified name, for ranges whose DNS serves it.\n\n\n\n\nfrom inspect_ranges.types import (\n    Attacker, Host, Interface, Network, Os, RangeMeta, RangeSpec,\n    Resources,\n)\n\nhosts = RangeSpec(\n    meta=RangeMeta(\n        name=\"hosts\",\n        description=\"Host identity fields and what consumes them.\",\n    ),\n    networks=[\n        Network(name=\"corp\", cidr=\"10.20.0.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n1            name=\"dc01\",\n2            hostname=\"dc01-nyc\",\n3            fqdn=\"dc01.corp.example\",\n            os=Os(type=\"linux\", distro=\"ubuntu-24.04\"),\n            image=\"acme/dc-golden\",\n            resources=Resources(cpus=2, memory_mb=4096),\n            interfaces=[Interface(network=\"corp\", ip=\"10.20.0.5\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"corp\")], entry=\"external\"\n    ),\n)\n\n1\n\nThe definition-wide identifier (exec targets, ACL endpoints).\n\n2\n\nThe in-guest hostname, when it differs from name.\n\n3\n\nThe fully qualified name, for ranges whose DNS serves it.\n\n\n\n\n\nPython definitions import from inspect_ranges.types (shown once above, later Python tabs omit it).\nname is how everything else refers to the guest: sandbox(\"dc01\") in evaluations, ACL endpoints, DNS authoritative lists. hostname is only needed when the in-guest name should differ, and fqdn matters for domain-joined ranges. os records the platform (type: linux | windows, with distro or version detail); interfaces are covered in Networks.\nroles tags a host’s function, such as roles: [domain-controller, dns] or [member-server]. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles are applied at build time, so like other guest content they are refused at planning until the build phase lands.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#images",
+    "href": "guests.html#images",
+    "title": "Guests",
+    "section": "Images",
+    "text": "Images\nEvery host names the image it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest.\nAn image reference missing from the cache shows up in the plan output and is an error at render:\n✗ range.yaml  1 error\n  12:5  hosts[0].image  image 'acme/db-golden' for guest 'db' is not in the image\n                        cache, so the bundle cannot be self-sufficient (pull or\n                        build the image into the cache)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#resources",
+    "href": "guests.html#resources",
+    "title": "Guests",
+    "section": "Resources",
+    "text": "Resources\nSizing is backend-neutral and optional:\n\nYAMLPython\n\n\n# fragment\nresources:\n  cpus: 2\n  memory_mb: 4096\n  disk_gb: 20\n\n\n# fragment\nResources(cpus=2, memory_mb=4096, disk_gb=20)\n\n\n\nOmitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. inspect-ranges plan reports the range’s totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#routers-are-guests-too",
+    "href": "guests.html#routers-are-guests-too",
+    "title": "Guests",
+    "section": "Routers",
+    "text": "Routers\nA router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. os and image are optional; when omitted, the backend’s default router appliance is used:\n\nYAMLPython\n\n\nrange:\n  name: router-guest\n  description: A router with explicit identity, and one with backend defaults.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n  - name: internal\n    cidr: 10.80.20.0/24\n    mode: isolated\n\nrouters:\n  - name: edge\n    os: { type: linux, distro: ubuntu-24.04 }\n    image: acme/router-golden\n    resources: { cpus: 1, memory_mb: 512 }\n    interfaces: [{ network: dmz }, { network: internal }]\n    acl:\n      - { from: dmz, to: internal, allow: [tcp/443] }\n\nhosts:\n  - name: app\n    os: { type: linux }\n    image: acme/app-golden\n    interfaces: [{ network: internal }]\n\nattacker:\n  interfaces: [{ network: dmz }]\n  entry: external\n\n\nrouter_guest = RangeSpec(\n    meta=RangeMeta(\n        name=\"router-guest\",\n        description=\"A router with explicit identity, and one with \"\n        \"backend defaults.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\"),\n        Network(name=\"internal\", cidr=\"10.80.20.0/24\", mode=\"isolated\"),\n    ],\n    routers=[\n        Router(\n            name=\"edge\",\n            os=Os(type=\"linux\", distro=\"ubuntu-24.04\"),\n            image=\"acme/router-golden\",\n            resources=Resources(cpus=1, memory_mb=512),\n            interfaces=[\n                Interface(network=\"dmz\"),\n                Interface(network=\"internal\"),\n            ],\n            acl=[\n                AclRule(from_=\"dmz\", to=\"internal\", allow=[\"tcp/443\"])\n            ],\n        )\n    ],\n    hosts=[\n        Host(\n            name=\"app\",\n            os=Os(type=\"linux\"),\n            image=\"acme/app-golden\",\n            interfaces=[Interface(network=\"internal\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"dmz\")], entry=\"external\"\n    ),\n)\n\n\n\nPolicy (acl) and routing (routes, gateway election) are covered in Networks.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#the-attacker-guest",
+    "href": "guests.html#the-attacker-guest",
+    "title": "Guests",
+    "section": "Attacker",
+    "text": "Attacker\nThe attacker is a guest like any other, declared separately because evaluations treat it specially (it is what sandbox(\"default\") resolves to). Either it boots as a dedicated attack box (declare interfaces; name defaults to attacker, and omitting image selects the backend’s standard attack image), or it starts from a foothold on a declared host:\n\nYAMLPython\n\n\nrange:\n  name: attack-box\n  description: A dedicated attack box with explicit sizing.\n\nnetworks:\n  - name: dmz\n    cidr: 10.80.10.0/24\n    mode: isolated\n\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/web-golden\n    interfaces: [{ network: dmz }]\n\nattacker:\n  name: kali\n  image: acme/kali-golden\n  resources: { cpus: 2, memory_mb: 4096 }\n  interfaces: [{ network: dmz }]\n  entry: external\n\n\nattack_box = RangeSpec(\n    meta=RangeMeta(\n        name=\"attack-box\",\n        description=\"A dedicated attack box with explicit sizing.\",\n    ),\n    networks=[\n        Network(name=\"dmz\", cidr=\"10.80.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/web-golden\",\n            interfaces=[Interface(network=\"dmz\")],\n        )\n    ],\n    attacker=Attacker(\n        name=\"kali\",\n        image=\"acme/kali-golden\",\n        resources=Resources(cpus=2, memory_mb=4096),\n        interfaces=[Interface(network=\"dmz\")],\n        entry=\"external\",\n    ),\n)\n\n\n\nWith host:, the attacker declares no machine of its own (the foothold is the machine), and entry: assumed-breach records the premise. The attacker’s egress posture is covered in Networks.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#guest-content",
+    "href": "guests.html#guest-content",
+    "title": "Guests",
+    "section": "Guest Content",
+    "text": "Guest Content\nBeyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest, not boot-time actions. The build applies each declaration by whatever means the image demands (a provisioning recipe, content baked into a derived image, or a captured checkpoint) and verifies it before the range ships; the runtime never applies guest content per sample.",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#users",
+    "href": "guests.html#users",
+    "title": "Guests",
+    "section": "Users",
+    "text": "Users\nusers declares a guest’s local accounts (routers can carry them too). Domain accounts belong in active_directory, not here:\n\nYAMLPython\n\n\n# plan-invalid: guest content is build-phase (see Guest content above)\nrange:\n  name: users\n  description: Local accounts as converged state.\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\nhosts:\n  - name: server\n    os: { type: linux }\n    image: acme/server-golden\n    interfaces: [{ network: lab }]\n    users:\n      - { name: alice, password: bacon, note: \"weak password\" }\n      - { name: backup, groups: [sudo], note: service account with sudo }\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nusers = RangeSpec(\n    meta=RangeMeta(\n        name=\"users\", description=\"Local accounts as converged state.\"\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"server\",\n            os=Os(type=\"linux\"),\n            image=\"acme/server-golden\",\n            interfaces=[Interface(network=\"lab\")],\n            users=[\n                User(\n                    name=\"alice\",\n                    password=\"bacon\",\n                    note=\"weak password\",\n                ),\n                User(\n                    name=\"backup\",\n                    groups=[\"sudo\"],\n                    note=\"service account with sudo\",\n                ),\n            ],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#services",
+    "href": "guests.html#services",
+    "title": "Guests",
+    "section": "Services",
+    "text": "Services\nservices entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in provisioning:\n\nYAMLPython\n\n\nrange:\n  name: services\n  description: The converged listening surface, asserted and build-verified.\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/zabbix-golden\n    interfaces: [{ network: lab }]\n    services:\n      - { name: zabbix-web, port: 80, version: 3.0.3 }\n      - name: mysql\n        port: 3306\n        version: \"5\"\n        credentials: { user: root, password: root }\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nservices = RangeSpec(\n    meta=RangeMeta(\n        name=\"services\",\n        description=\"The converged listening surface, asserted and \"\n        \"build-verified.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/zabbix-golden\",\n            interfaces=[Interface(network=\"lab\")],\n            services=[\n                Service(name=\"zabbix-web\", port=80, version=\"3.0.3\"),\n                Service(\n                    name=\"mysql\",\n                    port=3306,\n                    version=\"5\",\n                    credentials=Credentials(\n                        user=\"root\", password=\"root\"\n                    ),\n                ),\n            ],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#vulnerabilities-and-misconfigurations",
+    "href": "guests.html#vulnerabilities-and-misconfigurations",
+    "title": "Guests",
+    "section": "Vulnerabilities and Misconfigurations",
+    "text": "Vulnerabilities and Misconfigurations\nThe seeded attack surface is two distinct lists, because real intrusions lean heavily on misconfigurations. A vulnerability’s id is a stable name of ours; cve: is an attribute when one applies, and service: ties the weakness to a declared service on the same host:\n\nYAMLPython\n\n\nrange:\n  name: weaknesses\n  description: A CVE-backed vulnerability and a misconfiguration, as distinct lists.\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\nhosts:\n  - name: web\n    os: { type: linux }\n    image: acme/zabbix-golden\n    interfaces: [{ network: lab }]\n    services:\n      - { name: zabbix-web, port: 80, version: 3.0.3 }\n    vulnerabilities:\n      - id: zabbix-jsrpc-sqli\n        cve: CVE-2016-10134\n        service: zabbix-web\n        description: SQL injection in jsrpc.php, reachable unauthenticated.\n    misconfigurations:\n      - id: guest-login-enabled\n        description: The Zabbix guest account is enabled with an empty password.\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nweaknesses = RangeSpec(\n    meta=RangeMeta(\n        name=\"weaknesses\",\n        description=\"A CVE-backed vulnerability and a \"\n        \"misconfiguration, as distinct lists.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"web\",\n            os=Os(type=\"linux\"),\n            image=\"acme/zabbix-golden\",\n            interfaces=[Interface(network=\"lab\")],\n            services=[\n                Service(name=\"zabbix-web\", port=80, version=\"3.0.3\")\n            ],\n            vulnerabilities=[\n                Vulnerability(\n                    id=\"zabbix-jsrpc-sqli\",\n                    cve=\"CVE-2016-10134\",\n                    service=\"zabbix-web\",\n                    description=\"SQL injection in jsrpc.php, \"\n                    \"reachable unauthenticated.\",\n                )\n            ],\n            misconfigurations=[\n                Misconfiguration(\n                    id=\"guest-login-enabled\",\n                    description=\"The Zabbix guest account is enabled \"\n                    \"with an empty password.\",\n                )\n            ],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#planted-data",
+    "href": "guests.html#planted-data",
+    "title": "Guests",
+    "section": "Planted Data",
+    "text": "Planted Data\ndata declares scenario files: targets worth finding or exfiltrating, supporting material, captures. Flags never appear here:\n\nYAMLPython\n\n\nrange:\n  name: planted-data\n  description: Scenario files on a database host.\nnetworks:\n  - name: internal\n    cidr: 10.20.0.0/24\n    mode: isolated\nhosts:\n  - name: db\n    os: { type: linux }\n    image: acme/db-golden\n    interfaces: [{ network: internal }]\n    data:\n      - { path: /srv/data/customers.db, description: the exfiltration target, sensitive: true }\n      - { path: /home/trainee/traffic.pcap, description: packet capture with planted attack traffic }\nattacker:\n  interfaces: [{ network: internal }]\n  entry: assumed-breach\n\n\nplanted_data = RangeSpec(\n    meta=RangeMeta(\n        name=\"planted-data\",\n        description=\"Scenario files on a database host.\",\n    ),\n    networks=[\n        Network(name=\"internal\", cidr=\"10.20.0.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"db\",\n            os=Os(type=\"linux\"),\n            image=\"acme/db-golden\",\n            interfaces=[Interface(network=\"internal\")],\n            data=[\n                DataFile(\n                    path=\"/srv/data/customers.db\",\n                    description=\"the exfiltration target\",\n                    sensitive=True,\n                ),\n                DataFile(\n                    path=\"/home/trainee/traffic.pcap\",\n                    description=\"packet capture with planted attack \"\n                    \"traffic\",\n                ),\n            ],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"internal\")],\n        entry=\"assumed-breach\",\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#defense",
+    "href": "guests.html#defense",
+    "title": "Guests",
+    "section": "Defense",
+    "text": "Defense\nThe range-level defense section records the defensive posture on the D0 (no defenders) to D5 (adaptive defender) spectrum, with telemetry flows where signals are recorded or forwarded. Per-host toggles turn individual protections on or off:\n\nYAMLPython\n\n\nrange:\n  name: defended\n  description: Passive detection, with per-host protection toggles.\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\ndefense:\n  tier: D2\n  description: Endpoint telemetry is recorded and searchable, no blocking response.\n  telemetry:\n    - { source: win, collector: Sysmon/WinEventLog, sink: splunk }\nhosts:\n  - name: splunk\n    os: { type: linux }\n    image: acme/splunk-golden\n    interfaces: [{ network: lab }]\n  - name: win\n    os: { type: linux }\n    image: acme/endpoint-golden\n    interfaces: [{ network: lab }]\n    defense: { defender: true, firewall: false }\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\ndefended = RangeSpec(\n    meta=RangeMeta(\n        name=\"defended\",\n        description=\"Passive detection, with per-host protection \"\n        \"toggles.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    defense=Defense(\n        tier=\"D2\",\n        description=\"Endpoint telemetry is recorded and searchable, \"\n        \"no blocking response.\",\n        telemetry=[\n            Telemetry(\n                source=\"win\",\n                collector=\"Sysmon/WinEventLog\",\n                sink=\"splunk\",\n            )\n        ],\n    ),\n    hosts=[\n        Host(\n            name=\"splunk\",\n            os=Os(type=\"linux\"),\n            image=\"acme/splunk-golden\",\n            interfaces=[Interface(network=\"lab\")],\n        ),\n        Host(\n            name=\"win\",\n            os=Os(type=\"linux\"),\n            image=\"acme/endpoint-golden\",\n            interfaces=[Interface(network=\"lab\")],\n            defense=HostDefense(defender=True, firewall=False),\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#active-directory",
+    "href": "guests.html#active-directory",
+    "title": "Guests",
+    "section": "Active Directory",
+    "text": "Active Directory\nIdentity is range-scoped (accounts exist in the domain, not on a host), so active_directory is a top-level section: the forest, its domains, each domain’s controller (a declared host), accounts of note with groups and SPNs, and the seeded ACL-abuse chain as typed edges:\n\nYAMLPython\n\n\nrange:\n  name: forest\n  description: A parent and child domain with seeded identity attack surface.\nnetworks:\n  - name: corp\n    cidr: 10.20.0.0/24\n    mode: isolated\nactive_directory:\n  forest: corp.example\n  domains:\n    - name: corp.example\n      netbios: CORP\n      dc: dc01\n      users:\n        - { name: c.lannister, password: il0vejaime, groups: [Domain Admins] }\n      acls:\n        - { principal: t.lannister, right: ForceChangePassword, target: j.lannister }\n        - { principal: j.lannister, right: GenericWrite, target: j.baratheon }\n    - name: north.corp.example\n      netbios: NORTH\n      dc: dc02\n      parent: corp.example\n      users:\n        - name: sql_svc\n          password: TrustN0one\n          spns: [MSSQLSvc/db.north.corp.example:1433]\n          note: kerberoastable\nhosts:\n  - name: dc01\n    os: { type: linux }\n    image: acme/dc-golden\n    interfaces: [{ network: corp, ip: 10.20.0.5 }]\n  - name: dc02\n    os: { type: linux }\n    image: acme/dc-golden\n    interfaces: [{ network: corp, ip: 10.20.0.6 }]\nattacker:\n  interfaces: [{ network: corp }]\n  entry: assumed-breach\n\n\nforest = RangeSpec(\n    meta=RangeMeta(\n        name=\"forest\",\n        description=\"A parent and child domain with seeded identity \"\n        \"attack surface.\",\n    ),\n    networks=[\n        Network(name=\"corp\", cidr=\"10.20.0.0/24\", mode=\"isolated\")\n    ],\n    active_directory=ActiveDirectory(\n        forest=\"corp.example\",\n        domains=[\n            AdDomain(\n                name=\"corp.example\",\n                netbios=\"CORP\",\n                dc=\"dc01\",\n                users=[\n                    AdUser(\n                        name=\"c.lannister\",\n                        password=\"il0vejaime\",\n                        groups=[\"Domain Admins\"],\n                    )\n                ],\n                acls=[\n                    AdAcl(\n                        principal=\"t.lannister\",\n                        right=\"ForceChangePassword\",\n                        target=\"j.lannister\",\n                    ),\n                    AdAcl(\n                        principal=\"j.lannister\",\n                        right=\"GenericWrite\",\n                        target=\"j.baratheon\",\n                    ),\n                ],\n            ),\n            AdDomain(\n                name=\"north.corp.example\",\n                netbios=\"NORTH\",\n                dc=\"dc02\",\n                parent=\"corp.example\",\n                users=[\n                    AdUser(\n                        name=\"sql_svc\",\n                        password=\"TrustN0one\",\n                        spns=[\"MSSQLSvc/db.north.corp.example:1433\"],\n                        note=\"kerberoastable\",\n                    )\n                ],\n            ),\n        ],\n    ),\n    hosts=[\n        Host(\n            name=\"dc01\",\n            os=Os(type=\"linux\"),\n            image=\"acme/dc-golden\",\n            interfaces=[Interface(network=\"corp\", ip=\"10.20.0.5\")],\n        ),\n        Host(\n            name=\"dc02\",\n            os=Os(type=\"linux\"),\n            image=\"acme/dc-golden\",\n            interfaces=[Interface(network=\"corp\", ip=\"10.20.0.6\")],\n        ),\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"corp\")], entry=\"assumed-breach\"\n    ),\n)\n\n\n\nACL edge rights use the vocabulary observed in real ranges (GenericAll, GenericWrite, WriteDacl, WriteOwner, ForceChangePassword, SelfMembership, AddMember); principals and targets are names as AD knows them (users, groups, OUs, or computer objects).",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#provisioning-references",
+    "href": "guests.html#provisioning-references",
+    "title": "Guests",
+    "section": "Provisioning References",
+    "text": "Provisioning References\nEverything above declares state; provisioning names the build-time work that produces it when the image alone does not. Steps reference recipes by name and version, in order. The recipe language itself is deliberately outside the definition: recipes run once at range build, their versions land in the build manifest, and the runtime never runs them:\n\nYAMLPython\n\n\nrange:\n  name: provisioned\n  description: A build recipe referenced by name, with inputs.\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\nhosts:\n  - name: endpoint\n    os: { type: linux }\n    image: acme/endpoint-golden\n    interfaces: [{ network: lab }]\n    provisioning:\n      - recipe: acme.telemetry_stack\n        version: \"2.1\"\n        vars: { splunk_ip: \"10.10.10.10\" }\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\nprovisioned = RangeSpec(\n    meta=RangeMeta(\n        name=\"provisioned\",\n        description=\"A build recipe referenced by name, with inputs.\",\n    ),\n    networks=[\n        Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"endpoint\",\n            os=Os(type=\"linux\"),\n            image=\"acme/endpoint-golden\",\n            interfaces=[Interface(network=\"lab\")],\n            provisioning=[\n                ProvisioningStep(\n                    recipe=\"acme.telemetry_stack\",\n                    version=\"2.1\",\n                    vars={\"splunk_ip\": \"10.10.10.10\"},\n                )\n            ],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"lab\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#scheduled-activity",
+    "href": "guests.html#scheduled-activity",
+    "title": "Guests",
+    "section": "Scheduled Activity",
+    "text": "Scheduled Activity\nscheduled_activity declares recurring in-guest behavior simulation: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them):\n\nYAMLPython\n\n\nrange:\n  name: activity\n  description: Behavior simulation on a domain controller.\nnetworks:\n  - name: corp\n    cidr: 10.20.0.0/24\n    mode: isolated\nhosts:\n  - name: dc01\n    os: { type: linux }\n    image: acme/dc-golden\n    interfaces: [{ network: corp }]\n    scheduled_activity:\n      - { script: responder.ps1 }\n      - { script: rdp_scheduler.ps1, user: admin.user, note: creates a stealable session }\nattacker:\n  interfaces: [{ network: corp }]\n  entry: assumed-breach\n\n\nactivity = RangeSpec(\n    meta=RangeMeta(\n        name=\"activity\",\n        description=\"Behavior simulation on a domain controller.\",\n    ),\n    networks=[\n        Network(name=\"corp\", cidr=\"10.20.0.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"dc01\",\n            os=Os(type=\"linux\"),\n            image=\"acme/dc-golden\",\n            interfaces=[Interface(network=\"corp\")],\n            scheduled_activity=[\n                ScheduledActivity(script=\"responder.ps1\"),\n                ScheduledActivity(\n                    script=\"rdp_scheduler.ps1\",\n                    user=\"admin.user\",\n                    note=\"creates a stealable session\",\n                ),\n            ],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"corp\")], entry=\"assumed-breach\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#variables",
+    "href": "guests.html#variables",
+    "title": "Guests",
+    "section": "Variables",
+    "text": "Variables\nvariables declares per-instance values: things that should differ between generated instances of the same range, like randomized ports, passwords, and flag hints. Every variable requires a default, and definitions reference variables as {name} in YAML scalars. Loading substitutes the defaults before validation, so a whole-scalar reference keeps the variable’s type (port: \"{{telnet_port}}\" validates as an integer) and embedded references interpolate as text. In Python the template is a function whose parameters play the role of the references, called with drawn values to produce a concrete spec:\n\nYAMLPython\n\n\nrange:\n  name: randomized\n  description: A randomized service port and a templated credential.\nvariables:\n  telnet_port: { type: port, min: 1500, default: 2323 }\n  admin_password: { type: password, default: \"changeme123!\" }\nnetworks:\n  - name: lab\n    cidr: 10.10.10.0/24\n    mode: isolated\nhosts:\n  - name: server\n    os: { type: linux }\n    image: acme/server-golden\n    interfaces: [{ network: lab }]\n    users:\n      - { name: admin, password: \"{{admin_password}}\" }\n    services:\n      - { name: telnetd, port: \"{{telnet_port}}\" }\nattacker:\n  interfaces: [{ network: lab }]\n  entry: external\n\n\ndef randomized(\n    telnet_port: int = 2323, admin_password: str = \"changeme123!\"\n) -&gt; RangeSpec:\n    return RangeSpec(\n        meta=RangeMeta(\n            name=\"randomized\",\n            description=\"A randomized service port and a templated \"\n            \"credential.\",\n        ),\n        variables={\n            \"telnet_port\": Variable(\n                type=\"port\", min=1500, default=2323\n            ),\n            \"admin_password\": Variable(\n                type=\"password\", default=\"changeme123!\"\n            ),\n        },\n        networks=[\n            Network(name=\"lab\", cidr=\"10.10.10.0/24\", mode=\"isolated\")\n        ],\n        hosts=[\n            Host(\n                name=\"server\",\n                os=Os(type=\"linux\"),\n                image=\"acme/server-golden\",\n                interfaces=[Interface(network=\"lab\")],\n                users=[User(name=\"admin\", password=admin_password)],\n                services=[Service(name=\"telnetd\", port=telnet_port)],\n            )\n        ],\n        attacker=Attacker(\n            interfaces=[Interface(network=\"lab\")], entry=\"external\"\n        ),\n    )\n\n\nspec = randomized()",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  },
+  {
+    "objectID": "guests.html#how-configuration-reaches-a-guest",
+    "href": "guests.html#how-configuration-reaches-a-guest",
+    "title": "Guests",
+    "section": "Guest Configuration",
+    "text": "Guest Configuration\nThe compiler emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. The current realization injects over cloud-init (a seed presented as a read-only virtio disk), which covers cloud-style Linux images. Other injectors are designed: configuration baked at build time for images without an agent, unattend plus the Windows guest agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints for ranges that need no boot-time configuration at all.\n\nYAMLPython\n\n\nrange:\n  name: windows-gated\n  description: A Windows target, valid to define, gated at planning.\nnetworks:\n  - name: corp\n    cidr: 10.20.0.0/24\n    mode: isolated\nhosts:\n  - name: dc01\n    os: { type: windows, version: server-2022 }\n    image: acme/win-golden\n    interfaces: [{ network: corp }]\nattacker:\n  interfaces: [{ network: corp }]\n  entry: external\n\n\nwindows_gated = RangeSpec(\n    meta=RangeMeta(\n        name=\"windows-gated\",\n        description=\"A Windows target, valid to define, gated at \"\n        \"planning.\",\n    ),\n    networks=[\n        Network(name=\"corp\", cidr=\"10.20.0.0/24\", mode=\"isolated\")\n    ],\n    hosts=[\n        Host(\n            name=\"dc01\",\n            os=Os(type=\"windows\", version=\"server-2022\"),\n            image=\"acme/win-golden\",\n            interfaces=[Interface(network=\"corp\")],\n        )\n    ],\n    attacker=Attacker(\n        interfaces=[Interface(network=\"corp\")], entry=\"external\"\n    ),\n)",
+    "crumbs": [
+      "Getting Started",
+      "Defining Ranges",
+      "Guests"
+    ]
+  }
+]
