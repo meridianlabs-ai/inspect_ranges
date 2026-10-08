@@ -1,0 +1,35 @@
+# Minimal range.yaml-shaped spec (v0.1 subset) for the networking spike:
+# two segments, a router guest with an asymmetric ACL (MHBench-style), two
+# targets, and the agent VM. Everything the runtime needs is COMPILED from
+# this file — addresses, MACs, vsock CIDs, bridges, cloud-init seeds, the
+# router's nftables ruleset, and the range-netns invariants.
+range:
+  name: netspike
+  schema_version: "0.1"
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+  - name: internal
+    cidr: 10.80.20.0/24
+
+routers:
+  - name: router
+    interfaces:
+      - { network: dmz, ip: 10.80.10.1 }
+      - { network: internal, ip: 10.80.20.1 }
+    acl:
+      # new connections dmz -> internal: only tcp/5432; internal -> dmz: nothing.
+      # return traffic of established flows is always allowed (stateful).
+      - { from: dmz, to: internal, allow: ["tcp/5432"] }
+      - { from: internal, to: dmz, allow: [] }
+
+hosts:
+  - name: web
+    interfaces: [{ network: dmz }]
+  - name: db
+    interfaces: [{ network: internal }]
+
+attacker:
+  host: agent
+  interfaces: [{ network: dmz }]

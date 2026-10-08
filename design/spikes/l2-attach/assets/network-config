@@ -1,0 +1,7 @@
+version: 2
+ethernets:
+  lab:
+    match:
+      name: "en*"
+    addresses:
+      - 10.80.10.10/24

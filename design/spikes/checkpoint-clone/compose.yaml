@@ -1,0 +1,28 @@
+# AD domain spike: one range container boots a Server 2022 DC and a member
+# from the same golden image on an isolated L2 segment. NET_ADMIN + tun/vhost
+# are needed for the libvirt bridge (unlike win-guest, these guests have NICs).
+services:
+  range:
+    build: ./range
+    init: true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+      - /dev/vhost-net
+      - /dev/vhost-vsock
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ${IMAGE_CACHE:-~/.cache/inspect-ranges/images}:/images:ro
+      - scratch:/scratch
+      - ./assets:/assets:ro
+    healthcheck:
+      test: ["CMD", "test", "-e", "/run/range-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  scratch:
