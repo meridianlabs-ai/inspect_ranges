@@ -7,13 +7,33 @@
 
 - [Getting Started](https://meridianlabs-ai.github.io/inspect_ranges/index.html.md): Inspect AI extension for ranges.
 
-## Defining Ranges
+## Tutorial
 
-- [Overview](https://meridianlabs-ai.github.io/inspect_ranges/ranges.html.md): What a range definition is: the anatomy of range.yaml, the typed Python surface, end-to-end examples, and the validation workflow.
+- [Tutorial](https://meridianlabs-ai.github.io/inspect_ranges/tutorial.html.md): A guided walkthrough: boot a minimal range and run an eval against it, then build and evaluate the vulhub-zabbix example with real guest content, challenges, and scoring.
+
+## Building Ranges
+
+- [Overview](https://meridianlabs-ai.github.io/inspect_ranges/building.html.md): Authoring a range from definition to verified images: the definition language pages, then the build command, recipe authoring, verification, and behavioral checks.
+- [Ranges](https://meridianlabs-ai.github.io/inspect_ranges/ranges.html.md): What a range definition is: the anatomy of range.yaml, the typed Python surface, end-to-end examples, and the validation workflow.
 - [Guests](https://meridianlabs-ai.github.io/inspect_ranges/guests.html.md): The guest side of a range definition: hosts, images, resources, accounts, services, seeded weaknesses, defense, and Active Directory.
 - [Networks](https://meridianlabs-ai.github.io/inspect_ranges/networks.html.md): The range.yaml networking syntax, from a single flat network to multi-router enterprise topologies.
 
+## Evaluation
+
+- [Challenges](https://meridianlabs-ai.github.io/inspect_ranges/challenges.html.md): Defining what an agent is asked to do on a range and how success is verified: challenges.yaml, the goal types and their proof contracts, submissions, scoring, and the trust boundaries stated plainly.
+- [Custom Goals](https://meridianlabs-ai.github.io/inspect_ranges/goals.html.md): Creating new goal types: the GoalType contract (spec, setup, check, compare), the oracle surface, proof-design rules, assurance labels, testing, and registration, with the closed YAML type union recorded as the open concern.
+- [Evidence](https://meridianlabs-ai.github.io/inspect_ranges/evidence.html.md): What the range records outside every VM, where it streams, the tamper-evidence guarantee and its exact scope, and how to verify a record.
+
+## Running Ranges
+
+- [Overview](https://meridianlabs-ai.github.io/inspect_ranges/cli.html.md): The operator workflow: derive golden images, render a definition into a bundle, bring the range up, tear it down.
+- [Sandbox Provider](https://meridianlabs-ai.github.io/inspect_ranges/provider.html.md): Running Inspect evals against ranges: the range sandbox provider, its configuration forms, retry contract, cleanup semantics, and environment knobs.
+- [Distribution](https://meridianlabs-ai.github.io/inspect_ranges/distribution.html.md): Publishing and consuming built ranges: locations in three forms, push and spec-driven pull, the implicit pull at eval init, catalog images, mirroring and the air gap, and cache reclamation.
+- [Image Catalog](https://meridianlabs-ai.github.io/inspect_ranges/catalog.html.md): The standard published images: the attack image, the blessed goldens, the daemon bundle, and the hardened range container image, all pinned by digest under the project org.
+- [Example Ranges](https://meridianlabs-ai.github.io/inspect_ranges/examples.html.md): The in-repo example ranges: faithful translations of published range definitions, built and solved end to end, with provenance down to the field.
+- [Host Topology](https://meridianlabs-ai.github.io/inspect_ranges/topology.html.md): Co-resident versus separated realization: the INSPECT_RANGES_HOST switch, the applier and reaper processes, the lease contract, and what the isolation claim means.
+- [Security](https://meridianlabs-ai.github.io/inspect_ranges/security.html.md): The containment model for untrusted agents: the threat model, the nested boundaries, the vsock control plane, network containment authority, build-time conformance proof, and the detection-over-prevention score integrity posture.
+
 ## Reference
 
-- [Reference](https://meridianlabs-ai.github.io/inspect_ranges/reference/index.html.md): Command line reference for the inspect-ranges CLI.
 - [inspect_ranges](https://meridianlabs-ai.github.io/inspect_ranges/reference/inspect_ranges.html.md): Loading, validation, and revalidation of range definitions.

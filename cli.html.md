@@ -1,0 +1,69 @@
+# Running Ranges – Inspect Ranges
+
+## The workflow
+
+A definition becomes a running range in three commands on a prepared host (four when it declares guest content, which must be [built](./building.html.md) first):
+
+    Terminal
+
+``` bash
+inspect-ranges images derive noble-server-cloudimg-amd64.img \
+  --sha256 <vendor-digest> --daemon-sha256 <bundle-digest>
+inspect-ranges build          # ranges with guest content: realize and verify it
+inspect-ranges render range.yaml -o bundle/
+inspect-ranges up bundle/
+```
+
+This page is the narrative tour of the workflow; complete option listings for every command are in the [CLI reference](./reference/index.html.md#cli).
+
+Each stage consumes only the verified output of the one before it: `derive` pins the vendor image by digest and, given `--daemon-sha256` (the digest `daemon-bundle` printed at publish), pins the daemon artifact out of band too; without that flag the artifact is verified against its co-located sidecar only, which proves internal consistency, not provenance. `render` emits a digest-manifested bundle, and `up` refuses to act on anything whose digests do not verify. `inspect-ranges doctor` checks the host first and prints fixes for whatever is missing.
+
+## daemon-bundle
+
+`inspect-ranges daemon-bundle -o <dir>` builds the guest control daemon artifact: a byte-deterministic tarball (static Go binary, installer, unit file) plus its `daemon.json` digest sidecar. It requires the pinned Go toolchain and is the only command that does; built artifacts are consumed everywhere else by digest, so one publish serves every host. `--pull` fetches the published bundle from the catalog instead of building, needing no toolchain at all (see [Image Catalog](./catalog.html.md)). Publish to the shared artifact cache (`~/.cache/inspect-ranges/artifacts`) and `images derive` finds it by default. The publish output ends with the bundle digest; record it and pass it to `derive --daemon-sha256` so the artifact is pinned out of band, not just sidecar-consistent.
+
+Failure modes: a missing or wrong-version toolchain refuses with the pin named; builds are reproducible, so rebuilding an unchanged source tree yields the identical bundle digest.
+
+## images derive and list
+
+`images derive <vendor-image> --sha256 <digest>` produces a daemon-baked golden overlay in the image cache: the vendor digest verifies before anything is written, the daemon artifact verifies against its sidecar, the daemon and its unit are baked, ssh and every stub listener are disabled, and a provenance sidecar records all input digests. Ubuntu noble vendor images are the v1 scope.
+
+Failure modes, each stage-named: vendor digest mismatch (nothing written), missing, tampered, pin-mismatched, or protocol-skewed daemon artifact (each error names the `daemon-bundle` republish command), an unmanaged file squatting on the target name (never clobbered), a corrupt provenance sidecar (unmanaged to both `list` and `derive`), interrupted derives (self-healing on the next run). Re-running with the same inputs is a cache hit that re-verifies the recorded digests, including the in-cache vendor.
+
+`images list` shows managed goldens with provenance, build-captured realized images (flagging superseded generations no manifest references), and everything else: unmanaged files, stale derivation and capture temps, goldens whose recipe version is behind, and legacy double-suffix names. `images prune` reclaims what no manifest references (superseded or stranded realized generations, capture temps, orphan sidecars): it reports by default, deletes with `--yes`, and refuses while registered projects exist unless forced; build success already prunes its own range’s garbage automatically, keeping one previous generation for rollback.
+
+## build
+
+`inspect-ranges build` (default `.`) realizes a range’s declared guest content: recipes run against a booted, egress-enabled build plan, every declared service and vulnerability is verified against the live guests, the provisioned guests are captured as realized images, and the build manifest makes the range consumable by `plan`, `render`, `up --from-spec`, and the sandbox provider. Rebuilds are incremental per guest and an unchanged range is a cached no-op. The full reference, including recipe authoring, lives in [Building Ranges](./building.html.md).
+
+## push, pull, and mirror
+
+`push` publishes the current range’s build to a location, bare `pull` fetches the build matching this `range.yaml` exactly (the provider also pulls implicitly at eval init), and `mirror` moves content between locations, including the air-gap directory form. `publish` promotes built guests, goldens, and the daemon artifact to bare catalog names. `images pull` and `images refresh` fetch and advance catalog images; `images pin` writes the fleet pin file; `images prune --chains` reclaims unreferenced chains. The whole surface, with the location forms and the search path, lives in [Distribution](./distribution.html.md) and [Image Catalog](./catalog.html.md).
+
+## up
+
+`inspect-ranges up <bundle>` realizes a rendered bundle into a running, ready range: every manifest digest verifies first (tampered, incomplete, unlisted-file, or path-escaping bundles refuse; `boot.json` is shape-validated before any value reaches a command), image digests re-verify against the cache, then the hardened range container comes up on the bundle’s own compose project, guests boot per `boot.json`, and readiness waits on every guest (daemon answering over vsock, then `cloud-init status --wait` succeeding, probed over the control channel). The hardened non-root-QEMU range image is built automatically and is required; there is no bypass.
+
+`up --from-spec range.yaml` composes render into a temporary bundle first. `--uplink-network` supplies the deployment uplink for ranges that request egress. A second `up` of an identical bundle refuses, naming the running project and the exact `down` command.
+
+On failure, the error names the stage and guest, the affected guests’ serial console logs are pulled into the project state directory (`~/.local/state/inspect-ranges/projects/<project>/`, next to the JSONL stage log), and the project tears down unless `--keep` is passed.
+
+## down
+
+`inspect-ranges down <project>` tears down by recorded ownership (compose labels and deterministic names), never by live process state: it works from any process, after any crash, and twice in a row. `down --all` sweeps every `ir-` project discovered from the ownership registry, container labels, and volume names, attempting all of them and aggregating any failures. A failed removal keeps the ownership record so a retry can still find the project.
+
+## applier
+
+`inspect-ranges applier --socket <path>` serves the separated topology’s host plane and guest relay on a unix socket (see [Host Topology](./topology.html.md)). It runs the doctor readiness subset at startup and refuses to serve an unhealthy host; drivers reach it via `INSPECT_RANGES_HOST=uds:<path>`.
+
+## reaper
+
+`inspect-ranges reaper` reclaims expired host leases from on-disk state in one sweep (`--interval <s>` runs it as a daemon). It reclaims on expiry alone, never probing liveness; a failed teardown frees nothing and the next sweep retries. See [Host Topology](./topology.html.md) for the lease contract.
+
+## doctor
+
+`inspect-ranges doctor` checks the host (virtualization devices, docker versions, networking sysctls, image tooling) plus the realizer surface: the hardened range image, the daemon artifact, and the Go toolchain (warnings, not failures: `up` builds the image on demand and `daemon-bundle` publishes the artifact once per fleet), plus the provider and host groups (entry-point registration, goldens, CID and host lease registry health with an expired-leases hint naming the reaper, and the applier socket probe when `INSPECT_RANGES_HOST` points at one), plus the evidence group (knob validity, a writability probe of a configured sink, and a warning when evidence resolves to instance-local storage; see [Evidence](./evidence.html.md)), plus the build group (builds/recipe cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host’s resolv.conf; see [Building Ranges](./building.html.md)). `--fix-script` emits the shell commands for whatever failed.
+
+> **NOTE: NoteThe v1 boundary, honestly**
+>
+> `up` realizes cold-boot bundles only: checkpoint instantiation is later build-arc work. `provisioning`, `services`, and `vulnerabilities` realize through [`build`](./building.html.md): a range declaring them refuses every content-consuming verb (`range-not-built`) until a matching build manifest exists, and boots its captured realized images once one does. The remaining guest content (users, data, defense, Active Directory, and so on) and randomization still validate but refuse at planning until their build slices land, and Windows guests refuse at planning until their injectors land, so nothing boots with silently missing content. Bundles are trusted operator input: verification proves integrity, not provenance (signed bundles are image-distribution work).

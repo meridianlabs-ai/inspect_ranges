@@ -6,7 +6,6 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Command line reference for the inspect-ranges CLI.">
 
 <title>Reference – Inspect Ranges</title>
 <style>
@@ -38,7 +37,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
 <link href="../reference/inspect_ranges.html" rel="next">
-<link href="../networks.html" rel="prev">
+<link href="../security.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
@@ -116,14 +115,22 @@ ul.task-list li input[type="checkbox"] {
     <a class="nav-link active" href="../index.html" aria-current="page"> 
 <span class="menu-text">Getting Started</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../tutorial.html"> 
+<span class="menu-text">Tutorial</span></a>
+  </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-defining-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Defining Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building Ranges</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-defining-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+        <li>
+    <a class="dropdown-item" href="../building.html">
+ <span class="dropdown-text">Overview</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ranges.html">
- <span class="dropdown-text">Overview</span></a>
+ <span class="dropdown-text">Ranges</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../guests.html">
@@ -132,6 +139,60 @@ ul.task-list li input[type="checkbox"] {
         <li>
     <a class="dropdown-item" href="../networks.html">
  <span class="dropdown-text">Networks</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-evaluation" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Evaluation</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-evaluation">    
+        <li>
+    <a class="dropdown-item" href="../challenges.html">
+ <span class="dropdown-text">Challenges</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../goals.html">
+ <span class="dropdown-text">Custom Goals</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../evidence.html">
+ <span class="dropdown-text">Evidence</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running Ranges</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+        <li>
+    <a class="dropdown-item" href="../cli.html">
+ <span class="dropdown-text">Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../provider.html">
+ <span class="dropdown-text">Sandbox Provider</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../distribution.html">
+ <span class="dropdown-text">Distribution</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../catalog.html">
+ <span class="dropdown-text">Image Catalog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples.html">
+ <span class="dropdown-text">Example Ranges</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../topology.html">
+ <span class="dropdown-text">Host Topology</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
     </ul>
   </li>
@@ -179,10 +240,16 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Getting Started</span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../tutorial.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tutorial</span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Defining Ranges</span></a>
+ <span class="menu-text">Building Ranges</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -190,8 +257,14 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../ranges.html" class="sidebar-item-text sidebar-link">
+  <a href="../building.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Ranges</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -210,31 +283,113 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="../reference/index.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Reference</span></a>
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Evaluation</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../challenges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../goals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Custom Goals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evidence</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Running Ranges</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sandbox Provider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../distribution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Distribution</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../catalog.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Image Catalog</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Example Ranges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../topology.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Host Topology</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/index.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Reference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Python API</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect_ranges</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -271,11 +426,11 @@ ul.task-list li input[type="checkbox"] {
       <div class="sidebar-item-container"> 
             <a href="../reference/types.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -490,6 +645,101 @@ ul.task-list li input[type="checkbox"] {
   </li>
       </ul>
   </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">CLI Commands</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges applier</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/build.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges build</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/daemon-bundle.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges daemon-bundle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/devbox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges devbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/doctor.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges doctor</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/down.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges down</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges images</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/plan.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/reaper.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges reaper</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/render.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges render</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/schema.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges schema</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/up.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges up</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/validate.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges validate</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
       </ul>
   </li>
     </ul>
@@ -502,13 +752,8 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#inspect-ranges-up" id="toc-inspect-ranges-up" class="nav-link active" data-scroll-target="#inspect-ranges-up">inspect-ranges up</a></li>
-  <li><a href="#inspect-ranges-github-token" id="toc-inspect-ranges-github-token" class="nav-link" data-scroll-target="#inspect-ranges-github-token">inspect-ranges github-token</a></li>
-  <li><a href="#inspect-ranges-start" id="toc-inspect-ranges-start" class="nav-link" data-scroll-target="#inspect-ranges-start">inspect-ranges start</a></li>
-  <li><a href="#inspect-ranges-stop" id="toc-inspect-ranges-stop" class="nav-link" data-scroll-target="#inspect-ranges-stop">inspect-ranges stop</a></li>
-  <li><a href="#inspect-ranges-status" id="toc-inspect-ranges-status" class="nav-link" data-scroll-target="#inspect-ranges-status">inspect-ranges status</a></li>
-  <li><a href="#inspect-ranges-ssh-config" id="toc-inspect-ranges-ssh-config" class="nav-link" data-scroll-target="#inspect-ranges-ssh-config">inspect-ranges ssh-config</a></li>
-  <li><a href="#inspect-ranges-destroy" id="toc-inspect-ranges-destroy" class="nav-link" data-scroll-target="#inspect-ranges-destroy">inspect-ranges destroy</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link active" data-scroll-target="#python-api">Python API</a></li>
+  <li><a href="#cli" id="toc-cli" class="nav-link" data-scroll-target="#cli">CLI</a></li>
   </ul>
 </nav>
     </div>
@@ -520,11 +765,6 @@ ul.task-list li input[type="checkbox"] {
 <h1 class="title">Reference</h1>
 </div>
 
-<div>
-  <div class="description">
-    Command line reference for the inspect-ranges CLI.
-  </div>
-</div>
 
 
 <div class="quarto-title-meta">
@@ -539,345 +779,93 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-
-
-<p>Provision and manage an inspect_ranges development box on EC2.</p>
-<section id="usage" class="level4">
-<h4 class="anchored" data-anchor-id="usage">Usage</h4>
-<pre class="text"><code>inspect-ranges [OPTIONS] COMMAND [ARGS]...</code></pre>
-</section>
-<section id="subcommands" class="level4">
-<h4 class="anchored" data-anchor-id="subcommands">Subcommands</h4>
-<table class="caption-top table">
+<section id="python-api" class="level3">
+<h3 class="anchored" data-anchor-id="python-api">Python API</h3>
+<table class="table-borderless caption-top table">
 <colgroup>
 <col style="width: 35%">
 <col style="width: 65%">
 </colgroup>
 <tbody>
 <tr class="odd">
-<td><a href="#inspect-ranges-up">up</a></td>
-<td>Create (or start) the devbox and bring it fully up to date.</td>
+<td><a href="../reference/inspect_ranges.html">inspect_ranges</a></td>
+<td>Loading, validation, and revalidation of range definitions.</td>
 </tr>
 <tr class="even">
-<td><a href="#inspect-ranges-github-token">github-token</a></td>
-<td>Store a GitHub token on the devbox (read from stdin), then clone the repo.</td>
+<td><a href="../reference/types.html">inspect_ranges.types</a></td>
+<td>Range definition types, usable directly as sandbox configuration.</td>
 </tr>
+</tbody>
+</table>
+</section>
+<section id="cli" class="level3">
+<h3 class="anchored" data-anchor-id="cli">CLI</h3>
+<table class="table-borderless caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 65%">
+</colgroup>
+<tbody>
 <tr class="odd">
-<td><a href="#inspect-ranges-start">start</a></td>
-<td>Start the devbox and wait until it accepts connections.</td>
+<td><a href="../reference/applier.html">inspect-ranges applier</a></td>
+<td>Serve realize/teardown/heartbeat and the guest relay for driver processes on this host.</td>
 </tr>
 <tr class="even">
-<td><a href="#inspect-ranges-stop">stop</a></td>
-<td>Stop the devbox (the disk is kept).</td>
+<td><a href="../reference/build.html">inspect-ranges build</a></td>
+<td>Build a range: realize, verify, capture, and prove its declared guest content.</td>
 </tr>
 <tr class="odd">
-<td><a href="#inspect-ranges-status">status</a></td>
-<td>Show the devbox’s state.</td>
+<td><a href="../reference/daemon-bundle.html">inspect-ranges daemon-bundle</a></td>
+<td>Build the byte-deterministic daemon bundle the realizer bakes into goldens.</td>
 </tr>
 <tr class="even">
-<td><a href="#inspect-ranges-ssh-config">ssh-config</a></td>
-<td>(Re)write the local SSH config entry for the devbox.</td>
+<td><a href="../reference/devbox.html">inspect-ranges devbox</a></td>
+<td>Provision and manage an inspect_ranges development box on EC2.</td>
 </tr>
 <tr class="odd">
-<td><a href="#inspect-ranges-destroy">destroy</a></td>
-<td>Terminate the devbox (its disk, including its GitHub token, is deleted).</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="inspect-ranges-up" class="level2" data-toc-label="up">
-<h2 data-toc-label="up" class="anchored" data-anchor-id="inspect-ranges-up">inspect-ranges up</h2>
-<p>Create (or start) the devbox and bring it fully up to date.</p>
-<section id="usage-1" class="level4">
-<h4 class="anchored" data-anchor-id="usage-1">Usage</h4>
-<pre class="text"><code>inspect-ranges up [OPTIONS]</code></pre>
-</section>
-<section id="options" class="level4">
-<h4 class="anchored" data-anchor-id="options">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--instance-type</code></td>
-<td>text</td>
-<td>c8i/m8i/r8i family (nested virt) or an x86 metal instance.</td>
-<td><code>m8i.8xlarge</code></td>
+<td><a href="../reference/doctor.html">inspect-ranges doctor</a></td>
+<td>Check that this machine can run and develop ranges.</td>
 </tr>
 <tr class="even">
-<td><code>--volume-size</code></td>
-<td>integer</td>
-<td>Root volume size (GiB).</td>
-<td><code>500</code></td>
+<td><a href="../reference/down.html">inspect-ranges down</a></td>
+<td>Tear down a project (idempotent, works from any process, after any crash).</td>
 </tr>
 <tr class="odd">
-<td><code>--iops</code></td>
-<td>integer</td>
-<td>gp3 IOPS.</td>
-<td><code>6000</code></td>
+<td><a href="../reference/evidence.html">inspect-ranges evidence</a></td>
+<td>Work with evidence locations: verify a record’s chains and seals.</td>
 </tr>
 <tr class="even">
-<td><code>--throughput</code></td>
-<td>integer</td>
-<td>gp3 throughput (MiB/s).</td>
-<td><code>500</code></td>
+<td><a href="../reference/images.html">inspect-ranges images</a></td>
+<td>Manage the golden image cache: derive, list, and prune.</td>
 </tr>
 <tr class="odd">
-<td><code>--idle-minutes</code></td>
-<td>integer</td>
-<td>Stop after this many idle minutes.</td>
-<td><code>60</code></td>
+<td><a href="../reference/plan.html">inspect-ranges plan</a></td>
+<td>Resolve a range directory or spec file into its immutable plan.</td>
 </tr>
 <tr class="even">
-<td><code>--backstop-hours</code></td>
-<td>integer range (between <code>0</code> and <code>24</code>)</td>
-<td>CloudWatch stop after N hours &lt;2% CPU (0 = off).</td>
-<td><code>6</code></td>
+<td><a href="../reference/reaper.html">inspect-ranges reaper</a></td>
+<td>Reclaim expired host leases: teardown first, then CID and lease release.</td>
 </tr>
 <tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="inspect-ranges-github-token" class="level2" data-toc-label="github-token">
-<h2 data-toc-label="github-token" class="anchored" data-anchor-id="inspect-ranges-github-token">inspect-ranges github-token</h2>
-<p>Store a GitHub token on the devbox (read from stdin), then clone the repo.</p>
-<p>Use a fine-grained token limited to meridianlabs-ai/inspect_ranges. Reading it from stdin keeps it out of your shell history, the terminal, and process listings.</p>
-<section id="usage-2" class="level4">
-<h4 class="anchored" data-anchor-id="usage-2">Usage</h4>
-<pre class="text"><code>inspect-ranges github-token [OPTIONS]</code></pre>
-</section>
-<section id="options-1" class="level4">
-<h4 class="anchored" data-anchor-id="options-1">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="inspect-ranges-start" class="level2" data-toc-label="start">
-<h2 data-toc-label="start" class="anchored" data-anchor-id="inspect-ranges-start">inspect-ranges start</h2>
-<p>Start the devbox and wait until it accepts connections.</p>
-<section id="usage-3" class="level4">
-<h4 class="anchored" data-anchor-id="usage-3">Usage</h4>
-<pre class="text"><code>inspect-ranges start [OPTIONS]</code></pre>
-</section>
-<section id="options-2" class="level4">
-<h4 class="anchored" data-anchor-id="options-2">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="inspect-ranges-stop" class="level2" data-toc-label="stop">
-<h2 data-toc-label="stop" class="anchored" data-anchor-id="inspect-ranges-stop">inspect-ranges stop</h2>
-<p>Stop the devbox (the disk is kept).</p>
-<section id="usage-4" class="level4">
-<h4 class="anchored" data-anchor-id="usage-4">Usage</h4>
-<pre class="text"><code>inspect-ranges stop [OPTIONS]</code></pre>
-</section>
-<section id="options-3" class="level4">
-<h4 class="anchored" data-anchor-id="options-3">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="inspect-ranges-status" class="level2" data-toc-label="status">
-<h2 data-toc-label="status" class="anchored" data-anchor-id="inspect-ranges-status">inspect-ranges status</h2>
-<p>Show the devbox’s state.</p>
-<section id="usage-5" class="level4">
-<h4 class="anchored" data-anchor-id="usage-5">Usage</h4>
-<pre class="text"><code>inspect-ranges status [OPTIONS]</code></pre>
-</section>
-<section id="options-4" class="level4">
-<h4 class="anchored" data-anchor-id="options-4">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="inspect-ranges-ssh-config" class="level2" data-toc-label="ssh-config">
-<h2 data-toc-label="ssh-config" class="anchored" data-anchor-id="inspect-ranges-ssh-config">inspect-ranges ssh-config</h2>
-<p>(Re)write the local SSH config entry for the devbox.</p>
-<section id="usage-6" class="level4">
-<h4 class="anchored" data-anchor-id="usage-6">Usage</h4>
-<pre class="text"><code>inspect-ranges ssh-config [OPTIONS]</code></pre>
-</section>
-<section id="options-5" class="level4">
-<h4 class="anchored" data-anchor-id="options-5">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="inspect-ranges-destroy" class="level2" data-toc-label="destroy">
-<h2 data-toc-label="destroy" class="anchored" data-anchor-id="inspect-ranges-destroy">inspect-ranges destroy</h2>
-<p>Terminate the devbox (its disk, including its GitHub token, is deleted).</p>
-<section id="usage-7" class="level4">
-<h4 class="anchored" data-anchor-id="usage-7">Usage</h4>
-<pre class="text"><code>inspect-ranges destroy [OPTIONS]</code></pre>
-</section>
-<section id="options-6" class="level4">
-<h4 class="anchored" data-anchor-id="options-6">Options</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 15%">
-<col style="width: 50%">
-<col style="width: 10%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>--all</code></td>
-<td>boolean</td>
-<td>Also delete the shared VPC and IAM role if unused.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td><a href="../reference/render.html">inspect-ranges render</a></td>
+<td>Render a range directory or spec file into its realization bundle.</td>
 </tr>
 <tr class="even">
-<td><code>--yes</code></td>
-<td>boolean</td>
-<td>Don’t ask for confirmation.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td><a href="../reference/schema.html">inspect-ranges schema</a></td>
+<td>Print the JSON Schema for range.yaml to stdout.</td>
 </tr>
 <tr class="odd">
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td><a href="../reference/up.html">inspect-ranges up</a></td>
+<td>Realize a rendered bundle into a running, ready range.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/validate.html">inspect-ranges validate</a></td>
+<td>Validate range.yaml files with complete diagnostics.</td>
 </tr>
 </tbody>
 </table>
-</section>
+
+
 </section>
 
 </main> <!-- /main -->
@@ -1395,8 +1383,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../networks.html" class="pagination-link" aria-label="Networks">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Networks</span>
+      <a href="../security.html" class="pagination-link" aria-label="Security">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Security</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">

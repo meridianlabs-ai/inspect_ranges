@@ -113,14 +113,22 @@ ul.task-list li input[type="checkbox"] {
     <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Getting Started</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./tutorial.html"> 
+<span class="menu-text">Tutorial</span></a>
+  </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-defining-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Defining Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building Ranges</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-defining-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+        <li>
+    <a class="dropdown-item" href="./building.html">
+ <span class="dropdown-text">Overview</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="./ranges.html">
- <span class="dropdown-text">Overview</span></a>
+ <span class="dropdown-text">Ranges</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./guests.html">
@@ -129,6 +137,60 @@ ul.task-list li input[type="checkbox"] {
         <li>
     <a class="dropdown-item" href="./networks.html">
  <span class="dropdown-text">Networks</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-evaluation" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Evaluation</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-evaluation">    
+        <li>
+    <a class="dropdown-item" href="./challenges.html">
+ <span class="dropdown-text">Challenges</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./goals.html">
+ <span class="dropdown-text">Custom Goals</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./evidence.html">
+ <span class="dropdown-text">Evidence</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running Ranges</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+        <li>
+    <a class="dropdown-item" href="./cli.html">
+ <span class="dropdown-text">Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./provider.html">
+ <span class="dropdown-text">Sandbox Provider</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./distribution.html">
+ <span class="dropdown-text">Distribution</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./catalog.html">
+ <span class="dropdown-text">Image Catalog</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples.html">
+ <span class="dropdown-text">Example Ranges</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./topology.html">
+ <span class="dropdown-text">Host Topology</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
     </ul>
   </li>
@@ -176,7 +238,28 @@ ul.task-list li input[type="checkbox"] {
 <section id="unreleased" class="level2">
 <h2 class="anchored" data-anchor-id="unreleased">Unreleased</h2>
 <ul>
-<li>Initial release.</li>
+<li><p>Example ranges (linux-examples-v1): three published range definitions promote from translated fixtures to BUILT, VERIFIED, SOLVED examples under <code>examples/</code>, each with recipes realizing its declared guest content, a behavioral check trio proving every challenge at build (reference 1.0, insufficient and forged 0.0), and a real <code>inspect eval</code> solving it through its declared foothold: <code>kypo-demo</code> (the KYPO telnet ladder: a routed two-subnet topology with an explicit router, telnetd on a variable port, a wordlist-guessable password, the sudoers <code>less</code> escalation), <code>cyris-basic</code> (the CyRIS reference: a firewall-as-router carrying the upstream 25/53 forwarding ACL, weak-root-password privesc, forensics triage of deterministically synthesized captures and a resident dummy process), and <code>mhbench-equifax-small</code> (the Equifax model at scale: six targets, CVE-2017-5638 Struts entry asserted live at build, a planted SSH-key pivot, four coverage-scored exfiltrate canaries with pcap corroboration, and the attacker as the catalog default). Substrate work the examples forced: declared <code>variables:</code> resolve to their defaults at planning (per-sample secrets stay the challenge plant layer’s; the generation layer is a recorded deferral); the build claims the recipe-realizable sections (<code>users</code>, <code>misconfigurations</code>, <code>data</code> join <code>provisioning</code>/<code>services</code>/<code>vulnerabilities</code>); routed topologies build via a build-only NAT uplink segment and a provisioned foothold’s attacker containment lifts for the build only; multi-homed guests elect their default route deterministically; a router with no <code>acl</code> is a plain router (everything forwards; declaring any rule keeps default-drop allowlisting); behavioral chains exec on the foothold host when a range has no dedicated attack box; in-guest hostnames sanitize to RFC form with plan-time collision refusal (docs: Example Ranges, Networks, Building).</p></li>
+<li><p>Image catalog (standard-images-v1): the standard images publish under <code>docker.io/meridianlabsai</code>, each consumable by bare name and pinned by digest. The <code>attack</code> image is the kali-class attack box (nmap, netcat/socat, tcpdump, impacket, sqlmap, hydra, john, gobuster, ffuf, smbclient, ldap-utils, and metasploit from its official repo with the release key fingerprint-pinned), recipe-built over the noble golden with the delivered package set recorded in-image (<code>/etc/attack-image.manifest</code>) and a build-failing zero-non-loopback-listener containment invariant. A dedicated attack box that declares no <code>image:</code> now boots it by default (migration: such attackers previously booted the default guest image; declare <code>image: ubuntu-noble</code> to keep the old behavior). <code>inspect-ranges publish</code> promotes built guests (<code>--guest/--as</code>), goldens (<code>--golden</code>), and the daemon artifact (<code>--daemon</code>) to a location whose catalog list updates with each image; <code>daemon-bundle --pull</code> fetches the published daemon artifact without a Go toolchain, and both the catalog list and the daemon bundle travel with whole-location mirrors. Eval init now pulls catalog images implicitly too (the attacker default, bare-name goldens), so a clean machine’s first eval needs no explicit fetch verbs and warm evals still cost zero network. Fleets pin with <code>images pin</code> (names to root digests, consumed as <code>@sha256</code> pins) and pin the hardened range container image itself with <code>INSPECT_RANGES_RANGE_IMAGE=repo@sha256:...</code> (pulled once by <code>up</code>; mutable tags refuse; the local build stays the default and the dev loop) (docs: Image Catalog, Distribution).</p></li>
+<li><p>Distribution (distribution-v1): built ranges publish and consume across three interchangeable location forms (the public hub, private OCI registries, and plain OCI-layout directories for the air gap), joined to specs by the normalized-spec hash. <code>inspect-ranges push</code> publishes a build’s transitive closure (dedup by digest); bare <code>pull</code> resolves the build matching the local <code>range.yaml</code> exactly (refusing <code>no-build-for-spec</code> with the nearest published build named) and <code>pull name@sha256:...</code> works with no spec in hand; the provider pulls implicitly at eval init with docker-pull-shaped progress and clean prerequisite refusals, warm evals cost one hash and zero network, and <code>INSPECT_RANGES_NEVER_PULL</code> pins a host against implicit transfers. Catalog images fetch via <code>images pull</code> (sticky) and move forward only via <code>images refresh</code> (whole chain, atomically staged). <code>mirror</code> seeds or syncs whole locations (every published build, not just latest), moves single builds spec-driven for the cross-group case, and the directory form tars across air gaps with everything still verifying. <code>images prune --chains</code> reclaims unreferenced golden/vendor chains under a cache-wide lock shared with every landing path, never a backing from under a dependent; <code>up</code> now verifies the full backing chain including the golden-to-vendor edge, so a mixed cache refuses instead of booting silently; doctor gains Distribution rows. The search path is <code>INSPECT_RANGES_REGISTRY</code> (ordered, first match wins, deployment registries shadow public names deterministically; a broken location aborts rather than silently de-shadowing). Proven live by five batteries plus a recorded conformance run against the real Docker Hub (production token flow, presigned-storage redirects with the bearer token stripped cross-origin, measured anonymous rate limits), and the Journey B transcripts executed as the phase exit (docs: Distribution).</p></li>
+<li><p>Docs: a dedicated <a href="docs/goals.qmd">Custom Goals</a> article covers creating new goal types (the <code>GoalType</code> contract, the oracle surface, proof-design rules, assurance labels, testing, and registration); the Challenges article’s section now points there. The closed v1 <code>challenges.yaml</code> type union is recorded in the article’s registration section as the open concern.</p></li>
+<li><p>Every QEMU guest runs as its own unprivileged uid (issue #5): a per-domain static DAC seclabel (<code>GUEST_UID_BASE + cid</code>, the Cloud Hypervisor scheme) carries the per-VM boundary; <code>security_driver = "none"</code> stays and disables only the MAC slot, since sVirt AppArmor cannot load per-VM profiles inside the hardened container (the outer jail denies CAP_MAC_ADMIN and securityfs by design), which is now documented where the setting lives. The boot script pre-owns each guest’s overlay, seed, and console log; libvirt never chowns a shared backing golden.</p></li>
+<li><p>The agent-containment section-6 defender-to-agent negative checks are automated (issue #6): the build’s proof boot runs a <code>conformance</code> stage before the behavioral checks (a shared-segment defender TCP-sweeps the attacker; the attacker checks reserved hypervisor addresses answer nothing beyond their allowed service and unreserved gateway candidates are silent), and any finding refuses the manifest. Scope: TCP only, dedicated attack boxes only (foothold ranges skip the stage).</p></li>
+<li><p>BREAKING: the sandbox provider is registered as <code>range</code> (was <code>libvirt_range</code>, with no alias kept): <code>sandbox=("range", "range.yaml")</code>. The old name described an implementation detail that no longer covers the default attack box, which boots under Cloud Hypervisor with no libvirt in its path.</p></li>
+<li><p>The range container’s segment bridges no longer have IPv6: the rendered compose sets <code>net.ipv6.conf.default.disable_ipv6=1</code> in the range’s network namespace, so the bridges and taps created after it send no router solicitations, MLD or DAD frames and do not answer <code>ff02::1</code>; the bridges are also created without multicast snooping, so they send no IGMP report of their own and flood multicast to every port, like a plain switch. Guest-to-guest IPv6 still crosses the bridges; the host’s IPv6 setting is unchanged.</p></li>
+<li><p>Guests no longer get q35 legacy devices that no configuration names and no guest uses: the domain XML turns off the VMware backdoor port and the HPET natively, and the SATA AHCI controller, SMBus (with its SPD EEPROMs), i8042 keyboard controller and kvmvapic through QEMU arguments (libvirt 10.0 has no elements for them). The PIT and PIC stay on.</p></li>
+<li><p>Hosts and routers gain a <code>vmm: qemu | cloud-hypervisor</code> field (default <code>qemu</code>); the agent/attacker box now defaults to <code>cloud-hypervisor</code>, so an existing range’s attacker box moves from QEMU to Cloud Hypervisor (declare <code>vmm: qemu</code> on the attacker to keep QEMU). A Cloud Hypervisor guest boots directly from the boot script as an unprivileged per-guest uid with no domain XML and is reached over its hybrid-vsock Unix socket with an <code>SO_PEERCRED</code> peer check, and the range image carries the pinned Cloud Hypervisor binary and firmware (docs: Sandbox Provider). Migration notes: the new field changes the normalized spec form, so build manifests recorded before this release fail the gate’s spec-revision match and consumers refuse until one rebuild per range (guests are reused: build keys do not include the field; declaring <code>vmm: qemu</code> on the attacker reproduces the pre-flip hash exactly, keeping an existing manifest valid). A foothold attacker (<code>host:</code> set) now refuses ANY declared <code>vmm</code>, including a redundant <code>vmm: qemu</code> that previously validated.</p></li>
+<li><p>Challenges: <code>challenges.yaml</code> defines what an agent is asked to do and how success is verified; <code>challenge_dataset()</code> builds the Inspect dataset (validated against the range), <code>plant_goals()</code> plants per-sample proof material and starts observers, <code>challenge_scorer()</code> verifies and aggregates with validity states. Fourteen goal types ship (flag, answer, exfiltrate, execute, control/privilege, hijack, degrade, tamper, availability, detection, evade, judge, patch), proofs anchored by per-sample secrets, a nonce-bound active prober on a clamped probe endpoint, exported telemetry, and evidence corroboration that can invalidate a sample on contradiction but never fails one on missing coverage (docs: Challenges).</p></li>
+<li><p>The provider registers only the foothold as the sample’s sandbox by default (the agent/target wall); <code>INSPECT_RANGES_REGISTER_ALL_GUESTS=1</code> is the loudly-logged development opt-out (docs: Sandbox Provider).</p></li>
+<li><p>The six example ranges’ <code>challenges.yaml</code> files migrated to the typed schema; reference intrusion chains with behavioral checks (reference passes via the foothold alone, insufficient fails, cheapest forgery fails) run in the devbox battery.</p></li>
+<li><p>Evidence: every sample records tamper-evident evidence outside the VMs (per-segment pcap via a <code>NET_RAW</code>-only sidecar, continuous consoles, stage/verification streams, daemon session continuity, poll-based in-guest telemetry export), streamed as generated to <code>&lt;evallogstem&gt;.evidence/&lt;sample&gt;_&lt;epoch&gt;_&lt;attempt&gt;</code> (local or S3, write-once conditional puts) with a hash-chained manifest, explicit in-chain gap records, per-writer seals, and the seal digests bound into the eval log’s sample store; <code>inspect-ranges evidence verify [--expect-seal]</code> replays a record offline (docs: Evidence).</p></li>
+<li><p>Evidence capture runs tcpdump packet-buffered (<code>-U</code>): the active pcap chunk is current while the capture runs, and a capture killed rather than stopped keeps every packet it saw.</p></li>
+<li><p><code>inspect-ranges doctor</code> gains the Evidence group: evidence knob validity, a sink writability probe when <code>INSPECT_RANGES_EVIDENCE_SINK</code> is set, and an off-instance warning for local-only evidence.</p></li>
+<li><p>CI enforces the C# codec drift guard: the py-test job installs the pinned .NET SDK (8.0.404 by sha256) and sets <code>INSPECT_RANGES_REQUIRE_DOTNET=1</code>, so three-codec parity fails loudly in CI instead of silently skipping.</p></li>
+<li><p>Host topology: every sample now holds a renewable host lease (<code>leases.json</code>), reclaimed by the new independent <code>inspect-ranges reaper</code> on expiry alone; <code>INSPECT_RANGES_HOST=uds:&lt;socket&gt;</code> selects the separated topology, where a standing <code>inspect-ranges applier</code> process owns realization and teardown and relays guest operations over one unix socket (docs: Host Topology).</p></li>
+<li><p><code>inspect-ranges doctor</code> gains the Host group: strict <code>leases.json</code> health, an expired-leases hint naming the reaper, and an applier socket probe when one is configured.</p></li>
+<li><p><code>range</code> Inspect sandbox provider: per-sample realizer-booted ranges with named sandboxes, layered retries with session invalidation, interrupted-sample containment, and <code>inspect sandbox cleanup range</code> crash recovery (docs: Sandbox Provider).</p></li>
+<li><p><code>inspect-ranges doctor</code> gains the Provider group: entry-point registration, the inspect-ai floor, current-recipe goldens (with stale-golden guidance), and CID lease registry health.</p></li>
+<li><p>Initial release.</p></li>
 </ul>
 
 

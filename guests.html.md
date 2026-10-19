@@ -12,7 +12,7 @@ This article is organized as follows:
 
 ## Hosts
 
-Hosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under [Guest content](#guest-content).
+Hosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under [Guest content](#guest-content). The optional `hostname` and `fqdn` are build-phase content: render keeps the in-guest hostname equal to a hostname-safe form of `name` (hostname-invalid characters such as underscores and dots become hyphens), so declaring either refuses at planning (`guest-config-not-realized`) until the build arc realizes them.
 
 This example defines a single host:
 
@@ -111,7 +111,6 @@ An image reference missing from the cache shows up in the plan output and is an 
 Sizing is backend-neutral and optional:
 
 ``` yaml
-# fragment
 resources:
   cpus: 2
   memory_mb: 4096
@@ -119,7 +118,6 @@ resources:
 ```
 
 ``` python
-# fragment
 Resources(cpus=2, memory_mb=4096, disk_gb=20)
 ```
 
@@ -206,7 +204,7 @@ Policy (`acl`) and routing (`routes`, gateway election) are covered in [Networks
 
 ## Attacker
 
-The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). Either it boots as a dedicated attack box (declare `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the backend’s standard attack image), or it starts from a foothold on a declared host:
+The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). Either it boots as a dedicated attack box (declare `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the standard attack image: the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init; see [Image Catalog](./catalog.html.md)), or it starts from a foothold on a declared host. A dedicated attack box runs under Cloud Hypervisor by default (the most adversarial guest gets the smaller VMM: unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see the Sandbox Provider page); declare `vmm: qemu` to keep QEMU, and with `host:` set the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in per guest with `vmm: cloud-hypervisor`; a Cloud Hypervisor guest cannot carry buildable guest content yet, which planning refuses:
 
 ``` yaml
 range:
@@ -265,12 +263,13 @@ With `host:`, the attacker declares no machine of its own (the foothold is the m
 
 Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest, not boot-time actions. The build applies each declaration by whatever means the image demands (a provisioning recipe, content baked into a derived image, or a captured checkpoint) and verifies it before the range ships; the runtime never applies guest content per sample.
 
+Today [`inspect-ranges build`](./building.html.md) realizes `provisioning`, `services`, and `vulnerabilities`: a range declaring any of them refuses planning (`range-not-built`) until a matching build exists, then boots its captured realized images. The other content sections below validate but refuse at planning (`guest-config-not-realized`) until their build slices land, so nothing boots with silently missing content.
+
 ## Users
 
 `users` declares a guest’s local accounts (routers can carry them too). Domain accounts belong in [`active_directory`](#active-directory), not here:
 
 ``` yaml
-# plan-invalid: guest content is build-phase (see Guest content above)
 range:
   name: users
   description: Local accounts as converged state.
@@ -327,7 +326,7 @@ users = RangeSpec(
 
 ## Services
 
-`services` entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in [`provisioning`](#provisioning-references):
+`services` entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in [`provisioning`](#provisioning-references). The optional `package` names the dpkg package that embodies the service, for version attribution when the listening process cannot provide it (a PHP frontend served by apache attributes through `package: php7.4`, not the apache listener); the verification contract is in [Building Ranges](./building.html.md#verification):
 
 ``` yaml
 range:
@@ -722,7 +721,7 @@ ACL edge rights use the vocabulary observed in real ranges (`GenericAll`, `Gener
 
 ## Provisioning References
 
-Everything above declares state; `provisioning` names the build-time work that produces it when the image alone does not. Steps reference recipes by name and version, in order. The recipe language itself is deliberately outside the definition: recipes run once at range build, their versions land in the build manifest, and the runtime never runs them:
+Everything above declares state; `provisioning` names the build-time work that produces it when the image alone does not. Steps reference recipes by name and version, in order. The recipe language itself is deliberately outside the definition: recipes run once at range build, their versions land in the build manifest, and the runtime never runs them (authoring guide: [Building Ranges](./building.html.md#authoring-recipes)):
 
 ``` yaml
 range:
@@ -903,12 +902,12 @@ spec = randomized()
 
 ## Guest Configuration
 
-The compiler emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. The current realization injects over cloud-init (a seed presented as a read-only virtio disk), which covers cloud-style Linux images. Other injectors are designed: configuration baked at build time for images without an agent, unattend plus the Windows guest agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints for ranges that need no boot-time configuration at all.
+The compiler emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows HOSTS inject over a per-boot unattend seed (a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass: hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon; Windows routers and attack boxes are not yet realized and refuse at planning. Other injectors remain designed: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.
 
 ``` yaml
 range:
-  name: windows-gated
-  description: A Windows target, valid to define, gated at planning.
+  name: windows-host
+  description: A Windows target on a locally installed golden (windows-ad-v1).
 networks:
   - name: corp
     cidr: 10.20.0.0/24
@@ -916,7 +915,7 @@ networks:
 hosts:
   - name: dc01
     os: { type: windows, version: server-2022 }
-    image: acme/win-golden
+    image: windows-2022
     interfaces: [{ network: corp }]
 attacker:
   interfaces: [{ network: corp }]
@@ -924,11 +923,11 @@ attacker:
 ```
 
 ``` python
-windows_gated = RangeSpec(
+windows_host = RangeSpec(
     meta=RangeMeta(
-        name="windows-gated",
-        description="A Windows target, valid to define, gated at "
-        "planning.",
+        name="windows-host",
+        description="A Windows target on a locally installed golden "
+        "(windows-ad-v1).",
     ),
     networks=[
         Network(name="corp", cidr="10.20.0.0/24", mode="isolated")
@@ -937,7 +936,7 @@ windows_gated = RangeSpec(
         Host(
             name="dc01",
             os=Os(type="windows", version="server-2022"),
-            image="acme/win-golden",
+            image="windows-2022",
             interfaces=[Interface(network="corp")],
         )
     ],

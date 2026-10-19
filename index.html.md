@@ -10,12 +10,12 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 The source code is available in the [inspect_ranges](https://github.com/meridianlabs-ai/inspect_ranges) repository on GitHub. For the overall design (range definitions, the libvirt/KVM runtime, attacker containment, and evidence collection), start with the [Inspect Ranges overview](https://github.com/meridianlabs-ai/inspect_ranges/blob/main/design/ranges-overview.qmd).
 
-## Defining Ranges
+## Documentation
 
-Documentation for the range definition language (`range.yaml` and its typed Python equivalent) is available for review and feedback:
+The [Tutorial](./tutorial.html.md) is a hands-on walkthrough, from a first minimal range to building and evaluating the vulhub-zabbix example. The rest of the documentation is organized in three sections, available for review and feedback:
 
-- [Ranges](./ranges.html.md): what a range definition is, end-to-end examples in YAML and Python, and the validation workflow.
+- [Building Ranges](./building.html.md): authoring a range, from the definition language ([Ranges](./ranges.html.md), [Guests](./guests.html.md), [Networks](./networks.html.md)) to the build that realizes declared content into captured, verified images.
 
-- [Guests](./guests.html.md): hosts, images, resources, routers and the attacker as guests, and guest content such as accounts, services, seeded weaknesses, defense, and Active Directory.
+- Evaluation: [Challenges](./challenges.html.md) covers defining what an agent is asked to do and how success is verified; [Custom Goals](./goals.html.md) covers creating new goal types; [Evidence](./evidence.html.md) covers the tamper-evident record scoring relies on.
 
-- [Networks](./networks.html.md): addressing, DHCP, name resolution, segmentation, firewall rules, routing topology, and egress.
+- [Running Ranges](./cli.html.md): the operator workflow, the [sandbox provider](./provider.html.md) that runs Inspect evals against ranges, the [host topology](./topology.html.md), and the [security model](./security.html.md).
