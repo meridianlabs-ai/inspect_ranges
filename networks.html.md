@@ -84,7 +84,7 @@ hosts:
     interfaces: [{ network: lab }]  # allocated: 10.10.10.10
 
 attacker:
-  interfaces: [{ network: lab }]  # allocated: 10.10.10.2
+  interfaces: [{ network: lab }]  # allocated: 10.10.10.1
   entry: external
 ```
 
@@ -304,6 +304,8 @@ dns_ad = RangeSpec(
 )
 ```
 
+The DC’s `hostname` and `fqdn` are build-phase content: declaring either refuses at planning (`guest-config-not-realized`) until the build arc realizes them, as described under [Hosts](./guests.html.md#hosts).
+
 > **WARNING: Warning.local zones**
 >
 > Zones under `.local` (common in AD lab material) are reserved for mDNS: Linux stub resolvers never send them to unicast DNS. Definitions using them validate with a warning so you can decide whether to keep them:
@@ -314,7 +316,7 @@ dns_ad = RangeSpec(
 
 ## Segmentation
 
-Routers join segments and carry the inter-segment policy. Rules are default-deny and stateful: anything not allowed is dropped, and return traffic of allowed flows always passes. For example, a DMZ pivot:
+Routers join segments and carry the inter-segment policy. A router with no `acl` is a plain router: everything forwards (the KYPO/CyRIS pure-router shape). Declaring any rule flips it to default-deny and stateful: anything not allowed is dropped, and return traffic of allowed flows always passes. For example, a DMZ pivot:
 
 ``` yaml
 range:

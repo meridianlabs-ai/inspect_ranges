@@ -1,143 +1,27 @@
 # Reference – Inspect Ranges
 
-Provision and manage an inspect_ranges development box on EC2.
-
-#### Usage
-
-``` text
-inspect-ranges [OPTIONS] COMMAND [ARGS]...
-```
-
-#### Subcommands
+### Python API
 
 |  |  |
 |----|----|
-| [up](#inspect-ranges-up) | Create (or start) the devbox and bring it fully up to date. |
-| [github-token](#inspect-ranges-github-token) | Store a GitHub token on the devbox (read from stdin), then clone the repo. |
-| [start](#inspect-ranges-start) | Start the devbox and wait until it accepts connections. |
-| [stop](#inspect-ranges-stop) | Stop the devbox (the disk is kept). |
-| [status](#inspect-ranges-status) | Show the devbox’s state. |
-| [ssh-config](#inspect-ranges-ssh-config) | (Re)write the local SSH config entry for the devbox. |
-| [destroy](#inspect-ranges-destroy) | Terminate the devbox (its disk, including its GitHub token, is deleted). |
+| [inspect_ranges](../reference/inspect_ranges.html.md) | Loading, validation, and revalidation of range definitions. |
+| [inspect_ranges.types](../reference/types.html.md) | Range definition types, usable directly as sandbox configuration. |
 
-## inspect-ranges up
+### CLI
 
-Create (or start) the devbox and bring it fully up to date.
-
-#### Usage
-
-``` text
-inspect-ranges up [OPTIONS]
-```
-
-#### Options
-
-| Name | Type | Description | Default |
-|----|----|----|----|
-| `--instance-type` | text | c8i/m8i/r8i family (nested virt) or an x86 metal instance. | `m8i.8xlarge` |
-| `--volume-size` | integer | Root volume size (GiB). | `500` |
-| `--iops` | integer | gp3 IOPS. | `6000` |
-| `--throughput` | integer | gp3 throughput (MiB/s). | `500` |
-| `--idle-minutes` | integer | Stop after this many idle minutes. | `60` |
-| `--backstop-hours` | integer range (between `0` and `24`) | CloudWatch stop after N hours \<2% CPU (0 = off). | `6` |
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
-
-## inspect-ranges github-token
-
-Store a GitHub token on the devbox (read from stdin), then clone the repo.
-
-Use a fine-grained token limited to meridianlabs-ai/inspect_ranges. Reading it from stdin keeps it out of your shell history, the terminal, and process listings.
-
-#### Usage
-
-``` text
-inspect-ranges github-token [OPTIONS]
-```
-
-#### Options
-
-| Name     | Type    | Description                 | Default          |
-|----------|---------|-----------------------------|------------------|
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
-
-## inspect-ranges start
-
-Start the devbox and wait until it accepts connections.
-
-#### Usage
-
-``` text
-inspect-ranges start [OPTIONS]
-```
-
-#### Options
-
-| Name     | Type    | Description                 | Default          |
-|----------|---------|-----------------------------|------------------|
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
-
-## inspect-ranges stop
-
-Stop the devbox (the disk is kept).
-
-#### Usage
-
-``` text
-inspect-ranges stop [OPTIONS]
-```
-
-#### Options
-
-| Name     | Type    | Description                 | Default          |
-|----------|---------|-----------------------------|------------------|
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
-
-## inspect-ranges status
-
-Show the devbox’s state.
-
-#### Usage
-
-``` text
-inspect-ranges status [OPTIONS]
-```
-
-#### Options
-
-| Name     | Type    | Description                 | Default          |
-|----------|---------|-----------------------------|------------------|
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
-
-## inspect-ranges ssh-config
-
-(Re)write the local SSH config entry for the devbox.
-
-#### Usage
-
-``` text
-inspect-ranges ssh-config [OPTIONS]
-```
-
-#### Options
-
-| Name     | Type    | Description                 | Default          |
-|----------|---------|-----------------------------|------------------|
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
-
-## inspect-ranges destroy
-
-Terminate the devbox (its disk, including its GitHub token, is deleted).
-
-#### Usage
-
-``` text
-inspect-ranges destroy [OPTIONS]
-```
-
-#### Options
-
-| Name | Type | Description | Default |
-|----|----|----|----|
-| `--all` | boolean | Also delete the shared VPC and IAM role if unused. | `Sentinel.UNSET` |
-| `--yes` | boolean | Don’t ask for confirmation. | `Sentinel.UNSET` |
-| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
+|  |  |
+|----|----|
+| [inspect-ranges applier](../reference/applier.html.md) | Serve realize/teardown/heartbeat and the guest relay for driver processes on this host. |
+| [inspect-ranges build](../reference/build.html.md) | Build a range: realize, verify, capture, and prove its declared guest content. |
+| [inspect-ranges daemon-bundle](../reference/daemon-bundle.html.md) | Build the byte-deterministic daemon bundle the realizer bakes into goldens. |
+| [inspect-ranges devbox](../reference/devbox.html.md) | Provision and manage an inspect_ranges development box on EC2. |
+| [inspect-ranges doctor](../reference/doctor.html.md) | Check that this machine can run and develop ranges. |
+| [inspect-ranges down](../reference/down.html.md) | Tear down a project (idempotent, works from any process, after any crash). |
+| [inspect-ranges evidence](../reference/evidence.html.md) | Work with evidence locations: verify a record’s chains and seals. |
+| [inspect-ranges images](../reference/images.html.md) | Manage the golden image cache: derive, list, and prune. |
+| [inspect-ranges plan](../reference/plan.html.md) | Resolve a range directory or spec file into its immutable plan. |
+| [inspect-ranges reaper](../reference/reaper.html.md) | Reclaim expired host leases: teardown first, then CID and lease release. |
+| [inspect-ranges render](../reference/render.html.md) | Render a range directory or spec file into its realization bundle. |
+| [inspect-ranges schema](../reference/schema.html.md) | Print the JSON Schema for range.yaml to stdout. |
+| [inspect-ranges up](../reference/up.html.md) | Realize a rendered bundle into a running, ready range. |
+| [inspect-ranges validate](../reference/validate.html.md) | Validate range.yaml files with complete diagnostics. |
