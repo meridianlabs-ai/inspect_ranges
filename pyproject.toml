@@ -40,6 +40,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "anthropic>=1.11.0",
     "pytest-cov>=7.1.0",
+    "types-PyYAML",
 ]
 # Kept out of `dev` so CI can leave it out (`UV_NO_GROUP=doc`): quarto-cli has
 # no wheel and is built from its sdist. A local `uv sync` still installs it
@@ -51,7 +52,6 @@ doc = [
     "griffe>=2",
     "rich",
     "pyyaml",
-    "types-PyYAML",
     "quarto-cli>=1.9.36",
 ]
 dist = ["twine", "build"]

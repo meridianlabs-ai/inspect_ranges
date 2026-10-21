@@ -1305,6 +1305,7 @@ dev = [
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
 dist = [
     { name = "build" },
@@ -1318,7 +1319,6 @@ doc = [
     { name = "pyyaml" },
     { name = "quarto-cli" },
     { name = "rich" },
-    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
@@ -1341,6 +1341,7 @@ dev = [
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist" },
     { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
 dist = [
     { name = "build" },
@@ -1354,7 +1355,6 @@ doc = [
     { name = "pyyaml" },
     { name = "quarto-cli", specifier = ">=1.9.36" },
     { name = "rich" },
-    { name = "types-pyyaml" },
 ]
 
 [[package]]
