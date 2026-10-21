@@ -1285,7 +1285,6 @@ wheels = [
 [[package]]
 name = "inspect-ranges"
 source = { editable = "." }
-default-groups = ["dev", "doc"]
 dependencies = [
     { name = "boto3", extra = ["crt"] },
     { name = "click" },
