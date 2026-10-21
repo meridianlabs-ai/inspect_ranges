@@ -71,6 +71,8 @@ local_scheme = "no-local-version" # Important for PyPI compatibility
 
 [tool.uv]
 managed = true
+# uv 0.12.22 is the first release that writes lock revision 5 (this uv.lock)
+required-version = ">=0.12.22"
 
 [tool.ruff]
 # explicit exclude list: ruff's DEFAULT excludes contain "_build", which
