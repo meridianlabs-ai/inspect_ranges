@@ -71,7 +71,7 @@ To pull a newer version:
 ```bash
 cd docs
 mv _quarto.yml _quarto.yml.bak
-quarto update meridianlabs-ai/inspect-docs --no-prompt
+uv run --group doc quarto update meridianlabs-ai/inspect-docs --no-prompt
 mv _quarto.yml.bak _quarto.yml
 ```
 
