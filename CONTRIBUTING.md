@@ -9,10 +9,10 @@ Inspect Ranges uses [uv](https://docs.astral.sh/uv/) for environment and depende
 ```bash
 git clone https://github.com/meridianlabs-ai/inspect_ranges
 cd inspect_ranges
-uv sync --group dev
+uv sync
 ```
 
-This installs Inspect Ranges in editable mode along with the dev tools (ruff, pyright, pytest), and puts the `inspect-ranges` CLI on your path.
+This installs Inspect Ranges in editable mode along with the dev tools (ruff, pyright, pytest) and the docs tools (Quarto), and puts the `inspect-ranges` CLI on your path.
 
 ### Remote development
 
@@ -50,10 +50,10 @@ See [`CLAUDE.md`](CLAUDE.md) for the full conventions used in this repo.
 
 ## Building the docs
 
-Docs live in `docs/` and are built with [Quarto](https://quarto.org). The Quarto CLI and the doc-build dependencies are in the `doc` group:
+Docs live in `docs/` and are built with [Quarto](https://quarto.org). The Quarto CLI and the doc-build dependencies are in the `doc` group, which `uv sync` installs by default (CI leaves it out):
 
 ```bash
-uv sync --group doc
+uv sync
 cd docs
 source ../.venv/bin/activate
 quarto render        # outputs to docs/_site/

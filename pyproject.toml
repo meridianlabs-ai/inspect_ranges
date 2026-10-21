@@ -40,8 +40,10 @@ dev = [
     "pytest-timeout>=2.4.0",
     "anthropic>=1.11.0",
     "pytest-cov>=7.1.0",
-    {include-group = "doc"},
 ]
+# Kept out of `dev` so CI can leave it out (`UV_NO_GROUP=doc`): quarto-cli has
+# no wheel and is built from its sdist. A local `uv sync` still installs it
+# through `default-groups` below.
 doc = [
     "jupyter",
     "panflute",
@@ -70,6 +72,7 @@ local_scheme = "no-local-version" # Important for PyPI compatibility
 
 [tool.uv]
 managed = true
+default-groups = ["dev", "doc"]
 
 [tool.ruff]
 # explicit exclude list: ruff's DEFAULT excludes contain "_build", which
