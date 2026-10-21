@@ -7,10 +7,28 @@ from ._challenges.scorer import challenge_scorer
 from ._challenges.setup import challenge_setup
 from ._challenges.verify import verify_goal
 from ._provider.provider import RangeSandboxEnvironment
+from .examples import (
+    cyris_basic,
+    dmz_pivot,
+    equifax,
+    goad_light,
+    kypo_demo,
+    splunk_detection,
+    vulhub_zabbix,
+)
+from .scanners import range_apparatus
 
 __all__ = [
     "RangeSandboxEnvironment",
     "challenge_scorer",
     "challenge_setup",
+    "cyris_basic",
+    "dmz_pivot",
+    "equifax",
+    "goad_light",
+    "kypo_demo",
+    "splunk_detection",
+    "range_apparatus",
     "verify_goal",
+    "vulhub_zabbix",
 ]
