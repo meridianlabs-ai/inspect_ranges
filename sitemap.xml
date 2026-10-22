@@ -2,19 +2,19 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/vulhub_zabbix.html</loc>
-    <lastmod>2026-10-21T14:33:44.060Z</lastmod>
+    <lastmod>2026-10-22T15:28:18.636Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/kypo_demo.html</loc>
-    <lastmod>2026-10-21T14:33:44.058Z</lastmod>
+    <lastmod>2026-10-22T15:33:19.704Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/equifax.html</loc>
-    <lastmod>2026-10-21T18:08:10.443Z</lastmod>
+    <lastmod>2026-10-22T15:33:47.521Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/cyris_basic.html</loc>
-    <lastmod>2026-10-21T14:33:44.053Z</lastmod>
+    <lastmod>2026-10-22T15:33:47.478Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/security.html</loc>
@@ -166,14 +166,14 @@
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/dmz_pivot.html</loc>
-    <lastmod>2026-10-21T14:33:44.054Z</lastmod>
+    <lastmod>2026-10-22T15:33:19.653Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/goad_light.html</loc>
-    <lastmod>2026-10-21T14:33:44.056Z</lastmod>
+    <lastmod>2026-10-22T15:34:20.183Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/splunk_detection.html</loc>
-    <lastmod>2026-10-21T14:33:44.059Z</lastmod>
+    <lastmod>2026-10-22T15:34:20.220Z</lastmod>
   </url>
 </urlset>
