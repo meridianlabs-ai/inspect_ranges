@@ -1404,7 +1404,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="hostbackendfactory">HostBackendFactory</h3>
 <p>What a custom backend exports under the dotted path <code>INSPECT_RANGES_HOST</code> names. Must be cheap: no dialing, no probing; remote work belongs in the provider’s <code>acquire</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L87">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L87">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>HostBackendFactory <span class="op">=</span> Callable[[HostBackendContext], HostBackend]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1412,7 +1412,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="hostbackendcontext">HostBackendContext</h3>
 <p>What a <span class="element-type-name ref-interlink"><a href="../reference/host.html#hostbackendfactory">HostBackendFactory</a></span> is called with.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L44">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L44">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(frozen<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostBackendContext</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1439,7 +1439,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One resolved backend bundle: the provider plus the hooks a <span class="element-type-name ref-interlink"><a href="../reference/host.html#hostprovider">HostProvider</a></span> alone cannot carry.</p>
 <p><code>channel_for_lease</code> is <code>None</code> for a co-resident backend (the runtime keeps its local <code>up</code>/<code>down</code>/channel seams); a separated backend supplies it and the runtime derives the swapped seams from it (<code>seams.py</code>). <code>reclaim</code> overrides the reaper’s teardown-by-origin connector; left <code>None</code>, a separated backend gets the channel-teardown default and a co-resident one the reaper’s direct <code>down</code>. <code>doctor_probe</code> lets <code>inspect-ranges doctor</code> check reachability.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L56">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L56">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(frozen<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostBackend</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1459,7 +1459,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>The teardown-by-origin connector the reaper runs: the explicit <code>reclaim</code>, the channel-teardown default for a separated backend, or <code>None</code> for a co-resident one (the reaper’s direct <code>down</code> applies).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L73">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L73">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> reclaimer(<span class="va">self</span>) <span class="op">-&gt;</span> ReclaimFn <span class="op">|</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1473,7 +1473,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="channelforlease">ChannelForLease</h3>
 <p>A control channel to the (possibly remote) host a lease names: the one hook a separated backend supplies, from which the runtime derives every other seam it needs. A typical implementation wraps the backend’s own <span class="element-type-name ref-interlink"><a href="../reference/host.html#transport">Transport</a></span> in a <span class="element-type-name ref-interlink"><a href="../reference/host.html#messagechannel">MessageChannel</a></span>, inheriting the whole wire discipline (request ids, retries, budgets, validation).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/seams.py#L32">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/seams.py#L32">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ChannelForLease <span class="op">=</span> Callable[[HostLease], MessageChannel]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1481,7 +1481,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="reclaimfn">ReclaimFn</h3>
 <p>The reaper’s teardown-by-origin connector: <code>(lease, state_dir)</code>; raises on failure, after which the lease stays <code>reaping</code> and the next sweep retries.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L19">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L19">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ReclaimFn <span class="op">=</span> Callable[[HostLease, Path], <span class="va">None</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1489,7 +1489,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="doctorprobe">DoctorProbe</h3>
 <p>An optional reachability probe for <code>inspect-ranges doctor</code>: <code>None</code> when healthy, else the failure detail.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L22">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L22">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>DoctorProbe <span class="op">=</span> Callable[[], <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1501,7 +1501,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Acquires and releases range hosts.</p>
 <p><code>acquire</code> returns a lease (identity plus expiry; a sample that outlives its lease is reclaimed by the independent reaper), gates on doctor readiness, logs the isolation claim, and starts renewal. <code>release</code> is destruction and must only follow a successful teardown: a used host is never returned to a pool, and a failed teardown frees nothing. <code>abandon</code> is the deliberate keep-it-running path (<code>cleanup=False</code>): renewal stops but the lease stays, so the reaper reclaims after expiry.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L87">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L87">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostProvider(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1510,7 +1510,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One acquired range host: the channel to it, and what the deployment claims about it.</p>
 <p><code>channel</code> is <code>None</code> between acquire and boot in the co-resident backend (the local path builds its channel from booted guest CIDs, after <code>up</code>); the separated backend attaches it at acquire. Consumers that need the channel assert its presence at their boundary.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L71">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L71">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeHost(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4 class-methods">
@@ -1520,7 +1520,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Raise <span class="element-type-name ref-interlink"><a href="../reference/host.html#leaselosterror">LeaseLostError</a></span> when this host’s lease has been lost (reaped, or expired and reclaimed); ops call this first, so lease loss fails the sample loudly at its next operation instead of silently running on a reclaimed host.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L82">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L82">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_lease(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1534,7 +1534,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="samplespec">SampleSpec</h3>
 <p>What a <code>HostProvider.acquire</code> needs to know about the sample it hosts.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L18">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L18">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SampleSpec(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1552,7 +1552,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Driver-side placement facts the lease record needs so the reaper can act from disk alone.</p>
 <p><span class="element-type-name ref-interlink"><a href="../reference/host.html#samplespec">SampleSpec</a></span> deliberately carries none of these (they are placement, not sample identity), yet the recorded lease shape requires them; <code>acquire</code> takes them as a second argument. Recorded in the <code>range-host-v1.md</code> ledger as a seam-signature extension over the <code>host-provider.md:83-91</code> sketch.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L56">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L56">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LeasePlacement(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1570,7 +1570,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>What the deployment declares it can do; absence refuses at planning, never degrades silently.</p>
 <p>v1 pins every capability to its only supported value: image delivery is pre-seeded (the cache already holds the verified chain), and neither <code>forward</code> upstream reach nor egress grants exist yet.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L31">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L31">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostCapabilities(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1587,7 +1587,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="hostfacts">HostFacts</h3>
 <p>Host-class identity: render inputs are host-class declarations, never per-instance probes.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L46">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L46">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostFacts(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1595,7 +1595,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="isolationlevel">IsolationLevel</h3>
 <p>The per-sample isolation claim, logged so the eval-log claim stays truthful (<code>host-provider.md:27</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L14">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L14">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>IsolationLevel <span class="op">=</span> Literal[<span class="st">"instance"</span>, <span class="st">"shared"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1606,7 +1606,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="hostlease">HostLease</h3>
 <p>One sample’s claim on a host: identity plus absolute expiry, the exact record shape from <code>range-host-v1.md</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L58">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L58">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostLease(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1636,7 +1636,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Cross-process host leases over a flock-guarded <code>leases.json</code>, keyed by lease id.</p>
 <p>Shares the <code>JsonRegistry</code> discipline with the CID allocator: atomic sorted writes, and entries another version wrote are preserved verbatim, never silently dropped.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L93">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L93">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LeaseStore</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4 class-methods">
@@ -1646,7 +1646,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Mint a fresh active lease expiring <code>ttl_s</code> (default <span class="element-type-name ref-interlink"><a href="../reference/host.html#lease_ttl_s">lease_ttl_s()</a></span>) from now.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L105">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L105">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> acquire(</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
@@ -1714,7 +1714,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>The renewal CAS: extend expiry if and only if the lease still exists and is <code>active</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L143">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L143">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> renew(<span class="va">self</span>, lease_id: <span class="bu">str</span>, ttl_s: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> HostLease</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -1732,7 +1732,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Remove the lease; idempotent, callable from any process. Release is destruction: call only after a successful teardown.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L165">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L165">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> release(<span class="va">self</span>, lease_id: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -1746,7 +1746,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Every parseable lease, sorted by lease id (read-only; never rewrites the file).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L174">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L174">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> leases(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[HostLease]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1757,7 +1757,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Leases past expiry or already <code>reaping</code>, without mutating anything (the doctor-hint view of what a sweep would select).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L179">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L179">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> expired(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[HostLease]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1769,7 +1769,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One sweep selection under the flock: every lease already <code>reaping</code> (crash resume) plus every <code>active</code> lease whose expiry, re-checked against now, has passed (a renewal may have landed since the sweep was scheduled), marked <code>reaping</code>. Teardown happens outside the lock; a marked lease refuses renewal, so the race is settled here, atomically, in one direction or the other.</p>
 <p>A sweep that selects nothing never rewrites the file (an idle <code>--interval</code> reaper must not churn <code>leases.json</code>), so candidates are probed read-only first and the marking write re-checks under its own lock.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L188">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L188">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mark_reaping(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[HostLease]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1783,7 +1783,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="leaselosterror">LeaseLostError</h3>
 <p>The sample’s host lease is gone or being reaped; the sample fails loudly as lease loss, never limps on.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L54">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L54">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LeaseLostError(<span class="pp">RuntimeError</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1791,7 +1791,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="lease_ttl_s">lease_ttl_s</h3>
 <p><code>INSPECT_RANGES_LEASE_TTL_S</code> as a positive float, default 600; renewal runs at a third of it.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L32">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L32">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lease_ttl_s() <span class="op">-&gt;</span> <span class="bu">float</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1799,7 +1799,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="localrangehost">LocalRangeHost</h3>
 <p>One leased co-resident host. The channel is attached by the provider after boot (today’s path builds it from booted guest CIDs), so it is <code>None</code> until then.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L45">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L45">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LocalRangeHost</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4 class-methods">
@@ -1809,7 +1809,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Raise the <span class="element-type-name ref-interlink"><a href="../reference/host.html#leaselosterror">LeaseLostError</a></span> a renewal step recorded, so lease loss fails the sample loudly at its next operation.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L60">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L60">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_lease(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1820,7 +1820,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>One renewal step, exactly what the background task runs at TTL/3; the renewal-versus-reap tests drive it directly.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L69">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L69">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> renew_now(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -1834,7 +1834,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="local_host_facts">local_host_facts</h3>
 <p>This machine’s host-class identity; <code>INSPECT_RANGES_HOST_CLASS</code> names the class (declarations, never per-instance probes).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L36">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L36">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> local_host_facts() <span class="op">-&gt;</span> HostFacts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1846,7 +1846,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Transport-agnostic control plane to one sample’s range (<code>host-provider.md</code>).</p>
 <p>Implementations: <span class="element-type-name ref-interlink"><a href="../reference/host.html#messagechannel">MessageChannel</a></span> over a real or mock transport. Nothing above this interface may know which transport carries it.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L194">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L194">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeChannel(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1854,7 +1854,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="messagechannel">MessageChannel</h3>
 <p><span class="element-type-name ref-interlink"><a href="../reference/host.html#rangechannel">RangeChannel</a></span> implementation over any per-operation-connect <span class="element-type-name ref-interlink"><a href="../reference/host.html#transport">Transport</a></span>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L237">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L237">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MessageChannel</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4 class-methods">
@@ -1864,7 +1864,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>The most recent codec trace events, formatted one per line.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L259">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L259">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> trace_tail(<span class="va">self</span>, limit: <span class="bu">int</span> <span class="op">=</span> <span class="dv">40</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -1878,7 +1878,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Liveness and protocol-version probe for one guest.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L568">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L568">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> ping(<span class="va">self</span>, guest: <span class="bu">str</span>) <span class="op">-&gt;</span> PongReply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -1893,7 +1893,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The guest daemon’s current session id, via a fresh ping.</p>
 <p>The provider pins it per guest at boot and treats a later change as a daemon restart: the wire layer’s exactly-once guarantee (dedupe, tombstones, durable replies) holds only within one session (<code>SessionHex</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L574">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L574">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> session(<span class="va">self</span>, guest: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -1909,7 +1909,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Liveness-polled: the initial reply wait is capped so at least one poll precedes the exec deadline; <code>pending</code> replies prove liveness while the command runs, so long execs stay allowance-bounded between polls, and three consecutive allowance windows with zero liveness evidence are a channel-layer failure. The exec deadline (<code>command_ms</code> plus the shared observation grace, or the untimed total) firing without RECENT liveness is a channel-layer verdict; with recent liveness it is a command-layer verdict (the guest demonstrably failed to kill within its own grace).</p>
 <p>At-most-once: a resend is only legal while the request provably never left (connect failed); once delivery is possible, a daemon <code>ENOENT</code>/<code>ESTALE</code> for the id surfaces as <code>TransportFailure</code>, never a re-run.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L581">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L581">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> <span class="bu">exec</span>(</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
@@ -1942,7 +1942,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Read a guest file, capped at <code>cap</code> bytes.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L823">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L823">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> read_file(</span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, guest: <span class="bu">str</span>, path: <span class="bu">str</span>, <span class="op">*</span>, cap: <span class="bu">int</span> <span class="op">=</span> DEFAULT_BULK_CAP</span>
@@ -1968,7 +1968,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>mode</code> sets the created file’s permission bits atomically with the write (<code>WriteFileRequest.mode</code>); <code>None</code> keeps the daemon default.</p>
 <p>Returns the delivery-attempt count: above 1 means a same-id resend happened (the provider’s session-invalidation policy reads this for side-effecting operations).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L841">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L841">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> write_file(</span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, guest: <span class="bu">str</span>, path: <span class="bu">str</span>, data: <span class="bu">bytes</span>, <span class="op">*</span>, mode: <span class="bu">int</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span></span>
@@ -1996,7 +1996,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Open a capability-gated forward (not implemented until the realizer integration).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L867">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L867">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> forward(<span class="va">self</span>, guest: <span class="bu">str</span>, host: <span class="bu">str</span>, port: <span class="bu">int</span>) <span class="op">-&gt;</span> ForwardReply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -2018,7 +2018,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Read the daemon’s diagnostics: the in-guest ring buffer tail plus the supervised listener-restart count.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L874">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L874">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> diag(<span class="va">self</span>, guest: <span class="bu">str</span>, <span class="op">*</span>, max_entries: <span class="bu">int</span> <span class="op">=</span> <span class="dv">100</span>) <span class="op">-&gt;</span> DiagReply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
@@ -2037,7 +2037,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Poll the applier for uptime and per-guest state (the driver-initiated heartbeat verb).</p>
 <p>The seam’s “periodic heartbeat” (<code>host-provider.md</code>) is driver-polled: a pull verb fits per-operation-connect and connectionless transports where an unsolicited push does not. The poll reuses the existing <code>PingRequest</code> to the host endpoint and expects the existing <span class="element-type-name ref-interlink"><a href="../reference/host.html#heartbeat">Heartbeat</a></span> reply with the matching id, so no wire kind was added; a dedicated <code>HeartbeatRequest</code> kind is the recorded multi-host growth path (<code>range-host-v1.md</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L882">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L882">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> heartbeat(<span class="va">self</span>) <span class="op">-&gt;</span> Heartbeat</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -2051,7 +2051,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>gap_allowances</code> widens the per-report allowance per gap, keyed by the stage the gap follows (<code>None</code> keys the gap before the first report). The applier legally emits nothing while a gap’s occupant runs (the first-use range-image build before any report, <code>compose up --wait</code> after <code>construct</code>, the guest-boot exec after <code>boot</code>, the sequential readiness pass after <code>verify</code>), so the caller supplies each occupied gap’s plan-derived envelope; the channel allowance stays the floor, every unlisted gap keeps it, and each gap stays bounded (a wedged occupant still fails at its envelope, not at the untimed total) (quality-review A10, extended to the sibling gaps by R2-3).</p>
 <p>Stage-order leniency, deliberate: skipping stages is allowed (a cache-hitting applier legitimately jumps ahead) and <code>failed</code> is allowed anywhere including first (an honest fast failure); only <code>ready</code> as the very first report is tamper. A hostile applier can emit the honest sequence anyway, so tightening buys no security.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L891">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L891">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> realize(</span>
 <span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
@@ -2079,7 +2079,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Tear the range down. Teardown is contractually idempotent: callers may retry with a fresh id.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L1096">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L1096">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> teardown(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -2093,7 +2093,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="transport">Transport</h3>
 <p>Per-operation connection factory; <code>endpoint</code> is a guest name or <code>HOST_APPLIER</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L188">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L188">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Transport(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2101,7 +2101,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="bytestream">ByteStream</h3>
 <p>One connection’s byte stream; <code>receive</code> returns empty bytes at EOF.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L180">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L180">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ByteStream(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2109,7 +2109,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="execrequest">ExecRequest</h3>
 <p>Run an argv command in the guest (never an implicit shell); stdin rides the bulk.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L141">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L141">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ExecRequest(_BulkMessage)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2127,7 +2127,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Validated exec result with the bulk split back into streams.</p>
 <p><code>attempts</code> counts deliveries of the exec request itself (not liveness polls): a value above 1 means a same-id resend happened, which the provider’s session-invalidation policy uses to decide whether exactly-once still holds for side-effecting operations.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L163">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L163">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ExecOutcome</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -2149,7 +2149,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="stagereport">StageReport</h3>
 <p>Staged realization progress; <code>failed</code> carries diagnostics in <code>detail</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L339">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L339">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> StageReport(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2157,7 +2157,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="forwardreply">ForwardReply</h3>
 <p>Reply to a granted <code>forward</code>; <code>handle</code> names the opened forward (capability-gated, wire-stable ahead of its implementation).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L275">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L275">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ForwardReply(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2165,7 +2165,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="pongreply">PongReply</h3>
 <p>Reply to <code>ping</code>: the daemon’s identity string, protocol version, and boot session.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L215">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L215">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PongReply(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2182,7 +2182,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="diagreply">DiagReply</h3>
 <p>Reply to <code>diag</code>: the tail of the daemon’s in-guest diagnostic ring buffer.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L290">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L290">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DiagReply(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2199,7 +2199,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="heartbeat">Heartbeat</h3>
 <p>The host’s heartbeat reply, driver-polled (a pull verb fits per-operation-connect transports): uptime plus per-guest state.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L348">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L348">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Heartbeat(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 

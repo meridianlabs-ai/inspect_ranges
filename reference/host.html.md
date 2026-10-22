@@ -8,7 +8,7 @@ The range-host extension point: a [HostBackendFactory](../reference/host.html.md
 
 What a custom backend exports under the dotted path `INSPECT_RANGES_HOST` names. Must be cheap: no dialing, no probing; remote work belongs in the provider’s `acquire`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L87)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L87)
 
 ``` python
 HostBackendFactory = Callable[[HostBackendContext], HostBackend]
@@ -18,7 +18,7 @@ HostBackendFactory = Callable[[HostBackendContext], HostBackend]
 
 What a [HostBackendFactory](../reference/host.html.md#hostbackendfactory) is called with.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L44)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L44)
 
 ``` python
 @dataclass(frozen=True)
@@ -42,7 +42,7 @@ One resolved backend bundle: the provider plus the hooks a [HostProvider](../ref
 
 `channel_for_lease` is `None` for a co-resident backend (the runtime keeps its local `up`/`down`/channel seams); a separated backend supplies it and the runtime derives the swapped seams from it (`seams.py`). `reclaim` overrides the reaper’s teardown-by-origin connector; left `None`, a separated backend gets the channel-teardown default and a co-resident one the reaper’s direct `down`. `doctor_probe` lets `inspect-ranges doctor` check reachability.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L56)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L56)
 
 ``` python
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ Whether the backend reaches its host through a channel rather than running co-re
 reclaimer  
 The teardown-by-origin connector the reaper runs: the explicit `reclaim`, the channel-teardown default for a separated backend, or `None` for a co-resident one (the reaper’s direct `down` applies).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L73)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L73)
 
 ``` python
 def reclaimer(self) -> ReclaimFn | None
@@ -69,7 +69,7 @@ def reclaimer(self) -> ReclaimFn | None
 
 A control channel to the (possibly remote) host a lease names: the one hook a separated backend supplies, from which the runtime derives every other seam it needs. A typical implementation wraps the backend’s own [Transport](../reference/host.html.md#transport) in a [MessageChannel](../reference/host.html.md#messagechannel), inheriting the whole wire discipline (request ids, retries, budgets, validation).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/seams.py#L32)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/seams.py#L32)
 
 ``` python
 ChannelForLease = Callable[[HostLease], MessageChannel]
@@ -79,7 +79,7 @@ ChannelForLease = Callable[[HostLease], MessageChannel]
 
 The reaper’s teardown-by-origin connector: `(lease, state_dir)`; raises on failure, after which the lease stays `reaping` and the next sweep retries.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L19)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L19)
 
 ``` python
 ReclaimFn = Callable[[HostLease, Path], None]
@@ -89,7 +89,7 @@ ReclaimFn = Callable[[HostLease, Path], None]
 
 An optional reachability probe for `inspect-ranges doctor`: `None` when healthy, else the failure detail.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/backend.py#L22)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/backend.py#L22)
 
 ``` python
 DoctorProbe = Callable[[], str | None]
@@ -103,7 +103,7 @@ Acquires and releases range hosts.
 
 `acquire` returns a lease (identity plus expiry; a sample that outlives its lease is reclaimed by the independent reaper), gates on doctor readiness, logs the isolation claim, and starts renewal. `release` is destruction and must only follow a successful teardown: a used host is never returned to a pool, and a failed teardown frees nothing. `abandon` is the deliberate keep-it-running path (`cleanup=False`): renewal stops but the lease stays, so the reaper reclaims after expiry.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L87)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L87)
 
 ``` python
 class HostProvider(Protocol)
@@ -115,7 +115,7 @@ One acquired range host: the channel to it, and what the deployment claims about
 
 `channel` is `None` between acquire and boot in the co-resident backend (the local path builds its channel from booted guest CIDs, after `up`); the separated backend attaches it at acquire. Consumers that need the channel assert its presence at their boundary.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L71)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L71)
 
 ``` python
 class RangeHost(Protocol)
@@ -126,7 +126,7 @@ class RangeHost(Protocol)
 check_lease  
 Raise [LeaseLostError](../reference/host.html.md#leaselosterror) when this host’s lease has been lost (reaped, or expired and reclaimed); ops call this first, so lease loss fails the sample loudly at its next operation instead of silently running on a reclaimed host.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L82)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L82)
 
 ``` python
 def check_lease(self) -> None
@@ -136,7 +136,7 @@ def check_lease(self) -> None
 
 What a `HostProvider.acquire` needs to know about the sample it hosts.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L18)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L18)
 
 ``` python
 class SampleSpec(BaseModel)
@@ -153,7 +153,7 @@ Driver-side placement facts the lease record needs so the reaper can act from di
 
 [SampleSpec](../reference/host.html.md#samplespec) deliberately carries none of these (they are placement, not sample identity), yet the recorded lease shape requires them; `acquire` takes them as a second argument. Recorded in the `range-host-v1.md` ledger as a seam-signature extension over the `host-provider.md:83-91` sketch.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L56)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L56)
 
 ``` python
 class LeasePlacement(BaseModel)
@@ -170,7 +170,7 @@ What the deployment declares it can do; absence refuses at planning, never degra
 
 v1 pins every capability to its only supported value: image delivery is pre-seeded (the cache already holds the verified chain), and neither `forward` upstream reach nor egress grants exist yet.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L31)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L31)
 
 ``` python
 class HostCapabilities(BaseModel)
@@ -185,7 +185,7 @@ How the host delivers capture evidence (`host-provider.md:104`): it writes to th
 
 Host-class identity: render inputs are host-class declarations, never per-instance probes.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L46)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L46)
 
 ``` python
 class HostFacts(BaseModel)
@@ -195,7 +195,7 @@ class HostFacts(BaseModel)
 
 The per-sample isolation claim, logged so the eval-log claim stays truthful (`host-provider.md:27`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/host.py#L14)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/host.py#L14)
 
 ``` python
 IsolationLevel = Literal["instance", "shared"]
@@ -207,7 +207,7 @@ IsolationLevel = Literal["instance", "shared"]
 
 One sample’s claim on a host: identity plus absolute expiry, the exact record shape from `range-host-v1.md`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L58)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L58)
 
 ``` python
 class HostLease(BaseModel)
@@ -233,7 +233,7 @@ Cross-process host leases over a flock-guarded `leases.json`, keyed by lease id.
 
 Shares the `JsonRegistry` discipline with the CID allocator: atomic sorted writes, and entries another version wrote are preserved verbatim, never silently dropped.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L93)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L93)
 
 ``` python
 class LeaseStore
@@ -244,7 +244,7 @@ class LeaseStore
 acquire  
 Mint a fresh active lease expiring `ttl_s` (default [lease_ttl_s()](../reference/host.html.md#lease_ttl_s)) from now.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L105)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L105)
 
 ``` python
 def acquire(
@@ -289,7 +289,7 @@ def acquire(
 renew  
 The renewal CAS: extend expiry if and only if the lease still exists and is `active`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L143)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L143)
 
 ``` python
 def renew(self, lease_id: str, ttl_s: float | None = None) -> HostLease
@@ -302,7 +302,7 @@ def renew(self, lease_id: str, ttl_s: float | None = None) -> HostLease
 release  
 Remove the lease; idempotent, callable from any process. Release is destruction: call only after a successful teardown.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L165)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L165)
 
 ``` python
 def release(self, lease_id: str) -> None
@@ -313,7 +313,7 @@ def release(self, lease_id: str) -> None
 leases  
 Every parseable lease, sorted by lease id (read-only; never rewrites the file).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L174)
 
 ``` python
 def leases(self) -> list[HostLease]
@@ -322,7 +322,7 @@ def leases(self) -> list[HostLease]
 expired  
 Leases past expiry or already `reaping`, without mutating anything (the doctor-hint view of what a sweep would select).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L179)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L179)
 
 ``` python
 def expired(self) -> list[HostLease]
@@ -333,7 +333,7 @@ One sweep selection under the flock: every lease already `reaping` (crash resume
 
 A sweep that selects nothing never rewrites the file (an idle `--interval` reaper must not churn `leases.json`), so candidates are probed read-only first and the marking write re-checks under its own lock.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L188)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L188)
 
 ``` python
 def mark_reaping(self) -> list[HostLease]
@@ -343,7 +343,7 @@ def mark_reaping(self) -> list[HostLease]
 
 The sample’s host lease is gone or being reaped; the sample fails loudly as lease loss, never limps on.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L54)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L54)
 
 ``` python
 class LeaseLostError(RuntimeError)
@@ -353,7 +353,7 @@ class LeaseLostError(RuntimeError)
 
 `INSPECT_RANGES_LEASE_TTL_S` as a positive float, default 600; renewal runs at a third of it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/leases.py#L32)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/leases.py#L32)
 
 ``` python
 def lease_ttl_s() -> float
@@ -363,7 +363,7 @@ def lease_ttl_s() -> float
 
 One leased co-resident host. The channel is attached by the provider after boot (today’s path builds it from booted guest CIDs), so it is `None` until then.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L45)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L45)
 
 ``` python
 class LocalRangeHost
@@ -374,7 +374,7 @@ class LocalRangeHost
 check_lease  
 Raise the [LeaseLostError](../reference/host.html.md#leaselosterror) a renewal step recorded, so lease loss fails the sample loudly at its next operation.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L60)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L60)
 
 ``` python
 def check_lease(self) -> None
@@ -383,7 +383,7 @@ def check_lease(self) -> None
 renew_now  
 One renewal step, exactly what the background task runs at TTL/3; the renewal-versus-reap tests drive it directly.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L69)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L69)
 
 ``` python
 async def renew_now(self) -> None
@@ -393,7 +393,7 @@ async def renew_now(self) -> None
 
 This machine’s host-class identity; `INSPECT_RANGES_HOST_CLASS` names the class (declarations, never per-instance probes).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_host/local.py#L36)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_host/local.py#L36)
 
 ``` python
 def local_host_facts() -> HostFacts
@@ -407,7 +407,7 @@ Transport-agnostic control plane to one sample’s range (`host-provider.md`).
 
 Implementations: [MessageChannel](../reference/host.html.md#messagechannel) over a real or mock transport. Nothing above this interface may know which transport carries it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L194)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L194)
 
 ``` python
 class RangeChannel(Protocol)
@@ -417,7 +417,7 @@ class RangeChannel(Protocol)
 
 [RangeChannel](../reference/host.html.md#rangechannel) implementation over any per-operation-connect [Transport](../reference/host.html.md#transport).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L237)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L237)
 
 ``` python
 class MessageChannel
@@ -428,7 +428,7 @@ class MessageChannel
 trace_tail  
 The most recent codec trace events, formatted one per line.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L259)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L259)
 
 ``` python
 def trace_tail(self, limit: int = 40) -> list[str]
@@ -439,7 +439,7 @@ def trace_tail(self, limit: int = 40) -> list[str]
 ping  
 Liveness and protocol-version probe for one guest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L568)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L568)
 
 ``` python
 async def ping(self, guest: str) -> PongReply
@@ -452,7 +452,7 @@ The guest daemon’s current session id, via a fresh ping.
 
 The provider pins it per guest at boot and treats a later change as a daemon restart: the wire layer’s exactly-once guarantee (dedupe, tombstones, durable replies) holds only within one session (`SessionHex`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L574)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L574)
 
 ``` python
 async def session(self, guest: str) -> str
@@ -467,7 +467,7 @@ Liveness-polled: the initial reply wait is capped so at least one poll precedes 
 
 At-most-once: a resend is only legal while the request provably never left (connect failed); once delivery is possible, a daemon `ENOENT`/`ESTALE` for the id surfaces as `TransportFailure`, never a re-run.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L581)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L581)
 
 ``` python
 async def exec(
@@ -491,7 +491,7 @@ async def exec(
 read_file  
 Read a guest file, capped at `cap` bytes.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L823)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L823)
 
 ``` python
 async def read_file(
@@ -512,7 +512,7 @@ Write `data` to a guest file (exactly once per request id, even across retries).
 
 Returns the delivery-attempt count: above 1 means a same-id resend happened (the provider’s session-invalidation policy reads this for side-effecting operations).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L841)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L841)
 
 ``` python
 async def write_file(
@@ -531,7 +531,7 @@ async def write_file(
 forward  
 Open a capability-gated forward (not implemented until the realizer integration).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L867)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L867)
 
 ``` python
 async def forward(self, guest: str, host: str, port: int) -> ForwardReply
@@ -546,7 +546,7 @@ async def forward(self, guest: str, host: str, port: int) -> ForwardReply
 diag  
 Read the daemon’s diagnostics: the in-guest ring buffer tail plus the supervised listener-restart count.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L874)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L874)
 
 ``` python
 async def diag(self, guest: str, *, max_entries: int = 100) -> DiagReply
@@ -561,7 +561,7 @@ Poll the applier for uptime and per-guest state (the driver-initiated heartbeat 
 
 The seam’s “periodic heartbeat” (`host-provider.md`) is driver-polled: a pull verb fits per-operation-connect and connectionless transports where an unsolicited push does not. The poll reuses the existing `PingRequest` to the host endpoint and expects the existing [Heartbeat](../reference/host.html.md#heartbeat) reply with the matching id, so no wire kind was added; a dedicated `HeartbeatRequest` kind is the recorded multi-host growth path (`range-host-v1.md`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L882)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L882)
 
 ``` python
 async def heartbeat(self) -> Heartbeat
@@ -576,7 +576,7 @@ Hardened per the realize policy: every transport interaction (connect, send, eac
 
 Stage-order leniency, deliberate: skipping stages is allowed (a cache-hitting applier legitimately jumps ahead) and `failed` is allowed anywhere including first (an honest fast failure); only `ready` as the very first report is tamper. A hostile applier can emit the honest sequence anyway, so tightening buys no security.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L891)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L891)
 
 ``` python
 async def realize(
@@ -597,7 +597,7 @@ async def realize(
 teardown  
 Tear the range down. Teardown is contractually idempotent: callers may retry with a fresh id.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L1096)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L1096)
 
 ``` python
 async def teardown(self) -> None
@@ -607,7 +607,7 @@ async def teardown(self) -> None
 
 Per-operation connection factory; `endpoint` is a guest name or `HOST_APPLIER`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L188)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L188)
 
 ``` python
 class Transport(Protocol)
@@ -617,7 +617,7 @@ class Transport(Protocol)
 
 One connection’s byte stream; `receive` returns empty bytes at EOF.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L180)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L180)
 
 ``` python
 class ByteStream(Protocol)
@@ -627,7 +627,7 @@ class ByteStream(Protocol)
 
 Run an argv command in the guest (never an implicit shell); stdin rides the bulk.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L141)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L141)
 
 ``` python
 class ExecRequest(_BulkMessage)
@@ -644,7 +644,7 @@ Validated exec result with the bulk split back into streams.
 
 `attempts` counts deliveries of the exec request itself (not liveness polls): a value above 1 means a same-id resend happened, which the provider’s session-invalidation policy uses to decide whether exactly-once still holds for side-effecting operations.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/channel.py#L163)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/channel.py#L163)
 
 ``` python
 @dataclass
@@ -663,7 +663,7 @@ Whether stdout was cut at the guest’s output cap (`SUBMIT`-style line protocol
 
 Staged realization progress; `failed` carries diagnostics in `detail`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L339)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L339)
 
 ``` python
 class StageReport(_MessageBase)
@@ -673,7 +673,7 @@ class StageReport(_MessageBase)
 
 Reply to a granted `forward`; `handle` names the opened forward (capability-gated, wire-stable ahead of its implementation).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L275)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L275)
 
 ``` python
 class ForwardReply(_MessageBase)
@@ -683,7 +683,7 @@ class ForwardReply(_MessageBase)
 
 Reply to `ping`: the daemon’s identity string, protocol version, and boot session.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L215)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L215)
 
 ``` python
 class PongReply(_MessageBase)
@@ -698,7 +698,7 @@ Required: an honest daemon always reports its session (provider-v1 layer 2b).
 
 Reply to `diag`: the tail of the daemon’s in-guest diagnostic ring buffer.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L290)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L290)
 
 ``` python
 class DiagReply(_MessageBase)
@@ -713,7 +713,7 @@ Supervised listener recreations since daemon start: the storm battery asserts it
 
 The host’s heartbeat reply, driver-polled (a pull verb fits per-operation-connect transports): uptime plus per-guest state.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_channel/protocol.py#L348)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/28890ce6d7f86f353f8638103ddb5de4f3db2fca/src/inspect_ranges/_channel/protocol.py#L348)
 
 ``` python
 class Heartbeat(_MessageBase)
