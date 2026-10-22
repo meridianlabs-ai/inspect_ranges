@@ -8,7 +8,7 @@ The package’s top-level surface. The eval wiring is covered in [Challenges](..
 
 Build an Inspect dataset from a challenges file.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/dataset.py#L63)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/dataset.py#L63)
 
 ``` python
 def challenge_dataset(
@@ -27,13 +27,13 @@ The range the challenges run against, for early cross-reference validation: a va
 
 Plant every goal’s per-sample material before the agent acts, and start the sample’s observers.
 
-Pass as the task’s `setup` (equivalently, prepend to the solver chain; `setup=` is the same thing and is what the packaged examples do). Refuses (raises) when the sample carries no challenge metadata, a required observer is unavailable in this deployment, or any plant fails; plants written before a failure are unwound, so the agent never starts against a half-planted range.
+Pass as the task’s `setup=`, or equivalently prepend to the solver chain (the packaged examples use `setup=`). Refuses (raises) when the sample carries no challenge metadata, a required observer is unavailable in this deployment, or any plant fails; plants written before a failure are unwound, so the agent never starts against a half-planted range.
 
 Prober-based goals (`availability`, `degrade`, `tamper`) start the active prober after a successful setup, probing from the rendered probe endpoint on a cadence; `detection` and `evade` goals start the telemetry export poller for their collector, which must have a matching entry in `telemetry_collectors` (poll mechanics are deployment knowledge the schema deliberately does not carry: the collector name binds the two). Both producers write evidence mid-run and are stopped by the evidence session at finalize; the scorer reads recorded results only.
 
 This solver never touches the agent’s tools: [verify_goal()](../reference/inspect_ranges.html.md#verify_goal) is the only submission channel, and the task author always passes it to their agent (`react(tools=[bash(), verify_goal()])`, or inspect_swe’s `bridged_tools=[verify_goal()]`). The dataset’s appended prompt paragraph names the tool and the goal ids for every challenge; this solver registers the sample’s verification context so the tool can verify cheap-tier goals at call time.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/setup.py#L267)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/setup.py#L267)
 
 ``` python
 @solver
@@ -52,7 +52,7 @@ The scorer is a single end-of-run authority; its machinery (probers, corroborati
 
 Raises (at scoring time): `RuntimeError` when the sample carries no challenge metadata.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/scorer.py#L357)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/scorer.py#L357)
 
 ``` python
 @scorer(metrics=[accuracy()])
@@ -65,7 +65,7 @@ A tool verifying submitted proof values against challenge goals.
 
 Pass it to the agent (`react(tools=[bash(), verify_goal()])`, or inspect_swe’s `bridged_tools=[verify_goal()]`); it is the only submission channel, and `challenge_dataset` names it with the goal ids in every sample’s instructions.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/verify.py#L67)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/verify.py#L67)
 
 ``` python
 @tool
@@ -81,7 +81,7 @@ Report the per-call verification outcome and the running goal checklist in tool 
 
 One agent-facing prompt paired with the typed goals that verify it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L720)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L720)
 
 ``` python
 class Challenge(_StrictModel)
@@ -105,7 +105,7 @@ Aggregation of goal results (weights by default).
 
 A complete `challenges.yaml`: the list of challenges a range serves.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L797)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L797)
 
 ``` python
 class Challenges(_StrictModel)
@@ -120,7 +120,7 @@ The challenges; each becomes one Inspect sample.
 
 One typed goal; the YAML shape is flat and dispatches on `type` (built-ins through the union, registered custom types through `_dispatch_goal`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L658)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L658)
 
 ``` python
 Goal = Annotated[
@@ -146,7 +146,7 @@ Goal = Annotated[
 
 How a challenge’s goal results aggregate.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L696)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L696)
 
 ``` python
 class Scoring(_StrictModel)
@@ -164,7 +164,7 @@ Under `milestones`, a later step passing implies the earlier steps.
 
 Capability labels for cross-benchmark aggregation: descriptive only, never a scoring input.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L92)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L92)
 
 ``` python
 Primitive = Literal[
@@ -184,7 +184,7 @@ Override `observers()` to declare the trusted observers goals of the type requir
 
 A custom spec parses from YAML only in processes where the type’s registration has already run: under inspect the `inspect_ai` entry-point mechanism imports registering modules before any parsing, while a plain `load_challenges`/`validate_challenges` caller must import the registering module first, or the goal’s `type` name refuses as unknown.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L119)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L119)
 
 ``` python
 class GoalBase(_StrictModel)
@@ -212,7 +212,7 @@ The effective capability label: the authored override, else the type default.
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -222,7 +222,7 @@ def observers(self) -> frozenset[ObserverKind]
 
 Submit a per-sample secret planted at a path; no guest is consulted at scoring.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L179)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L179)
 
 ``` python
 class FlagGoal(GoalBase)
@@ -256,7 +256,7 @@ Account the planted file is readable by (mode 0600, owned by `owner`).
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -266,9 +266,9 @@ def observers(self) -> frozenset[ObserverKind]
 
 Submit a fact about the environment, compared against exactly one declared source.
 
-Sources: `variable` (the declared default, read from the spec; nothing draws in v1), `value` (a literal fact that is scenario content, visible in the spec by design), or `host` plus `path` (read by the oracle from the live instance). Exactly one source must be declared.
+Sources: `variable` (the declared default, read from the spec; nothing draws in v1, so the expected answer is as visible as the spec itself), `value` (a literal fact that is scenario content, visible in the spec by design), or `host` plus `path` (read by the oracle from the live instance). Exactly one source must be declared.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L193)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L193)
 
 ``` python
 class AnswerGoal(GoalBase)
@@ -305,7 +305,7 @@ In-guest path the oracle reads the expected fact from, with `host`.
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -317,7 +317,7 @@ Obtain target content: the submitted content or its per-sample canary matches th
 
 A file’s presence on the attack box never passes. When `segment` is declared, source-bound pcap corroborates the flow.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L241)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L241)
 
 ``` python
 class ExfiltrateGoal(GoalBase)
@@ -350,7 +350,7 @@ Network whose pcap corroborates the exfiltration flow, when declared.
 
 Run code on a host: produce a per-sample token readable only by the targeted execution context.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L262)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L262)
 
 ``` python
 class ExecuteGoal(GoalBase)
@@ -388,7 +388,7 @@ Redirect control flow short of code execution: the crash record shows the per-sa
 
 The proof is `guest-corroborated` with a declared floor: forging the crash record costs code execution on the target (an unprivileged process renamed to the service can jump to the disclosed address and the kernel emits a genuinely matching segfault line), so the type is sound when the claimed capability is cheaper than execution on that host.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L282)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L282)
 
 ``` python
 class HijackGoal(GoalBase)
@@ -420,7 +420,7 @@ Gain a host or principal: produce a secret planted where the claim lives.
 
 Registered under both `control` and `privilege`; `privilege` defaults the capability label to `escalate`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L300)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L300)
 
 ``` python
 class ControlGoal(GoalBase)
@@ -451,7 +451,7 @@ In-guest path of the planted secret (mode 0600, owned by `principal`).
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -463,7 +463,7 @@ Deny or degrade a service: the declared external probe fails its nonce-bound che
 
 DOWN is full credit; a declared degradation `measure` with its `threshold` earns partial credit between MUMBLE and DOWN.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L323)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L323)
 
 ``` python
 class DegradeGoal(GoalBase)
@@ -507,7 +507,7 @@ Modify target data or behavior: the written per-sample value is observed from ou
 
 The write target must require the claimed access (the placement rule). `observer: guest-snapshot` (write-what-where) is designed, pending the introspected channel, and refuses at validation.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L363)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L363)
 
 ``` python
 class TamperGoal(GoalBase)
@@ -543,7 +543,7 @@ How the written value is observed from outside.
 
 Keep a service up (defender direction): the external probe answers its per-probe nonce within the window.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L403)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L403)
 
 ``` python
 class AvailabilityGoal(GoalBase)
@@ -581,7 +581,7 @@ Surface an alert (defender direction): the collector contains, or for stealth la
 
 Scored inside the observation window with a completeness precondition: no alert over an incomplete window is indeterminate, never a stealth pass.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L422)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L422)
 
 ``` python
 class DetectionGoal(GoalBase)
@@ -619,7 +619,7 @@ How to read an alert’s severity from one export record, and the floor that cou
 
 Severity vocabularies are collector-specific, so the goal declares the extraction: `pattern` is a regex with exactly one capture group, applied per newline-delimited export record. Numeric mode (no `levels`): the capture parses as an integer, `floor` is an integer, and `lower_is_more_severe` flips the comparison for vocabularies like journald’s `PRIORITY` (0 is emergency, 7 is debug, so a floor of 4 counts captures of 4 or lower). Ordered mode (`levels` given, least to most severe): the capture and `floor` are both level names. Records the pattern does not match, or whose capture does not parse in the declared vocabulary, are not alerts and never count toward the threshold.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L463)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L463)
 
 ``` python
 class SeverityFilter(_StrictModel)
@@ -645,7 +645,7 @@ Achieve objectives while staying quiet (attacker direction): the dual of `detect
 
 Alerts matching the declared filter stay at or below `threshold` within the window, scored from the exported telemetry under the same completeness precondition as `detection`: a silenced collector reads per `on_sensor_tamper`, never as a free stealth pass. Export records are newline-delimited (the v1 convention); window edges resolve at chunk-span granularity like `detection`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L542)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L542)
 
 ``` python
 class EvadeGoal(GoalBase)
@@ -693,7 +693,7 @@ No default label: evade is a constraint on how objectives are reached, not a cap
 
 Produce an open-ended artifact graded by an LLM or human (`model-graded`, weight-capped by the engine).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L597)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L597)
 
 ``` python
 class JudgeGoal(GoalBase)
@@ -721,7 +721,7 @@ Grading instructions for the hardened judge template.
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -731,7 +731,7 @@ def observers(self) -> frozenset[ObserverKind]
 
 Fix a vulnerability (defender direction): the reference exploit re-run fails while the functional check passes.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L607)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L607)
 
 ``` python
 class PatchGoal(GoalBase)
@@ -771,7 +771,7 @@ One goal type’s proof mechanics; stateless, registered once, shared across sam
 
 `spec` is the schema class the YAML dispatched to; `assurance` is the type’s default label (override `assurance_for` when a goal’s declared source moves the trust, as `answer`’s oracle-read source does).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L124)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L124)
 
 ``` python
 class GoalType(ABC)
@@ -787,7 +787,7 @@ Whether `check` consumes the submissions view. When False, the scorer runs ONE c
 assurance_for  
 The assurance label for this specific goal (default: the type’s label).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L136)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L136)
 
 ``` python
 def assurance_for(self, goal: GoalBase) -> Assurance
@@ -798,7 +798,7 @@ def assurance_for(self, goal: GoalBase) -> Assurance
 setup  
 Plant per-sample material; returns plant-store keys for unwind (default: nothing).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L140)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L140)
 
 ``` python
 async def setup(self, goal: GoalBase, oracle: "RangeOracle") -> list[str]
@@ -811,7 +811,7 @@ async def setup(self, goal: GoalBase, oracle: "RangeOracle") -> list[str]
 check  
 Gather raw observations; never sends an expected value guest-ward.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L144)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L144)
 
 ``` python
 @abstractmethod
@@ -829,7 +829,7 @@ async def check(
 compare  
 Pure, host-side verdict over the observations and the plant record.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L150)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L150)
 
 ``` python
 @abstractmethod
@@ -848,7 +848,7 @@ def compare(
 
 One goal’s verdict, produced host-side by `compare` (or by the scorer on a failed check).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L85)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L85)
 
 ``` python
 class GoalResult(BaseModel)
@@ -877,7 +877,7 @@ Register a goal type under its name(s); duplicate names refuse.
 
 Registration opens both ends for the type: the engine dispatches scoring to it, and `challenges.yaml` parsing dispatches its YAML `type` name(s) to its `spec` class. Registration must therefore run before any challenges file naming the type parses: under inspect, register from an `inspect_ai` entry-point module (the mechanism `inspect_ranges` uses for its own built-ins, imported in every inspect process); a plain `load_challenges`/`validate_challenges` caller outside inspect must import the registering module first, or the type’s name refuses as unknown.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L160)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L160)
 
 ``` python
 def register_goal_type(
@@ -895,7 +895,7 @@ Registry names; defaults to `(goal_type.name,)`. `control`/`privilege` share one
 
 Register a reference exploit chain for `patch` scoring under `name`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/observedtypes.py#L713)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/observedtypes.py#L713)
 
 ``` python
 def register_exploit(name: str, script: str) -> None
@@ -911,7 +911,7 @@ Privileged access to one sample’s range for setup and scoring. Not a [SandboxE
 
 Obtain one with [range_oracle()](../reference/inspect_ranges.html.md#range_oracle) from setup or scoring code running in the sample context, or attach out of band to a running `up` project with `with range_oracle("<project>") as oracle:`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L87)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L87)
 
 ``` python
 class RangeOracle
@@ -933,7 +933,7 @@ The sample’s raw channel (the telemetry poller polls through it; same residue 
 evidence_session  
 The sample’s evidence session (producer registration, driver stream appends); `None` when evidence is unavailable.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L118)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L118)
 
 ``` python
 def evidence_session(self) -> "EvidenceSession | None"
@@ -942,7 +942,7 @@ def evidence_session(self) -> "EvidenceSession | None"
 nonce  
 A fresh per-call secret from independent entropy, never derived from any recorded seed.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L122)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L122)
 
 ``` python
 def nonce(self) -> str
@@ -953,7 +953,7 @@ The trusted observers this sample’s deployment can supply right now.
 
 `evidence-sink` exists when the evidence session is live; `segment-pcap` and `console` when capture was rendered into the range; `active-prober` when the plan carries rendered probe endpoints. `telemetry-collector` is deployment knowledge the oracle cannot see (which collector specs exist), so `challenge_setup` supplies it as an extra observer to `run_setup` when a matching spec was passed; a challenge requiring an observer absent from the union refuses at planting.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L126)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L126)
 
 ``` python
 def available_observers(self) -> frozenset[str]
@@ -962,7 +962,7 @@ def available_observers(self) -> frozenset[str]
 resolved  
 The sample’s resolved plan (per-guest address and CID allocations; see `guest_segment_ip`). Variables never ride the plan: `answer` goals read declared defaults from `range_spec()`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L142)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L142)
 
 ``` python
 def resolved(self) -> ResolvedPlan
@@ -971,7 +971,7 @@ def resolved(self) -> ResolvedPlan
 range_spec  
 The sample’s validated range spec: declared variables (defaults until draws land) and scenario content.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L148)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L148)
 
 ``` python
 def range_spec(self) -> RangeSpec
@@ -980,7 +980,7 @@ def range_spec(self) -> RangeSpec
 is_windows  
 Whether `guest` runs Windows, from the sample’s resolved plan; a plan-less handle (unit fixtures) treats every guest as linux.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L156)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L156)
 
 ``` python
 def is_windows(self, guest: str) -> bool
@@ -993,7 +993,7 @@ Run `cmd` (argv, never an implicit shell) in `guest` over the raw channel.
 
 `cmd` must never carry plant material: values travel as `write_file` bulk or `read_file` replies only. `env` is the Windows path-carrying contract (fixed script literals read `IR_PLANT_*` from it); it must never carry plant material either.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L163)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L163)
 
 ``` python
 async def exec(
@@ -1022,7 +1022,7 @@ Read a guest file raw (a T3 read like any other; the cost rule applies to oracle
 
 The daemon’s file plane reads as the daemon identity (the agent user), so privileged locations (a 0600 root plant, another principal’s file) need `user`: the read then rides the exec plane (`cat` with only the path in argv; the content returns as reply bulk, the same privacy class as a file read).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L186)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L186)
 
 ``` python
 async def read_file(
@@ -1050,7 +1050,7 @@ Without `owner`, this is the daemon’s file plane (mode pinned atomically with 
 
 On every failure path this frame scrubs `data` before raising, so a locals-rendered traceback (`INSPECT_TRACEBACK_LOCALS=1`) cannot carry plant bytes from here; lower channel frames are outside this guarantee, which is why that flag is forbidden on scoring runs.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L217)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L217)
 
 ``` python
 async def write_file(
@@ -1079,7 +1079,7 @@ Memoize the evidence accessors for the duration of one scoring pass.
 
 The evidence record is immutable once written, so within a pass every accessor returns the same bytes; without the memo, scoring cost scales with the number of agent-submitted candidates (each candidate’s `check` refetches the capture), which hands the agent linear control over scoring cost through `verify_goal` calls. The memo is per-key (`pcap/<segment>`, `telemetry/<collector>`, …) and cleared when the outermost open exits. Reentrant: `challenge_scorer` opens one memo around the whole pass (so two goals on the same segment share one fetch), and `score_challenge`’s per-goal open nests inside it as a no-op; the poller never fetches evidence, setup runs before any evidence exists, and `corroborate()` deliberately bypasses the memo (its claim-scoped reads ride `stream_chunks` directly).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L290)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L290)
 
 ``` python
 @contextmanager
@@ -1089,7 +1089,7 @@ def evidence_memo(self) -> "Generator[None]"
 pcap  
 The segment’s captured pcap chunks from the sample’s evidence record (host writer).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L316)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L316)
 
 ``` python
 async def pcap(self, segment: str) -> list[bytes]
@@ -1100,7 +1100,7 @@ async def pcap(self, segment: str) -> list[bytes]
 telemetry  
 The collector’s exported telemetry chunks (driver writer); query semantics arrive with the detection engine.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L328)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L328)
 
 ``` python
 async def telemetry(self, collector: str) -> list[bytes]
@@ -1111,7 +1111,7 @@ async def telemetry(self, collector: str) -> list[bytes]
 console  
 The guest’s continuous serial-console chunks from the sample’s evidence record (host writer).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L340)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L340)
 
 ``` python
 async def console(self, guest: str) -> list[bytes]
@@ -1124,7 +1124,7 @@ The goal’s recorded probe verdicts (driver writer) plus whether the stream car
 
 A gap is an observation hole: the prober flushes `down` verdicts immediately, so a lost chunk is disproportionately likely to be the one carrying failures, and the prober types treat a gapped stream as indeterminate rather than trusting the survivors.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L352)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L352)
 
 ``` python
 async def probe_records(self, goal_id: str) -> "tuple[list[SpannedRecord], bool]"
@@ -1137,7 +1137,7 @@ The collector’s export for scoring: meta records, data chunks with spans (`Non
 
 One manifest fetch serves both streams (the detection check runs per goal, possibly on a poller cadence, against a possibly remote store).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L367)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L367)
 
 ``` python
 async def telemetry_export(
@@ -1155,7 +1155,7 @@ Without arguments, the current sample’s oracle, resolved through the default s
 
 With a `project` name, a context manager attaching to a RUNNING range booted with `inspect-ranges up` (or `up --from-spec`), for poking at a range from a REPL or script: `with range_oracle("ir-dmz-pivot-...") as oracle:` yields the same oracle verbs (`exec`, `read_file`, `write_file`, …) over a transport rebuilt from the project’s recorded state (`state_dir` overrides the default project state directory). The attach is local-backend only and logs loudly, so an attach during a scoring run is visible in the run’s logs; leaving the context detaches the oracle, and later verbs refuse. An attached oracle carries no sample context: `resolved()`, `range_spec()`, and the evidence accessors refuse, and `is_windows` reads an empty plan, so the owner-flow `write_file` dispatches the POSIX script on every guest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L415)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L415)
 
 ``` python
 def range_oracle(
@@ -1171,7 +1171,7 @@ def range_oracle(
 
 A privileged setup operation failed; the message names the operation, never a value.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L39)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/oracle.py#L39)
 
 ``` python
 class OracleSetupError(RuntimeError)
@@ -1181,7 +1181,7 @@ class OracleSetupError(RuntimeError)
 
 Raw reads a `check` gathered; a guest read is attacker-authored in the worst case.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L70)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/engine.py#L70)
 
 ``` python
 class Observations(BaseModel)
@@ -1202,7 +1202,7 @@ Named chunked observations (evidence streams: each pcap chunk is a standalone ca
 
 Trusted observers a goal type may require; a deployment that cannot supply one refuses the challenge at planning time. `guest-snapshot` is designed, not built, and currently refuses at validation.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L97)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L97)
 
 ``` python
 ObserverKind = Literal[
@@ -1219,7 +1219,7 @@ ObserverKind = Literal[
 
 Whether any captured packet from `src` carries `value`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/pcapscan.py#L19)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/pcapscan.py#L19)
 
 ``` python
 def source_bound_find(
@@ -1249,7 +1249,7 @@ The guest’s interface address ON the declared segment.
 
 Source binding must watch the right NIC of a multi-homed guest; the declared segment picks it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/netident.py#L16)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/netident.py#L16)
 
 ``` python
 def guest_segment_ip(plan: ResolvedPlan, guest: str, segment: str) -> IPv4Address
@@ -1265,7 +1265,7 @@ def guest_segment_ip(plan: ResolvedPlan, guest: str, segment: str) -> IPv4Addres
 
 The declared probe-endpoint MAC convention (`02:50:`, the prober spike): frames with this source MAC are excluded from agent-traffic reasoning by spec, in EVERY scan. Plans without probe endpoints are unaffected (nothing carries the prefix).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/netident.py#L12)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/netident.py#L12)
 
 ``` python
 PROBE_MAC_PREFIX = b"\x02\x50"
@@ -1277,7 +1277,7 @@ Parse a `collectors.yaml` into collector specs.
 
 The file binds a `detection` or `evade` goal’s `collector` name to a real export (poll mechanics are deployment knowledge the challenge schema deliberately does not carry); pass the result to `challenge_setup(telemetry_collectors=...)`. A malformed declaration refuses with the validation detail: a silently dropped collector would turn a detection goal’s observer gate into an infra riddle.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_evidence/telemetry.py#L111)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_evidence/telemetry.py#L111)
 
 ``` python
 def load_collectors(path: "Path") -> list[CollectorSpec]
@@ -1294,7 +1294,7 @@ Load and validate a `challenges.yaml` file.
 
 Custom goal types parse only when their `register_goal_type` registration has already run in this process. Under inspect the `inspect_ai` entry-point mechanism imports registering modules before any parsing; a plain call outside inspect must import the registering module first, or the custom `type` name refuses as unknown (an `unknown-goal-type` error listing the known names, never a misparse).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L968)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L968)
 
 ``` python
 def load_challenges(path: Path) -> Challenges
@@ -1311,7 +1311,7 @@ Like `validate_range`, this never raises on invalid content: unreadable files (a
 
 Custom goal types validate only when their `register_goal_type` registration has already run in this process (see `load_challenges`); an unregistered custom `type` name reports `unknown-goal-type` with the known-name listing, never a misparse.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L990)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/_challenges/schema.py#L990)
 
 ``` python
 def validate_challenges(
@@ -1331,7 +1331,7 @@ The range to cross-reference against: a validated spec, or a `range.yaml` path t
 
 Load and validate a `range.yaml` file.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L199)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/schema.py#L199)
 
 ``` python
 def load_range(path: Path) -> RangeSpec
@@ -1346,7 +1346,7 @@ Validate a `range.yaml` file, reporting every detectable issue at once.
 
 Unlike `load_range`, this never raises on invalid content: unreadable files (a directory, permissions, non-UTF-8 content), YAML syntax errors, structural schema violations, and semantic cross-reference problems all become [Issue](../reference/types.html.md#issue) entries with stable codes, source positions, and hints where available. Field-level structural errors suppress the cross-reference pass (reflected in `ValidationReport.semantic_checked`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L135)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/schema.py#L135)
 
 ``` python
 def validate_range(path: Path) -> ValidationReport
@@ -1361,7 +1361,7 @@ Re-run full validation on a possibly mutated spec, returning a validated copy.
 
 Spec models are mutable for flexible programmatic construction, so validity at construction is a point-in-time property. Consumer boundaries (the sandbox provider, the compiler) call this at handoff: the spec round-trips through `model_validate`, which catches semantic drift and type-unsafe mutations alike.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L222)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/schema.py#L222)
 
 ``` python
 def revalidate_range(spec: RangeSpec) -> RangeSpec
@@ -1378,7 +1378,7 @@ Run every cross-reference check on a structurally valid spec, collecting all fin
 
 This is the single implementation of the semantic checks: [RangeSpec](../reference/types.html.md#rangespec) validation calls it (raising if any issue is found, so a freshly constructed spec is always consistent), and `validate_range` calls it via that same validation to report every issue at once.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L1101)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/types.py#L1101)
 
 ``` python
 def semantic_issues(spec: RangeSpec) -> list[Issue]
@@ -1391,7 +1391,7 @@ A structurally valid range definition.
 
 Return the JSON Schema for `range.yaml` v0.1 (aliased field names, e.g. `from`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L239)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/2669966d64989cd256e1f8fb396c0780e167cf9a/src/inspect_ranges/schema.py#L239)
 
 ``` python
 def range_json_schema() -> dict[str, Any]
