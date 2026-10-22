@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Authoring a range from definition to verified images: the definition language pages, then the build command, recipe authoring, verification, and behavioral checks.">
+<meta name="description" content="Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and behavioral checks.">
 
 <title>Building Ranges – Inspect Ranges</title>
 <style>
@@ -73,7 +73,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
 <link href="./ranges.html" rel="next">
-<link href="./tutorial.html" rel="prev">
+<link href="./index.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -111,22 +111,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="./llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="./llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="./llms-guide.txt">
 
 
+<link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
 <meta property="og:site_name" content="Inspect Ranges">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
 <meta name="twitter:card" content="summary">
 </head>
 
@@ -149,17 +144,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="./index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="./building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -198,37 +189,68 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="./cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="./images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="./security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="./provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="./examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -238,10 +260,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="./CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -258,7 +276,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building Ranges</a></li><li class="breadcrumb-item"><a href="./building.html">Overview</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building</a></li><li class="breadcrumb-item"><a href="./building.html">Overview</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -273,19 +291,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -349,7 +361,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -357,14 +369,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="./images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -375,26 +381,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="./security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="./provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -403,29 +462,454 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Python API</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -460,13 +944,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <a href="./reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -667,8 +1168,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -685,11 +1198,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -740,8 +1253,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -789,31 +1326,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
-  <li><a href="#what-the-build-is" id="toc-what-the-build-is" class="nav-link" data-scroll-target="#what-the-build-is">What the build is</a></li>
-  <li><a href="#what-a-build-does" id="toc-what-a-build-does" class="nav-link" data-scroll-target="#what-a-build-does">What a build does</a></li>
-  <li><a href="#incremental-rebuilds" id="toc-incremental-rebuilds" class="nav-link" data-scroll-target="#incremental-rebuilds">Incremental rebuilds</a></li>
-  <li><a href="#authoring-recipes" id="toc-authoring-recipes" class="nav-link" data-scroll-target="#authoring-recipes">Authoring recipes</a>
+  <li><a href="#development-machine" id="toc-development-machine" class="nav-link" data-scroll-target="#development-machine">Development Machine</a>
   <ul class="collapse">
-  <li><a href="#the-house-entrypoint-style" id="toc-the-house-entrypoint-style" class="nav-link" data-scroll-target="#the-house-entrypoint-style">The house entrypoint style</a></li>
-  <li><a href="#period-software-the-era-archive-pattern" id="toc-period-software-the-era-archive-pattern" class="nav-link" data-scroll-target="#period-software-the-era-archive-pattern">Period software (the era-archive pattern)</a></li>
+  <li><a href="#devbox" id="toc-devbox" class="nav-link" data-scroll-target="#devbox"><code>devbox</code></a></li>
+  </ul></li>
+  <li><a href="#iteration-loop" id="toc-iteration-loop" class="nav-link" data-scroll-target="#iteration-loop">Iteration Loop</a></li>
+  <li><a href="#running-the-range" id="toc-running-the-range" class="nav-link" data-scroll-target="#running-the-range">Running the Range</a>
+  <ul class="collapse">
+  <li><a href="#poke" id="toc-poke" class="nav-link" data-scroll-target="#poke">Poke</a></li>
+  <li><a href="#smoke-eval" id="toc-smoke-eval" class="nav-link" data-scroll-target="#smoke-eval">Smoke Eval</a></li>
+  <li><a href="#scan" id="toc-scan" class="nav-link" data-scroll-target="#scan">Scan</a></li>
+  </ul></li>
+  <li><a href="#range-build" id="toc-range-build" class="nav-link" data-scroll-target="#range-build">Range Build</a></li>
+  <li><a href="#build-stages" id="toc-build-stages" class="nav-link" data-scroll-target="#build-stages">Build Stages</a></li>
+  <li><a href="#reading-build-output" id="toc-reading-build-output" class="nav-link" data-scroll-target="#reading-build-output">Reading Build Output</a></li>
+  <li><a href="#incremental-rebuilds" id="toc-incremental-rebuilds" class="nav-link" data-scroll-target="#incremental-rebuilds">Incremental Rebuilds</a></li>
+  <li><a href="#authoring-recipes" id="toc-authoring-recipes" class="nav-link" data-scroll-target="#authoring-recipes">Authoring Recipes</a>
+  <ul class="collapse">
+  <li><a href="#entrypoint-conventions" id="toc-entrypoint-conventions" class="nav-link" data-scroll-target="#entrypoint-conventions">Entrypoint Conventions</a></li>
+  <li><a href="#period-software" id="toc-period-software" class="nav-link" data-scroll-target="#period-software">Period Software</a></li>
   </ul></li>
   <li><a href="#verification" id="toc-verification" class="nav-link" data-scroll-target="#verification">Verification</a></li>
-  <li><a href="#behavioral-checks" id="toc-behavioral-checks" class="nav-link" data-scroll-target="#behavioral-checks">Behavioral checks</a></li>
-  <li><a href="#diagnosing-failures" id="toc-diagnosing-failures" class="nav-link" data-scroll-target="#diagnosing-failures">Diagnosing failures</a></li>
+  <li><a href="#behavioral-checks" id="toc-behavioral-checks" class="nav-link" data-scroll-target="#behavioral-checks">Behavioral Checks</a></li>
+  <li><a href="#diagnosing-failures" id="toc-diagnosing-failures" class="nav-link" data-scroll-target="#diagnosing-failures">Diagnosing Failures</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building Ranges</a></li><li class="breadcrumb-item"><a href="./building.html">Overview</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building</a></li><li class="breadcrumb-item"><a href="./building.html">Overview</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Building Ranges</h1>
 </div>
 
 <div>
   <div class="description">
-    Authoring a range from definition to verified images: the definition language pages, then the build command, recipe authoring, verification, and behavioral checks.
+    Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and behavioral checks.
   </div>
 </div>
 
@@ -832,66 +1381,198 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>A range is authored once and consumed many times: a definition (<code>range.yaml</code> or its typed Python equivalent) declares the networks, guests, and guest content, and <code>inspect-ranges build</code> realizes that content into captured, verified images that every downstream consumer boots. The definition language has its own pages:</p>
+<p>A definition (<code>range.yaml</code>, or a typed <span class="element-type-name ref-interlink"><a href="./reference/types.html#rangespec">RangeSpec</a></span> in Python) declares the networks, the guests, and the guest content; <code>inspect-ranges build</code> realizes that content: it boots the range once, runs the recipes that produce the declared state, verifies it, and captures each guest’s disk as an image; every downstream consumer boots those captured images. The definition language has its own pages:</p>
 <ul>
 <li><p><a href="./ranges.html">Ranges</a>: what a range definition is, end-to-end examples in YAML and Python, and the validation workflow.</p></li>
 <li><p><a href="./guests.html">Guests</a>: hosts, images, resources, routers and the attacker as guests, and guest content such as accounts, services, seeded weaknesses, defense, and Active Directory.</p></li>
 <li><p><a href="./networks.html">Networks</a>: addressing, DHCP, name resolution, segmentation, firewall rules, routing topology, and egress.</p></li>
 </ul>
-<p>The rest of this page covers the build itself: how declared guest content becomes captured, verified images. For what happens after a build (rendering, booting, running evals), see <a href="./cli.html">Running Ranges</a>.</p>
+<p>This page covers the machine development runs on, the iteration loop, the build (how declared guest content becomes captured, verified images), and <a href="#running-the-range">Running the Range</a>: confirming a built range at escalating fidelity. For what happens after a build in production, see <a href="./cli.html">Operations</a>.</p>
 </section>
-<section id="what-the-build-is" class="level2">
-<h2 class="anchored" data-anchor-id="what-the-build-is">What the build is</h2>
-<p>A definition’s <a href="./guests.html#guest-content">guest content</a> describes converged state: services listening at versions, seeded vulnerabilities, provisioning steps that produce them. None of that is applied at boot. <code>inspect-ranges build</code> realizes it once: the range boots on an egress-enabled build plan, recipes converge each guest, declared services and vulnerabilities are verified mechanically against the live guests (declared <code>users</code>/<code>misconfigurations</code>/<code>data</code> are build-claimed through recipe self-assertion plus the behavioral checks’ chain-load-bearing facts; mechanical probes for them are a recorded follow-up), each provisioned guest’s disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning.</p>
+<section id="development-machine" class="level2">
+<h2 class="anchored" data-anchor-id="development-machine">Development Machine</h2>
+<p>Ranges build and run on any Linux x86_64 machine with KVM: bare metal with virtualization enabled in firmware, or a VM with nested virtualization. Beyond KVM, the requirements:</p>
+<ul>
+<li><p>Docker Engine 24+ with the Compose plugin (2.22+) and cgroup v2.</p></li>
+<li><p>Kernel modules <code>tun</code>, <code>vhost_net</code>, and <code>vhost_vsock</code>.</p></li>
+<li><p><code>qemu-utils</code> and <code>libguestfs-tools</code> for building images (libguestfs also requires that the host kernel be readable).</p></li>
+<li><p><code>br_netfilter</code> unloaded, or loaded with <code>bridge-nf-call-iptables=0</code>, so host iptables never filters bridged range traffic.</p></li>
+<li><p>IPv6 enabled. This one is forward-looking only: IPv6 is not realized yet (every IPv6 construct in a definition refuses validation with <code>ipv6-not-realized</code>), so no current range needs it; <code>doctor</code> checks it ahead of future mitm6-style scenarios.</p></li>
+</ul>
+<p><code>inspect-ranges doctor</code> verifies all of this and prints an exact fix for anything missing.</p>
+<section id="devbox" class="level3">
+<h3 class="anchored" data-anchor-id="devbox"><code>devbox</code></h3>
+<p>The <code>devbox</code> command provisions a remote EC2 instance as a development environment:</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> my-range/        <span class="co"># range.yaml plus ./recipes/</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> devbox up <span class="at">--instance-type</span> m8i.8xlarge</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span> inspect-ranges-devbox</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Until a range has a matching build, every content-consuming verb refuses with <code>range-not-built</code>: <code>plan</code>, <code>render</code>, <code>up --from-spec</code>, and the sandbox provider all check for a manifest whose spec hash matches the definition and whose realized images verify by digest in the image cache. The refusal names the fix (<code>run inspect-ranges build first</code>); nothing ever boots with silently missing content.</p>
+<p><code>up</code> creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration; the default instance type is <code>m8i.8xlarge</code> (32 vCPUs / 128 GB). To manage costs, an idle devbox stops itself (after 60 idle minutes by default, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with <code>ssh</code> or VS Code starts it again: the SSH configuration’s proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.</p>
 </section>
-<section id="what-a-build-does" class="level2">
-<h2 class="anchored" data-anchor-id="what-a-build-does">What a build does</h2>
+</section>
+<section id="iteration-loop" class="level2">
+<h2 class="anchored" data-anchor-id="iteration-loop">Iteration Loop</h2>
+<p>Range development is a loop: edit the definition and recipes, validate, plan, build, then confirm the result at escalating fidelity (<a href="#running-the-range">Running the Range</a>). The authoring steps below walk it against <a href="./examples/dmz_pivot.html">dmz_pivot</a>, the smallest built example; the same loop applies to your own range directory.</p>
 <ol type="1">
-<li><strong>The egress build plan.</strong> Routerless isolated networks are transformed, for the build only, into NAT networks with full egress and a host-derived nameserver (deployments that force DNS through a VPC resolver are the norm; <code>--build-nameserver</code> overrides). A provisioned host whose every attachment is router-attached gets a dedicated <code>build-uplink</code> NAT segment appended instead (routed topologies build too; the realized image keeps no reference, since network config is per-boot cloud-init), and a provisioned FOOTHOLD host has the attacker’s egress containment lifted for the build only (no agent runs during a build). The runtime spec is untouched: samples boot with the isolation and containment the definition declares. A per-guest network-settle gate holds each guest’s first recipe until in-guest name resolution works.</li>
-<li><strong>Recipes</strong>, in declaration order per guest (see <a href="#authoring-recipes">Authoring recipes</a>).</li>
-<li><strong>Verification</strong> of every declared <code>services</code> and <code>vulnerabilities</code> entry against the live guests, independent of what the recipes claimed (see <a href="#verification">Verification</a>).</li>
-<li><strong>Capture.</strong> Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image (a qcow2 rebased onto its golden, digest-recorded, with a provenance sidecar).</li>
-<li><strong>The manifest, and cache stewardship.</strong> The builds cache (<code>~/.cache/inspect-ranges/builds/&lt;range&gt;/manifest.json</code>, or <code>INSPECT_RANGES_BUILD_CACHE</code>; the consuming verbs and the provider resolve the cache the same way, so a non-default location is set through the environment variable, not per-verb flags) records the spec and its hash, every guest’s build key and realized digest, recipe versions and digests, base-image digests, and the verification results. Build success also garbage-collects the range’s superseded realized generations automatically: the new manifest’s generation and the immediately-previous one stay (reverting an edit rebuilds instantly), anything a running project references is excluded, and the deletion is stage-logged with bytes reclaimed. <code>inspect-ranges images prune</code> reclaims the rest (generations stranded by refused manifests or crashes, capture temps, orphan sidecars); <code>images list</code> and <code>doctor</code> report reclaimable bytes.</li>
-<li><strong>Behavioral checks</strong>, when the range declares them: the captured images boot once more and each challenge’s reference/insufficient/forged chains run against the thing that ships (see <a href="#behavioral-checks">Behavioral checks</a>). The manifest lands on disk either proven (every check passed) or REFUSED (the failure recorded, consumers rejecting it with <code>range-unproven</code> while guest reuse survives); a build interrupted before the phase records anything leaves no manifest at all.</li>
+<li><p><strong>Validate.</strong></p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> src/inspect_ranges/examples/_dmz_pivot</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> validate range.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>validate</code> reports complete diagnostics, every error at once, with source positions and hints (<a href="./ranges.html#validation-and-diagnostics">Ranges</a>), and validates the <code>challenges.yaml</code> beside the spec too, cross-referenced against the range, so a dangling goal host surfaces here instead of at build time.</p></li>
+<li><p><strong>Build.</strong> <code>inspect-ranges build</code> realizes the declared guest content: for dmz_pivot, two guests provisioned over the published golden and three challenge trios proven, a few minutes on a warm image cache. The stage lines to expect are in <a href="#reading-build-output">Reading Build Output</a>. The development knobs: <code>--keep</code> holds the build range up for inspection (success or failure); <code>--reverify</code> forces the full boot-and-verify pass on an unchanged range; <code>--cid-base</code> picks a different host-global vsock CID block while a kept range still holds the default. When a stage goes red, start at <a href="#diagnosing-failures">Diagnosing Failures</a>; a green build is the entry to <a href="#running-the-range">Running the Range</a>.</p></li>
+<li><p><strong>Plan.</strong> <code>inspect-ranges plan</code> resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after <code>build</code> here because a range declaring guest content (dmz_pivot does) refuses <code>plan</code> with <code>range-not-built</code> until a matching build exists; for a topology-only range <code>plan</code> works immediately and slots second.</p></li>
 </ol>
-<p><code>--keep</code> preserves the build range (success or failure) for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its <code>--cid-base</code> vsock CIDs (host-global), so tear it down before the next build, or rebuild with a different <code>--cid-base</code>. On failure the error names the stage and guest and points at the recipe log; the range tears down unless kept.</p>
+</section>
+<section id="running-the-range" class="level2">
+<h2 class="anchored" data-anchor-id="running-the-range">Running the Range</h2>
+<p>A green build is an artifact, not evidence that the range behaves. Three checks confirm it at escalating fidelity, each led by the question it answers; a new range earns all three before it ships.</p>
+<section id="poke" class="level3">
+<h3 class="anchored" data-anchor-id="poke">Poke</h3>
+<p>Did the build produce the range I meant? Boot the built range directly, with no solver, no eval, and no environment variable:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> up <span class="at">--from-spec</span> range.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>up</code> prints the compose project name (<code>ir-dmz-pivot-...</code>). Attach the range oracle (the privileged guest-access surface scoring uses; see <a href="./challenges.html#scoring-lifecycle">Challenges</a>) by that name from a REPL or script and run commands against any guest, targets included:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> asyncio</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> range_oracle</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> poke(project: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> range_oracle(project) <span class="im">as</span> oracle:</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="cf">await</span> oracle.<span class="bu">exec</span>(<span class="st">"db"</span>, [<span class="st">"ss"</span>, <span class="st">"-ltn"</span>])</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(out.stdout.decode())</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        creds <span class="op">=</span> <span class="cf">await</span> oracle.read_file(</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"web"</span>, <span class="st">"/home/deploy/.pgpass"</span>, user<span class="op">=</span><span class="st">"deploy"</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(creds.decode())</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>asyncio.run(poke(<span class="st">"ir-dmz-pivot-..."</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>exec</code> returns the channel’s <span class="element-type-name ref-interlink"><a href="./reference/host.html#execoutcome">ExecOutcome</a></span>: <code>rc</code> (the signed exit status), <code>stdout</code>/<code>stderr</code> bytes, and truncation flags. The attach rides the same vsock channel the provider uses, so it reaches every guest without touching the range’s network posture, and it logs loudly (an out-of-band oracle attached during a scoring run must be visible in that run’s logs). Confirm what the build claims: the service listening, the planted file in place, the content you declared. Then tear down:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> down <span class="op">&lt;</span>project<span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="smoke-eval" class="level3">
+<h3 class="anchored" data-anchor-id="smoke-eval">Smoke Eval</h3>
+<p>Does the whole consumption path work? Run one sample through the real <code>range</code> sandbox provider early: registration, readiness, challenge setup, and scoring exercise paths a direct boot cannot show.</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The registry form runs the shipped task; your own range runs the same way with the <a href="./index.html#range-tasks">Range Tasks</a> wiring (<a href="./provider.html">Range Sandbox</a> covers the provider).</p>
+<p>To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: <code>inspect eval task.py --model mockllm/model --message-limit 4</code>. The agent does nothing, so expect a 0 score, the scorer’s zero-submissions warning, and the matching <code>range_apparatus</code> finding; on this run those are the apparatus working, not trouble.</p>
+</section>
+<section id="scan" class="level3">
+<h3 class="anchored" data-anchor-id="scan">Scan</h3>
+<p>Did the apparatus misbehave? <a href="./reference/scanners.html#range_apparatus">range_apparatus</a> is a deterministic checker for the range plumbing itself: post-readiness channel failures, spec-contradicting reachability, <code>verify_goal</code> wiring trouble, and scoring-integrity flags, each with a remediation hint. Run it online by adding it to the smoke eval’s scorer list, where findings land beside the challenge score in the normal log view:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> challenge_scorer</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges.scanners <span class="im">import</span> range_apparatus</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>scorer <span class="op">=</span> [challenge_scorer(), range_apparatus()]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Or scan accumulated logs after the fact:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scout</span> scan inspect_ranges/range_apparatus <span class="at">-T</span> ./logs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The score value is the finding count, so a healthy range reads <code>0</code> with explanation <code>no findings</code>. A finding reads like <code>[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'</code>, followed by its hint; the structured findings (detector id, severity, message, hint, event references) ride the score metadata.</p>
+</section>
+</section>
+<section id="range-build" class="level2">
+<h2 class="anchored" data-anchor-id="range-build">Range Build</h2>
+<p>A definition’s <a href="./guests.html#guest-content">guest content</a> describes converged state: services listening at versions, seeded vulnerabilities, provisioning steps that produce them. None of it is applied at boot. The build realizes it once:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> my-range/        <span class="co"># range.yaml plus ./recipes/</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest’s disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared <code>users</code>, <code>misconfigurations</code>, and <code>data</code> are not independently probed yet: the build trusts the recipes’ success for them, and the behavioral checks confirm whichever of them the attack chains actually depend on. Direct probes for these fields are planned.</p>
+<p>Until a range has a matching build, every command that consumes built content refuses with <code>range-not-built</code>: <code>plan</code>, <code>render</code>, <code>up --from-spec</code>, <code>push</code>, and the sandbox provider all require a manifest whose spec hash (a digest of the definition) matches the definition and whose realized images verify by digest in the image cache. The refusal names the fix. Pulling the published build satisfies the gate the same way (<a href="./distribution.html">Distribution</a>), so consumers of a published range never run <code>build</code>. Nothing boots with silently missing content.</p>
+</section>
+<section id="build-stages" class="level2">
+<h2 class="anchored" data-anchor-id="build-stages">Build Stages</h2>
+<ol type="1">
+<li><p><strong>The egress build plan.</strong> For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (<code>--build-nameserver</code> overrides it; cloud deployments that force DNS through a VPC resolver typically need the override). A provisioned host attached only to networks behind routers gets a dedicated <code>build-uplink</code> NAT segment appended instead, so routed topologies build too. A provisioned foothold host (the host the attacker starts on under assumed breach; see <a href="./networks.html#attacker">Networks</a>) has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking, since network config is per-boot cloud-init. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the one exception: a router gets no build egress (scoped egress on a router-attached network is not realized), so the settle gate skips it and its recipes run offline, reconfiguring what the golden already carries; a router recipe that reaches for the network fails as an ordinary recipe error.</p></li>
+<li><p><strong>Recipes</strong> run in declaration order per guest (see <a href="#authoring-recipes">Authoring Recipes</a>).</p></li>
+<li><p><strong>Verification</strong> checks every declared <code>services</code> and <code>vulnerabilities</code> entry against the live guests, independent of what the recipes claimed (see <a href="#verification">Verification</a>).</p></li>
+<li><p><strong>Capture.</strong> Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image: a qcow2 rebased onto its golden image (<a href="./guests.html#images">Guests</a>), its digest recorded, with a provenance sidecar (a companion file recording the digests of everything it was built from).</p></li>
+<li><p><strong>The manifest.</strong> The builds cache (<code>~/.cache/inspect-ranges/builds/&lt;range&gt;/manifest.json</code>, or <code>INSPECT_RANGES_BUILD_CACHE</code>) records the spec and its hash, every guest’s build key and realized digest, recipe versions and digests, base-image digests, and the verification results. Consumers and the provider resolve the cache the same way; a non-default location is set through the environment variable (there is no per-verb flag).</p></li>
+<li><p><strong>Behavioral checks</strong>, when the range declares them: the captured images boot once more and each challenge’s chains run against the thing that ships (see <a href="#behavioral-checks">Behavioral Checks</a>). The manifest lands on disk proven (every check passed) or REFUSED (the failure recorded; consumers reject it with <code>range-unproven</code>; the next build reuses every guest and re-runs only the checks). A build interrupted before this phase leaves no manifest at all.</p></li>
+</ol>
+<p>Build success also garbage-collects the range’s superseded realized generations: the new generation and the immediately-previous one stay, so reverting an edit rebuilds instantly; anything a running project references is excluded; the deletion is stage-logged with bytes reclaimed. <code>inspect-ranges images prune</code> reclaims the rest (generations stranded by refused manifests or crashes, capture temps, orphan sidecars); <code>images list</code> and <code>doctor</code> report reclaimable bytes.</p>
+<p><code>--keep</code> preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its <code>--cid-base</code> vsock CIDs, which are host-global: tear it down before the next build, or rebuild with a different <code>--cid-base</code>. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.</p>
+</section>
+<section id="reading-build-output" class="level2">
+<h2 class="anchored" data-anchor-id="reading-build-output">Reading Build Output</h2>
+<p>A build prints one line per stage transition: the stage name, then sorted <code>key=value</code> fields (<code>verify</code> rows differ: a literal <code>ok</code> and the declaration verified; a failure prints <code>&lt;stage&gt; FAILED &lt;error&gt;</code> instead), and ends with a two-line summary, the manifest path and a <code>build OK</code> line. Abridged, a proven build looks like:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" data-filename="Terminal"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>resolve   rebuilt_guests=2  recipes=2  reused_guests=0</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>render    bundle=...  guests=3</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>ready     seconds=41.2</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>recipe    guest=web  recipe=dmz.web  seconds=201.3  ...</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>verify    ok  service web/ssh</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>verify    ok  service db/postgres</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>verified  declarations=4</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>capture   file=dmz-pivot-web-ab12cd.qcow2  guest=web</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>teardown  after=success</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>behavioral-settle seconds=18.0</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>conformance check=attacker-surface  defender=web  ports=1-1024+8</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>behavioral challenge=pivot  check=reference  detail=value=1.00 ...</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>behavioral checks=3</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>manifest  guests=2  path=...</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>build     kept=False  recipes=2  seconds=1243.7</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>manifest  ~/.cache/inspect-ranges/builds/dmz-pivot/manifest.json</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>build OK (1243.7 s, 2 recipes) project ir-dmz-pivot-9f1c2a4b</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The <code>manifest</code> lines appear after the <code>behavioral</code> lines: a build is never recorded proven before its checks pass. The final <code>build OK</code> line names the compose project (the <code>&lt;project&gt;</code> that <code>inspect-ranges down</code> takes), which is also the build’s directory name under the project state directory (<code>~/.local/state/inspect-ranges/projects/&lt;project&gt;/</code>): <code>stages.jsonl</code> there keeps this history as JSONL, and <code>recipes/</code> and <code>verify/</code> hold the per-run logs. A fully cached build prints a single <code>build</code> row and <code>build OK (cached, verified &lt;timestamp&gt;; pass --reverify to re-run)</code>.</p>
 </section>
 <section id="incremental-rebuilds" class="level2">
-<h2 class="anchored" data-anchor-id="incremental-rebuilds">Incremental rebuilds</h2>
+<h2 class="anchored" data-anchor-id="incremental-rebuilds">Incremental Rebuilds</h2>
 <p>Each guest gets a build key: a hash of its golden image digest, its own spec declarations, and its ordered recipe digests with their variables. On rebuild:</p>
 <ul>
-<li>A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.</li>
-<li>A guest whose recipe, variables, declarations, or golden changed rebuilds from its golden.</li>
-<li>When every key matches, the spec hash matches, and the behavioral-check inputs are unchanged, the build is a no-op: nothing boots, and the recorded verification is reported with its timestamp in seconds. <code>--reverify</code> forces the full boot-and-verify pass anyway.</li>
-<li>Check scripts and <code>challenges.yaml</code> are build inputs through their own content digest: authoring or editing a check after a green build re-runs the pass (guests are reused; only the proof re-runs).</li>
+<li><p>A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.</p></li>
+<li><p>A guest whose recipe, variables, declarations, or golden changed rebuilds from its golden.</p></li>
+<li><p>When every key matches, the spec hash matches, and the behavioral-check inputs are unchanged, the build is a no-op: nothing boots, and the recorded verification is reported with its timestamp. <code>--reverify</code> forces the full boot-and-verify pass anyway.</p></li>
+<li><p>Check scripts and <code>challenges.yaml</code> are build inputs through their own content digest: editing a check after a green build re-runs only the proof, with every guest reused.</p></li>
 </ul>
 </section>
 <section id="authoring-recipes" class="level2">
-<h2 class="anchored" data-anchor-id="authoring-recipes">Authoring recipes</h2>
-<p>A recipe is a content-addressed bundle: a directory holding the recipe’s code plus a <code>recipe.yaml</code> self-description. Resolution looks in the range directory first (<code>./recipes/&lt;name&gt;/</code>), then the shared recipe cache (<code>~/.cache/inspect-ranges/recipes/</code>, or <code>INSPECT_RANGES_RECIPE_CACHE</code>). The bundle’s identity is a deterministic digest over its files (paths, content, executable bits), recorded in the build manifest; editing any bundle file invalidates exactly the guests that reference it.</p>
+<h2 class="anchored" data-anchor-id="authoring-recipes">Authoring Recipes</h2>
+<p>A recipe is a content-addressed bundle: a directory holding the recipe’s code plus a <code>recipe.yaml</code> self-description. Resolution looks in the range directory first (<code>./recipes/&lt;name&gt;/</code>), then the shared recipe cache (<code>~/.cache/inspect-ranges/recipes/</code>, or <code>INSPECT_RANGES_RECIPE_CACHE</code>). The bundle’s identity is a deterministic digest over its files (paths, content, executable bits), recorded in the build manifest, so editing any bundle file invalidates exactly the guests that reference it.</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>recipes/acme.telemetry_stack/recipe.yaml</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-filename="recipes/acme.telemetry_stack/recipe.yaml"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">name</span><span class="kw">:</span><span class="at"> acme.telemetry_stack</span><span class="co">       # the name provisioning steps reference</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">"2.1"</span><span class="co">                   # recorded in the manifest; steps may pin it</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">entrypoint</span><span class="kw">:</span><span class="at"> run.sh</span><span class="co">               # executable, relative to the bundle</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">mode</span><span class="kw">:</span><span class="at"> online</span><span class="co">                     # online converges a booted guest (v1); offline parses but refuses</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">inputs</span><span class="kw">:</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">splunk_ip</span><span class="kw">:</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">description</span><span class="kw">:</span><span class="at"> Indexer address written into outputs.conf</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">verbose</span><span class="kw">:</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span><span class="co">               # a default makes an input optional; none makes it required</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-filename="recipes/acme.telemetry_stack/recipe.yaml"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">name</span><span class="kw">:</span><span class="at"> acme.telemetry_stack</span><span class="co">   # the name provisioning steps reference</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">"2.1"</span><span class="co">               # in the manifest; steps may pin it</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">entrypoint</span><span class="kw">:</span><span class="at"> run.sh</span><span class="co">           # executable, relative to the bundle</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">mode</span><span class="kw">:</span><span class="at"> online</span><span class="co">                 # converges a booted guest (v1);</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">                             # offline parses but refuses</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="fu">inputs</span><span class="kw">:</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">splunk_ip</span><span class="kw">:</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">description</span><span class="kw">:</span><span class="at"> Indexer address written into outputs.conf</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">verbose</span><span class="kw">:</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span><span class="co">           # optional; no default makes it required</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The entrypoint runs <strong>on the host</strong>, with the bundle directory as working directory and the step’s validated <code>vars</code> as environment variables. Guest access goes through the <code>IR_*</code> contract:</p>
+<p>The entrypoint runs <strong>on the host</strong>, with the bundle directory as working directory and the step’s validated <code>vars</code> as environment variables: every value arrives as a string, booleans rendered lowercase (<code>true</code>/<code>false</code>) and integers decimal, and an <code>IR_*</code> name always wins a collision with a <code>vars</code> name. Guest access goes through the <code>IR_*</code> contract:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -905,83 +1586,136 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>IR_GUEST</code></td>
-<td>The target guest’s name</td>
-</tr>
-<tr class="even">
-<td><code>IR_GUEST_CIDS</code></td>
-<td>JSON map of every guest name to its vsock CID</td>
-</tr>
-<tr class="odd">
 <td><code>IR_EXEC</code></td>
-<td>Path to a wrapper that runs a command in the target guest as root (<code>--budget-ms</code> bounds it; <code>--user</code> switches principal; <code>--script</code> uploads and runs a local file, as root or the agent user only, and takes no trailing argv)</td>
+<td>Path to the wrapper that runs a command in the target guest</td>
 </tr>
 <tr class="even">
 <td><code>IR_PUSH</code></td>
-<td>Path to a wrapper that pushes a local file to a guest path (<code>--mode</code> sets permissions)</td>
+<td>Path to the wrapper that installs a local file into the target guest</td>
 </tr>
 <tr class="odd">
+<td><code>IR_GUEST</code></td>
+<td>The target guest’s name: the one guest this step provisions</td>
+</tr>
+<tr class="even">
+<td><code>IR_GUEST_CIDS</code></td>
+<td>JSON map of every guest name to its vsock CID, the wrappers’ addressing input</td>
+</tr>
+<tr class="odd">
+<td><code>IR_GUEST_SOCKETS</code></td>
+<td>JSON map of Cloud Hypervisor guest names to their hybrid-vsock socket details; QEMU guests are reached by CID</td>
+</tr>
+<tr class="even">
+<td><code>IR_GUEST_OS</code></td>
+<td>JSON map of guest name to <code>linux</code> or <code>windows</code>; absent names are linux</td>
+</tr>
+<tr class="odd">
+<td><code>IR_RECIPE</code></td>
+<td>The recipe’s name</td>
+</tr>
+<tr class="even">
 <td><code>IR_EXEC_BUDGET_MS</code></td>
-<td>The default per-exec budget</td>
+<td>The default per-exec budget (600000 ms)</td>
+</tr>
+<tr class="odd">
+<td><code>IR_ACTIVE_DIRECTORY</code></td>
+<td>The range’s declared Active Directory identity data as JSON; set only when the range declares AD</td>
+</tr>
+<tr class="even">
+<td><code>IR_HOST_DEFENSE</code></td>
+<td>The target host’s declared defense toggles as JSON; set only when the host declares them</td>
 </tr>
 </tbody>
 </table>
+<p>The wrappers’ whole grammar:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> [--user U] [--budget-ms N] [--cwd DIR] <span class="at">--</span> argv...</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> [--user U] [--budget-ms N] <span class="at">--script</span> FILE</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> LOCAL REMOTE [--mode 644]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>IR_EXEC</code> runs as root by default (<code>--user</code> switches principal) and passes the in-guest exit status through; 124 is budget expiry, 125 a channel failure, 2 a usage error. <code>--script</code> uploads a local file and runs it (as root or the agent user only) and is mutually exclusive with trailing argv. <code>IR_PUSH</code> installs the file root-owned at the given <code>--mode</code>, creating parent directories, bounded at 60 s per push; there is no ownership flag, so a recipe needing another owner chowns through <code>IR_EXEC</code> afterward (the <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot">dmz-pivot</a> and <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_equifax">equifax</a> recipes both do).</p>
+<p>These two wrappers are the entire surface. Nothing fetches a file back from a guest: a recipe that must read guest state reads <code>IR_EXEC</code> stdout. Both wrappers reach only <code>IR_GUEST</code>, so a recipe cannot provision another guest; state shared across guests is committed material duplicated into each bundle (dmz-pivot writes the same database password into both of its recipes, and equifax commits its pivot keypair’s public half into every bundle that authorizes it).</p>
 <p>Exit status 0 is demanded and is never sufficient: verification of the declared state happens independently, after all recipes. The whole entrypoint is bounded by <code>--recipe-budget</code> (default 1800 s) and killed as a process group on expiry, so stray children cannot hold the build.</p>
-<section id="the-house-entrypoint-style" class="level3">
-<h3 class="anchored" data-anchor-id="the-house-entrypoint-style">The house entrypoint style</h3>
-<p>Two conventions, both learned from undiagnosable failures:</p>
+<section id="entrypoint-conventions" class="level3">
+<h3 class="anchored" data-anchor-id="entrypoint-conventions">Entrypoint Conventions</h3>
 <p><strong>Every step announces itself and surfaces its evidence.</strong> A recipe whose steps are silent (<code>wget -q</code>, output redirected into in-guest files) fails as “exited 1” with a log that ends at the previous step. Print a marker before each step, and on failure of a step whose output went to an in-guest file, tail that file to stderr:</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>recipes/acme.telemetry_stack/run.sh</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="recipes/acme.telemetry_stack/run.sh"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/sh</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-e</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">exec_guest()</span> <span class="kw">{</span> <span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> <span class="at">--budget-ms</span> 600000 <span class="at">--</span> sh <span class="at">-c</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span><span class="kw">;</span> <span class="kw">}</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: fetch vendor tarball"</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt &amp;&amp; wget -nv -t 5 --waitretry=15 -O stack.tar.gz "https://..." &amp;&amp; tar -xzf stack.tar.gz'</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: compile"</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt/stack &amp;&amp; { ./configure &gt;/tmp/configure.log 2&gt;&amp;1 || { echo "configure failed:" &gt;&amp;2; tail -30 /tmp/configure.log &gt;&amp;2; exit 1; }; } &amp;&amp; make -s install &gt;/tmp/make.log 2&gt;&amp;1'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" data-filename="recipes/acme.telemetry_stack/run.sh"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/sh</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-e</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">exec_guest()</span> <span class="kw">{</span> <span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> <span class="at">--budget-ms</span> 600000 <span class="at">--</span> sh <span class="at">-c</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: fetch vendor tarball"</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt &amp;&amp;</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="st">  wget -nv -t 5 --waitretry=15 -O stack.tar.gz "https://..." &amp;&amp;</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="st">  tar -xzf stack.tar.gz'</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: compile"</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt/stack &amp;&amp;</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="st">  { ./configure &gt;/tmp/configure.log 2&gt;&amp;1 ||</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="st">    { echo "configure failed:" &gt;&amp;2;</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="st">      tail -30 /tmp/configure.log &gt;&amp;2; exit 1; }; } &amp;&amp;</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="st">  make -s install &gt;/tmp/make.log 2&gt;&amp;1'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p><strong>Variables never splice into guest shell strings.</strong> A step’s <code>vars</code> arrive as host environment; interpolating them into a single-quoted <code>sh -c</code> string hands the variable’s value to the guest shell as code. Pass values through <code>IR_PUSH</code>ed files, or expand them host-side into positional arguments:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># UNSAFE: $splunk_ip is parsed by the guest shell; a crafted value injects</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">"sed -i 's/HOST/</span><span class="va">$splunk_ip</span><span class="st">/' /etc/stack/outputs.conf"</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Safe: the value travels as file content, never as shell text</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$splunk_ip</span><span class="st">"</span> <span class="op">&gt;</span> /tmp/host.<span class="va">$$</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> /tmp/host.<span class="va">$$</span> /etc/stack/indexer_host <span class="at">--mode</span> 644</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-f</span> /tmp/host.<span class="va">$$</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># UNSAFE: the guest shell parses $splunk_ip; a crafted value injects</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">"sed -i 's/HOST/</span><span class="va">$splunk_ip</span><span class="st">/' /etc/stack/outputs.conf"</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Safe: the value travels as file content, never as shell text</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$splunk_ip</span><span class="st">"</span> <span class="op">&gt;</span> /tmp/host.<span class="va">$$</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> /tmp/host.<span class="va">$$</span> /etc/stack/indexer_host <span class="at">--mode</span> 644</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-f</span> /tmp/host.<span class="va">$$</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="period-software-the-era-archive-pattern" class="level3">
-<h3 class="anchored" data-anchor-id="period-software-the-era-archive-pattern">Period software (the era-archive pattern)</h3>
-<p>Ranges reproducing dated CVEs usually need software their golden’s distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. The <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/examples/vulhub-zabbix">vulhub-zabbix</a> example range is the worked reference: MySQL 5.7.44 from Oracle’s archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe’s provenance recorded in the range’s <code>notes.md</code>. Version-exactness only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) uses whatever the era bar actually requires.</p>
+<section id="period-software" class="level3">
+<h3 class="anchored" data-anchor-id="period-software">Period Software</h3>
+<p>Ranges reproducing dated CVEs usually need software their golden’s distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix">vulhub-zabbix</a> is the worked reference: MySQL 5.7.44 from Oracle’s archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe’s provenance recorded in the range’s <code>notes.md</code>. Version-exactness only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) only needs to be plausible for the CVE’s era. The two provenance files split by subject: <code>notes.md</code> carries period-software provenance (archive URLs, hashes, version rationale), while upstream design provenance (the published range or scenario this one derives from) lives in <code>source.md</code> beside it.</p>
 </section>
 </section>
 <section id="verification" class="level2">
 <h2 class="anchored" data-anchor-id="verification">Verification</h2>
 <p>After all recipes, every declared <code>services</code> and <code>vulnerabilities</code> entry is checked against the live guests over the control channel, whole-range, with one probe per guest:</p>
 <ul>
-<li>A service with a <code>port</code> must have a TCP or UDP socket listening on it in-guest.</li>
-<li>A service with a <code>version</code> must match the observed version: attribution tries the declared <code>package</code> (a dpkg name), then the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup. Declared versions match as a component prefix of the upstream version, epochs stripped (<code>"3.0"</code> matches <code>1:3.0.3+dfsg-1</code>); pre-release observations (<code>~</code>) never satisfy a release declaration. A declared version that cannot be attributed fails, naming the paths tried.</li>
-<li>A vulnerability with a <code>service</code> reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in <a href="#behavioral-checks">behavioral checks</a>, not here.</li>
+<li><p>A service with a <code>port</code> must have a TCP or UDP socket listening on it in-guest.</p></li>
+<li><p>A service with a <code>version</code> must match the observed version. Attribution tries the declared <code>package</code> (a dpkg name), then the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup. Declared versions match as a component prefix of the upstream version, epochs stripped, so <code>"3.0"</code> matches <code>1:3.0.3+dfsg-1</code>; a pre-release observation (<code>~</code>) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.</p></li>
+<li><p>A vulnerability with a <code>service</code> reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in <a href="#behavioral-checks">behavioral checks</a>, not here.</p></li>
 </ul>
 <p>Failures produce coded refusals (<code>service-not-verified</code>, <code>vulnerability-not-verified</code>) with the declared-versus-observed delta and the probe log path, and the build fails. Software installed from tarballs has no dpkg identity: declare its service by port alone and record the version in the range’s notes.</p>
 </section>
 <section id="behavioral-checks" class="level2">
-<h2 class="anchored" data-anchor-id="behavioral-checks">Behavioral checks</h2>
-<p>A range that carries challenges can prove them at build time. Convention: <code>checks/&lt;challenge-id&gt;/{reference,insufficient,forged}.sh</code>, each a bash script executed on the attacker guest with <code>IR_ATTACKER_IP</code> exported, emitting <code>SUBMIT &lt;goal-id&gt; &lt;value&gt;</code> lines. The contract:</p>
-<ul>
-<li><code>reference.sh</code> must exercise the real attack chain and score 1.0 with validity <code>valid</code>, and every goal that declares a <code>beacon_segment</code> must come back pcap-corroborated. Beacons corroborate only when their capture chunk rotates before scoring (tcpdump rotates by size; scoring reads rotated chunks): the build’s proof boot defaults to 1 MB chunks, and the chain pushes filler traffic after its beacons (the vulhub reference chain is the worked example). A beacon that never has to land would be theater.</li>
-<li><code>insufficient.sh</code> must do real but incomplete work and score 0.0 with validity <code>valid</code> and at least one submission.</li>
-<li><code>forged.sh</code> must submit plausible fakes and score 0.0 with validity <code>valid</code> and at least one submission (a chain that submits nothing, or a scorer that never reached a verdict, would otherwise pass vacuously).</li>
-</ul>
-<p>The checks run against the <strong>captured</strong> realized images in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot proves the range’s defender-to-agent containment (the <code>conformance</code> stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker checks no undeclared management endpoint answers on its segments; foothold ranges skip the stage, since the agent lands on a declared host whose services legitimately answer); a containment finding refuses the manifest exactly like a failed check. Each check gets fresh per-sample proof material (plants), removed afterward; nothing a check planted survives as a valid secret at runtime. A declared checks tree must be complete: a misnamed directory or missing script refuses rather than silently skipping. A failing check (or a phase failure) saves a REFUSED manifest: consumers refuse it with <code>range-unproven</code>, while the next build reuses every guest and re-runs only the proof, so fixing a check script costs a boot-and-prove cycle, not a rebuild. The build reports <code>behavioral</code> stage lines per check and records the results in the manifest.</p>
+<h2 class="anchored" data-anchor-id="behavioral-checks">Behavioral Checks</h2>
+<p>A range that carries challenges (<a href="./challenges.html">Challenges</a>) can prove them at build time. The build discovers both pieces beside <code>range.yaml</code>: a <code>challenges.yaml</code>, and a <code>checks/&lt;challenge-id&gt;/{reference,insufficient,forged}.sh</code> directory per challenge. Each script runs on the attacker guest as a plain root bash with a 900 s budget per chain (chains legitimately wait for convergence and run full scans). <code>IR_ATTACKER_IP</code> is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, never copied onto the attacker’s filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content to land on (the <code>conformance</code> containment sweep (<a href="./security.html#proving-containment">Security</a>) runs before the checks, so a check’s own listener never trips it). Submissions are <code>SUBMIT &lt;goal-id&gt; &lt;value&gt;</code> lines on stdout, one per submission, the value running to the end of the line; a value that contains an <code>exfiltrate</code> canary passes, so single-line excerpts of multi-line content work. Chain stdout is capped at 16 MiB and truncation is a hard check failure, since <code>SUBMIT</code> lines may be lost. A failing chain’s output lands in the build’s stage log (<code>stages.jsonl</code> under the project state directory; the failing <code>behavioral</code> row carries the chain’s exit status and the tail of its stderr). Each check runs against fresh per-sample plants, removed afterward. The shipped <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/checks">dmz-pivot checks</a> are the worked example. The contract:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Chain</th>
+<th>Must</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>reference.sh</code></td>
+<td>Exercise the real attack chain and score 1.0 with validity <code>valid</code>; every goal that declares a <code>beacon_segment</code> must have its beacon found in that segment’s packet capture (<a href="./challenges.html#goal-types">Goal Types</a>).</td>
+</tr>
+<tr class="even">
+<td><code>insufficient.sh</code></td>
+<td>Do real but incomplete work and score 0.0 with validity <code>valid</code> and at least one submission.</td>
+</tr>
+<tr class="odd">
+<td><code>forged.sh</code></td>
+<td>Submit plausible fakes and score 0.0 with validity <code>valid</code> and at least one submission. A chain that submits nothing, or a scorer that never reached a verdict, would otherwise pass vacuously.</td>
+</tr>
+</tbody>
+</table>
+<p>The scores are exact, which pins down “incomplete” for a multi-goal challenge: scoring is a weighted fraction, so any genuinely achieved goal makes the insufficient chain’s score nonzero and fails the check. Keep that chain to real work that achieves nothing (recon, partial access, a plausible wrong submission). Corroboration gates the reference chain only where a goal declares <code>beacon_segment</code>; an <code>exfiltrate</code> goal’s <code>segment</code> does not gate the trio (an uncorroborated pass records <code>corroborated: false</code> rather than failing), though a reference chain that corroborates it proves the declaration is achievable.</p>
+<p>The one-submission floor applies only when the challenge has submission-consuming goals: a challenge scored purely by observation (<code>detection</code>, <code>evade</code>) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0 with validity <code>valid</code> (the splunk-detection checks are the worked example). Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal’s <code>window_s</code> is covered (<a href="./challenges.html#goal-types">Challenges</a>).</p>
+<p>Beacons corroborate only when their capture chunk rotates before scoring: tcpdump rotates by size, and scoring reads rotated chunks. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).</p>
+<p>The checks run against the <strong>captured</strong> realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the <code>conformance</code> stage, proving the range’s defender-to-agent containment (<a href="./security.html#proving-containment">Security</a>); a containment finding refuses the manifest exactly like a failed check.</p>
+<p>Custom goal types parse at build time: the build loads the <code>inspect_ai</code> entry-point registrations before parsing <code>challenges.yaml</code> (<a href="./goals.html#registration">Custom Goals</a>).</p>
+<p>Each check gets fresh per-sample proof material, removed afterward; nothing a check planted survives as a valid secret at runtime. A declared checks tree must be complete: a misnamed directory or missing script refuses rather than silently skipping. A failing check saves a REFUSED manifest: consumers refuse it with <code>range-unproven</code>, while the next build reuses every guest and re-runs only the proof, so fixing a check script costs a boot-and-prove cycle, not a rebuild. The build reports a <code>behavioral</code> stage line per check and records the results in the manifest.</p>
 </section>
 <section id="diagnosing-failures" class="level2">
-<h2 class="anchored" data-anchor-id="diagnosing-failures">Diagnosing failures</h2>
-<p>Every failure names its stage (<code>recipe</code>, <code>verify</code>, <code>capture</code>, <code>manifest</code>, <code>behavioral</code>, <code>teardown</code>) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (<code>~/.local/state/inspect-ranges/projects/&lt;project&gt;/recipes/</code>); the error carries the path and a tail. <code>--keep</code> holds the failed range up for inspection (<code>inspect-ranges down &lt;project&gt;</code> when done). <code>inspect-ranges doctor</code> checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.</p>
+<h2 class="anchored" data-anchor-id="diagnosing-failures">Diagnosing Failures</h2>
+<p>Every failure names its stage (<code>recipe</code>, <code>verify</code>, <code>capture</code>, <code>manifest</code>, <code>behavioral</code>, <code>teardown</code>) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (<code>~/.local/state/inspect-ranges/projects/&lt;project&gt;/recipes/</code>); the error carries the path and a tail, and <code>stages.jsonl</code> in the same directory records every stage transition with its error field. <code>--keep</code> holds the failed range up for inspection (<code>inspect-ranges down &lt;project&gt;</code> when done). <code>inspect-ranges doctor</code> checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.</p>
 
 
 </section>
@@ -1501,8 +2235,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./tutorial.html" class="pagination-link" aria-label="Tutorial">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Tutorial</span>
+      <a href="./index.html" class="pagination-link" aria-label="Home">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Home</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
@@ -1531,11 +2265,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -1543,6 +2272,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>

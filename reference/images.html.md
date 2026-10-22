@@ -18,7 +18,7 @@ inspect-ranges images [OPTIONS] COMMAND [ARGS]...
 | [pull](#inspect-ranges-images-pull) | Fetch a published catalog image’s chain into the cache (sticky thereafter: later builds keep resolving the cached artifact until an explicit refresh). |
 | [refresh](#inspect-ranges-images-refresh) | The explicit move-forward act: re-resolve bare names against the search path and replace cached chains that moved; the next build’s keys change accordingly. |
 | [prune](#inspect-ranges-images-prune) | Reclaim realized images no manifest references, plus capture temps and orphan sidecars; `--chains` extends to unreferenced goldens and vendor bases (pulled chains accounted exactly like built ones). |
-| [pin](#inspect-ranges-images-pin) | Write the fleet pin file (every catalog name’s current root digest); hosts consuming it via INSPECT_RANGES_PIN_FILE refuse a catalog that moved past the pinned state. |
+| [pin](#inspect-ranges-images-pin) | Write the fleet pin file (every catalog IMAGE’s current root digest; published ranges never enter it, they pin via the consumer clone’s spec hash); hosts consuming it via INSPECT_RANGES_PIN_FILE refuse a catalog that moved past the pinned state. |
 
 ## inspect-ranges images derive
 
@@ -37,7 +37,7 @@ inspect-ranges images derive [OPTIONS] VENDOR
 | Name | Type | Description | Default |
 |----|----|----|----|
 | `--sha256` | text | Required digest pin for the vendor image (hex or sha256:-prefixed). | `Sentinel.UNSET` |
-| `--name` | text | Golden name (default: -golden). | None |
+| `--name` | text | Golden name (default: `<vendor stem>-golden`). | None |
 | `--image-cache` | path | Image cache the golden is derived into. | None |
 | `--daemon-bundle` | path | Directory holding the daemon-bundle artifact and its daemon.json (default: the shared artifact cache; publish one with `inspect-ranges daemon-bundle`). | None |
 | `--daemon-sha256` | text | Out-of-band pin for the daemon bundle digest (printed by `inspect-ranges daemon-bundle` at publish). Without it, the sidecar proves internal consistency only. | None |
@@ -148,7 +148,7 @@ inspect-ranges images prune [OPTIONS]
 
 ## inspect-ranges images pin
 
-Write the fleet pin file (every catalog name’s current root digest); hosts consuming it via INSPECT_RANGES_PIN_FILE refuse a catalog that moved past the pinned state.
+Write the fleet pin file (every catalog IMAGE’s current root digest; published ranges never enter it, they pin via the consumer clone’s spec hash); hosts consuming it via INSPECT_RANGES_PIN_FILE refuse a catalog that moved past the pinned state.
 
 #### Usage
 
