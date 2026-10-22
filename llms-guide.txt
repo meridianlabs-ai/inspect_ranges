@@ -363,7 +363,7 @@ Range development is a loop: edit the definition and recipes, validate, plan, bu
 
 2.  **Build.** `inspect-ranges build` realizes the declared guest content: for dmz_pivot, two guests provisioned over the published golden and three challenge trios proven, a few minutes on a warm image cache. The stage lines to expect are in [Reading Build Output](#reading-build-output). The development knobs: `--keep` holds the build range up for inspection (success or failure); `--reverify` forces the full boot-and-verify pass on an unchanged range; `--cid-base` picks a different host-global vsock CID block while a kept range still holds the default. When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
 
-3.  **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because a range declaring guest content (dmz_pivot does) refuses `plan` with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
+3.  **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because for a range declaring guest content (dmz_pivot does) `plan` refuses with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
 
 ## Running the Range
 
@@ -608,7 +608,7 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A service with a `port` must have a TCP or UDP socket listening on it in-guest.
 
-- A service with a `version` must match the observed version. Attribution tries the declared `package` (a dpkg name), then the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
+- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the robust default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
 
 - A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [behavioral checks](#behavioral-checks), not here.
 
@@ -624,7 +624,7 @@ A range that carries challenges ([Challenges](./challenges.html.md)) can prove t
 | `insufficient.sh` | Do real but incomplete work and score 0.0 with validity `valid` and at least one submission. |
 | `forged.sh` | Submit plausible fakes and score 0.0 with validity `valid` and at least one submission. A chain that submits nothing, or a scorer that never reached a verdict, would otherwise pass vacuously. |
 
-The scores are exact, which pins down “incomplete” for a multi-goal challenge: scoring is a weighted fraction, so any genuinely achieved goal makes the insufficient chain’s score nonzero and fails the check. Keep that chain to real work that achieves nothing (recon, partial access, a plausible wrong submission). Corroboration gates the reference chain only where a goal declares `beacon_segment`; an `exfiltrate` goal’s `segment` does not gate the trio (an uncorroborated pass records `corroborated: false` rather than failing), though a reference chain that corroborates it proves the declaration is achievable.
+The scores are exact, which pins down “incomplete” for a multi-goal challenge: scoring is a weighted fraction, so any genuinely achieved goal makes the insufficient chain’s score nonzero and fails the check. Keep that chain to real work that achieves nothing (recon, partial access, a plausible wrong submission). Corroboration gates the reference chain only where a goal declares `beacon_segment`. An `exfiltrate` goal’s `segment` does not gate the trio: an uncorroborated pass records `corroborated: false` rather than failing.
 
 The one-submission floor applies only when the challenge has submission-consuming goals: a challenge scored purely by observation (`detection`, `evade`) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0 with validity `valid` (the splunk-detection checks are the worked example). Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal’s `window_s` is covered ([Challenges](./challenges.html.md#goal-types)).
 
@@ -2534,8 +2534,6 @@ Each segment is its own broadcast domain: L2 tradecraft like ARP and LLMNR poiso
 
 Rules evaluate first-match in declaration order, and each rule carries exactly one of `allow:` or `deny:`. Endpoints are a network name, a guest name (resolved to its allocated addresses at compile time), or a CIDR (`/32` for a single host, `0.0.0.0/0` for any). Services are `proto/port`, `proto/lo-hi` ranges, or bare `icmp`:
 
-Endpoint matching is on IP addresses, not hardware addresses. A guest-named rule admits any same-segment sender that forges that guest’s source IP; the stateful default means a blind TCP spoof cannot complete a handshake (the replies go to the address’s real owner), but a one-way UDP flow would cross, so a rule is an authorization statement about addresses, not an anti-spoofing control.
-
 ``` yaml
 range:
   name: policy
@@ -2652,6 +2650,8 @@ Only the web server may open http into the internal segment.
 
 3  
 A literal address range as an endpoint.
+
+Endpoint matching is on IP addresses, not hardware addresses. A guest-named rule admits any same-segment sender that forges that guest’s source IP; the stateful default means a blind TCP spoof cannot complete a handshake (the replies go to the address’s real owner), but a one-way UDP flow would cross, so a rule is an authorization statement about addresses, not an anti-spoofing control.
 
 Networks and guests share one namespace (a guest may not take a network’s name), so an endpoint is never ambiguous. Unknown endpoints are rejected at validation with a did-you-mean suggestion.
 
@@ -3037,9 +3037,9 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - Setup never overwrites. A proof path that already exists on the built image refuses setup, so an `execute` goal’s `token_path` and a `flag` goal’s `path` must not exist after the build; the account that owns them (`service_user`/`owner`) and the path’s parent directory must. Your recipe creates the account and the directory, never the file.
 
-- For an `exfiltrate` goal the planted file is the target content itself: setup writes the declared `path` with a fresh per-sample value (the canary) as its content, world-readable, protected by where it sits rather than by permissions. Here too the recipe creates only the parent directory.
+- For an `exfiltrate` goal the planted file is the target content itself: setup writes the declared `path` with a fresh per-sample value (the canary) as its content, world-readable, protected by where it sits rather than by permissions. Here too the recipe creates only the parent directory. The canary is the file’s entire content by design (nothing plausible to fabricate); realism lives in the `data` entry’s `description`, and embedding canaries inside realistic content is a recorded future decision, not a knob.
 
-- `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the declared default from the spec; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)).
+- `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the declared default from the spec; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)). Until the generation layer draws per-instance values, that default is checked in, so a variable-backed answer is exactly as public as the repository: prefer a planted `flag` goal or the oracle-read `host`/`path` source when the fact must not be readable from the spec, or keep the range repository private.
 
 **Corroboration.** Corroboration is the optional second witness: scoring scans the declared segment’s packet capture for the proof value, and `corroborated` records what it found. Three rules decide whether declaring a segment is useful:
 
@@ -3487,10 +3487,12 @@ The standard images publish at the project org, each consumable by bare name (hu
 
 | Name | Contents |
 |----|----|
-| `attack` | The standard attack box: a kali-class toolset (nmap, hydra, sqlmap, john, gobuster, impacket, metasploit, and more) built by a pinned recipe over the noble golden. `/etc/attack-image.manifest` records every delivered package and version, and the image refuses to build if anything listens beyond loopback. A dedicated attack box with no `image:` boots it by default. |
+| `attack` | The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with an asserted tool contract (below) and a refusal to build if anything listens beyond loopback. A dedicated attack box with no `image:` boots it by default. |
 | `ubuntu-noble` / `ubuntu-focal` | Golden images, published as chains (the image, its provenance sidecar, and the vendor base it derives from), each with the guest control daemon baked in. |
 | `daemon-bundle` | The guest control daemon artifact, for fleets that derive their own goldens: `daemon-bundle --pull` fetches it with no Go toolchain. |
 | `inspect-ranges-range` | The hardened range container, published as a conventional Docker image (consumed as a full Docker ref, not a bare `image:` name) by digest pin (below). |
+
+The attack image’s tool contract is asserted at image build, so [behavioral checks](./building.html.md#behavioral-checks), which run with no egress, may rely on every name here: `nmap`, `ncat`, `socat`, `curl`, `wget`, `tcpdump`, `sqlmap`, `hydra`, `john`, `gobuster`, `ffuf`, `smbclient`, `ldapsearch`, `dig`, `nc`, `msfconsole`, `msfvenom`, the impacket scripts `psexec.py`, `wmiexec.py`, `secretsdump.py`, `GetUserSPNs.py`, `raiseChild.py`, `lookupsid.py`, `atexec.py`, `smbexec.py`, and `mssqlclient.py`, plus `impacket` and `requests` importable from python3 and metasploit at major version 6. A missing tool fails the image build, never an eval. Beyond the contract, `/etc/attack-image.manifest` inside the image records every package and version the feeds actually delivered; read it from a pulled copy without booting anything by finding the cached file with `inspect-ranges images list` and running `virt-cat -a <file> /etc/attack-image.manifest` (`virt-cat` installs with libguestfs-tools, which `doctor` already requires).
 
 The goldens are minimal Ubuntu cloud images with nothing enabled beyond the daemon: derivation disables ssh and the systemd-resolved DNS stub listener. A recipe installs and enables whatever its scenario needs; `apt` works, and builds run with network egress so recipes can install packages.
 

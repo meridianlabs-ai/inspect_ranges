@@ -16,5 +16,5 @@ inspect-ranges applier [OPTIONS]
 |----|----|----|----|
 | `--socket` | path | Unix socket to serve on (created 0600 in a 0700 directory). | `Sentinel.UNSET` |
 | `--state-dir` | path | Project state directory (default: the shared inspect-ranges state dir). | None |
-| `--image-cache` | path | Image cache realize verifies bundle image digests against. | None |
+| `--image-cache` | path | Image cache that realize verifies bundle image digests against. | None |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |

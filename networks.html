@@ -1812,7 +1812,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="rules" class="level2">
 <h2 class="anchored" data-anchor-id="rules">Rules</h2>
 <p>Rules evaluate first-match in declaration order, and each rule carries exactly one of <code>allow:</code> or <code>deny:</code>. Endpoints are a network name, a guest name (resolved to its allocated addresses at compile time), or a CIDR (<code>/32</code> for a single host, <code>0.0.0.0/0</code> for any). Services are <code>proto/port</code>, <code>proto/lo-hi</code> ranges, or bare <code>icmp</code>:</p>
-<p>Endpoint matching is on IP addresses, not hardware addresses. A guest-named rule admits any same-segment sender that forges that guest’s source IP; the stateful default means a blind TCP spoof cannot complete a handshake (the replies go to the address’s real owner), but a one-way UDP flow would cross, so a rule is an authorization statement about addresses, not an anti-spoofing control.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-7-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-1" role="tab" aria-controls="tabset-7-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-7-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-2" role="tab" aria-controls="tabset-7-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1943,6 +1942,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p>Endpoint matching is on IP addresses, not hardware addresses. A guest-named rule admits any same-segment sender that forges that guest’s source IP; the stateful default means a blind TCP spoof cannot complete a handshake (the replies go to the address’s real owner), but a one-way UDP flow would cross, so a rule is an authorization statement about addresses, not an anti-spoofing control.</p>
 <p>Networks and guests share one namespace (a guest may not take a network’s name), so an endpoint is never ambiguous. Unknown endpoints are rejected at validation with a did-you-mean suggestion.</p>
 </section>
 <section id="topology" class="level2">
