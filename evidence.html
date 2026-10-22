@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="What the range records outside every VM, where it streams, the tamper-evidence guarantee and its exact scope, and how to verify a record.">
+<meta name="description" content="What the range records outside every VM and where it streams. Covers the tamper-evidence guarantee and how to verify a record.">
 
 <title>Evidence – Inspect Ranges</title>
 <style>
@@ -72,7 +72,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./cli.html" rel="next">
+<link href="./images.html" rel="next">
 <link href="./goals.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -111,22 +111,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="./llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="./llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="./llms-guide.txt">
 
 
+<link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
 <meta property="og:site_name" content="Inspect Ranges">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
 <meta name="twitter:card" content="summary">
 </head>
 
@@ -149,17 +144,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="./index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="./building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -198,37 +189,68 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="./cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="./images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="./security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="./provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="./examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -238,10 +260,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="./CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -273,19 +291,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -349,7 +361,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -357,14 +369,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="./images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -375,26 +381,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="./security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="./provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -403,29 +462,454 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Python API</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -460,13 +944,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <a href="./reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -667,8 +1168,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -685,11 +1198,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -740,8 +1253,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -788,14 +1325,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#what-evidence-is" id="toc-what-evidence-is" class="nav-link active" data-scroll-target="#what-evidence-is">What evidence is</a></li>
-  <li><a href="#what-is-captured" id="toc-what-is-captured" class="nav-link" data-scroll-target="#what-is-captured">What is captured</a></li>
-  <li><a href="#where-it-lives" id="toc-where-it-lives" class="nav-link" data-scroll-target="#where-it-lives">Where it lives</a></li>
-  <li><a href="#the-trust-story-honestly-scoped" id="toc-the-trust-story-honestly-scoped" class="nav-link" data-scroll-target="#the-trust-story-honestly-scoped">The trust story, honestly scoped</a></li>
-  <li><a href="#in-guest-telemetry-export" id="toc-in-guest-telemetry-export" class="nav-link" data-scroll-target="#in-guest-telemetry-export">In-guest telemetry export</a></li>
-  <li><a href="#verifying-a-record" id="toc-verifying-a-record" class="nav-link" data-scroll-target="#verifying-a-record">Verifying a record</a></li>
-  <li><a href="#deployment-guidance-store-side-prevention" id="toc-deployment-guidance-store-side-prevention" class="nav-link" data-scroll-target="#deployment-guidance-store-side-prevention">Deployment guidance: store-side prevention</a></li>
-  <li><a href="#environment-reference" id="toc-environment-reference" class="nav-link" data-scroll-target="#environment-reference">Environment reference</a></li>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#captured-streams" id="toc-captured-streams" class="nav-link" data-scroll-target="#captured-streams">Captured Streams</a></li>
+  <li><a href="#storage" id="toc-storage" class="nav-link" data-scroll-target="#storage">Storage</a></li>
+  <li><a href="#tamper-evidence" id="toc-tamper-evidence" class="nav-link" data-scroll-target="#tamper-evidence">Tamper Evidence</a></li>
+  <li><a href="#telemetry-export" id="toc-telemetry-export" class="nav-link" data-scroll-target="#telemetry-export">Telemetry Export</a></li>
+  <li><a href="#verifying-a-record" id="toc-verifying-a-record" class="nav-link" data-scroll-target="#verifying-a-record">Verifying a Record</a></li>
+  <li><a href="#deployment-guidance-store-side-prevention" id="toc-deployment-guidance-store-side-prevention" class="nav-link" data-scroll-target="#deployment-guidance-store-side-prevention">Deployment Guidance</a></li>
+  <li><a href="#environment-vars" id="toc-environment-vars" class="nav-link" data-scroll-target="#environment-vars">Environment Vars</a></li>
   </ul>
 </nav>
     </div>
@@ -809,7 +1346,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div>
   <div class="description">
-    What the range records outside every VM, where it streams, the tamper-evidence guarantee and its exact scope, and how to verify a record.
+    What the range records outside every VM and where it streams. Covers the tamper-evidence guarantee and how to verify a record.
   </div>
 </div>
 
@@ -826,13 +1363,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="what-evidence-is" class="level2">
-<h2 class="anchored" data-anchor-id="what-evidence-is">What evidence is</h2>
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
 <p>Scoring a cyber range cannot trust what guests report: the agent owns the attack box from the first prompt and owns each target it compromises. Evidence is the record captured <strong>outside every VM</strong>: per-segment packet captures taken on the bridges, serial consoles, the realization stage stream, readiness and verification results, daemon session continuity, and exported in-guest telemetry. It streams off the sample as it is generated, so the record received before a compromise cannot be rewritten afterward.</p>
+<p>Scoring consumes the record through the oracle’s read-only accessors: <a href="./goals.html#the-oracle-surface">Custom Goals</a> covers reading it from a goal type, and <a href="./goals.html#corroborating-against-evidence">Corroborating Against Evidence</a> is the worked pattern.</p>
 <p>Evidence is on by default inside an eval: when a sample runs under Inspect, the provider derives a location beside the eval log and records automatically. Outside an eval context (CLI experiments, batteries), set <code>INSPECT_RANGES_EVIDENCE_SINK</code> to enable it; with neither, evidence is off and one INFO line says so.</p>
 </section>
-<section id="what-is-captured" class="level2">
-<h2 class="anchored" data-anchor-id="what-is-captured">What is captured</h2>
+<section id="captured-streams" class="level2">
+<h2 class="anchored" data-anchor-id="captured-streams">Captured Streams</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -876,47 +1414,48 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="where-it-lives" class="level2">
-<h2 class="anchored" data-anchor-id="where-it-lives">Where it lives</h2>
+<section id="storage" class="level2">
+<h2 class="anchored" data-anchor-id="storage">Storage</h2>
 <p>The per-sample location is derived, never configured per sample:</p>
 <pre><code>&lt;evallogstem&gt;.evidence/&lt;sample_id&gt;_&lt;epoch&gt;_&lt;attempt&gt;/</code></pre>
 <p>Local beside a local log in development; in the log’s S3 bucket when the log dir is <code>s3://</code> (Inspect supports S3 log dirs natively). Durability therefore inherits from the log location, and anything that finds the log finds the evidence. Each attempt gets a fresh prefix, so retries never rewrite an earlier attempt’s record. <code>INSPECT_RANGES_EVIDENCE_SINK</code> overrides the base for deployments whose evidence needs a different bucket or retention than their logs.</p>
 <p>At finalize, the sample’s Inspect store receives the binding under <code>inspect_ranges:evidence</code>: the evidence pointer, each writer’s seal digest, and the per-stream chain heads. The same values are mirrored to an INFO log line, which is all that remains if the sample context is gone by teardown time (deferred teardown, <code>cleanup=False</code>).</p>
 </section>
-<section id="the-trust-story-honestly-scoped" class="level2">
-<h2 class="anchored" data-anchor-id="the-trust-story-honestly-scoped">The trust story, honestly scoped</h2>
+<section id="tamper-evidence" class="level2">
+<h2 class="anchored" data-anchor-id="tamper-evidence">Tamper Evidence</h2>
 <p>Collectors in the range container are trusted <strong>while the instance is uncompromised</strong>, and their output is preserved off-instance as it streams. The record itself is tamper-evident by format: write-once chunks, a per-stream hash chain over every record’s full metadata, explicit in-chain gap records, and a terminal seal per writer binding chain heads and counts.</p>
-<p>The format’s own guarantee has an exact scope. Everything <strong>at or below the seal</strong> is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and <code>evidence verify</code> names the first break. The <strong>seal tier itself</strong> (its fields, its presence, the record’s location) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run <code>evidence verify --expect-seal</code> with the binding’s digests and the full claim holds. Without a binding, verify attests internal consistency only, and an <strong>unsealed</strong> record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (<code>complete</code>, or <code>incomplete</code> when something could not flush inside the budget), and the independent reaper seals abandoned records (<code>reaped</code>), so even a <code>kill -9</code> of the driver leaves a verifiable record of everything streamed before the kill.</p>
+<p>The format’s own guarantee has an exact scope. Everything <strong>at or below the seal</strong> is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and <code>evidence verify</code> names the first break. The <strong>seal tier itself</strong> (its fields, its presence, the record’s location) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run <code>evidence verify --expect-seal</code> with the binding’s digests and the full claim holds. Without a binding, verify attests internal consistency only, and an <strong>unsealed</strong> record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (<code>complete</code>, or <code>incomplete</code> when something could not flush inside the budget), and the independent reaper process (<a href="./cli.html#reaper">Operations</a>) seals abandoned records (<code>reaped</code>), so even a <code>kill -9</code> of the driver leaves a verifiable record of everything streamed before the kill.</p>
 <p>Two bounded windows are part of the design and visible in the record rather than silent:</p>
 <ul>
 <li><strong>Backpressure is never silent.</strong> When the local buffer cap is hit (a flooded segment, a slow uplink), the oldest unstreamed chunk is dropped and an explicit gap record joins the chain in sequence, with a named cause (for example <code>buffer-cap</code>, <code>capture-restart</code>, <code>capture-dead</code>, <code>poll-failed</code>, <code>watermark-regression</code>, <code>evidence-cap</code>, or <code>applier-shutdown</code>; the verifier inventories every gap in the record). Scoring’s completeness checks see gaps; nothing pretends to coverage it does not have.</li>
 <li><strong>Manifest batching has a crash window.</strong> Chunks deliver on every flush, but manifest parts are cut on a bounded cadence (15 seconds or 256 records, and always at seal). A crash can leave up to one interval of records whose chunks survive as listed, unreferenced residue rather than chain-committed records; the record never claims the missing window.</li>
 </ul>
 </section>
-<section id="in-guest-telemetry-export" class="level2">
-<h2 class="anchored" data-anchor-id="in-guest-telemetry-export">In-guest telemetry export</h2>
-<p>Scenario telemetry (journald, application logs, EDR event files) lives inside guests because defenders are supposed to see it. The exporter polls declared collectors through the existing control-channel verbs on a cadence and ships each poll’s delta, with a watermark record per poll. The export path is the vsock control plane: nothing in-range can observe or firewall it, and the range’s air gap is never punctured.</p>
-<p>The assurance claim, stated honestly: <strong>export upgrades the timeline, not the source.</strong> Pre-compromise telemetry becomes immutable once streamed. Producer silencing shows as a watermark stall (polls keep succeeding while the watermark stays flat); an unreachable guest shows as poll-gap records; log truncation or rewrite shows as a watermark regression record. All three are decidable from the sealed record alone, and all three are distinct from “no events”. The read itself remains a guest read: a compromised host can forge what it exports from the moment it falls, which is why detection-type goals consume the watermarks as a completeness precondition rather than treating exported content as proof.</p>
+<section id="telemetry-export" class="level2">
+<h2 class="anchored" data-anchor-id="telemetry-export">Telemetry Export</h2>
+<p>Scenario telemetry (journald, application logs, EDR event files) lives inside guests because defenders are supposed to see it. The exporter polls declared collectors through the existing control-channel verbs on a cadence and ships each poll’s delta, with a watermark record per poll. The export path is the vsock control plane: nothing in-range can observe or firewall it, and the range’s network isolation is never punctured.</p>
+<p>The assurance claim: <strong>export upgrades the timeline, not the source.</strong> Pre-compromise telemetry becomes immutable once streamed. Producer silencing shows as a watermark stall (polls keep succeeding while the watermark stays flat); an unreachable guest shows as poll-gap records; log truncation or rewrite shows as a watermark regression record. All three are decidable from the sealed record alone, and all three are distinct from “no events”. The read itself remains a guest read: a compromised host can forge what it exports from the moment it falls, which is why detection-type goals consume the watermarks as a completeness precondition rather than treating exported content as proof.</p>
 <p>Operational note: the guest daemon reaps each command’s process group when the command returns, so an in-guest background producer started over the channel must detach with <code>setsid</code> to outlive its starting exec.</p>
 </section>
 <section id="verifying-a-record" class="level2">
-<h2 class="anchored" data-anchor-id="verifying-a-record">Verifying a record</h2>
+<h2 class="anchored" data-anchor-id="verifying-a-record">Verifying a Record</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># internal consistency: replay every chain, report coverage and gaps</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify ./logs/mytask.evidence/sample1_1_1</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the full guarantee: anchor each writer's seal to the digest from the</span></span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># eval log's binding (store key inspect_ranges:evidence)</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify s3://bucket/logs/run.evidence/sample1_1_1 <span class="dt">\</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--expect-seal</span> driver=sha256:... <span class="at">--expect-seal</span> host=sha256:...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify <span class="dt">\</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  s3://bucket/logs/run.evidence/sample1_1_1 <span class="dt">\</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--expect-seal</span> driver=sha256:... <span class="at">--expect-seal</span> host=sha256:...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output names the first chain break with its neighborhood, per-stream coverage spans, the gap inventory, and each seal’s claimed lease and sample ids; <code>--json</code> emits the report for tooling. Exit status is 0 only when every chain replays and every supplied binding matches. Timestamps come from both clocks: capture records carry the range host’s wall and monotonic clocks, driver records carry the driver’s, and paired records around stage reports bound the offset between them, so cross-clock comparisons carry a tolerance instead of a hidden assumption.</p>
 </section>
 <section id="deployment-guidance-store-side-prevention" class="level2">
-<h2 class="anchored" data-anchor-id="deployment-guidance-store-side-prevention">Deployment guidance: store-side prevention</h2>
+<h2 class="anchored" data-anchor-id="deployment-guidance-store-side-prevention">Deployment Guidance</h2>
 <p>The format detects tampering; preventing it is the store’s job, and the writer already helps: on S3 every put is conditional (<code>If-None-Match: *</code>), so rewrites of delivered objects are refused by the store itself with a 412. To make the store refuse unconditional rewrites from <strong>any</strong> writer holding the credential, apply a bucket policy denying <code>s3:PutObject</code> without the conditional header (the exact policy JSON ships in <code>design/spikes/evidence-v1-s3/README.md</code>); Object Lock is the stricter alternative where retention rules demand it. Grant the capture host put-only credentials: the writer never reads back, by design.</p>
 <p>Local evidence (a local log dir, no override) is fine for development and does not survive instance compromise: for untrusted-model runs, point the log dir or the sink override at off-instance storage. <code>inspect-ranges doctor</code> warns about this in its Evidence group.</p>
 </section>
-<section id="environment-reference" class="level2">
-<h2 class="anchored" data-anchor-id="environment-reference">Environment reference</h2>
+<section id="environment-vars" class="level2">
+<h2 class="anchored" data-anchor-id="environment-vars">Environment Vars</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -1479,8 +2018,8 @@ document.addEventListener("DOMContentLoaded", function () {
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./cli.html" class="pagination-link" aria-label="Overview">
-        <span class="nav-page-text">Overview</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./images.html" class="pagination-link" aria-label="Images">
+        <span class="nav-page-text">Images</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1504,11 +2043,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -1516,6 +2050,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>

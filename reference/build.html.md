@@ -22,7 +22,7 @@ inspect-ranges build [OPTIONS] [PATH]
 | `--build-nameserver` | text | Resolver handed to build guests (fleets forcing DNS through a VPC resolver are the norm, not the exception). | None |
 | `--build-cache` | path | Builds cache where the range’s manifest lives. | None |
 | `--reverify` | boolean | Boot and verify in full even when every build key matches the recorded manifest. | `Sentinel.UNSET` |
-| `--readiness-timeout` | float | N/A | `300.0` |
+| `--readiness-timeout` | float | Per-guest readiness deadline in seconds (daemon answer, then cloud-init). | `300.0` |
 | `--settle-probe` | text | Hostname each guest must resolve before its first recipe runs; pass ‘off’ to skip the gate (fleets whose resolver answers only internal names). | None |
 | `--settle-timeout` | float | Seconds to wait for the settle probe per guest. | None |
 | `--recipe-budget` | float | Whole-entrypoint budget per provisioning step, in seconds. | `1800.0` |

@@ -2,17 +2,13 @@
 
 ## Overview
 
-Guests are the virtual machines in a range. They come in three kinds: hosts (the targets), routers (gateways between network segments), and the attacker. In a definition, “host” on its own always means a target not the physical machine the range runs on. This page covers the guest half of a range definition. Network addressing, segmentation, and routing are covered in [Networks](./networks.html.md).
+Guests are the virtual machines in a range. They come in three kinds: hosts (the targets), routers (gateways between network segments), and the attacker. In a definition, “host” on its own always means a target, not the physical machine the range runs on. This page covers the guest half of a range definition. Network addressing, segmentation, and routing are covered in [Networks](./networks.html.md).
 
-This article is organized as follows:
-
-- Defining guests: [Hosts](#hosts) covers identity and naming, [Images](#images) and [Resources](#resources) cover what a guest boots from and how it is sized, and two sections show how [routers](#routers-are-guests-too) and [the attacker](#the-attacker-guest) are defined as guests.
-- Guest content: What a guest contains once built: [users](#users), [services](#services), [vulnerabilities and misconfigurations](#vulnerabilities-and-misconfigurations), [planted data](#planted-data), [defense](#defense), and [Active Directory](#active-directory). [Provisioning references](#provisioning-references), [scheduled activity](#scheduled-activity), and [variables](#variables) cover how that content is produced and varied.
-- Runtime behavior: [How configuration reaches a guest](#how-configuration-reaches-a-guest) describes how compiled configuration is delivered at boot.
+Defining guests comes first ([hosts](#hosts), [images](#images), [resources](#resources), [routers](#routers-are-guests-too), [the attacker](#the-attacker-guest)), then [guest content](#guest-content) and the sections that produce and vary it, then [how configuration reaches a guest](#how-configuration-reaches-a-guest).
 
 ## Hosts
 
-Hosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under [Guest content](#guest-content). The optional `hostname` and `fqdn` are build-phase content: render keeps the in-guest hostname equal to a hostname-safe form of `name` (hostname-invalid characters such as underscores and dots become hyphens), so declaring either refuses at planning (`guest-config-not-realized`) until the build arc realizes them.
+Hosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under [Guest content](#guest-content).
 
 This example defines a single host:
 
@@ -93,18 +89,23 @@ Python definitions import from `inspect_ranges.types` (shown once above, later P
 
 `name` is how everything else refers to the guest: `sandbox("dc01")` in evaluations, ACL endpoints, DNS `authoritative` lists. `hostname` is only needed when the in-guest name should differ, and `fqdn` matters for domain-joined ranges. `os` records the platform (`type: linux | windows`, with `distro` or `version` detail); `interfaces` are covered in [Networks](./networks.html.md).
 
-`roles` tags a host’s function, such as `roles: [domain-controller, dns]` or `[member-server]`. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles are applied at build time, so like other [guest content](#guest-content) they are refused at planning until the build phase lands.
+The in-guest hostname is the declared `hostname:` when one is present, else a hostname-safe form of `name`: invalid characters such as underscores and dots become hyphens, and Windows names truncate to the 15-character NetBIOS limit. Two guests whose rendered hostnames collide refuse at planning (`inspect-ranges plan` reports the collision as an error). `fqdn` is set at build time by the Active Directory recipes (promotion and domain join set the primary DNS suffix), so a range declaring it refuses to run until a build has produced that content and recorded it in the build manifest, the build’s record of what it ran and produced (see [Building Ranges](./building.html.md)).
+
+`roles` tags a host’s function, such as `roles: [domain-controller, dns]` or `[member-server]`. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles take effect through the host’s provisioning recipes at build time; a host declaring roles but no recipe refuses at planning (`realized-section-unconsumed`).
 
 ## Images
 
-Every host names the `image` it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest.
+Every host names the `image` it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon (the in-guest service that runs commands, moves files, and answers readiness) plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest. How bare names resolve beyond the cache (pins, registries, the public catalog) is covered in [Images](./images.html.md).
+
+[![The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above.](diagrams/image-layers.excalidraw.png)](diagrams/image-layers.excalidraw.png)
 
 An image reference missing from the cache shows up in the plan output and is an error at render:
 
     ✗ range.yaml  1 error
-      12:5  hosts[0].image  image 'acme/db-golden' for guest 'db' is not in the image
-                            cache, so the bundle cannot be self-sufficient (pull or
-                            build the image into the cache)
+      12:5  hosts[0].image  image 'acme/db-golden' for guest 'db' is
+                            not in the image cache, so the bundle
+                            cannot be self-sufficient (pull or build
+                            the image into the cache)
 
 ## Resources
 
@@ -121,16 +122,17 @@ resources:
 Resources(cpus=2, memory_mb=4096, disk_gb=20)
 ```
 
-Omitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. `inspect-ranges plan` reports the range’s totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.
+Omitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. The defaults suit an idle service host; a guest that compiles from source at build time ([Period Software](./building.html.md#period-software)) or runs a database wants 2 vCPUs and 2048 MiB. `inspect-ranges plan` reports the range’s totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.
 
 ## Routers
 
-A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. `os` and `image` are optional; when omitted, the backend’s default router appliance is used:
+A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. `os` and `image` are optional; when omitted, the backend’s default router appliance is used. A router can also be a target in its own right: it takes [`users`](#users) and `provisioning` like a host (the CyRIS firewall shape, a gateway with its own weak account), built and captured on the same path as host content ([Building Ranges](./building.html.md)). A router declaring content must declare `image` as well (`router-image-required`), since the appliance default is a backend resolution its build key cannot pin. For example:
 
 ``` yaml
 range:
   name: router-guest
-  description: A router with explicit identity, and one with backend defaults.
+  description: >
+    A router with explicit identity, and one with backend defaults.
 
 networks:
   - name: dmz
@@ -169,7 +171,9 @@ router_guest = RangeSpec(
     ),
     networks=[
         Network(name="dmz", cidr="10.80.10.0/24", mode="isolated"),
-        Network(name="internal", cidr="10.80.20.0/24", mode="isolated"),
+        Network(
+            name="internal", cidr="10.80.20.0/24", mode="isolated"
+        ),
     ],
     routers=[
         Router(
@@ -204,7 +208,7 @@ Policy (`acl`) and routing (`routes`, gateway election) are covered in [Networks
 
 ## Attacker
 
-The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). Either it boots as a dedicated attack box (declare `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the standard attack image: the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init; see [Image Catalog](./catalog.html.md)), or it starts from a foothold on a declared host. A dedicated attack box runs under Cloud Hypervisor by default (the most adversarial guest gets the smaller VMM: unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see the Sandbox Provider page); declare `vmm: qemu` to keep QEMU, and with `host:` set the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in per guest with `vmm: cloud-hypervisor`; a Cloud Hypervisor guest cannot carry buildable guest content yet, which planning refuses:
+The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init (see [Images](./images.html.md)):
 
 ``` yaml
 range:
@@ -257,17 +261,19 @@ attack_box = RangeSpec(
 )
 ```
 
+A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in per guest with `vmm: cloud-hypervisor`; a Cloud Hypervisor guest cannot yet carry [guest content](#guest-content) that requires a build; planning refuses the combination.
+
 With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The attacker’s `egress` posture is covered in [Networks](./networks.html.md#egress).
 
 ## Guest Content
 
-Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest, not boot-time actions. The build applies each declaration by whatever means the image demands (a provisioning recipe, content baked into a derived image, or a captured checkpoint) and verifies it before the range ships; the runtime never applies guest content per sample.
+Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest (what the guest looks like once fully set up), not boot-time actions. Each declaration is realized at build time and the range ships verified; the runtime never applies guest content per sample.
 
-Today [`inspect-ranges build`](./building.html.md) realizes `provisioning`, `services`, and `vulnerabilities`: a range declaring any of them refuses planning (`range-not-built`) until a matching build exists, then boots its captured realized images. The other content sections below validate but refuse at planning (`guest-config-not-realized`) until their build slices land, so nothing boots with silently missing content.
+[`inspect-ranges build`](./building.html.md) converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses ([Authoring Recipes](./building.html.md#authoring-recipes)). The build then independently verifies every declared `services` and `vulnerabilities` entry against the live guests and captures each guest’s disk as a realized image. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (`users` realized by their `provisioning` recipes); they declare no `services` or `vulnerabilities`, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (`range-not-built`) until a matching build exists; once one does, the range boots those captured images. `scheduled_activity` has no realizer yet and refuses at planning (`guest-config-not-realized`), so nothing boots with silently missing content.
 
 ## Users
 
-`users` declares a guest’s local accounts (routers can carry them too). Domain accounts belong in [`active_directory`](#active-directory), not here:
+`users` declares a guest’s local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). Domain accounts belong in [`active_directory`](#active-directory), not here:
 
 ``` yaml
 range:
@@ -284,7 +290,9 @@ hosts:
     interfaces: [{ network: lab }]
     users:
       - { name: alice, password: bacon, note: "weak password" }
-      - { name: backup, groups: [sudo], note: service account with sudo }
+      - name: backup
+        groups: [sudo]
+        note: service account with sudo
 attacker:
   interfaces: [{ network: lab }]
   entry: external
@@ -326,12 +334,13 @@ users = RangeSpec(
 
 ## Services
 
-`services` entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in [`provisioning`](#provisioning-references). The optional `package` names the dpkg package that embodies the service, for version attribution when the listening process cannot provide it (a PHP frontend served by apache attributes through `package: php7.4`, not the apache listener); the verification contract is in [Building Ranges](./building.html.md#verification):
+`services` entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in [`provisioning`](#provisioning-references). The optional `package` names the dpkg package that embodies the service, for version attribution when the listening process cannot provide it (a PHP frontend served by apache attributes through `package: php7.4`, not the apache listener). The verification contract is in [Building Ranges](./building.html.md#verification):
 
 ``` yaml
 range:
   name: services
-  description: The converged listening surface, asserted and build-verified.
+  description: >
+    The converged listening surface, asserted and build-verified.
 networks:
   - name: lab
     cidr: 10.10.10.0/24
@@ -389,12 +398,14 @@ services = RangeSpec(
 
 ## Vulnerabilities and Misconfigurations
 
-The seeded attack surface is two distinct lists, because real intrusions lean heavily on misconfigurations. A vulnerability’s `id` is a stable name of ours; `cve:` is an attribute when one applies, and `service:` ties the weakness to a declared service on the same host:
+The seeded attack surface is two distinct lists, because real intrusions lean heavily on misconfigurations. A vulnerability’s `id` is a stable local name; `cve:` is an attribute when one applies, and `service:` ties the weakness to a declared service on the same host:
 
 ``` yaml
 range:
   name: weaknesses
-  description: A CVE-backed vulnerability and a misconfiguration, as distinct lists.
+  description: >
+    A CVE-backed vulnerability and a misconfiguration, as
+    distinct lists.
 networks:
   - name: lab
     cidr: 10.10.10.0/24
@@ -410,10 +421,13 @@ hosts:
       - id: zabbix-jsrpc-sqli
         cve: CVE-2016-10134
         service: zabbix-web
-        description: SQL injection in jsrpc.php, reachable unauthenticated.
+        description: >
+          SQL injection in jsrpc.php, reachable unauthenticated.
     misconfigurations:
       - id: guest-login-enabled
-        description: The Zabbix guest account is enabled with an empty password.
+        description: >
+          The Zabbix guest account is enabled with an empty
+          password.
 attacker:
   interfaces: [{ network: lab }]
   entry: external
@@ -464,7 +478,7 @@ weaknesses = RangeSpec(
 
 ## Planted Data
 
-`data` declares scenario files: targets worth finding or exfiltrating, supporting material, captures. Flags never appear here:
+`data` declares scenario files: targets worth finding or exfiltrating, supporting material, captures. Nothing creates or verifies a `data:` file: the recipe writes the ones that should exist on the image. An `exfiltrate` goal’s file is planted per sample by the challenge layer (the recipe creates only its parent directory). Flags never appear here; the per-sample secrets belong to [challenges](./challenges.html.md):
 
 ``` yaml
 range:
@@ -480,8 +494,11 @@ hosts:
     image: acme/db-golden
     interfaces: [{ network: internal }]
     data:
-      - { path: /srv/data/customers.db, description: the exfiltration target, sensitive: true }
-      - { path: /home/trainee/traffic.pcap, description: packet capture with planted attack traffic }
+      - path: /srv/data/customers.db
+        description: the exfiltration target
+        sensitive: true
+      - path: /home/trainee/traffic.pcap
+        description: packet capture with planted attack traffic
 attacker:
   interfaces: [{ network: internal }]
   entry: assumed-breach
@@ -525,7 +542,7 @@ planted_data = RangeSpec(
 
 ## Defense
 
-The range-level `defense` section records the defensive posture on the D0 (no defenders) to D5 (adaptive defender) spectrum, with telemetry flows where signals are recorded or forwarded. Per-host toggles turn individual protections on or off:
+The range-level `defense` section records the defensive posture on the D0 (no defenders) to D5 (adaptive defender) spectrum, with telemetry flows where signals are recorded or forwarded. A posture realizes through its telemetry flows, so a tier declared without `telemetry` entries refuses at planning; omitting `defense` already means D0. Per-host toggles turn individual protections on or off:
 
 ``` yaml
 range:
@@ -537,7 +554,9 @@ networks:
     mode: isolated
 defense:
   tier: D2
-  description: Endpoint telemetry is recorded and searchable, no blocking response.
+  description: >
+    Endpoint telemetry is recorded and searchable, no blocking
+    response.
   telemetry:
     - { source: win, collector: Sysmon/WinEventLog, sink: splunk }
 hosts:
@@ -546,8 +565,8 @@ hosts:
     image: acme/splunk-golden
     interfaces: [{ network: lab }]
   - name: win
-    os: { type: linux }
-    image: acme/endpoint-golden
+    os: { type: windows, version: server-2022 }
+    image: windows-2022
     interfaces: [{ network: lab }]
     defense: { defender: true, firewall: false }
 attacker:
@@ -586,8 +605,8 @@ defended = RangeSpec(
         ),
         Host(
             name="win",
-            os=Os(type="linux"),
-            image="acme/endpoint-golden",
+            os=Os(type="windows", version="server-2022"),
+            image="windows-2022",
             interfaces=[Interface(network="lab")],
             defense=HostDefense(defender=True, firewall=False),
         ),
@@ -600,12 +619,13 @@ defended = RangeSpec(
 
 ## Active Directory
 
-Identity is range-scoped (accounts exist in the domain, not on a host), so `active_directory` is a top-level section: the forest, its domains, each domain’s controller (a declared host), accounts of note with groups and SPNs, and the seeded ACL-abuse chain as typed edges:
+Identity is range-scoped (accounts exist in the domain, not on a host), so `active_directory` is a top-level section: the forest, its domains, each domain’s controller (a declared host), accounts of note with groups and SPNs, and the seeded ACL-abuse chain as typed edges (each edge names a principal, a right, and a target):
 
 ``` yaml
 range:
   name: forest
-  description: A parent and child domain with seeded identity attack surface.
+  description: >
+    A parent and child domain with seeded identity attack surface.
 networks:
   - name: corp
     cidr: 10.20.0.0/24
@@ -617,10 +637,16 @@ active_directory:
       netbios: CORP
       dc: dc01
       users:
-        - { name: c.lannister, password: il0vejaime, groups: [Domain Admins] }
+        - name: c.lannister
+          password: il0vejaime
+          groups: [Domain Admins]
       acls:
-        - { principal: t.lannister, right: ForceChangePassword, target: j.lannister }
-        - { principal: j.lannister, right: GenericWrite, target: j.baratheon }
+        - principal: t.lannister
+          right: ForceChangePassword
+          target: j.lannister
+        - principal: j.lannister
+          right: GenericWrite
+          target: j.baratheon
     - name: north.corp.example
       netbios: NORTH
       dc: dc02
@@ -632,12 +658,12 @@ active_directory:
           note: kerberoastable
 hosts:
   - name: dc01
-    os: { type: linux }
-    image: acme/dc-golden
+    os: { type: windows, version: server-2022 }
+    image: windows-2022
     interfaces: [{ network: corp, ip: 10.20.0.5 }]
   - name: dc02
-    os: { type: linux }
-    image: acme/dc-golden
+    os: { type: windows, version: server-2022 }
+    image: windows-2022
     interfaces: [{ network: corp, ip: 10.20.0.6 }]
 attacker:
   interfaces: [{ network: corp }]
@@ -700,14 +726,14 @@ forest = RangeSpec(
     hosts=[
         Host(
             name="dc01",
-            os=Os(type="linux"),
-            image="acme/dc-golden",
+            os=Os(type="windows", version="server-2022"),
+            image="windows-2022",
             interfaces=[Interface(network="corp", ip="10.20.0.5")],
         ),
         Host(
             name="dc02",
-            os=Os(type="linux"),
-            image="acme/dc-golden",
+            os=Os(type="windows", version="server-2022"),
+            image="windows-2022",
             interfaces=[Interface(network="corp", ip="10.20.0.6")],
         ),
     ],
@@ -717,7 +743,7 @@ forest = RangeSpec(
 )
 ```
 
-ACL edge rights use the vocabulary observed in real ranges (`GenericAll`, `GenericWrite`, `WriteDacl`, `WriteOwner`, `ForceChangePassword`, `SelfMembership`, `AddMember`); principals and targets are names as AD knows them (users, groups, OUs, or computer objects).
+ACL edge rights use the vocabulary observed in real ranges (`GenericAll`, `GenericWrite`, `WriteDacl`, `WriteOwner`, `ForceChangePassword`, `SelfMembership`, `AddMember`); principals and targets are names as AD knows them (users, groups, OUs, or computer objects). The shipped [goad_light](./examples/goad_light.html.md) example is the built exemplar: one forest, two domains, three Windows Server guests, and a seeded ACL-abuse chain to Domain Admin.
 
 ## Provisioning References
 
@@ -789,12 +815,14 @@ networks:
     mode: isolated
 hosts:
   - name: dc01
-    os: { type: linux }
-    image: acme/dc-golden
+    os: { type: windows, version: server-2022 }
+    image: windows-2022
     interfaces: [{ network: corp }]
     scheduled_activity:
       - { script: responder.ps1 }
-      - { script: rdp_scheduler.ps1, user: admin.user, note: creates a stealable session }
+      - script: rdp_scheduler.ps1
+        user: admin.user
+        note: creates a stealable session
 attacker:
   interfaces: [{ network: corp }]
   entry: assumed-breach
@@ -812,8 +840,8 @@ activity = RangeSpec(
     hosts=[
         Host(
             name="dc01",
-            os=Os(type="linux"),
-            image="acme/dc-golden",
+            os=Os(type="windows", version="server-2022"),
+            image="windows-2022",
             interfaces=[Interface(network="corp")],
             scheduled_activity=[
                 ScheduledActivity(script="responder.ps1"),
@@ -833,7 +861,7 @@ activity = RangeSpec(
 
 ## Variables
 
-`variables` declares per-instance values: things that should differ between generated instances of the same range, like randomized ports, passwords, and flag hints. Every variable requires a `default`, and definitions reference variables as `{name}` in YAML scalars. Loading substitutes the defaults before validation, so a whole-scalar reference keeps the variable’s type (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. In Python the template is a function whose parameters play the role of the references, called with drawn values to produce a concrete spec:
+`variables` declares values intended to differ between generated instances of the same range: ports, passwords, flag hints. No per-instance values are drawn yet: every variable requires a `default` and loading substitutes the defaults before validation; the generation layer that would draw differing values is deferred (per-sample secrets come from the challenge plant layer instead; see [Challenges](./challenges.html.md)). References are `"{{name}}"`: a whole-scalar reference keeps the variable’s type (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in `range.yaml` (ports, passwords, `provisioning` `vars`, prose fields) and only `range.yaml`: `challenges.yaml` never substitutes, and a goal reads a variable by name instead (`answer`’s `variable:` source). A reference naming no declared variable is a positioned `undeclared-variable` error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:
 
 ``` yaml
 range:
@@ -902,12 +930,13 @@ spec = randomized()
 
 ## Guest Configuration
 
-The compiler emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows HOSTS inject over a per-boot unattend seed (a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass: hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon; Windows routers and attack boxes are not yet realized and refuse at planning. Other injectors remain designed: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.
+The range compiler (the plan and render steps) emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows hosts inject over a per-boot unattend seed: a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass (hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon. Because that addressing is always static, a Windows guest attached to a `dhcp: true` network never takes a lease and is configured statically all the same (validation warns `windows-dhcp-static`). Windows routers are not yet realized and refuse at planning. An attack box is Linux by construction (the `attacker:` block declares no `os` field). A Windows host declaring `vmm: cloud-hypervisor` refuses at planning, since the seed rides removable media that Cloud Hypervisor cannot present. Other injectors are designed but not yet implemented: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.
 
 ``` yaml
 range:
   name: windows-host
-  description: A Windows target on a locally installed golden (windows-ad-v1).
+  description: >
+    A Windows target on a locally installed golden (windows-ad-v1).
 networks:
   - name: corp
     cidr: 10.20.0.0/24

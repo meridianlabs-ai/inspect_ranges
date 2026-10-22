@@ -73,7 +73,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
 <link href="../reference/types.qmd#rangespec" rel="next">
-<link href="../reference/inspect_ranges.qmd#range_json_schema" rel="prev">
+<link href="../reference/scanners.qmd#range_apparatus" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -111,22 +111,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="../llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="../llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="../llms-guide.txt">
 
 
+<link rel="stylesheet" href="../styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
 <meta property="og:site_name" content="Inspect Ranges">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
 <meta name="twitter:card" content="summary">
 </head>
 
@@ -149,17 +144,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="../index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="../tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="../building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -198,37 +189,68 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="../cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="../images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="../security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="../provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -238,10 +260,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="../CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -258,7 +276,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/inspect_ranges.html">Python API</a></li><li class="breadcrumb-item"><a href="../reference/types.html">inspect_ranges.types</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/host.html">Python API</a></li><li class="breadcrumb-item"><a href="../reference/types.html">inspect_ranges.types</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -273,19 +291,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -349,7 +361,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -357,14 +369,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="../images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -375,26 +381,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="../security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="../provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -403,29 +462,454 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Python API</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Python API</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 show">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect_ranges</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -460,13 +944,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="../reference/types.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <a href="../reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 show">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/types.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -667,8 +1168,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -685,11 +1198,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -740,8 +1253,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -838,10 +1375,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#aclrule" id="toc-aclrule" class="nav-link" data-scroll-target="#aclrule">AclRule</a></li>
   <li><a href="#anyipaddress" id="toc-anyipaddress" class="nav-link" data-scroll-target="#anyipaddress">AnyIPAddress</a></li>
   <li><a href="#anyipnetwork" id="toc-anyipnetwork" class="nav-link" data-scroll-target="#anyipnetwork">AnyIPNetwork</a></li>
+  <li><a href="#parse_egress_entry" id="toc-parse_egress_entry" class="nav-link" data-scroll-target="#parse_egress_entry">parse_egress_entry</a></li>
   </ul></li>
   <li><a href="#diagnostics" id="toc-diagnostics" class="nav-link" data-scroll-target="#diagnostics">Diagnostics</a>
   <ul class="collapse">
   <li><a href="#issue" id="toc-issue" class="nav-link" data-scroll-target="#issue">Issue</a></li>
+  <li><a href="#issueerror" id="toc-issueerror" class="nav-link" data-scroll-target="#issueerror">IssueError</a></li>
   <li><a href="#validationreport" id="toc-validationreport" class="nav-link" data-scroll-target="#validationreport">ValidationReport</a></li>
   </ul></li>
   </ul>
@@ -850,7 +1389,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/inspect_ranges.html">Python API</a></li><li class="breadcrumb-item"><a href="../reference/types.html">inspect_ranges.types</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/host.html">Python API</a></li><li class="breadcrumb-item"><a href="../reference/types.html">inspect_ranges.types</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">inspect_ranges.types</h1>
 </div>
@@ -882,7 +1421,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="rangespec">RangeSpec</h3>
 <p>A complete v0.1 range definition.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L909">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L917">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeSpec(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -918,7 +1457,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </dd>
 <dt><code class="ref-definition">variables</code> <span class="element-type">dict[<span class="element-type-name">str</span>, <span class="element-type-name"><a href="../reference/types.html#variable">Variable</a></span>]</span></dt>
 <dd>
-<p>Per-instance randomized values, referenced as <code>{name}</code> in YAML scalars (defaults substitute at load).</p>
+<p>Per-instance randomized values, referenced as <code>"{{name}}"</code> in YAML scalars (defaults substitute at load).</p>
 </dd>
 <dt><code class="ref-definition">foothold_guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
 <dd>
@@ -932,7 +1471,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Identity of the range.</p>
 <p>Upstream provenance is a convention, not schema: record it in a <code>source.md</code> next to the <code>range.yaml</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L83">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L83">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeMeta(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -960,7 +1499,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="host">Host</h3>
 <p>A target guest.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L682">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L690">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Host(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1000,7 +1539,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </dd>
 <dt><code class="ref-definition">users</code> <span class="element-type">list[<span class="element-type-name"><a href="../reference/types.html#user">User</a></span>]</span></dt>
 <dd>
-<p>Local accounts (converged state; applied and verified at build).</p>
+<p>Local accounts (converged by the guest’s recipes: the build trusts recipe success rather than probing accounts directly, and behavioral checks confirm the ones the attack chains depend on).</p>
 </dd>
 <dt><code class="ref-definition">services</code> <span class="element-type">list[<span class="element-type-name"><a href="../reference/types.html#service">Service</a></span>]</span></dt>
 <dd>
@@ -1041,7 +1580,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="router">Router</h3>
 <p>A gateway guest joining two or more networks, carrying the inter-segment ACL.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L651">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L656">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Router(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1077,7 +1616,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </dd>
 <dt><code class="ref-definition">users</code> <span class="element-type">list[<span class="element-type-name"><a href="../reference/types.html#user">User</a></span>]</span></dt>
 <dd>
-<p>Local accounts (converged state; applied and verified at build).</p>
+<p>Local accounts on the router (converged by the router’s recipes, like <code>Host.users</code>): CyRIS-style firewall-as-target ranges give the gateway its own weak account. Declaring users without <code>provisioning</code> refuses at planning (<code>realized-section-unconsumed</code>): nothing would realize them.</p>
+</dd>
+<dt><code class="ref-definition">provisioning</code> <span class="element-type">list[<span class="element-type-name"><a href="../reference/types.html#provisioningstep">ProvisioningStep</a></span>]</span></dt>
+<dd>
+<p>Build-time recipe references, in order (the host build path extended to routers): a provisioned router boots in the build, runs its recipes, and is captured as a realized image with its own build key. Requires a declared <code>image</code> (<code>router-image-required</code>): the appliance default is a backend resolution the build key cannot pin.</p>
 </dd>
 <dt><code class="ref-definition">acl</code> <span class="element-type">list[<span class="element-type-name"><a href="../reference/types.html#aclrule">AclRule</a></span>]</span></dt>
 <dd>
@@ -1091,7 +1634,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The agent’s foothold: either a dedicated attack box or an existing host.</p>
 <p>Declare <code>host</code> to start on a declared host (assumed breach), or <code>interfaces</code> (plus optionally <code>name</code>, <code>image</code>, <code>resources</code>) to boot a dedicated attack box.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L737">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L745">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Attacker(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1136,7 +1679,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="os">Os</h3>
 <p>Guest operating system.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L328">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L328">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Os(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1161,7 +1704,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="resources">Resources</h3>
 <p>Backend-neutral guest sizing.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L341">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L341">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Resources(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1190,7 +1733,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A local account on a guest.</p>
 <p>Scenario credentials are scenario content and belong in the definition in plaintext; per-sample proof material (flags, canaries) never appears here. Domain accounts live in <code>active_directory</code>, not on hosts.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L354">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L354">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> User(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1219,7 +1762,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="credentials">Credentials</h3>
 <p>A credential pair a service accepts.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L373">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L373">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Credentials(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1241,7 +1784,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>An assertion about a guest’s converged listening surface.</p>
 <p>Services are declarations, never an install language: the build satisfies them (via a provisioning recipe, content baked into the image, or a checkpoint) and verifies them before the range ships. Installation itself belongs in <code>provisioning</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L383">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L383">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Service(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1279,7 +1822,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A seeded exploitable weakness on a guest.</p>
 <p>Exploitable vulnerabilities and misconfigurations are distinct lists because real intrusions lean heavily on the second; the list itself is the classification.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L408">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L408">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Vulnerability(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1308,7 +1851,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="misconfiguration">Misconfiguration</h3>
 <p>A seeded misconfiguration on a guest (weak policy, dangerous sudoers line, disabled protection).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L427">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L427">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Misconfiguration(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1327,9 +1870,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="datafile" class="level3">
 <h3 class="anchored" data-anchor-id="datafile">DataFile</h3>
-<p>A file planted on a guest as scenario content.</p>
+<p>A scenario-content file declaration: a record of what the guest carries, realized by the recipes (or, for <code>exfiltrate</code> targets, planted per sample by the challenge layer).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L437">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L437">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DataFile(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1347,10 +1890,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Whether the file is a scenario target (e.g.&nbsp;data worth exfiltrating).</p>
 </dd>
-<dt><code class="ref-definition">contents</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
-<dd>
-<p>Small inline contents; larger content is build material referenced by provisioning.</p>
-</dd>
 </dl>
 </section>
 </section>
@@ -1359,7 +1898,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A build-time recipe reference, applied in list order.</p>
 <p>Recipes run at build time and never per sample; their output is captured into images and checkpoints. The recipe language itself is deliberately out of the definition: a step names a recipe and its inputs, nothing more.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L466">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L463">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ProvisioningStep(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1384,7 +1923,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="scheduledactivity">ScheduledActivity</h3>
 <p>Recurring in-guest behavior, simulating users or defenders (bot scripts, scheduled tasks).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L482">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L479">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ScheduledActivity(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1412,9 +1951,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="variable" class="level3">
 <h3 class="anchored" data-anchor-id="variable">Variable</h3>
 <p>A named per-instance value: drawn fresh for each generated instance, with a required default.</p>
-<p>Definitions reference variables as <code>{name}</code> in YAML scalars; loading substitutes the defaults before validation, so a whole-scalar reference takes the variable’s typed value (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. Required defaults mean every definition always validates and realizes concretely: v1 semantics ARE defaults-resolution (linux-examples-v1), per-sample secrets are the challenge plant layer’s job, and a per-instance generation layer that redraws non-secret values is deferred (see linux-examples-v1-parked-decisions.md). Python authors draw values and construct concretely instead of using references.</p>
+<p>Definitions reference variables as <code>"{{name}}"</code> in YAML scalars; loading substitutes the defaults before validation, so a whole-scalar reference takes the variable’s typed value (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. Required defaults mean every definition always validates and realizes concretely: v1 semantics ARE defaults-resolution (linux-examples-v1), per-sample secrets are the challenge plant layer’s job, and a per-instance generation layer that redraws non-secret values is deferred (see linux-examples-v1-parked-decisions.md). Python authors draw values and construct concretely instead of using references.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L498">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L495">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Variable(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1454,7 +1993,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="defense-1">Defense</h3>
 <p>The range’s defensive posture, on the D0 (no defenders) to D5 (adaptive defender) spectrum.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L814">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L822">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Defense(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1479,7 +2018,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="hostdefense">HostDefense</h3>
 <p>Per-host protection toggles (typed knowns; extended when evidence forces).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L453">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L450">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostDefense(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1504,7 +2043,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="telemetry">Telemetry</h3>
 <p>One telemetry flow: which guest’s signals reach which sink.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L801">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L809">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Telemetry(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1533,7 +2072,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Range-scoped Active Directory identity data.</p>
 <p>Identity is declared here, not on hosts, because accounts exist in the domain. The build realizes it (promotion, joins, account and ACL seeding) and captures the converged result; see <code>design/inspect-ranges/range-build.md</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L896">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L904">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ActiveDirectory(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1554,7 +2093,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="addomain">AdDomain</h3>
 <p>One domain in the forest.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L874">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L882">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdDomain(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1591,7 +2130,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="aduser">AdUser</h3>
 <p>A domain account.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L855">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L863">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdUser(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1625,7 +2164,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One seeded ACL-abuse edge: <code>principal</code> holds <code>right</code> over <code>target</code>.</p>
 <p>Principals and targets are names as AD knows them (users, groups, OUs, or computer objects) and are not cross-validated against declared users this round.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L839">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L847">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdAcl(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1650,7 +2189,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="adright">AdRight</h3>
 <p>Seeded AD ACL rights (the vocabulary observed in surveyed ranges; extended when evidence forces).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L827">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L835">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>AdRight <span class="op">=</span> Literal[</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GenericAll"</span>,</span>
@@ -1669,7 +2208,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="network">Network</h3>
 <p>A layer-2 segment with its addressing and egress posture.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L254">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L254">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Network(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1710,7 +2249,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="interface">Interface</h3>
 <p>A guest’s attachment to a network.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L308">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L308">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Interface(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1732,7 +2271,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Per-network DNS, as a union of the shapes real ranges need.</p>
 <p><code>records</code> serves name-based discovery on flat networks; <code>nameservers</code> points guests at external resolvers; <code>authoritative</code> names guests (e.g.&nbsp;domain controllers) that are the network’s DNS servers, optionally chaining to <code>forwarder</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L115">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L115">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DnsConfig(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1761,7 +2300,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="dnsrecord">DnsRecord</h3>
 <p>A name record served on a network.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L99">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L99">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DnsRecord(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1783,7 +2322,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A scoped egress allowlist: exactly what may leave, nothing else.</p>
 <p>Entries are <code>CIDR[:proto/port]</code> (a bare address is its <code>/32</code>; omitting the service allows all traffic to the CIDR) or <code>FQDN:proto/port</code>. FQDN entries are in the vocabulary but gated by <code>egress-fqdn-not-realized</code> until their realization lands (networking-v0.2 §3).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L203">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L203">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> EgressPolicy(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1800,7 +2339,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="route">Route</h3>
 <p>A static route on a router, for traffic to segments it reaches through another router.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L630">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L627">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Route(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1822,7 +2361,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One ordered rule on a router, carrying exactly one of <code>allow:</code> or <code>deny:</code>.</p>
 <p>Rules evaluate first-match in list order against new connections <code>from</code> one endpoint <code>to</code> another; anything no rule matches is dropped (default-deny), and return traffic of allowed flows always passes (stateful). Endpoints are a network name, a guest name (resolved to its allocated addresses at plan time), or a CIDR (<code>/32</code> for a literal host, <code>0.0.0.0/0</code> for any). <code>deny</code> exists for carve-outs inside a broader allow. In typed construction the source field is spelled <code>from_</code> (the YAML surface keeps <code>from:</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L563">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L560">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AclRule(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1851,7 +2390,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="anyipaddress">AnyIPAddress</h3>
 <p>Either address family. IPv6 values validate structurally but are rejected by the <code>ipv6-not-realized</code> gate until their realization lands (networking-v0.2 §4).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L27">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L27">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>AnyIPAddress <span class="op">=</span> IPv4Address <span class="op">|</span> IPv6Address</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -1859,9 +2398,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="anyipnetwork">AnyIPNetwork</h3>
 <p>Either address family. IPv6 values validate structurally but are rejected by the <code>ipv6-not-realized</code> gate until their realization lands (networking-v0.2 §4).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L30">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L30">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>AnyIPNetwork <span class="op">=</span> IPv4Network <span class="op">|</span> IPv6Network</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="parse_egress_entry" class="level3">
+<h3 class="anchored" data-anchor-id="parse_egress_entry">parse_egress_entry</h3>
+<p>Split an egress allowlist entry into its target and service.</p>
+<p>Entries are <code>CIDR[:proto/port]</code> or <code>FQDN:proto/port</code>; a bare address is its <code>/32</code>. The service is returned unvalidated (callers validate; the compiler receives only validated specs).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L177">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> parse_egress_entry(</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>    entry: <span class="bu">str</span>,</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">tuple</span>[AnyIPNetwork <span class="op">|</span> <span class="va">None</span>, <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>, <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">entry</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
 </section>
 </section>
 <section id="diagnostics" class="level2">
@@ -1870,9 +2426,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="issue">Issue</h3>
 <p>One problem found in a range definition.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/_diagnostics.py#L47">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_diagnostics.py#L47">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Issue(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Issue(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
 <h4 class="anchored" data-anchor-id="">Attributes</h4>
 <dl>
@@ -1911,13 +2467,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </dl>
 </section>
 </section>
+<section id="issueerror" class="level3">
+<h3 class="anchored" data-anchor-id="issueerror">IssueError</h3>
+<p>Carrier for collected issues raised inside pydantic validators.</p>
+<p>Subclasses <code>ValueError</code> so pydantic wraps it as an ordinary validation error; <code>issues_from_validation_error</code> recovers the original list from the error context, so both the raise path (<code>RangeSpec.model_validate</code>) and the report path (<code>validate_range</code>) share one implementation of every check.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_diagnostics.py#L77">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IssueError(<span class="pp">ValueError</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="validationreport" class="level3">
 <h3 class="anchored" data-anchor-id="validationreport">ValidationReport</h3>
 <p>Every issue found in one <code>range.yaml</code>, with rendering helpers.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/_diagnostics.py#L88">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_diagnostics.py#L88">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ValidationReport(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ValidationReport(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
 <h4 class="anchored" data-anchor-id="">Attributes</h4>
 <dl>
@@ -1950,9 +2515,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Render the report as aligned, human-readable text (warnings do not invalidate).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/_diagnostics.py#L110">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_diagnostics.py#L110">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> render(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> render(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
 
 </div>
@@ -1961,9 +2526,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Return the report as JSON-serializable data with stable field names.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/_diagnostics.py#L144">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_diagnostics.py#L144">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> to_json(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, Any]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> to_json(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, Any]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
 
 </div>
@@ -2490,8 +3055,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../reference/inspect_ranges.html#range_json_schema" class="pagination-link" aria-label="range_json_schema">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">range_json_schema</span>
+      <a href="../reference/scanners.html#range_apparatus" class="pagination-link" aria-label="range_apparatus">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">range_apparatus</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
@@ -2520,11 +3085,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -2532,6 +3092,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>

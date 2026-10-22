@@ -16,6 +16,6 @@ inspect-ranges plan [OPTIONS] [PATH]
 |----|----|----|----|
 | `--json` | boolean | Emit the plan as JSON. | `Sentinel.UNSET` |
 | `--image-cache` | path | Image cache used for digest resolution. | None |
-| `--cpu-model` | text | N/A | `host-passthrough` |
+| `--cpu-model` | text | Guest CPU model rendered into the plan (the VMM’s -cpu input). | `host-passthrough` |
 | `--cid-base` | integer range (`3` and above) | First vsock CID (plan-time input; realizer batteries use 3000+). | `3` |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |

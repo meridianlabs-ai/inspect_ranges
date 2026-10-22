@@ -1,0 +1,2787 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="The range-host extension point: implement and register a custom backend for INSPECT_RANGES_HOST.">
+
+<title>inspect_ranges.host – Inspect Ranges</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../reference/host.qmd#hostbackendfactory" rel="next">
+<link href="../reference/index.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="../llms.txt">
+<link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="../llms-full.txt">
+<link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="../llms-guide.txt">
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="Inspect Ranges">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
+<meta property="og:site_name" content="Inspect Ranges">
+<meta name="twitter:title" content="Inspect Ranges">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Inspect Ranges</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../index.html" aria-current="page"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
+        <li>
+    <a class="dropdown-item" href="../building.html">
+ <span class="dropdown-text">Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ranges.html">
+ <span class="dropdown-text">Ranges</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../guests.html">
+ <span class="dropdown-text">Guests</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../networks.html">
+ <span class="dropdown-text">Networks</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-evaluation" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Evaluation</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-evaluation">    
+        <li>
+    <a class="dropdown-item" href="../challenges.html">
+ <span class="dropdown-text">Challenges</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../goals.html">
+ <span class="dropdown-text">Custom Goals</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../evidence.html">
+ <span class="dropdown-text">Evidence</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
+        <li>
+    <a class="dropdown-item" href="../images.html">
+ <span class="dropdown-text">Images</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../distribution.html">
+ <span class="dropdown-text">Distribution</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../security.html">
+ <span class="dropdown-text">Security</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../topology.html">
+ <span class="dropdown-text">Range Host</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/host.html">Python API</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Home</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Building</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../building.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Ranges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../guests.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Guests</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../networks.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Networks</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Evaluation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../challenges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../goals.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Custom Goals</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evidence</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Running</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../distribution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Distribution</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../topology.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Host</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Python API</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 show">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_range</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#validate_range" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_range</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#revalidate_range" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">revalidate_range</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#semantic_issues" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">semantic_issues</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#range_json_schema" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_json_schema</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#rangemeta" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeMeta</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#host" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Host</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#router" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Router</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#attacker" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Attacker</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#os" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Os</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#resources" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Resources</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#user" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">User</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#credentials" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Credentials</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#service" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Service</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#vulnerability" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Vulnerability</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#misconfiguration" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Misconfiguration</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#datafile" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DataFile</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#provisioningstep" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ProvisioningStep</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#scheduledactivity" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ScheduledActivity</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#variable" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Variable</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#defense" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Defense</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#hostdefense" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostDefense</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#telemetry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Telemetry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#activedirectory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ActiveDirectory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#addomain" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AdDomain</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#aduser" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AdUser</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#adacl" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AdAcl</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#adright" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AdRight</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#network" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Network</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#interface" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interface</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#dnsconfig" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DnsConfig</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#dnsrecord" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DnsRecord</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#egresspolicy" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EgressPolicy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#route" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Route</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#aclrule" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AclRule</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#anyipaddress" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnyIPAddress</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#anyipnetwork" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnyIPNetwork</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#issue" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#validationreport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ValidationReport</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">CLI Commands</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges applier</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/build.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges build</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/daemon-bundle.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges daemon-bundle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/devbox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges devbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/doctor.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges doctor</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/down.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges down</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges images</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/plan.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/reaper.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges reaper</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/render.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges render</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/schema.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges schema</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/up.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges up</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/validate.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges validate</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active" data-toc-expanded="1">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#registration" id="toc-registration" class="nav-link active" data-scroll-target="#registration">Registration</a>
+  <ul class="collapse">
+  <li><a href="#hostbackendfactory" id="toc-hostbackendfactory" class="nav-link" data-scroll-target="#hostbackendfactory">HostBackendFactory</a></li>
+  <li><a href="#hostbackendcontext" id="toc-hostbackendcontext" class="nav-link" data-scroll-target="#hostbackendcontext">HostBackendContext</a></li>
+  <li><a href="#hostbackend" id="toc-hostbackend" class="nav-link" data-scroll-target="#hostbackend">HostBackend</a></li>
+  <li><a href="#channelforlease" id="toc-channelforlease" class="nav-link" data-scroll-target="#channelforlease">ChannelForLease</a></li>
+  <li><a href="#reclaimfn" id="toc-reclaimfn" class="nav-link" data-scroll-target="#reclaimfn">ReclaimFn</a></li>
+  <li><a href="#doctorprobe" id="toc-doctorprobe" class="nav-link" data-scroll-target="#doctorprobe">DoctorProbe</a></li>
+  </ul></li>
+  <li><a href="#provider-seam" id="toc-provider-seam" class="nav-link" data-scroll-target="#provider-seam">Provider Seam</a>
+  <ul class="collapse">
+  <li><a href="#hostprovider" id="toc-hostprovider" class="nav-link" data-scroll-target="#hostprovider">HostProvider</a></li>
+  <li><a href="#rangehost" id="toc-rangehost" class="nav-link" data-scroll-target="#rangehost">RangeHost</a></li>
+  <li><a href="#samplespec" id="toc-samplespec" class="nav-link" data-scroll-target="#samplespec">SampleSpec</a></li>
+  <li><a href="#leaseplacement" id="toc-leaseplacement" class="nav-link" data-scroll-target="#leaseplacement">LeasePlacement</a></li>
+  <li><a href="#hostcapabilities" id="toc-hostcapabilities" class="nav-link" data-scroll-target="#hostcapabilities">HostCapabilities</a></li>
+  <li><a href="#hostfacts" id="toc-hostfacts" class="nav-link" data-scroll-target="#hostfacts">HostFacts</a></li>
+  <li><a href="#isolationlevel" id="toc-isolationlevel" class="nav-link" data-scroll-target="#isolationlevel">IsolationLevel</a></li>
+  </ul></li>
+  <li><a href="#leases" id="toc-leases" class="nav-link" data-scroll-target="#leases">Leases</a>
+  <ul class="collapse">
+  <li><a href="#hostlease" id="toc-hostlease" class="nav-link" data-scroll-target="#hostlease">HostLease</a></li>
+  <li><a href="#leasestore" id="toc-leasestore" class="nav-link" data-scroll-target="#leasestore">LeaseStore</a></li>
+  <li><a href="#leaselosterror" id="toc-leaselosterror" class="nav-link" data-scroll-target="#leaselosterror">LeaseLostError</a></li>
+  <li><a href="#lease_ttl_s" id="toc-lease_ttl_s" class="nav-link" data-scroll-target="#lease_ttl_s">lease_ttl_s</a></li>
+  <li><a href="#localrangehost" id="toc-localrangehost" class="nav-link" data-scroll-target="#localrangehost">LocalRangeHost</a></li>
+  <li><a href="#local_host_facts" id="toc-local_host_facts" class="nav-link" data-scroll-target="#local_host_facts">local_host_facts</a></li>
+  </ul></li>
+  <li><a href="#channel" id="toc-channel" class="nav-link" data-scroll-target="#channel">Channel</a>
+  <ul class="collapse">
+  <li><a href="#rangechannel" id="toc-rangechannel" class="nav-link" data-scroll-target="#rangechannel">RangeChannel</a></li>
+  <li><a href="#messagechannel" id="toc-messagechannel" class="nav-link" data-scroll-target="#messagechannel">MessageChannel</a></li>
+  <li><a href="#transport" id="toc-transport" class="nav-link" data-scroll-target="#transport">Transport</a></li>
+  <li><a href="#bytestream" id="toc-bytestream" class="nav-link" data-scroll-target="#bytestream">ByteStream</a></li>
+  <li><a href="#execrequest" id="toc-execrequest" class="nav-link" data-scroll-target="#execrequest">ExecRequest</a></li>
+  <li><a href="#execoutcome" id="toc-execoutcome" class="nav-link" data-scroll-target="#execoutcome">ExecOutcome</a></li>
+  <li><a href="#stagereport" id="toc-stagereport" class="nav-link" data-scroll-target="#stagereport">StageReport</a></li>
+  <li><a href="#forwardreply" id="toc-forwardreply" class="nav-link" data-scroll-target="#forwardreply">ForwardReply</a></li>
+  <li><a href="#pongreply" id="toc-pongreply" class="nav-link" data-scroll-target="#pongreply">PongReply</a></li>
+  <li><a href="#diagreply" id="toc-diagreply" class="nav-link" data-scroll-target="#diagreply">DiagReply</a></li>
+  <li><a href="#heartbeat" id="toc-heartbeat" class="nav-link" data-scroll-target="#heartbeat">Heartbeat</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/host.html">Python API</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">inspect_ranges.host</h1>
+</div>
+
+<div>
+  <div class="description">
+    The range-host extension point: implement and register a custom backend for INSPECT_RANGES_HOST.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The range-host extension point: a <span class="element-type-name ref-interlink"><a href="../reference/host.html#hostbackendfactory">HostBackendFactory</a></span> named by <code>INSPECT_RANGES_HOST=&lt;module&gt;.&lt;factory&gt;[:&lt;config&gt;]</code> returns a <span class="element-type-name ref-interlink"><a href="../reference/host.html#hostbackend">HostBackend</a></span> bundle, and the lease machinery and channel tier it builds on are public here. See <a href="../topology.html#implementing-a-host-provider">Implementing a Host Provider</a> for the grammar, the registration walkthrough, and the contracts an implementation is held to.</p>
+<section id="registration" class="level2">
+<h2 class="anchored" data-anchor-id="registration">Registration</h2>
+<section id="hostbackendfactory" class="level3">
+<h3 class="anchored" data-anchor-id="hostbackendfactory">HostBackendFactory</h3>
+<p>What a custom backend exports under the dotted path <code>INSPECT_RANGES_HOST</code> names. Must be cheap: no dialing, no probing; remote work belongs in the provider’s <code>acquire</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/backend.py#L87">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>HostBackendFactory <span class="op">=</span> Callable[[HostBackendContext], HostBackend]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="hostbackendcontext" class="level3">
+<h3 class="anchored" data-anchor-id="hostbackendcontext">HostBackendContext</h3>
+<p>What a <span class="element-type-name ref-interlink"><a href="../reference/host.html#hostbackendfactory">HostBackendFactory</a></span> is called with.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/backend.py#L44">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(frozen<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostBackendContext</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">origin</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>The full <code>INSPECT_RANGES_HOST</code> value, verbatim. The backend’s provider MUST stamp it as each lease’s <code>origin</code> (<code>LeaseStore.acquire(origin=...)</code>), so a fresh process can re-resolve teardown from disk alone; extra placement data rides inside the config portion of the value.</p>
+</dd>
+<dt><code class="ref-definition">config</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The text after the value’s first colon, <code>None</code> when absent: the backend’s own opaque config.</p>
+</dd>
+<dt><code class="ref-definition">state_dir</code> <span class="element-type"><span class="element-type-name">Path</span></span></dt>
+<dd>
+<p>The shared state dir (<code>leases.json</code> and the CID registry live here); hand it to <span class="element-type-name ref-interlink"><a href="../reference/host.html#leasestore">LeaseStore</a></span> to reuse the lease machinery.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="hostbackend" class="level3">
+<h3 class="anchored" data-anchor-id="hostbackend">HostBackend</h3>
+<p>One resolved backend bundle: the provider plus the hooks a <span class="element-type-name ref-interlink"><a href="../reference/host.html#hostprovider">HostProvider</a></span> alone cannot carry.</p>
+<p><code>channel_for_lease</code> is <code>None</code> for a co-resident backend (the runtime keeps its local <code>up</code>/<code>down</code>/channel seams); a separated backend supplies it and the runtime derives the swapped seams from it (<code>seams.py</code>). <code>reclaim</code> overrides the reaper’s teardown-by-origin connector; left <code>None</code>, a separated backend gets the channel-teardown default and a co-resident one the reaper’s direct <code>down</code>. <code>doctor_probe</code> lets <code>inspect-ranges doctor</code> check reachability.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/backend.py#L56">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(frozen<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostBackend</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">separated</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>Whether the backend reaches its host through a channel rather than running co-resident.</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>reclaimer</dt>
+<dd>
+<p>The teardown-by-origin connector the reaper runs: the explicit <code>reclaim</code>, the channel-teardown default for a separated backend, or <code>None</code> for a co-resident one (the reaper’s direct <code>down</code> applies).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/backend.py#L73">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> reclaimer(<span class="va">self</span>) <span class="op">-&gt;</span> ReclaimFn <span class="op">|</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="channelforlease" class="level3">
+<h3 class="anchored" data-anchor-id="channelforlease">ChannelForLease</h3>
+<p>A control channel to the (possibly remote) host a lease names: the one hook a separated backend supplies, from which the runtime derives every other seam it needs. A typical implementation wraps the backend’s own <span class="element-type-name ref-interlink"><a href="../reference/host.html#transport">Transport</a></span> in a <span class="element-type-name ref-interlink"><a href="../reference/host.html#messagechannel">MessageChannel</a></span>, inheriting the whole wire discipline (request ids, retries, budgets, validation).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/seams.py#L32">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ChannelForLease <span class="op">=</span> Callable[[HostLease], MessageChannel]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="reclaimfn" class="level3">
+<h3 class="anchored" data-anchor-id="reclaimfn">ReclaimFn</h3>
+<p>The reaper’s teardown-by-origin connector: <code>(lease, state_dir)</code>; raises on failure, after which the lease stays <code>reaping</code> and the next sweep retries.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/backend.py#L19">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ReclaimFn <span class="op">=</span> Callable[[HostLease, Path], <span class="va">None</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="doctorprobe" class="level3">
+<h3 class="anchored" data-anchor-id="doctorprobe">DoctorProbe</h3>
+<p>An optional reachability probe for <code>inspect-ranges doctor</code>: <code>None</code> when healthy, else the failure detail.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/backend.py#L22">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>DoctorProbe <span class="op">=</span> Callable[[], <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="provider-seam" class="level2">
+<h2 class="anchored" data-anchor-id="provider-seam">Provider Seam</h2>
+<section id="hostprovider" class="level3">
+<h3 class="anchored" data-anchor-id="hostprovider">HostProvider</h3>
+<p>Acquires and releases range hosts.</p>
+<p><code>acquire</code> returns a lease (identity plus expiry; a sample that outlives its lease is reclaimed by the independent reaper), gates on doctor readiness, logs the isolation claim, and starts renewal. <code>release</code> is destruction and must only follow a successful teardown: a used host is never returned to a pool, and a failed teardown frees nothing. <code>abandon</code> is the deliberate keep-it-running path (<code>cleanup=False</code>): renewal stops but the lease stays, so the reaper reclaims after expiry.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L87">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostProvider(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="rangehost" class="level3">
+<h3 class="anchored" data-anchor-id="rangehost">RangeHost</h3>
+<p>One acquired range host: the channel to it, and what the deployment claims about it.</p>
+<p><code>channel</code> is <code>None</code> between acquire and boot in the co-resident backend (the local path builds its channel from booted guest CIDs, after <code>up</code>); the separated backend attaches it at acquire. Consumers that need the channel assert its presence at their boundary.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L71">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeHost(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>check_lease</dt>
+<dd>
+<p>Raise <span class="element-type-name ref-interlink"><a href="../reference/host.html#leaselosterror">LeaseLostError</a></span> when this host’s lease has been lost (reaped, or expired and reclaimed); ops call this first, so lease loss fails the sample loudly at its next operation instead of silently running on a reclaimed host.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L82">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_lease(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="samplespec" class="level3">
+<h3 class="anchored" data-anchor-id="samplespec">SampleSpec</h3>
+<p>What a <code>HostProvider.acquire</code> needs to know about the sample it hosts.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L18">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SampleSpec(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">bundle_digest</code> <span class="element-type"><span class="element-type-name">Sha256Hex</span></span></dt>
+<dd>
+<p>The canonical bundle digest: sha256 of the rendered bundle’s <code>manifest.json</code> bytes.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="leaseplacement" class="level3">
+<h3 class="anchored" data-anchor-id="leaseplacement">LeasePlacement</h3>
+<p>Driver-side placement facts the lease record needs so the reaper can act from disk alone.</p>
+<p><span class="element-type-name ref-interlink"><a href="../reference/host.html#samplespec">SampleSpec</a></span> deliberately carries none of these (they are placement, not sample identity), yet the recorded lease shape requires them; <code>acquire</code> takes them as a second argument. Recorded in the <code>range-host-v1.md</code> ledger as a seam-signature extension over the <code>host-provider.md:83-91</code> sketch.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L56">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LeasePlacement(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">evidence_location</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The per-sample evidence prefix the host’s capture writer targets (<code>None</code> when evidence is off). Driver-derived (<code>evidence-v1.md</code>: the driver computes the location and hands the host a put-scoped destination at acquire); lands on the lease so the applier and the reaper act from disk alone.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="hostcapabilities" class="level3">
+<h3 class="anchored" data-anchor-id="hostcapabilities">HostCapabilities</h3>
+<p>What the deployment declares it can do; absence refuses at planning, never degrades silently.</p>
+<p>v1 pins every capability to its only supported value: image delivery is pre-seeded (the cache already holds the verified chain), and neither <code>forward</code> upstream reach nor egress grants exist yet.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L31">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostCapabilities(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">evidence_sink</code> <span class="element-type"><span class="element-type-name">Literal</span>['location']</span></dt>
+<dd>
+<p>How the host delivers capture evidence (<code>host-provider.md:104</code>): it writes to the per-sample location the driver hands it at acquire (<code>LeasePlacement.evidence_location</code>), through a put-only credential. The only v1 mode; a host that cannot write evidence would refuse at planning, never degrade silently.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="hostfacts" class="level3">
+<h3 class="anchored" data-anchor-id="hostfacts">HostFacts</h3>
+<p>Host-class identity: render inputs are host-class declarations, never per-instance probes.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L46">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostFacts(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="isolationlevel" class="level3">
+<h3 class="anchored" data-anchor-id="isolationlevel">IsolationLevel</h3>
+<p>The per-sample isolation claim, logged so the eval-log claim stays truthful (<code>host-provider.md:27</code>).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/host.py#L14">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>IsolationLevel <span class="op">=</span> Literal[<span class="st">"instance"</span>, <span class="st">"shared"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="leases" class="level2">
+<h2 class="anchored" data-anchor-id="leases">Leases</h2>
+<section id="hostlease" class="level3">
+<h3 class="anchored" data-anchor-id="hostlease">HostLease</h3>
+<p>One sample’s claim on a host: identity plus absolute expiry, the exact record shape from <code>range-host-v1.md</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L58">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostLease(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">lease_id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Opaque lease identity (uuid4 hex).</p>
+</dd>
+<dt><code class="ref-definition">origin</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>The backend that minted the lease: <code>local</code>, or <code>uds:&lt;socket&gt;</code> for the applier path.</p>
+</dd>
+<dt><code class="ref-definition">expires_at</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Absolute ISO-8601 UTC expiry; the reaper compares against it, never against liveness.</p>
+</dd>
+<dt><code class="ref-definition">evidence_location</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The sample’s evidence prefix (<code>evidence-v1.md</code>), when evidence is on: the applier writes capture streams there, and the reaper reap-seals an abandoned record there. Additive over the recorded <code>range-host-v1.md</code> shape (old entries parse with <code>None</code>).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="leasestore" class="level3">
+<h3 class="anchored" data-anchor-id="leasestore">LeaseStore</h3>
+<p>Cross-process host leases over a flock-guarded <code>leases.json</code>, keyed by lease id.</p>
+<p>Shares the <code>JsonRegistry</code> discipline with the CID allocator: atomic sorted writes, and entries another version wrote are preserved verbatim, never silently dropped.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L93">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LeaseStore</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>acquire</dt>
+<dd>
+<p>Mint a fresh active lease expiring <code>ttl_s</code> (default <span class="element-type-name ref-interlink"><a href="../reference/host.html#lease_ttl_s">lease_ttl_s()</a></span>) from now.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L105">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> acquire(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    project: <span class="bu">str</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    task_name: <span class="bu">str</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    sample_id: <span class="bu">str</span>,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    isolation: IsolationLevel,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    origin: <span class="bu">str</span>,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    bundle_path: <span class="bu">str</span>,</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    bundle_digest: <span class="bu">str</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    staging: <span class="bu">str</span>,</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    host_facts: HostFacts,</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    ttl_s: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    evidence_location: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> HostLease</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">project</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">task_name</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">sample_id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">isolation</code> <span class="element-type"><span class="element-type-name"><a href="../reference/host.html#isolationlevel">IsolationLevel</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">origin</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">bundle_path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">bundle_digest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">staging</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">host_facts</code> <span class="element-type"><span class="element-type-name"><a href="../reference/host.html#hostfacts">HostFacts</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">ttl_s</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">evidence_location</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>renew</dt>
+<dd>
+<p>The renewal CAS: extend expiry if and only if the lease still exists and is <code>active</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L143">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> renew(<span class="va">self</span>, lease_id: <span class="bu">str</span>, ttl_s: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> HostLease</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">lease_id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">ttl_s</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>release</dt>
+<dd>
+<p>Remove the lease; idempotent, callable from any process. Release is destruction: call only after a successful teardown.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L165">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> release(<span class="va">self</span>, lease_id: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">lease_id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>leases</dt>
+<dd>
+<p>Every parseable lease, sorted by lease id (read-only; never rewrites the file).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L174">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> leases(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[HostLease]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>expired</dt>
+<dd>
+<p>Leases past expiry or already <code>reaping</code>, without mutating anything (the doctor-hint view of what a sweep would select).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L179">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> expired(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[HostLease]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>mark_reaping</dt>
+<dd>
+<p>One sweep selection under the flock: every lease already <code>reaping</code> (crash resume) plus every <code>active</code> lease whose expiry, re-checked against now, has passed (a renewal may have landed since the sweep was scheduled), marked <code>reaping</code>. Teardown happens outside the lock; a marked lease refuses renewal, so the race is settled here, atomically, in one direction or the other.</p>
+<p>A sweep that selects nothing never rewrites the file (an idle <code>--interval</code> reaper must not churn <code>leases.json</code>), so candidates are probed read-only first and the marking write re-checks under its own lock.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L188">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mark_reaping(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[HostLease]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="leaselosterror" class="level3">
+<h3 class="anchored" data-anchor-id="leaselosterror">LeaseLostError</h3>
+<p>The sample’s host lease is gone or being reaped; the sample fails loudly as lease loss, never limps on.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L54">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LeaseLostError(<span class="pp">RuntimeError</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="lease_ttl_s" class="level3">
+<h3 class="anchored" data-anchor-id="lease_ttl_s">lease_ttl_s</h3>
+<p><code>INSPECT_RANGES_LEASE_TTL_S</code> as a positive float, default 600; renewal runs at a third of it.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/leases.py#L32">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lease_ttl_s() <span class="op">-&gt;</span> <span class="bu">float</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="localrangehost" class="level3">
+<h3 class="anchored" data-anchor-id="localrangehost">LocalRangeHost</h3>
+<p>One leased co-resident host. The channel is attached by the provider after boot (today’s path builds it from booted guest CIDs), so it is <code>None</code> until then.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/local.py#L45">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> LocalRangeHost</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>check_lease</dt>
+<dd>
+<p>Raise the <span class="element-type-name ref-interlink"><a href="../reference/host.html#leaselosterror">LeaseLostError</a></span> a renewal step recorded, so lease loss fails the sample loudly at its next operation.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/local.py#L60">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_lease(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>renew_now</dt>
+<dd>
+<p>One renewal step, exactly what the background task runs at TTL/3; the renewal-versus-reap tests drive it directly.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/local.py#L69">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> renew_now(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="local_host_facts" class="level3">
+<h3 class="anchored" data-anchor-id="local_host_facts">local_host_facts</h3>
+<p>This machine’s host-class identity; <code>INSPECT_RANGES_HOST_CLASS</code> names the class (declarations, never per-instance probes).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_host/local.py#L36">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> local_host_facts() <span class="op">-&gt;</span> HostFacts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="channel" class="level2">
+<h2 class="anchored" data-anchor-id="channel">Channel</h2>
+<section id="rangechannel" class="level3">
+<h3 class="anchored" data-anchor-id="rangechannel">RangeChannel</h3>
+<p>Transport-agnostic control plane to one sample’s range (<code>host-provider.md</code>).</p>
+<p>Implementations: <span class="element-type-name ref-interlink"><a href="../reference/host.html#messagechannel">MessageChannel</a></span> over a real or mock transport. Nothing above this interface may know which transport carries it.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L194">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeChannel(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="messagechannel" class="level3">
+<h3 class="anchored" data-anchor-id="messagechannel">MessageChannel</h3>
+<p><span class="element-type-name ref-interlink"><a href="../reference/host.html#rangechannel">RangeChannel</a></span> implementation over any per-operation-connect <span class="element-type-name ref-interlink"><a href="../reference/host.html#transport">Transport</a></span>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L237">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MessageChannel</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>trace_tail</dt>
+<dd>
+<p>The most recent codec trace events, formatted one per line.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L259">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> trace_tail(<span class="va">self</span>, limit: <span class="bu">int</span> <span class="op">=</span> <span class="dv">40</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">limit</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>ping</dt>
+<dd>
+<p>Liveness and protocol-version probe for one guest.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L568">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> ping(<span class="va">self</span>, guest: <span class="bu">str</span>) <span class="op">-&gt;</span> PongReply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>session</dt>
+<dd>
+<p>The guest daemon’s current session id, via a fresh ping.</p>
+<p>The provider pins it per guest at boot and treats a later change as a daemon restart: the wire layer’s exactly-once guarantee (dedupe, tombstones, durable replies) holds only within one session (<code>SessionHex</code>).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L574">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> session(<span class="va">self</span>, guest: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>exec</dt>
+<dd>
+<p>Run <code>request</code> in the guest; <code>stdin</code> must match the request’s <code>data_size</code> declaration. <code>bulk_cap</code> bounds the accepted reply bulk (stdout plus stderr), reader-side.</p>
+<p>Liveness-polled: the initial reply wait is capped so at least one poll precedes the exec deadline; <code>pending</code> replies prove liveness while the command runs, so long execs stay allowance-bounded between polls, and three consecutive allowance windows with zero liveness evidence are a channel-layer failure. The exec deadline (<code>command_ms</code> plus the shared observation grace, or the untimed total) firing without RECENT liveness is a channel-layer verdict; with recent liveness it is a command-layer verdict (the guest demonstrably failed to kill within its own grace).</p>
+<p>At-most-once: a resend is only legal while the request provably never left (connect failed); once delivery is possible, a daemon <code>ENOENT</code>/<code>ESTALE</code> for the id surfaces as <code>TransportFailure</code>, never a re-run.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L581">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> <span class="bu">exec</span>(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    guest: <span class="bu">str</span>,</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    request: ExecRequest,</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    stdin: <span class="bu">bytes</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>    bulk_cap: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> DEFAULT_BULK_CAP,</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ExecOutcome</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">request</code> <span class="element-type"><span class="element-type-name"><a href="../reference/host.html#execrequest">ExecRequest</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">stdin</code> <span class="element-type"><span class="element-type-name">bytes</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">bulk_cap</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>read_file</dt>
+<dd>
+<p>Read a guest file, capped at <code>cap</code> bytes.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L823">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> read_file(</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, guest: <span class="bu">str</span>, path: <span class="bu">str</span>, <span class="op">*</span>, cap: <span class="bu">int</span> <span class="op">=</span> DEFAULT_BULK_CAP</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">bytes</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">cap</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>write_file</dt>
+<dd>
+<p>Write <code>data</code> to a guest file (exactly once per request id, even across retries).</p>
+<p><code>mode</code> sets the created file’s permission bits atomically with the write (<code>WriteFileRequest.mode</code>); <code>None</code> keeps the daemon default.</p>
+<p>Returns the delivery-attempt count: above 1 means a same-id resend happened (the provider’s session-invalidation policy reads this for side-effecting operations).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L841">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> write_file(</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, guest: <span class="bu">str</span>, path: <span class="bu">str</span>, data: <span class="bu">bytes</span>, <span class="op">*</span>, mode: <span class="bu">int</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">int</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">data</code> <span class="element-type"><span class="element-type-name">bytes</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">mode</code> <span class="element-type"><span class="element-type-name">int</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>forward</dt>
+<dd>
+<p>Open a capability-gated forward (not implemented until the realizer integration).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L867">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> forward(<span class="va">self</span>, guest: <span class="bu">str</span>, host: <span class="bu">str</span>, port: <span class="bu">int</span>) <span class="op">-&gt;</span> ForwardReply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">port</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>diag</dt>
+<dd>
+<p>Read the daemon’s diagnostics: the in-guest ring buffer tail plus the supervised listener-restart count.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L874">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> diag(<span class="va">self</span>, guest: <span class="bu">str</span>, <span class="op">*</span>, max_entries: <span class="bu">int</span> <span class="op">=</span> <span class="dv">100</span>) <span class="op">-&gt;</span> DiagReply</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">max_entries</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>heartbeat</dt>
+<dd>
+<p>Poll the applier for uptime and per-guest state (the driver-initiated heartbeat verb).</p>
+<p>The seam’s “periodic heartbeat” (<code>host-provider.md</code>) is driver-polled: a pull verb fits per-operation-connect and connectionless transports where an unsolicited push does not. The poll reuses the existing <code>PingRequest</code> to the host endpoint and expects the existing <span class="element-type-name ref-interlink"><a href="../reference/host.html#heartbeat">Heartbeat</a></span> reply with the matching id, so no wire kind was added; a dedicated <code>HeartbeatRequest</code> kind is the recorded multi-host growth path (<code>range-host-v1.md</code>).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L882">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> heartbeat(<span class="va">self</span>) <span class="op">-&gt;</span> Heartbeat</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>realize</dt>
+<dd>
+<p>Stream stage reports until <code>ready</code> or <code>failed</code>.</p>
+<p>Hardened per the realize policy: every transport interaction (connect, send, each report read, the terminal drain, close) sits inside the layered budgets (per-report channel allowance, untimed outer total); reports are capped in count and must follow strictly increasing stage order; an early stream end is loss and is resumed by resending the same request id (the applier deduplicates and replays; already-yielded reports must replay identically); anything else is tamper.</p>
+<p><code>gap_allowances</code> widens the per-report allowance per gap, keyed by the stage the gap follows (<code>None</code> keys the gap before the first report). The applier legally emits nothing while a gap’s occupant runs (the first-use range-image build before any report, <code>compose up --wait</code> after <code>construct</code>, the guest-boot exec after <code>boot</code>, the sequential readiness pass after <code>verify</code>), so the caller supplies each occupied gap’s plan-derived envelope; the channel allowance stays the floor, every unlisted gap keeps it, and each gap stays bounded (a wedged occupant still fails at its envelope, not at the untimed total) (quality-review A10, extended to the sibling gaps by R2-3).</p>
+<p>Stage-order leniency, deliberate: skipping stages is allowed (a cache-hitting applier legitimately jumps ahead) and <code>failed</code> is allowed anywhere including first (an honest fast failure); only <code>ready</code> as the very first report is tamper. A hostile applier can emit the honest sequence anyway, so tightening buys no security.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L891">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> realize(</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>    bundle_digest: Sha256Hex,</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>    grants: Sequence[<span class="bu">str</span>],</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>    gap_allowances: Mapping[<span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>, <span class="bu">float</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> AsyncIterator[StageReport]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">bundle_digest</code> <span class="element-type"><span class="element-type-name">Sha256Hex</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">grants</code> <span class="element-type"><span class="element-type-name">Sequence</span>[<span class="element-type-name">str</span>]</span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">gap_allowances</code> <span class="element-type"><span class="element-type-name">Mapping</span>[<span class="element-type-name">str</span> | <span class="element-type-name">None</span>, <span class="element-type-name">float</span>] | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>teardown</dt>
+<dd>
+<p>Tear the range down. Teardown is contractually idempotent: callers may retry with a fresh id.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L1096">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> teardown(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="transport" class="level3">
+<h3 class="anchored" data-anchor-id="transport">Transport</h3>
+<p>Per-operation connection factory; <code>endpoint</code> is a guest name or <code>HOST_APPLIER</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L188">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Transport(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="bytestream" class="level3">
+<h3 class="anchored" data-anchor-id="bytestream">ByteStream</h3>
+<p>One connection’s byte stream; <code>receive</code> returns empty bytes at EOF.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L180">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ByteStream(Protocol)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="execrequest" class="level3">
+<h3 class="anchored" data-anchor-id="execrequest">ExecRequest</h3>
+<p>Run an argv command in the guest (never an implicit shell); stdin rides the bulk.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/protocol.py#L141">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ExecRequest(_BulkMessage)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">data_size</code> <span class="element-type"><span class="element-type-name">int</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Byte count of the out-of-band bulk that follows the control frame; <code>None</code> means no bulk frames at all.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="execoutcome" class="level3">
+<h3 class="anchored" data-anchor-id="execoutcome">ExecOutcome</h3>
+<p>Validated exec result with the bulk split back into streams.</p>
+<p><code>attempts</code> counts deliveries of the exec request itself (not liveness polls): a value above 1 means a same-id resend happened, which the provider’s session-invalidation policy uses to decide whether exactly-once still holds for side-effecting operations.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/channel.py#L163">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ExecOutcome</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">rc</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+<p>Signed exit status (killed-by-signal is negative, <code>-signal</code>).</p>
+</dd>
+<dt><code class="ref-definition">stdout_truncated</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>Whether stdout was cut at the guest’s output cap (<code>SUBMIT</code>-style line protocols must treat truncation as failure).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="stagereport" class="level3">
+<h3 class="anchored" data-anchor-id="stagereport">StageReport</h3>
+<p>Staged realization progress; <code>failed</code> carries diagnostics in <code>detail</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/protocol.py#L339">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> StageReport(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="forwardreply" class="level3">
+<h3 class="anchored" data-anchor-id="forwardreply">ForwardReply</h3>
+<p>Reply to a granted <code>forward</code>; <code>handle</code> names the opened forward (capability-gated, wire-stable ahead of its implementation).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/protocol.py#L275">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ForwardReply(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="pongreply" class="level3">
+<h3 class="anchored" data-anchor-id="pongreply">PongReply</h3>
+<p>Reply to <code>ping</code>: the daemon’s identity string, protocol version, and boot session.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/protocol.py#L215">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PongReply(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">session</code> <span class="element-type"><span class="element-type-name">SessionHex</span></span></dt>
+<dd>
+<p>Required: an honest daemon always reports its session (provider-v1 layer 2b).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="diagreply" class="level3">
+<h3 class="anchored" data-anchor-id="diagreply">DiagReply</h3>
+<p>Reply to <code>diag</code>: the tail of the daemon’s in-guest diagnostic ring buffer.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/protocol.py#L290">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DiagReply(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">listener_restarts</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+<p>Supervised listener recreations since daemon start: the storm battery asserts it stays 0.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="heartbeat" class="level3">
+<h3 class="anchored" data-anchor-id="heartbeat">Heartbeat</h3>
+<p>The host’s heartbeat reply, driver-polled (a pull verb fits per-operation-connect transports): uptime plus per-guest state.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_channel/protocol.py#L348">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Heartbeat(_MessageBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<div id="copy-page-btn" class="btn-group" style="display:none;">
+  <button type="button" class="btn btn-sm btn-light" id="copy-page-action" title="Copy page as Markdown">
+    <i class="bi bi-clipboard"></i> Copy page
+  </button>
+  <button type="button" class="btn btn-sm btn-light dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Toggle Dropdown</span>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><a class="dropdown-item" href="#" id="copy-page-md">
+      <i class="bi bi-clipboard"></i> Copy page as Markdown
+    </a></li>
+    <li><a class="dropdown-item" href="#" id="open-page-md">
+      <i class="bi bi-box-arrow-up-right"></i> Open Markdown
+    </a></li>
+  </ul>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var path = window.location.pathname;
+  var mdUrl = path.endsWith("/")
+    ? path + "index.html.md"
+    : path.replace(/\.html$/, ".html.md");
+  var btn = document.getElementById("copy-page-btn");
+  var cachedMarkdown = null;
+
+  // Pre-fetch the .html.md content
+  fetch(mdUrl)
+    .then(function (res) {
+      if (!res.ok) throw new Error(res.status);
+      return res.text();
+    })
+    .then(function (text) {
+      cachedMarkdown = text;
+
+      // Relocate button into the .quarto-title div
+      var titleDiv = document.querySelector(".quarto-title");
+      if (titleDiv) {
+        titleDiv.appendChild(btn);
+        btn.style.display = "";
+      }
+    })
+    .catch(function () {
+      // No .html.md available — remove button entirely
+      btn.remove();
+    });
+
+  function copyMarkdown(e) {
+    e.preventDefault();
+    if (!cachedMarkdown) return;
+    navigator.clipboard.writeText(cachedMarkdown).then(function () {
+      // Brief visual feedback — lock width to prevent layout shift
+      var actionBtn = document.getElementById("copy-page-action");
+      var original = actionBtn.innerHTML;
+      actionBtn.style.minWidth = actionBtn.offsetWidth + "px";
+      actionBtn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+      setTimeout(function () {
+        actionBtn.innerHTML = original;
+        actionBtn.style.minWidth = "";
+      }, 1500);
+    });
+  }
+
+  document.getElementById("copy-page-action").addEventListener("click", copyMarkdown);
+  document.getElementById("copy-page-md").addEventListener("click", copyMarkdown);
+  document.getElementById("open-page-md").addEventListener("click", function (e) {
+    e.preventDefault();
+    window.open(mdUrl, "_blank");
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/meridianlabs-ai\.github\.io\/inspect_ranges");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        const annoteTargets = window.document.querySelectorAll('.code-annotation-anchor');
+        for (let i=0; i<annoteTargets.length; i++) {
+          const annoteTarget = annoteTargets[i];
+          const targetCell = annoteTarget.getAttribute("data-target-cell");
+          const targetAnnotation = annoteTarget.getAttribute("data-target-annotation");
+          const contentFn = () => {
+            const content = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+            if (content) {
+              const tipContent = content.cloneNode(true);
+              tipContent.classList.add("code-annotation-tip-content");
+              return tipContent.outerHTML;
+            }
+          }
+          const config = {
+            allowHTML: true,
+            content: contentFn,
+            onShow: (instance) => {
+              selectCodeLines(instance.reference);
+              instance.reference.classList.add('code-annotation-active');
+              window.tippy.hideAll();
+            },
+            onHide: (instance) => {
+              unselectCodeLines();
+              instance.reference.classList.remove('code-annotation-active');
+            },
+            maxWidth: 300,
+            delay: [50, 0],
+            duration: [200, 0],
+            offset: [5, 10],
+            arrow: true,
+            trigger: 'click',
+            appendTo: function(el) {
+              return el.parentElement.parentElement.parentElement;
+            },
+            interactive: true,
+            interactiveBorder: 10,
+            theme: 'quarto',
+            placement: 'right',
+            positionFixed: true,
+            popperOptions: {
+              modifiers: [
+              {
+                name: 'flip',
+                options: {
+                  flipVariations: false, // true by default
+                  allowedAutoPlacements: ['right'],
+                  fallbackPlacements: ['right', 'top', 'top-start', 'top-end', 'bottom', 'bottom-start', 'bottom-end', 'left'],
+                },
+              },
+              {
+                name: 'preventOverflow',
+                options: {
+                  mainAxis: false,
+                  altAxis: false
+                }
+              }
+              ]        
+            }      
+          };
+          window.tippy(annoteTarget, config); 
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../reference/index.html" class="pagination-link" aria-label="Reference">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Reference</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../reference/host.html#hostbackendfactory" class="pagination-link" aria-label="HostBackendFactory">
+        <span class="nav-page-text">HostBackendFactory</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai">
+<p>Meridian Labs</p>
+</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges">
+<p>Code</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
+<p>License</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
+<p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
+</a>
+  </li>  
+</ul>
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/">
+      <i class="bi bi-github" role="img" aria-label="Inspect Ranges on GitHub">
+</i> 
+    </a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

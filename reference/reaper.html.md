@@ -2,7 +2,7 @@
 
 Reclaim expired host leases: teardown first, then CID and lease release.
 
-Reclaims on expiry alone, never probing liveness: a healthy sample never expires because its driver renews independently. A failed teardown frees nothing and the lease stays findable for the next sweep. One-shot mode exits 1 if any teardown failed.
+Reclaims on expiry alone, never probing liveness: a healthy sample never expires because its driver renews independently. A failed teardown frees nothing and the lease stays findable for the next sweep. A lease whose origin names a backend this machine cannot import reclaims nothing either (install the backend’s package where the reaper runs). One-shot mode exits 1 if any lease was not reaped.
 
 #### Usage
 

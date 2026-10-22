@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="The guest side of a range definition: hosts, images, resources, accounts, services, seeded weaknesses, defense, and Active Directory.">
+<meta name="description" content="The guest side of a range definition: hosts, images, and the content they carry, from accounts and services to defense and Active Directory.">
 
 <title>Guests – Inspect Ranges</title>
 <style>
@@ -83,7 +83,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -111,23 +114,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="./llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="./llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="./llms-guide.txt">
 
 
+<link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
+<meta property="og:image" content="https://meridianlabs-ai.github.io/inspect_ranges/diagrams/image-layers.excalidraw.png">
 <meta property="og:site_name" content="Inspect Ranges">
+<meta property="og:image:alt" content="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above.">
+<meta property="og:image:height" content="574">
+<meta property="og:image:width" content="1240">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
+<meta name="twitter:image" content="https://meridianlabs-ai.github.io/inspect_ranges/diagrams/image-layers.excalidraw.png">
+<meta name="twitter:image:alt" content="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above.">
+<meta name="twitter:image-height" content="574">
+<meta name="twitter:image-width" content="1240">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -149,17 +155,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="./index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="./building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -198,37 +200,68 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="./cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="./images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="./security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="./provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="./examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -238,10 +271,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="./CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -258,7 +287,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building Ranges</a></li><li class="breadcrumb-item"><a href="./guests.html">Guests</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building</a></li><li class="breadcrumb-item"><a href="./guests.html">Guests</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -273,19 +302,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -349,7 +372,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -357,14 +380,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="./images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -375,26 +392,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="./security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="./provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -403,29 +473,454 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Python API</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -460,13 +955,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <a href="./reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -667,8 +1179,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -685,11 +1209,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -740,8 +1264,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -811,14 +1359,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building Ranges</a></li><li class="breadcrumb-item"><a href="./guests.html">Guests</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./building.html">Building</a></li><li class="breadcrumb-item"><a href="./guests.html">Guests</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Guests</h1>
 </div>
 
 <div>
   <div class="description">
-    The guest side of a range definition: hosts, images, resources, accounts, services, seeded weaknesses, defense, and Active Directory.
+    The guest side of a range definition: hosts, images, and the content they carry, from accounts and services to defense and Active Directory.
   </div>
 </div>
 
@@ -837,17 +1385,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>Guests are the virtual machines in a range. They come in three kinds: hosts (the targets), routers (gateways between network segments), and the attacker. In a definition, “host” on its own always means a target not the physical machine the range runs on. This page covers the guest half of a range definition. Network addressing, segmentation, and routing are covered in <a href="./networks.html">Networks</a>.</p>
-<p>This article is organized as follows:</p>
-<ul>
-<li>Defining guests: <a href="#hosts">Hosts</a> covers identity and naming, <a href="#images">Images</a> and <a href="#resources">Resources</a> cover what a guest boots from and how it is sized, and two sections show how <a href="#routers-are-guests-too">routers</a> and <a href="#the-attacker-guest">the attacker</a> are defined as guests.</li>
-<li>Guest content: What a guest contains once built: <a href="#users">users</a>, <a href="#services">services</a>, <a href="#vulnerabilities-and-misconfigurations">vulnerabilities and misconfigurations</a>, <a href="#planted-data">planted data</a>, <a href="#defense">defense</a>, and <a href="#active-directory">Active Directory</a>. <a href="#provisioning-references">Provisioning references</a>, <a href="#scheduled-activity">scheduled activity</a>, and <a href="#variables">variables</a> cover how that content is produced and varied.</li>
-<li>Runtime behavior: <a href="#how-configuration-reaches-a-guest">How configuration reaches a guest</a> describes how compiled configuration is delivered at boot.</li>
-</ul>
+<p>Guests are the virtual machines in a range. They come in three kinds: hosts (the targets), routers (gateways between network segments), and the attacker. In a definition, “host” on its own always means a target, not the physical machine the range runs on. This page covers the guest half of a range definition. Network addressing, segmentation, and routing are covered in <a href="./networks.html">Networks</a>.</p>
+<p>Defining guests comes first (<a href="#hosts">hosts</a>, <a href="#images">images</a>, <a href="#resources">resources</a>, <a href="#routers-are-guests-too">routers</a>, <a href="#the-attacker-guest">the attacker</a>), then <a href="#guest-content">guest content</a> and the sections that produce and vary it, then <a href="#how-configuration-reaches-a-guest">how configuration reaches a guest</a>.</p>
 </section>
 <section id="hosts" class="level2">
 <h2 class="anchored" data-anchor-id="hosts">Hosts</h2>
-<p>Hosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under <a href="#guest-content">Guest content</a>. The optional <code>hostname</code> and <code>fqdn</code> are build-phase content: render keeps the in-guest hostname equal to a hostname-safe form of <code>name</code> (hostname-invalid characters such as underscores and dots become hyphens), so declaring either refuses at planning (<code>guest-config-not-realized</code>) until the build arc realizes them.</p>
+<p>Hosts are the machines the attacker works against: web servers, databases, domain controllers, workstations. Each host entry declares the guest’s identity (its name and, optionally, its in-guest hostname and FQDN), its operating system, the image it boots from, its CPU and memory, and the networks it attaches to. What runs on the host (accounts, services, weaknesses, data) is declared separately, under <a href="#guest-content">Guest content</a>.</p>
 <p>This example defines a single host:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">Python</a></li></ul>
@@ -937,16 +1480,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>Python definitions import from <code>inspect_ranges.types</code> (shown once above, later Python tabs omit it).</p>
 <p><code>name</code> is how everything else refers to the guest: <code>sandbox("dc01")</code> in evaluations, ACL endpoints, DNS <code>authoritative</code> lists. <code>hostname</code> is only needed when the in-guest name should differ, and <code>fqdn</code> matters for domain-joined ranges. <code>os</code> records the platform (<code>type: linux | windows</code>, with <code>distro</code> or <code>version</code> detail); <code>interfaces</code> are covered in <a href="./networks.html">Networks</a>.</p>
-<p><code>roles</code> tags a host’s function, such as <code>roles: [domain-controller, dns]</code> or <code>[member-server]</code>. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles are applied at build time, so like other <a href="#guest-content">guest content</a> they are refused at planning until the build phase lands.</p>
+<p>The in-guest hostname is the declared <code>hostname:</code> when one is present, else a hostname-safe form of <code>name</code>: invalid characters such as underscores and dots become hyphens, and Windows names truncate to the 15-character NetBIOS limit. Two guests whose rendered hostnames collide refuse at planning (<code>inspect-ranges plan</code> reports the collision as an error). <code>fqdn</code> is set at build time by the Active Directory recipes (promotion and domain join set the primary DNS suffix), so a range declaring it refuses to run until a build has produced that content and recorded it in the build manifest, the build’s record of what it ran and produced (see <a href="./building.html">Building Ranges</a>).</p>
+<p><code>roles</code> tags a host’s function, such as <code>roles: [domain-controller, dns]</code> or <code>[member-server]</code>. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles take effect through the host’s provisioning recipes at build time; a host declaring roles but no recipe refuses at planning (<code>realized-section-unconsumed</code>).</p>
 </section>
 <section id="images" class="level2">
 <h2 class="anchored" data-anchor-id="images">Images</h2>
-<p>Every host names the <code>image</code> it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest.</p>
+<p>Every host names the <code>image</code> it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon (the in-guest service that runs commands, moves files, and answers readiness) plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest. How bare names resolve beyond the cache (pins, registries, the public catalog) is covered in <a href="./images.html">Images</a>.</p>
+<p><a href="diagrams/image-layers.excalidraw.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="diagrams/image-layers.excalidraw.png" class="img-fluid" alt="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above."></a></p>
 <p>An image reference missing from the cache shows up in the plan output and is an error at render:</p>
 <pre><code>✗ range.yaml  1 error
-  12:5  hosts[0].image  image 'acme/db-golden' for guest 'db' is not in the image
-                        cache, so the bundle cannot be self-sufficient (pull or
-                        build the image into the cache)</code></pre>
+  12:5  hosts[0].image  image 'acme/db-golden' for guest 'db' is
+                        not in the image cache, so the bundle
+                        cannot be self-sufficient (pull or build
+                        the image into the cache)</code></pre>
 </section>
 <section id="resources" class="level2">
 <h2 class="anchored" data-anchor-id="resources">Resources</h2>
@@ -965,45 +1511,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Omitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. <code>inspect-ranges plan</code> reports the range’s totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.</p>
+<p>Omitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. The defaults suit an idle service host; a guest that compiles from source at build time (<a href="./building.html#period-software">Period Software</a>) or runs a database wants 2 vCPUs and 2048 MiB. <code>inspect-ranges plan</code> reports the range’s totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.</p>
 </section>
 <section id="routers-are-guests-too" class="level2">
 <h2 class="anchored" data-anchor-id="routers-are-guests-too">Routers</h2>
-<p>A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. <code>os</code> and <code>image</code> are optional; when omitted, the backend’s default router appliance is used:</p>
+<p>A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. <code>os</code> and <code>image</code> are optional; when omitted, the backend’s default router appliance is used. A router can also be a target in its own right: it takes <a href="#users"><code>users</code></a> and <code>provisioning</code> like a host (the CyRIS firewall shape, a gateway with its own weak account), built and captured on the same path as host content (<a href="./building.html">Building Ranges</a>). A router declaring content must declare <code>image</code> as well (<code>router-image-required</code>), since the appliance default is a backend resolution its build key cannot pin. For example:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-3-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-1" role="tab" aria-controls="tabset-3-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-2" role="tab" aria-controls="tabset-3-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
 <div id="tabset-3-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-3-1-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span><span class="kw">:</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> router-guest</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> A router with explicit identity, and one with backend defaults.</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dmz</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.80.10.0/24</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> internal</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.80.20.0/24</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">routers</span><span class="kw">:</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> edge</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux</span><span class="kw">,</span><span class="at"> </span><span class="fu">distro</span><span class="kw">:</span><span class="at"> ubuntu-24.04 </span><span class="kw">}</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/router-golden</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">resources</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">cpus</span><span class="kw">:</span><span class="at"> </span><span class="dv">1</span><span class="kw">,</span><span class="at"> </span><span class="fu">memory_mb</span><span class="kw">:</span><span class="at"> </span><span class="dv">512</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> dmz </span><span class="kw">},</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">acl</span><span class="kw">:</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">from</span><span class="kw">:</span><span class="at"> dmz</span><span class="kw">,</span><span class="at"> </span><span class="fu">to</span><span class="kw">:</span><span class="at"> internal</span><span class="kw">,</span><span class="at"> </span><span class="fu">allow</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">tcp/</span><span class="dv">443</span><span class="kw">]</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> app</span></span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/app-golden</span></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> dmz </span><span class="kw">}]</span></span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    A router with explicit identity, and one with backend defaults.</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dmz</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.80.10.0/24</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> internal</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.80.20.0/24</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="fu">routers</span><span class="kw">:</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> edge</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux</span><span class="kw">,</span><span class="at"> </span><span class="fu">distro</span><span class="kw">:</span><span class="at"> ubuntu-24.04 </span><span class="kw">}</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/router-golden</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">resources</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">cpus</span><span class="kw">:</span><span class="at"> </span><span class="dv">1</span><span class="kw">,</span><span class="at"> </span><span class="fu">memory_mb</span><span class="kw">:</span><span class="at"> </span><span class="dv">512</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> dmz </span><span class="kw">},</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">acl</span><span class="kw">:</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">from</span><span class="kw">:</span><span class="at"> dmz</span><span class="kw">,</span><span class="at"> </span><span class="fu">to</span><span class="kw">:</span><span class="at"> internal</span><span class="kw">,</span><span class="at"> </span><span class="fu">allow</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">tcp/</span><span class="dv">443</span><span class="kw">]</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> app</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/app-golden</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> dmz </span><span class="kw">}]</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-3-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-3-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>router_guest <span class="op">=</span> RangeSpec(</span>
@@ -1014,35 +1561,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    ),</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    networks<span class="op">=</span>[</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        Network(name<span class="op">=</span><span class="st">"dmz"</span>, cidr<span class="op">=</span><span class="st">"10.80.10.0/24"</span>, mode<span class="op">=</span><span class="st">"isolated"</span>),</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        Network(name<span class="op">=</span><span class="st">"internal"</span>, cidr<span class="op">=</span><span class="st">"10.80.20.0/24"</span>, mode<span class="op">=</span><span class="st">"isolated"</span>),</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    routers<span class="op">=</span>[</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        Router(</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"edge"</span>,</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>, distro<span class="op">=</span><span class="st">"ubuntu-24.04"</span>),</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/router-golden"</span>,</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>            resources<span class="op">=</span>Resources(cpus<span class="op">=</span><span class="dv">1</span>, memory_mb<span class="op">=</span><span class="dv">512</span>),</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>                Interface(network<span class="op">=</span><span class="st">"dmz"</span>),</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>                Interface(network<span class="op">=</span><span class="st">"internal"</span>),</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>            ],</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>            acl<span class="op">=</span>[</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>                AclRule(from_<span class="op">=</span><span class="st">"dmz"</span>, to<span class="op">=</span><span class="st">"internal"</span>, allow<span class="op">=</span>[<span class="st">"tcp/443"</span>])</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>            ],</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    hosts<span class="op">=</span>[</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>        Host(</span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"app"</span>,</span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>),</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/app-golden"</span>,</span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"internal"</span>)],</span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    attacker<span class="op">=</span>Attacker(</span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>        interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"dmz"</span>)], entry<span class="op">=</span><span class="st">"external"</span></span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        Network(</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"internal"</span>, cidr<span class="op">=</span><span class="st">"10.80.20.0/24"</span>, mode<span class="op">=</span><span class="st">"isolated"</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    routers<span class="op">=</span>[</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        Router(</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"edge"</span>,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>, distro<span class="op">=</span><span class="st">"ubuntu-24.04"</span>),</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/router-golden"</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>            resources<span class="op">=</span>Resources(cpus<span class="op">=</span><span class="dv">1</span>, memory_mb<span class="op">=</span><span class="dv">512</span>),</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>                Interface(network<span class="op">=</span><span class="st">"dmz"</span>),</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>                Interface(network<span class="op">=</span><span class="st">"internal"</span>),</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>            ],</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>            acl<span class="op">=</span>[</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>                AclRule(from_<span class="op">=</span><span class="st">"dmz"</span>, to<span class="op">=</span><span class="st">"internal"</span>, allow<span class="op">=</span>[<span class="st">"tcp/443"</span>])</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>            ],</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    hosts<span class="op">=</span>[</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>        Host(</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"app"</span>,</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>),</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/app-golden"</span>,</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"internal"</span>)],</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    attacker<span class="op">=</span>Attacker(</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>        interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"dmz"</span>)], entry<span class="op">=</span><span class="st">"external"</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </div>
@@ -1050,7 +1599,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="the-attacker-guest" class="level2">
 <h2 class="anchored" data-anchor-id="the-attacker-guest">Attacker</h2>
-<p>The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what <code>sandbox("default")</code> resolves to). Either it boots as a dedicated attack box (declare <code>interfaces</code>; <code>name</code> defaults to <code>attacker</code>, and omitting <code>image</code> selects the standard attack image: the catalog’s <code>attack</code>, a kali-class toolset image pulled automatically at eval init; see <a href="./catalog.html">Image Catalog</a>), or it starts from a foothold on a declared host. A dedicated attack box runs under Cloud Hypervisor by default (the most adversarial guest gets the smaller VMM: unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see the Sandbox Provider page); declare <code>vmm: qemu</code> to keep QEMU, and with <code>host:</code> set the foothold host’s own <code>vmm</code> applies. Hosts and routers default to QEMU and opt in per guest with <code>vmm: cloud-hypervisor</code>; a Cloud Hypervisor guest cannot carry buildable guest content yet, which planning refuses:</p>
+<p>The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what <code>sandbox("default")</code> resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares <code>interfaces</code>; <code>name</code> defaults to <code>attacker</code>, and omitting <code>image</code> selects the catalog’s <code>attack</code>, a kali-class toolset image pulled automatically at eval init (see <a href="./images.html">Images</a>):</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-4-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-1" role="tab" aria-controls="tabset-4-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-4-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-2" role="tab" aria-controls="tabset-4-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1105,16 +1654,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p>A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see <a href="./security.html#virtual-machine-monitors">Security</a>). Declare <code>vmm: qemu</code> to keep QEMU; with <code>host:</code> set, the foothold host’s own <code>vmm</code> applies. Hosts and routers default to QEMU and opt in per guest with <code>vmm: cloud-hypervisor</code>; a Cloud Hypervisor guest cannot yet carry <a href="#guest-content">guest content</a> that requires a build; planning refuses the combination.</p>
 <p>With <code>host:</code>, the attacker declares no machine of its own (the foothold is the machine), and <code>entry: assumed-breach</code> records the premise. The attacker’s <code>egress</code> posture is covered in <a href="./networks.html#egress">Networks</a>.</p>
 </section>
 <section id="guest-content" class="level2">
 <h2 class="anchored" data-anchor-id="guest-content">Guest Content</h2>
-<p>Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest, not boot-time actions. The build applies each declaration by whatever means the image demands (a provisioning recipe, content baked into a derived image, or a captured checkpoint) and verifies it before the range ships; the runtime never applies guest content per sample.</p>
-<p>Today <a href="./building.html"><code>inspect-ranges build</code></a> realizes <code>provisioning</code>, <code>services</code>, and <code>vulnerabilities</code>: a range declaring any of them refuses planning (<code>range-not-built</code>) until a matching build exists, then boots its captured realized images. The other content sections below validate but refuse at planning (<code>guest-config-not-realized</code>) until their build slices land, so nothing boots with silently missing content.</p>
+<p>Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest (what the guest looks like once fully set up), not boot-time actions. Each declaration is realized at build time and the range ships verified; the runtime never applies guest content per sample.</p>
+<p><a href="./building.html"><code>inspect-ranges build</code></a> converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses (<a href="./building.html#authoring-recipes">Authoring Recipes</a>). The build then independently verifies every declared <code>services</code> and <code>vulnerabilities</code> entry against the live guests and captures each guest’s disk as a realized image. Declared <code>users</code>, <code>misconfigurations</code>, and <code>data</code> are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (<code>users</code> realized by their <code>provisioning</code> recipes); they declare no <code>services</code> or <code>vulnerabilities</code>, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (<code>range-not-built</code>) until a matching build exists; once one does, the range boots those captured images. <code>scheduled_activity</code> has no realizer yet and refuses at planning (<code>guest-config-not-realized</code>), so nothing boots with silently missing content.</p>
 </section>
 <section id="users" class="level2">
 <h2 class="anchored" data-anchor-id="users">Users</h2>
-<p><code>users</code> declares a guest’s local accounts (routers can carry them too). Domain accounts belong in <a href="#active-directory"><code>active_directory</code></a>, not here:</p>
+<p><code>users</code> declares a guest’s local accounts: the recipe creates them, and the declaration records the converged state. Routers take <code>users</code> the same way, realized by their own <code>provisioning</code> recipes (a router declaring users without a recipe refuses at planning, <code>realized-section-unconsumed</code>, because nothing would realize them). Domain accounts belong in <a href="#active-directory"><code>active_directory</code></a>, not here:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-5-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-1" role="tab" aria-controls="tabset-5-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-5-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-2" role="tab" aria-controls="tabset-5-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1133,10 +1683,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">users</span><span class="kw">:</span></span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> alice</span><span class="kw">,</span><span class="at"> </span><span class="fu">password</span><span class="kw">:</span><span class="at"> bacon</span><span class="kw">,</span><span class="at"> </span><span class="fu">note</span><span class="kw">:</span><span class="at"> </span><span class="st">"weak password"</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> backup</span><span class="kw">,</span><span class="at"> </span><span class="fu">groups</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">sudo</span><span class="kw">],</span><span class="at"> </span><span class="fu">note</span><span class="kw">:</span><span class="at"> service account with sudo </span><span class="kw">}</span></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> backup</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">groups</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">sudo</span><span class="kw">]</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">note</span><span class="kw">:</span><span class="at"> service account with sudo</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-5-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-5-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>users <span class="op">=</span> RangeSpec(</span>
@@ -1176,32 +1728,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="services" class="level2">
 <h2 class="anchored" data-anchor-id="services">Services</h2>
-<p><code>services</code> entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in <a href="#provisioning-references"><code>provisioning</code></a>. The optional <code>package</code> names the dpkg package that embodies the service, for version attribution when the listening process cannot provide it (a PHP frontend served by apache attributes through <code>package: php7.4</code>, not the apache listener); the verification contract is in <a href="./building.html#verification">Building Ranges</a>:</p>
+<p><code>services</code> entries are assertions about the guest’s converged listening surface, not an installation language. The build satisfies them (through a recipe, the image, or a checkpoint) and verifies them: the named service is listening on the declared port at the declared version. Installation itself belongs in <a href="#provisioning-references"><code>provisioning</code></a>. The optional <code>package</code> names the dpkg package that embodies the service, for version attribution when the listening process cannot provide it (a PHP frontend served by apache attributes through <code>package: php7.4</code>, not the apache listener). The verification contract is in <a href="./building.html#verification">Building Ranges</a>:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-6-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-6-1" role="tab" aria-controls="tabset-6-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-6-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-6-2" role="tab" aria-controls="tabset-6-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
 <div id="tabset-6-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-6-1-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode yaml plan-invalid code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span><span class="kw">:</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> services</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> The converged listening surface, asserted and build-verified.</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> lab</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.10.10.0/24</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> web</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/zabbix-golden</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">services</span><span class="kw">:</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> zabbix-web</span><span class="kw">,</span><span class="at"> </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">80</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="fl">3.0.3</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> mysql</span></span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">3306</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">"5"</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">credentials</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">user</span><span class="kw">:</span><span class="at"> root</span><span class="kw">,</span><span class="at"> </span><span class="fu">password</span><span class="kw">:</span><span class="at"> root </span><span class="kw">}</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    The converged listening surface, asserted and build-verified.</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> lab</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.10.10.0/24</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> web</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/zabbix-golden</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">services</span><span class="kw">:</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> zabbix-web</span><span class="kw">,</span><span class="at"> </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">80</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="fl">3.0.3</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> mysql</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">3306</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">"5"</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">credentials</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">user</span><span class="kw">:</span><span class="at"> root</span><span class="kw">,</span><span class="at"> </span><span class="fu">password</span><span class="kw">:</span><span class="at"> root </span><span class="kw">}</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-6-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-6-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>services <span class="op">=</span> RangeSpec(</span>
@@ -1242,36 +1795,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="vulnerabilities-and-misconfigurations" class="level2">
 <h2 class="anchored" data-anchor-id="vulnerabilities-and-misconfigurations">Vulnerabilities and Misconfigurations</h2>
-<p>The seeded attack surface is two distinct lists, because real intrusions lean heavily on misconfigurations. A vulnerability’s <code>id</code> is a stable name of ours; <code>cve:</code> is an attribute when one applies, and <code>service:</code> ties the weakness to a declared service on the same host:</p>
+<p>The seeded attack surface is two distinct lists, because real intrusions lean heavily on misconfigurations. A vulnerability’s <code>id</code> is a stable local name; <code>cve:</code> is an attribute when one applies, and <code>service:</code> ties the weakness to a declared service on the same host:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-7-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-1" role="tab" aria-controls="tabset-7-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-7-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-2" role="tab" aria-controls="tabset-7-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
 <div id="tabset-7-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-7-1-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode yaml plan-invalid code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span><span class="kw">:</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> weaknesses</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> A CVE-backed vulnerability and a misconfiguration, as distinct lists.</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> lab</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.10.10.0/24</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> web</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/zabbix-golden</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">services</span><span class="kw">:</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> zabbix-web</span><span class="kw">,</span><span class="at"> </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">80</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="fl">3.0.3</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">vulnerabilities</span><span class="kw">:</span></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> zabbix-jsrpc-sqli</span></span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">cve</span><span class="kw">:</span><span class="at"> CVE-2016-10134</span></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">service</span><span class="kw">:</span><span class="at"> zabbix-web</span></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">description</span><span class="kw">:</span><span class="at"> SQL injection in jsrpc.php, reachable unauthenticated.</span></span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">misconfigurations</span><span class="kw">:</span></span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> guest-login-enabled</span></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">description</span><span class="kw">:</span><span class="at"> The Zabbix guest account is enabled with an empty password.</span></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    A CVE-backed vulnerability and a misconfiguration, as</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    distinct lists.</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> lab</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.10.10.0/24</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> web</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/zabbix-golden</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">services</span><span class="kw">:</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> zabbix-web</span><span class="kw">,</span><span class="at"> </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">80</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="fl">3.0.3</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">vulnerabilities</span><span class="kw">:</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> zabbix-jsrpc-sqli</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">cve</span><span class="kw">:</span><span class="at"> CVE-2016-10134</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">service</span><span class="kw">:</span><span class="at"> zabbix-web</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="fu">        description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>          SQL injection in jsrpc.php, reachable unauthenticated.</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">misconfigurations</span><span class="kw">:</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> guest-login-enabled</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="fu">        description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>          The Zabbix guest account is enabled with an empty</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>          password.</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-7-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-7-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>weaknesses <span class="op">=</span> RangeSpec(</span>
@@ -1320,7 +1878,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="planted-data" class="level2">
 <h2 class="anchored" data-anchor-id="planted-data">Planted Data</h2>
-<p><code>data</code> declares scenario files: targets worth finding or exfiltrating, supporting material, captures. Flags never appear here:</p>
+<p><code>data</code> declares scenario files: targets worth finding or exfiltrating, supporting material, captures. Nothing creates or verifies a <code>data:</code> file: the recipe writes the ones that should exist on the image. An <code>exfiltrate</code> goal’s file is planted per sample by the challenge layer (the recipe creates only its parent directory). Flags never appear here; the per-sample secrets belong to <a href="./challenges.html">challenges</a>:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-8-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-8-1" role="tab" aria-controls="tabset-8-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-8-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-8-2" role="tab" aria-controls="tabset-8-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1338,11 +1896,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/db-golden</span></span>
 <span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
 <span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">data</span><span class="kw">:</span></span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> /srv/data/customers.db</span><span class="kw">,</span><span class="at"> </span><span class="fu">description</span><span class="kw">:</span><span class="at"> the exfiltration target</span><span class="kw">,</span><span class="at"> </span><span class="fu">sensitive</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> /home/trainee/traffic.pcap</span><span class="kw">,</span><span class="at"> </span><span class="fu">description</span><span class="kw">:</span><span class="at"> packet capture with planted attack traffic </span><span class="kw">}</span></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> /srv/data/customers.db</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">description</span><span class="kw">:</span><span class="at"> the exfiltration target</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">sensitive</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> /home/trainee/traffic.pcap</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">description</span><span class="kw">:</span><span class="at"> packet capture with planted attack traffic</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> internal </span><span class="kw">}]</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-8-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-8-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>planted_data <span class="op">=</span> RangeSpec(</span>
@@ -1384,7 +1945,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="defense" class="level2">
 <h2 class="anchored" data-anchor-id="defense">Defense</h2>
-<p>The range-level <code>defense</code> section records the defensive posture on the D0 (no defenders) to D5 (adaptive defender) spectrum, with telemetry flows where signals are recorded or forwarded. Per-host toggles turn individual protections on or off:</p>
+<p>The range-level <code>defense</code> section records the defensive posture on the D0 (no defenders) to D5 (adaptive defender) spectrum, with telemetry flows where signals are recorded or forwarded. A posture realizes through its telemetry flows, so a tier declared without <code>telemetry</code> entries refuses at planning; omitting <code>defense</code> already means D0. Per-host toggles turn individual protections on or off:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-9-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-9-1" role="tab" aria-controls="tabset-9-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-9-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-9-2" role="tab" aria-controls="tabset-9-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1398,22 +1959,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="fu">defense</span><span class="kw">:</span></span>
 <span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tier</span><span class="kw">:</span><span class="at"> D2</span></span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> Endpoint telemetry is recorded and searchable, no blocking response.</span></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">telemetry</span><span class="kw">:</span></span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">source</span><span class="kw">:</span><span class="at"> win</span><span class="kw">,</span><span class="at"> </span><span class="fu">collector</span><span class="kw">:</span><span class="at"> Sysmon/WinEventLog</span><span class="kw">,</span><span class="at"> </span><span class="fu">sink</span><span class="kw">:</span><span class="at"> splunk </span><span class="kw">}</span></span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> splunk</span></span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/splunk-golden</span></span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> win</span></span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/endpoint-golden</span></span>
-<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">defense</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">defender</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="kw">,</span><span class="at"> </span><span class="fu">firewall</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
-<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="fu">  description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    Endpoint telemetry is recorded and searchable, no blocking</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    response.</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">telemetry</span><span class="kw">:</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">source</span><span class="kw">:</span><span class="at"> win</span><span class="kw">,</span><span class="at"> </span><span class="fu">collector</span><span class="kw">:</span><span class="at"> Sysmon/WinEventLog</span><span class="kw">,</span><span class="at"> </span><span class="fu">sink</span><span class="kw">:</span><span class="at"> splunk </span><span class="kw">}</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> splunk</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/splunk-golden</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> win</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> windows</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> server-2022 </span><span class="kw">}</span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">defense</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">defender</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="kw">,</span><span class="at"> </span><span class="fu">firewall</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> lab </span><span class="kw">}]</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-9-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-9-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>defended <span class="op">=</span> RangeSpec(</span>
@@ -1446,8 +2009,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>        Host(</span>
 <span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"win"</span>,</span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>),</span>
-<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/endpoint-golden"</span>,</span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"windows"</span>, version<span class="op">=</span><span class="st">"server-2022"</span>),</span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"windows-2022"</span>,</span>
 <span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"lab"</span>)],</span>
 <span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>            defense<span class="op">=</span>HostDefense(defender<span class="op">=</span><span class="va">True</span>, firewall<span class="op">=</span><span class="va">False</span>),</span>
 <span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>        ),</span>
@@ -1462,50 +2025,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="active-directory" class="level2">
 <h2 class="anchored" data-anchor-id="active-directory">Active Directory</h2>
-<p>Identity is range-scoped (accounts exist in the domain, not on a host), so <code>active_directory</code> is a top-level section: the forest, its domains, each domain’s controller (a declared host), accounts of note with groups and SPNs, and the seeded ACL-abuse chain as typed edges:</p>
+<p>Identity is range-scoped (accounts exist in the domain, not on a host), so <code>active_directory</code> is a top-level section: the forest, its domains, each domain’s controller (a declared host), accounts of note with groups and SPNs, and the seeded ACL-abuse chain as typed edges (each edge names a principal, a right, and a target):</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-10-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-10-1" role="tab" aria-controls="tabset-10-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-10-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-10-2" role="tab" aria-controls="tabset-10-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
 <div id="tabset-10-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-10-1-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode yaml plan-invalid code-with-copy"><code class="sourceCode yaml"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span><span class="kw">:</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> forest</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> A parent and child domain with seeded identity attack surface.</span></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.20.0.0/24</span></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="fu">active_directory</span><span class="kw">:</span></span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">forest</span><span class="kw">:</span><span class="at"> corp.example</span></span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">domains</span><span class="kw">:</span></span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp.example</span></span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">netbios</span><span class="kw">:</span><span class="at"> CORP</span></span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">dc</span><span class="kw">:</span><span class="at"> dc01</span></span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">users</span><span class="kw">:</span></span>
-<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> c.lannister</span><span class="kw">,</span><span class="at"> </span><span class="fu">password</span><span class="kw">:</span><span class="at"> il0vejaime</span><span class="kw">,</span><span class="at"> </span><span class="fu">groups</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">Domain Admins</span><span class="kw">]</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">acls</span><span class="kw">:</span></span>
-<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">principal</span><span class="kw">:</span><span class="at"> t.lannister</span><span class="kw">,</span><span class="at"> </span><span class="fu">right</span><span class="kw">:</span><span class="at"> ForceChangePassword</span><span class="kw">,</span><span class="at"> </span><span class="fu">target</span><span class="kw">:</span><span class="at"> j.lannister </span><span class="kw">}</span></span>
-<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">principal</span><span class="kw">:</span><span class="at"> j.lannister</span><span class="kw">,</span><span class="at"> </span><span class="fu">right</span><span class="kw">:</span><span class="at"> GenericWrite</span><span class="kw">,</span><span class="at"> </span><span class="fu">target</span><span class="kw">:</span><span class="at"> j.baratheon </span><span class="kw">}</span></span>
-<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> north.corp.example</span></span>
-<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">netbios</span><span class="kw">:</span><span class="at"> NORTH</span></span>
-<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">dc</span><span class="kw">:</span><span class="at"> dc02</span></span>
-<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">parent</span><span class="kw">:</span><span class="at"> corp.example</span></span>
-<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">users</span><span class="kw">:</span></span>
-<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> sql_svc</span></span>
-<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">password</span><span class="kw">:</span><span class="at"> TrustN0one</span></span>
-<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">spns</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">MSSQLSvc/db.north.corp.example:</span><span class="dv">1433</span><span class="kw">]</span></span>
-<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">note</span><span class="kw">:</span><span class="at"> kerberoastable</span></span>
-<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
-<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc01</span></span>
-<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/dc-golden</span></span>
-<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp</span><span class="kw">,</span><span class="at"> </span><span class="fu">ip</span><span class="kw">:</span><span class="at"> </span><span class="fl">10.20.0.5</span><span class="at"> </span><span class="kw">}]</span></span>
-<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc02</span></span>
-<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/dc-golden</span></span>
-<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp</span><span class="kw">,</span><span class="at"> </span><span class="fu">ip</span><span class="kw">:</span><span class="at"> </span><span class="fl">10.20.0.6</span><span class="at"> </span><span class="kw">}]</span></span>
-<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
-<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    A parent and child domain with seeded identity attack surface.</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.20.0.0/24</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="fu">active_directory</span><span class="kw">:</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">forest</span><span class="kw">:</span><span class="at"> corp.example</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">domains</span><span class="kw">:</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp.example</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">netbios</span><span class="kw">:</span><span class="at"> CORP</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">dc</span><span class="kw">:</span><span class="at"> dc01</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">users</span><span class="kw">:</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> c.lannister</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">password</span><span class="kw">:</span><span class="at"> il0vejaime</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">groups</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">Domain Admins</span><span class="kw">]</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">acls</span><span class="kw">:</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">principal</span><span class="kw">:</span><span class="at"> t.lannister</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">right</span><span class="kw">:</span><span class="at"> ForceChangePassword</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">target</span><span class="kw">:</span><span class="at"> j.lannister</span></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">principal</span><span class="kw">:</span><span class="at"> j.lannister</span></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">right</span><span class="kw">:</span><span class="at"> GenericWrite</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">target</span><span class="kw">:</span><span class="at"> j.baratheon</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> north.corp.example</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">netbios</span><span class="kw">:</span><span class="at"> NORTH</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">dc</span><span class="kw">:</span><span class="at"> dc02</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">parent</span><span class="kw">:</span><span class="at"> corp.example</span></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">users</span><span class="kw">:</span></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> sql_svc</span></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">password</span><span class="kw">:</span><span class="at"> TrustN0one</span></span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">spns</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">MSSQLSvc/db.north.corp.example:</span><span class="dv">1433</span><span class="kw">]</span></span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">note</span><span class="kw">:</span><span class="at"> kerberoastable</span></span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc01</span></span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> windows</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> server-2022 </span><span class="kw">}</span></span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp</span><span class="kw">,</span><span class="at"> </span><span class="fu">ip</span><span class="kw">:</span><span class="at"> </span><span class="fl">10.20.0.5</span><span class="at"> </span><span class="kw">}]</span></span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc02</span></span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> windows</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> server-2022 </span><span class="kw">}</span></span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp</span><span class="kw">,</span><span class="at"> </span><span class="fu">ip</span><span class="kw">:</span><span class="at"> </span><span class="fl">10.20.0.6</span><span class="at"> </span><span class="kw">}]</span></span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-10-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-10-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>forest <span class="op">=</span> RangeSpec(</span>
@@ -1563,14 +2133,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a>    hosts<span class="op">=</span>[</span>
 <span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a>        Host(</span>
 <span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"dc01"</span>,</span>
-<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>),</span>
-<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/dc-golden"</span>,</span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"windows"</span>, version<span class="op">=</span><span class="st">"server-2022"</span>),</span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"windows-2022"</span>,</span>
 <span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"corp"</span>, ip<span class="op">=</span><span class="st">"10.20.0.5"</span>)],</span>
 <span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a>        Host(</span>
 <span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"dc02"</span>,</span>
-<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>),</span>
-<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/dc-golden"</span>,</span>
+<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"windows"</span>, version<span class="op">=</span><span class="st">"server-2022"</span>),</span>
+<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"windows-2022"</span>,</span>
 <span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"corp"</span>, ip<span class="op">=</span><span class="st">"10.20.0.6"</span>)],</span>
 <span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a>    ],</span>
@@ -1581,7 +2151,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>ACL edge rights use the vocabulary observed in real ranges (<code>GenericAll</code>, <code>GenericWrite</code>, <code>WriteDacl</code>, <code>WriteOwner</code>, <code>ForceChangePassword</code>, <code>SelfMembership</code>, <code>AddMember</code>); principals and targets are names as AD knows them (users, groups, OUs, or computer objects).</p>
+<p>ACL edge rights use the vocabulary observed in real ranges (<code>GenericAll</code>, <code>GenericWrite</code>, <code>WriteDacl</code>, <code>WriteOwner</code>, <code>ForceChangePassword</code>, <code>SelfMembership</code>, <code>AddMember</code>); principals and targets are names as AD knows them (users, groups, OUs, or computer objects). The shipped <a href="./examples/goad_light.html">goad_light</a> example is the built exemplar: one forest, two domains, three Windows Server guests, and a seeded ACL-abuse chain to Domain Admin.</p>
 </section>
 <section id="provisioning-references" class="level2">
 <h2 class="anchored" data-anchor-id="provisioning-references">Provisioning References</h2>
@@ -1658,15 +2228,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
 <span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
 <span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc01</span></span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> linux </span><span class="kw">}</span></span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> acme/dc-golden</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> windows</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> server-2022 </span><span class="kw">}</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
 <span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
 <span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">scheduled_activity</span><span class="kw">:</span></span>
 <span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">script</span><span class="kw">:</span><span class="at"> responder.ps1 </span><span class="kw">}</span></span>
-<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">script</span><span class="kw">:</span><span class="at"> rdp_scheduler.ps1</span><span class="kw">,</span><span class="at"> </span><span class="fu">user</span><span class="kw">:</span><span class="at"> admin.user</span><span class="kw">,</span><span class="at"> </span><span class="fu">note</span><span class="kw">:</span><span class="at"> creates a stealable session </span><span class="kw">}</span></span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
-<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">script</span><span class="kw">:</span><span class="at"> rdp_scheduler.ps1</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">user</span><span class="kw">:</span><span class="at"> admin.user</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">note</span><span class="kw">:</span><span class="at"> creates a stealable session</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-12-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-12-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>activity <span class="op">=</span> RangeSpec(</span>
@@ -1680,8 +2252,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    hosts<span class="op">=</span>[</span>
 <span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>        Host(</span>
 <span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>            name<span class="op">=</span><span class="st">"dc01"</span>,</span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"linux"</span>),</span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"acme/dc-golden"</span>,</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>            os<span class="op">=</span>Os(<span class="bu">type</span><span class="op">=</span><span class="st">"windows"</span>, version<span class="op">=</span><span class="st">"server-2022"</span>),</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"windows-2022"</span>,</span>
 <span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"corp"</span>)],</span>
 <span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>            scheduled_activity<span class="op">=</span>[</span>
 <span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>                ScheduledActivity(script<span class="op">=</span><span class="st">"responder.ps1"</span>),</span>
@@ -1703,7 +2275,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="variables" class="level2">
 <h2 class="anchored" data-anchor-id="variables">Variables</h2>
-<p><code>variables</code> declares per-instance values: things that should differ between generated instances of the same range, like randomized ports, passwords, and flag hints. Every variable requires a <code>default</code>, and definitions reference variables as <code>{name}</code> in YAML scalars. Loading substitutes the defaults before validation, so a whole-scalar reference keeps the variable’s type (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. In Python the template is a function whose parameters play the role of the references, called with drawn values to produce a concrete spec:</p>
+<p><code>variables</code> declares values intended to differ between generated instances of the same range: ports, passwords, flag hints. No per-instance values are drawn yet: every variable requires a <code>default</code> and loading substitutes the defaults before validation; the generation layer that would draw differing values is deferred (per-sample secrets come from the challenge plant layer instead; see <a href="./challenges.html">Challenges</a>). References are <code>"{{name}}"</code>: a whole-scalar reference keeps the variable’s type (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in <code>range.yaml</code> (ports, passwords, <code>provisioning</code> <code>vars</code>, prose fields) and only <code>range.yaml</code>: <code>challenges.yaml</code> never substitutes, and a goal reads a variable by name instead (<code>answer</code>’s <code>variable:</code> source). A reference naming no declared variable is a positioned <code>undeclared-variable</code> error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-13-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-13-1" role="tab" aria-controls="tabset-13-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-13-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-13-2" role="tab" aria-controls="tabset-13-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1775,26 +2347,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="how-configuration-reaches-a-guest" class="level2">
 <h2 class="anchored" data-anchor-id="how-configuration-reaches-a-guest">Guest Configuration</h2>
-<p>The compiler emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows HOSTS inject over a per-boot unattend seed (a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass: hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon; Windows routers and attack boxes are not yet realized and refuse at planning. Other injectors remain designed: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.</p>
+<p>The range compiler (the plan and render steps) emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows hosts inject over a per-boot unattend seed: a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass (hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon. Because that addressing is always static, a Windows guest attached to a <code>dhcp: true</code> network never takes a lease and is configured statically all the same (validation warns <code>windows-dhcp-static</code>). Windows routers are not yet realized and refuse at planning. An attack box is Linux by construction (the <code>attacker:</code> block declares no <code>os</code> field). A Windows host declaring <code>vmm: cloud-hypervisor</code> refuses at planning, since the seed rides removable media that Cloud Hypervisor cannot present. Other injectors are designed but not yet implemented: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-14-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-14-1" role="tab" aria-controls="tabset-14-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-14-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-14-2" role="tab" aria-controls="tabset-14-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
 <div id="tabset-14-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-14-1-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span><span class="kw">:</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> windows-host</span></span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> A Windows target on a locally installed golden (windows-ad-v1).</span></span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp</span></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.20.0.0/24</span></span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc01</span></span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> windows</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> server-2022 </span><span class="kw">}</span></span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    A Windows target on a locally installed golden (windows-ad-v1).</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.20.0.0/24</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="fu">hosts</span><span class="kw">:</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dc01</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">os</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> windows</span><span class="kw">,</span><span class="at"> </span><span class="fu">version</span><span class="kw">:</span><span class="at"> server-2022 </span><span class="kw">}</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-14-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-14-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>windows_host <span class="op">=</span> RangeSpec(</span>
@@ -2370,11 +2943,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -2382,6 +2950,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>
@@ -2398,6 +2971,38 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   </div>
 </footer>
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
 
 
 

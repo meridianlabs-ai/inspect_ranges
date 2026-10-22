@@ -14,7 +14,7 @@ inspect-ranges render [OPTIONS] [PATH]
 |----|----|----|----|
 | `--output`, `-o` | path | Bundle directory to write (must be empty or absent). | `Sentinel.UNSET` |
 | `--image-cache` | path | Image cache used for digest resolution. | None |
-| `--cpu-model` | text | N/A | `host-passthrough` |
+| `--cpu-model` | text | Guest CPU model rendered into the plan (the VMM’s -cpu input). | `host-passthrough` |
 | `--cid-base` | integer range (`3` and above) | First vsock CID (plan-time input; realizer batteries use 3000+). | `3` |
 | `--evidence-capture` | boolean | Render the evidence-capture sidecar (per-segment pcap; evidence-v1). | `False` |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |

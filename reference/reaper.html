@@ -38,7 +38,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
 <link href="../reference/render.html" rel="next">
-<link href="../reference/plan.html" rel="prev">
+<link href="../reference/push.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
@@ -48,7 +48,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -76,22 +76,17 @@ ul.task-list li input[type="checkbox"] {
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="../llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="../llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="../llms-guide.txt">
 
 
+<link rel="stylesheet" href="../styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
 <meta property="og:site_name" content="Inspect Ranges">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
 <meta name="twitter:card" content="summary">
 </head>
 
@@ -114,17 +109,13 @@ ul.task-list li input[type="checkbox"] {
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="../index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="../tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="../building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -163,37 +154,68 @@ ul.task-list li input[type="checkbox"] {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="../cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="../images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="../security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="../provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -203,10 +225,6 @@ ul.task-list li input[type="checkbox"] {
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="../CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -238,19 +256,13 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -314,7 +326,7 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -322,14 +334,8 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="../images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -340,26 +346,79 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="../security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="../provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -368,29 +427,454 @@ ul.task-list li input[type="checkbox"] {
       <div class="sidebar-item-container"> 
             <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Python API</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -425,13 +909,30 @@ ul.task-list li input[type="checkbox"] {
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="../reference/types.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <a href="../reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -632,8 +1133,20 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -650,11 +1163,11 @@ ul.task-list li input[type="checkbox"] {
       <div class="sidebar-item-container"> 
             <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 show">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -705,8 +1218,32 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -781,7 +1318,7 @@ ul.task-list li input[type="checkbox"] {
 
 
 <p>Reclaim expired host leases: teardown first, then CID and lease release.</p>
-<p>Reclaims on expiry alone, never probing liveness: a healthy sample never expires because its driver renews independently. A failed teardown frees nothing and the lease stays findable for the next sweep. One-shot mode exits 1 if any teardown failed.</p>
+<p>Reclaims on expiry alone, never probing liveness: a healthy sample never expires because its driver renews independently. A failed teardown frees nothing and the lease stays findable for the next sweep. A lease whose origin names a backend this machine cannot import reclaims nothing either (install the backend’s package where the reaper runs). One-shot mode exits 1 if any lease was not reaped.</p>
 <section id="usage" class="level4">
 <h4 class="anchored" data-anchor-id="usage">Usage</h4>
 <pre class="text"><code>inspect-ranges reaper [OPTIONS]</code></pre>
@@ -1341,8 +1878,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../reference/plan.html" class="pagination-link" aria-label="inspect-ranges plan">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">inspect-ranges plan</span>
+      <a href="../reference/push.html" class="pagination-link" aria-label="inspect-ranges push">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">inspect-ranges push</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
@@ -1371,11 +1908,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -1383,6 +1915,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>

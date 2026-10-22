@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Loading, validation, and revalidation of range definitions.">
+<meta name="description" content="Challenges and goals (dataset, setup, scoring, verification), the goal types, and range definition loading.">
 
 <title>inspect_ranges – Inspect Ranges</title>
 <style>
@@ -72,8 +72,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../reference/inspect_ranges.qmd#load_range" rel="next">
-<link href="../reference/index.html" rel="prev">
+<link href="../reference/inspect_ranges.qmd#challenge_dataset" rel="next">
+<link href="../reference/host.qmd#heartbeat" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -111,22 +111,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="../llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="../llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="../llms-guide.txt">
 
 
+<link rel="stylesheet" href="../styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
 <meta property="og:site_name" content="Inspect Ranges">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
 <meta name="twitter:card" content="summary">
 </head>
 
@@ -149,17 +144,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="../index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="../tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="../building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -198,37 +189,68 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="../cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="../images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="../security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="../provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -238,10 +260,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="../CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -258,7 +276,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/inspect_ranges.html">Python API</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/host.html">Python API</a></li><li class="breadcrumb-item"><a href="../reference/inspect_ranges.html">inspect_ranges</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -273,19 +291,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -349,7 +361,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -357,14 +369,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="../images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -375,26 +381,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="../security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="../provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -403,29 +462,454 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="../reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Python API</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">inspect_ranges</span></a>
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Python API</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 show">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 show">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/inspect_ranges.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -460,13 +944,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="../reference/types.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <a href="../reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="../reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -667,8 +1168,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -685,11 +1198,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -740,8 +1253,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -788,7 +1325,61 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#loading" id="toc-loading" class="nav-link active" data-scroll-target="#loading">Loading</a>
+  <li><a href="#challenge-tasks" id="toc-challenge-tasks" class="nav-link active" data-scroll-target="#challenge-tasks">Challenge Tasks</a>
+  <ul class="collapse">
+  <li><a href="#challenge_dataset" id="toc-challenge_dataset" class="nav-link" data-scroll-target="#challenge_dataset">challenge_dataset</a></li>
+  <li><a href="#challenge_setup" id="toc-challenge_setup" class="nav-link" data-scroll-target="#challenge_setup">challenge_setup</a></li>
+  <li><a href="#challenge_scorer" id="toc-challenge_scorer" class="nav-link" data-scroll-target="#challenge_scorer">challenge_scorer</a></li>
+  <li><a href="#verify_goal" id="toc-verify_goal" class="nav-link" data-scroll-target="#verify_goal">verify_goal</a></li>
+  </ul></li>
+  <li><a href="#challenges" id="toc-challenges" class="nav-link" data-scroll-target="#challenges">Challenges</a>
+  <ul class="collapse">
+  <li><a href="#challenge" id="toc-challenge" class="nav-link" data-scroll-target="#challenge">Challenge</a></li>
+  <li><a href="#challenges-1" id="toc-challenges-1" class="nav-link" data-scroll-target="#challenges-1">Challenges</a></li>
+  <li><a href="#goal" id="toc-goal" class="nav-link" data-scroll-target="#goal">Goal</a></li>
+  <li><a href="#scoring" id="toc-scoring" class="nav-link" data-scroll-target="#scoring">Scoring</a></li>
+  <li><a href="#primitive" id="toc-primitive" class="nav-link" data-scroll-target="#primitive">Primitive</a></li>
+  </ul></li>
+  <li><a href="#goal-types" id="toc-goal-types" class="nav-link" data-scroll-target="#goal-types">Goal Types</a>
+  <ul class="collapse">
+  <li><a href="#goalbase" id="toc-goalbase" class="nav-link" data-scroll-target="#goalbase">GoalBase</a></li>
+  <li><a href="#flaggoal" id="toc-flaggoal" class="nav-link" data-scroll-target="#flaggoal">FlagGoal</a></li>
+  <li><a href="#answergoal" id="toc-answergoal" class="nav-link" data-scroll-target="#answergoal">AnswerGoal</a></li>
+  <li><a href="#exfiltrategoal" id="toc-exfiltrategoal" class="nav-link" data-scroll-target="#exfiltrategoal">ExfiltrateGoal</a></li>
+  <li><a href="#executegoal" id="toc-executegoal" class="nav-link" data-scroll-target="#executegoal">ExecuteGoal</a></li>
+  <li><a href="#hijackgoal" id="toc-hijackgoal" class="nav-link" data-scroll-target="#hijackgoal">HijackGoal</a></li>
+  <li><a href="#controlgoal" id="toc-controlgoal" class="nav-link" data-scroll-target="#controlgoal">ControlGoal</a></li>
+  <li><a href="#degradegoal" id="toc-degradegoal" class="nav-link" data-scroll-target="#degradegoal">DegradeGoal</a></li>
+  <li><a href="#tampergoal" id="toc-tampergoal" class="nav-link" data-scroll-target="#tampergoal">TamperGoal</a></li>
+  <li><a href="#availabilitygoal" id="toc-availabilitygoal" class="nav-link" data-scroll-target="#availabilitygoal">AvailabilityGoal</a></li>
+  <li><a href="#detectiongoal" id="toc-detectiongoal" class="nav-link" data-scroll-target="#detectiongoal">DetectionGoal</a></li>
+  <li><a href="#severityfilter" id="toc-severityfilter" class="nav-link" data-scroll-target="#severityfilter">SeverityFilter</a></li>
+  <li><a href="#evadegoal" id="toc-evadegoal" class="nav-link" data-scroll-target="#evadegoal">EvadeGoal</a></li>
+  <li><a href="#judgegoal" id="toc-judgegoal" class="nav-link" data-scroll-target="#judgegoal">JudgeGoal</a></li>
+  <li><a href="#patchgoal" id="toc-patchgoal" class="nav-link" data-scroll-target="#patchgoal">PatchGoal</a></li>
+  </ul></li>
+  <li><a href="#custom-goal-types" id="toc-custom-goal-types" class="nav-link" data-scroll-target="#custom-goal-types">Custom Goal Types</a>
+  <ul class="collapse">
+  <li><a href="#goaltype" id="toc-goaltype" class="nav-link" data-scroll-target="#goaltype">GoalType</a></li>
+  <li><a href="#goalresult" id="toc-goalresult" class="nav-link" data-scroll-target="#goalresult">GoalResult</a></li>
+  <li><a href="#register_goal_type" id="toc-register_goal_type" class="nav-link" data-scroll-target="#register_goal_type">register_goal_type</a></li>
+  <li><a href="#register_exploit" id="toc-register_exploit" class="nav-link" data-scroll-target="#register_exploit">register_exploit</a></li>
+  <li><a href="#rangeoracle" id="toc-rangeoracle" class="nav-link" data-scroll-target="#rangeoracle">RangeOracle</a></li>
+  <li><a href="#range_oracle" id="toc-range_oracle" class="nav-link" data-scroll-target="#range_oracle">range_oracle</a></li>
+  <li><a href="#oraclesetuperror" id="toc-oraclesetuperror" class="nav-link" data-scroll-target="#oraclesetuperror">OracleSetupError</a></li>
+  <li><a href="#observations" id="toc-observations" class="nav-link" data-scroll-target="#observations">Observations</a></li>
+  <li><a href="#observerkind" id="toc-observerkind" class="nav-link" data-scroll-target="#observerkind">ObserverKind</a></li>
+  <li><a href="#source_bound_find" id="toc-source_bound_find" class="nav-link" data-scroll-target="#source_bound_find">source_bound_find</a></li>
+  <li><a href="#guest_segment_ip" id="toc-guest_segment_ip" class="nav-link" data-scroll-target="#guest_segment_ip">guest_segment_ip</a></li>
+  <li><a href="#probe_mac_prefix" id="toc-probe_mac_prefix" class="nav-link" data-scroll-target="#probe_mac_prefix">PROBE_MAC_PREFIX</a></li>
+  <li><a href="#load_collectors" id="toc-load_collectors" class="nav-link" data-scroll-target="#load_collectors">load_collectors</a></li>
+  </ul></li>
+  <li><a href="#challenge-loading" id="toc-challenge-loading" class="nav-link" data-scroll-target="#challenge-loading">Challenge Loading</a>
+  <ul class="collapse">
+  <li><a href="#load_challenges" id="toc-load_challenges" class="nav-link" data-scroll-target="#load_challenges">load_challenges</a></li>
+  <li><a href="#validate_challenges" id="toc-validate_challenges" class="nav-link" data-scroll-target="#validate_challenges">validate_challenges</a></li>
+  </ul></li>
+  <li><a href="#range-loading" id="toc-range-loading" class="nav-link" data-scroll-target="#range-loading">Range Loading</a>
   <ul class="collapse">
   <li><a href="#load_range" id="toc-load_range" class="nav-link" data-scroll-target="#load_range">load_range</a></li>
   <li><a href="#validate_range" id="toc-validate_range" class="nav-link" data-scroll-target="#validate_range">validate_range</a></li>
@@ -805,14 +1396,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/inspect_ranges.html">Python API</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/host.html">Python API</a></li><li class="breadcrumb-item"><a href="../reference/inspect_ranges.html">inspect_ranges</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">inspect_ranges</h1>
 </div>
 
 <div>
   <div class="description">
-    Loading, validation, and revalidation of range definitions.
+    Challenges and goals (dataset, setup, scoring, verification), the goal types, and range definition loading.
   </div>
 </div>
 
@@ -829,16 +1420,1590 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Load a definition with <code>load_range</code>, or get complete diagnostics (every error at once, with source positions and hints) from <code>validate_range</code>. Typed specs crossing a consumer boundary are re-checked with <code>revalidate_range</code>.</p>
-<section id="loading" class="level2">
-<h2 class="anchored" data-anchor-id="loading">Loading</h2>
+<p>The package’s top-level surface. The eval wiring is covered in <a href="../challenges.html">Challenges</a>, the custom goal-type contract in <a href="../goals.html">Custom Goals</a>, and range definition loading in <a href="../ranges.html">Ranges</a>. Range definition types have their own page: <a href="../reference/types.html">inspect_ranges.types</a>.</p>
+<section id="challenge-tasks" class="level2">
+<h2 class="anchored" data-anchor-id="challenge-tasks">Challenge Tasks</h2>
+<section id="challenge_dataset" class="level3">
+<h3 class="anchored" data-anchor-id="challenge_dataset">challenge_dataset</h3>
+<p>Build an Inspect dataset from a challenges file.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/dataset.py#L63">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> challenge_dataset(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    challenges: <span class="bu">str</span> <span class="op">|</span> Path <span class="op">|</span> Challenges,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    range_spec: RangeSpec <span class="op">|</span> <span class="bu">str</span> <span class="op">|</span> Path <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> Dataset</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">challenges</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">Path</span> | <span class="element-type-name"><a href="../reference/inspect_ranges.html#challenges">Challenges</a></span></span></dt>
+<dd>
+<p>Path to a <code>challenges.yaml</code>, or an already validated <span class="element-type-name ref-interlink"><a href="../reference/inspect_ranges.html#challenges">Challenges</a></span>.</p>
+</dd>
+<dt><code class="ref-definition">range_spec</code> <span class="element-type"><span class="element-type-name"><a href="../reference/types.html#rangespec">RangeSpec</a></span> | <span class="element-type-name">str</span> | <span class="element-type-name">Path</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The range the challenges run against, for early cross-reference validation: a validated <span class="element-type-name ref-interlink"><a href="../reference/types.html#rangespec">RangeSpec</a></span> or a <code>range.yaml</code> path. Omitted means structural validation only; sample-time setup still refuses unavailable observers, unsupplied collector specs, and <code>answer</code> variables the range does not declare, while other cross-references (goal hosts, segments) surface only when their plant or probe fails against the live range.</p>
+</dd>
+</dl>
+</section>
+<section id="challenge_setup" class="level3">
+<h3 class="anchored" data-anchor-id="challenge_setup">challenge_setup</h3>
+<p>Plant every goal’s per-sample material before the agent acts, and start the sample’s observers.</p>
+<p>Pass as the task’s <code>setup</code> (equivalently, prepend to the solver chain; <code>setup=</code> is the same thing and is what the packaged examples do). Refuses (raises) when the sample carries no challenge metadata, a required observer is unavailable in this deployment, or any plant fails; plants written before a failure are unwound, so the agent never starts against a half-planted range.</p>
+<p>Prober-based goals (<code>availability</code>, <code>degrade</code>, <code>tamper</code>) start the active prober after a successful setup, probing from the rendered probe endpoint on a cadence; <code>detection</code> and <code>evade</code> goals start the telemetry export poller for their collector, which must have a matching entry in <code>telemetry_collectors</code> (poll mechanics are deployment knowledge the schema deliberately does not carry: the collector name binds the two). Both producers write evidence mid-run and are stopped by the evidence session at finalize; the scorer reads recorded results only.</p>
+<p>This solver never touches the agent’s tools: <span class="element-type-name ref-interlink"><a href="../reference/inspect_ranges.html#verify_goal">verify_goal()</a></span> is the only submission channel, and the task author always passes it to their agent (<code>react(tools=[bash(), verify_goal()])</code>, or inspect_swe’s <code>bridged_tools=[verify_goal()]</code>). The dataset’s appended prompt paragraph names the tool and the goal ids for every challenge; this solver registers the sample’s verification context so the tool can verify cheap-tier goals at call time.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/setup.py#L267">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@solver</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> challenge_setup(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    telemetry_collectors: <span class="st">"list[CollectorSpec] | None"</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> Solver</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">telemetry_collectors</code> <span class="element-type">list[<span class="element-type-name">CollectorSpec</span>] | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</section>
+<section id="challenge_scorer" class="level3">
+<h3 class="anchored" data-anchor-id="challenge_scorer">challenge_scorer</h3>
+<p>Score samples built by <span class="element-type-name ref-interlink"><a href="../reference/inspect_ranges.html#challenge_dataset">challenge_dataset()</a></span> against their typed goals.</p>
+<p>The scorer is a single end-of-run authority; its machinery (probers, corroboration windows, <code>patch</code> exploit re-runs) assumes the run is over and must execute at most once per sample. A mid-run invocation (react’s <code>attempts &gt; 1</code> scores each submission with the task scorer; detected via <code>state.completed</code>, which the task runner sets only before the end-of-sample invocation) is supported and returns an intermediate verdict: the fraction of verifiable (submission-taking) goals already achieved among the latched records, exactly <code>1.0</code> once every verifiable goal is achieved (which ends react’s attempt loop), <code>0.0</code> for a challenge whose goals are all end-of-run types (react then burns its remaining attempts and ends), with the pending deferred goal ids in the metadata. A repeat invocation returns the recorded end-of-run score. Neither runs any scoring machinery, an intermediate verdict is never recorded as the final score, and a legitimate single end-of-run invocation is unaffected.</p>
+<p>Raises (at scoring time): <code>RuntimeError</code> when the sample carries no challenge metadata.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/scorer.py#L357">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@scorer</span>(metrics<span class="op">=</span>[accuracy()])</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> challenge_scorer() <span class="op">-&gt;</span> Scorer</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="verify_goal" class="level3">
+<h3 class="anchored" data-anchor-id="verify_goal">verify_goal</h3>
+<p>A tool verifying submitted proof values against challenge goals.</p>
+<p>Pass it to the agent (<code>react(tools=[bash(), verify_goal()])</code>, or inspect_swe’s <code>bridged_tools=[verify_goal()]</code>); it is the only submission channel, and <code>challenge_dataset</code> names it with the goal ids in every sample’s instructions.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/verify.py#L67">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="at">@tool</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> verify_goal(feedback: <span class="bu">bool</span> <span class="op">=</span> <span class="va">True</span>) <span class="op">-&gt;</span> Tool</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">feedback</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>Report the per-call verification outcome and the running goal checklist in tool results. With <code>feedback=False</code> results confirm recording only; values are still recorded, verified, and latched identically.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="challenges" class="level2">
+<h2 class="anchored" data-anchor-id="challenges">Challenges</h2>
+<section id="challenge" class="level3">
+<h3 class="anchored" data-anchor-id="challenge">Challenge</h3>
+<p>One agent-facing prompt paired with the typed goals that verify it.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L720">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Challenge(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Challenge name, unique within the file; becomes the Inspect sample id.</p>
+</dd>
+<dt><code class="ref-definition">prompt</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>The agent-facing task statement.</p>
+</dd>
+<dt><code class="ref-definition">goals</code> <span class="element-type">list[<span class="element-type-name">SerializeAsAny</span>[<span class="element-type-name"><a href="../reference/inspect_ranges.html#goal">Goal</a></span>]]</span></dt>
+<dd>
+<p>Typed goals; each drives per-sample setup and supplies the scorer’s verification. <code>SerializeAsAny</code> serializes each goal by its runtime class, so a registry-dispatched custom goal round-trips through sample metadata with all its fields.</p>
+</dd>
+<dt><code class="ref-definition">scoring</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#scoring">Scoring</a></span></span></dt>
+<dd>
+<p>Aggregation of goal results (weights by default).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="challenges-1" class="level3">
+<h3 class="anchored" data-anchor-id="challenges-1">Challenges</h3>
+<p>A complete <code>challenges.yaml</code>: the list of challenges a range serves.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L797">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Challenges(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">challenges</code> <span class="element-type">list[<span class="element-type-name"><a href="../reference/inspect_ranges.html#challenge">Challenge</a></span>]</span></dt>
+<dd>
+<p>The challenges; each becomes one Inspect sample.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="goal" class="level3">
+<h3 class="anchored" data-anchor-id="goal">Goal</h3>
+<p>One typed goal; the YAML shape is flat and dispatches on <code>type</code> (built-ins through the union, registered custom types through <code>_dispatch_goal</code>).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L658">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>Goal <span class="op">=</span> Annotated[</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    FlagGoal</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> AnswerGoal</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> ExfiltrateGoal</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> ExecuteGoal</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> HijackGoal</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> ControlGoal</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> DegradeGoal</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> TamperGoal</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> AvailabilityGoal</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> DetectionGoal</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> EvadeGoal</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> JudgeGoal</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> PatchGoal,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    Field(discriminator<span class="op">=</span><span class="st">"type"</span>),</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    WrapValidator(_dispatch_goal),</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="scoring" class="level3">
+<h3 class="anchored" data-anchor-id="scoring">Scoring</h3>
+<p>How a challenge’s goal results aggregate.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L696">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Scoring(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">mode</code> <span class="element-type"><span class="element-type-name">Literal</span>['weights', 'milestones', 'coverage']</span></dt>
+<dd>
+<p><code>weights</code> (default), <code>milestones</code> (ordered steps), or <code>coverage</code> (fraction achieved).</p>
+</dd>
+<dt><code class="ref-definition">later_implies_earlier</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>Under <code>milestones</code>, a later step passing implies the earlier steps.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="primitive" class="level3">
+<h3 class="anchored" data-anchor-id="primitive">Primitive</h3>
+<p>Capability labels for cross-benchmark aggregation: descriptive only, never a scoring input.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L92">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>Primitive <span class="op">=</span> Literal[</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"crash"</span>, <span class="st">"leak"</span>, <span class="st">"hijack"</span>, <span class="st">"write"</span>, <span class="st">"execute"</span>, <span class="st">"escalate"</span>, <span class="st">"control"</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="goal-types" class="level2">
+<h2 class="anchored" data-anchor-id="goal-types">Goal Types</h2>
+<section id="goalbase" class="level3">
+<h3 class="anchored" data-anchor-id="goalbase">GoalBase</h3>
+<p>Base class for goal <code>Spec</code> models: the fields every goal shares, independent of its proof contract.</p>
+<p>A goal type’s <code>spec</code> (see <span class="element-type-name ref-interlink"><a href="../reference/inspect_ranges.html#goaltype">GoalType</a></span>) subclasses this to declare the fields its goals carry in <code>challenges.yaml</code>. A subclass must declare a <code>type</code> field whose <code>Literal</code> value(s) match the name(s) the type registers under (<code>register_goal_type</code>), e.g.&nbsp;<code>type: Literal["marker"] = "marker"</code>; the parser dispatches a goal mapping to the spec through that name. Validation is strict exactly like the built-ins: unknown keys are errors, the shared fields below apply, and the goal id must satisfy the evidence stream-name grammar (lowercase key-safe, since ids name <code>probe/&lt;goal id&gt;</code> streams).</p>
+<p>Override <code>observers()</code> to declare the trusted observers goals of the type require; declaring them is what makes a deployment that cannot supply one refuse the challenge at planning time instead of scoring indeterminate at the end.</p>
+<p>A custom spec parses from YAML only in processes where the type’s registration has already run: under inspect the <code>inspect_ai</code> entry-point mechanism imports registering modules before any parsing, while a plain <code>load_challenges</code>/<code>validate_challenges</code> caller must import the registering module first, or the goal’s <code>type</code> name refuses as unknown.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L119">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> GoalBase(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">default_primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Per-type default label. The mapping across types is a v1 proposal pending external-review feedback (<code>challenges-v1.md</code>): the design names the vocabulary but not the table.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>observers</dt>
+<dd>
+<p>The trusted observers this goal requires; every goal’s plant record needs the sink.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> observers(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">frozenset</span>[ObserverKind]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="flaggoal" class="level3">
+<h3 class="anchored" data-anchor-id="flaggoal">FlagGoal</h3>
+<p>Submit a per-sample secret planted at a path; no guest is consulted at scoring.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L179">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> FlagGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest the flag is planted on.</p>
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Absolute in-guest path of the planted flag.</p>
+</dd>
+<dt><code class="ref-definition">owner</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Account the planted file is readable by (mode 0600, owned by <code>owner</code>).</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>observers</dt>
+<dd>
+<p>The trusted observers this goal requires; every goal’s plant record needs the sink.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> observers(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">frozenset</span>[ObserverKind]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="answergoal" class="level3">
+<h3 class="anchored" data-anchor-id="answergoal">AnswerGoal</h3>
+<p>Submit a fact about the environment, compared against exactly one declared source.</p>
+<p>Sources: <code>variable</code> (the declared default, read from the spec; nothing draws in v1), <code>value</code> (a literal fact that is scenario content, visible in the spec by design), or <code>host</code> plus <code>path</code> (read by the oracle from the live instance). Exactly one source must be declared.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L193">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AnswerGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">variable</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Name of a declared range variable whose per-instance value is the expected answer.</p>
+</dd>
+<dt><code class="ref-definition">value</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Literal expected fact (scenario content; never per-sample proof material).</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Guest to read the expected fact from, with <code>path</code>.</p>
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>In-guest path the oracle reads the expected fact from, with <code>host</code>.</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>observers</dt>
+<dd>
+<p>The trusted observers this goal requires; every goal’s plant record needs the sink.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> observers(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">frozenset</span>[ObserverKind]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="exfiltrategoal" class="level3">
+<h3 class="anchored" data-anchor-id="exfiltrategoal">ExfiltrateGoal</h3>
+<p>Obtain target content: the submitted content or its per-sample canary matches the plant.</p>
+<p>A file’s presence on the attack box never passes. When <code>segment</code> is declared, source-bound pcap corroborates the flow.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L241">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ExfiltrateGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest holding the target content.</p>
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>In-guest path of the content the canary is planted in.</p>
+</dd>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Network whose pcap corroborates the exfiltration flow, when declared.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="executegoal" class="level3">
+<h3 class="anchored" data-anchor-id="executegoal">ExecuteGoal</h3>
+<p>Run code on a host: produce a per-sample token readable only by the targeted execution context.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L262">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ExecuteGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest the execution happens on.</p>
+</dd>
+<dt><code class="ref-definition">service_user</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Account the exploited context runs as; the token is readable only by it.</p>
+</dd>
+<dt><code class="ref-definition">token_path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>In-guest path the token is planted at (mode 0600, owned by <code>service_user</code>).</p>
+</dd>
+<dt><code class="ref-definition">beacon_segment</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Network whose pcap carries the source-bound beacon corroboration, when declared.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="hijackgoal" class="level3">
+<h3 class="anchored" data-anchor-id="hijackgoal">HijackGoal</h3>
+<p>Redirect control flow short of code execution: the crash record shows the per-sample disclosed value.</p>
+<p>The proof is <code>guest-corroborated</code> with a declared floor: forging the crash record costs code execution on the target (an unprivileged process renamed to the service can jump to the disclosed address and the kernel emits a genuinely matching segfault line), so the type is sound when the claimed capability is cheaper than execution on that host.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L282">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HijackGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest the crashable target runs on.</p>
+</dd>
+<dt><code class="ref-definition">service</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Name of the target process whose crash record is checked.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="controlgoal" class="level3">
+<h3 class="anchored" data-anchor-id="controlgoal">ControlGoal</h3>
+<p>Gain a host or principal: produce a secret planted where the claim lives.</p>
+<p>Registered under both <code>control</code> and <code>privilege</code>; <code>privilege</code> defaults the capability label to <code>escalate</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L300">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ControlGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest the secret is planted on.</p>
+</dd>
+<dt><code class="ref-definition">principal</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Account the secret is readable by; producing it requires the claimed access.</p>
+</dd>
+<dt><code class="ref-definition">secret_path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>In-guest path of the planted secret (mode 0600, owned by <code>principal</code>).</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>observers</dt>
+<dd>
+<p>The trusted observers this goal requires; every goal’s plant record needs the sink.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> observers(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">frozenset</span>[ObserverKind]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="degradegoal" class="level3">
+<h3 class="anchored" data-anchor-id="degradegoal">DegradeGoal</h3>
+<p>Deny or degrade a service: the declared external probe fails its nonce-bound check within the window.</p>
+<p>DOWN is full credit; a declared degradation <code>measure</code> with its <code>threshold</code> earns partial credit between MUMBLE and DOWN.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L323">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DegradeGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest running the probed service.</p>
+</dd>
+<dt><code class="ref-definition">port</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+<p>Service port the active prober checks.</p>
+</dd>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Network the probe reaches the service through; omitted means the host’s first interface on a probed segment. A declared segment must carry a probe endpoint in the plan, or setup refuses.</p>
+</dd>
+<dt><code class="ref-definition">window_s</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Observation window the probe verdict is scored over, in seconds.</p>
+</dd>
+<dt><code class="ref-definition">measure</code> <span class="element-type"><span class="element-type-name">Literal</span>['latency', 'error-fraction'] | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Degradation measure for partial credit, when declared.</p>
+</dd>
+<dt><code class="ref-definition">threshold</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Threshold the measure is scored against; required with <code>measure</code>.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="tampergoal" class="level3">
+<h3 class="anchored" data-anchor-id="tampergoal">TamperGoal</h3>
+<p>Modify target data or behavior: the written per-sample value is observed from outside.</p>
+<p>The write target must require the claimed access (the placement rule). <code>observer: guest-snapshot</code> (write-what-where) is designed, pending the introspected channel, and refuses at validation.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L363">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> TamperGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest holding the designated protected location.</p>
+</dd>
+<dt><code class="ref-definition">location</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>The protected location the value must appear in (a database record, a served response), interpreted by the goal engine (v1: <code>PORT/PATH</code> observed over HTTP).</p>
+</dd>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Network the probe reaches the location through; omitted means the host’s first interface on a probed segment. A declared segment must carry a probe endpoint in the plan, or setup refuses.</p>
+</dd>
+<dt><code class="ref-definition">observer</code> <span class="element-type"><span class="element-type-name">Literal</span>['active-prober', 'guest-snapshot']</span></dt>
+<dd>
+<p>How the written value is observed from outside.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="availabilitygoal" class="level3">
+<h3 class="anchored" data-anchor-id="availabilitygoal">AvailabilityGoal</h3>
+<p>Keep a service up (defender direction): the external probe answers its per-probe nonce within the window.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L403">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AvailabilityGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest running the probed service.</p>
+</dd>
+<dt><code class="ref-definition">port</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+<p>Service port the active prober checks.</p>
+</dd>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Network the probe reaches the service through; omitted means the host’s first interface on a probed segment. A declared segment must carry a probe endpoint in the plan, or setup refuses.</p>
+</dd>
+<dt><code class="ref-definition">window_s</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Observation window, in seconds; DOWN and MUMBLE inside it are penalized.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="detectiongoal" class="level3">
+<h3 class="anchored" data-anchor-id="detectiongoal">DetectionGoal</h3>
+<p>Surface an alert (defender direction): the collector contains, or for stealth lacks, the expected signal.</p>
+<p>Scored inside the observation window with a completeness precondition: no alert over an incomplete window is indeterminate, never a stealth pass.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L422">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DetectionGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">collector</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Declared telemetry collector or sink the signal is expected in.</p>
+</dd>
+<dt><code class="ref-definition">signal</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>The expected signal: a regex searched against the collector’s exported records in the bytes domain with multiline semantics, so author it to match the export’s record text, not as a prose description.</p>
+</dd>
+<dt><code class="ref-definition">window_s</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Observation window in seconds; omitted means the whole run.</p>
+</dd>
+<dt><code class="ref-definition">stealth</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>When true, the goal passes if the expected signal is absent over a complete window.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="severityfilter" class="level3">
+<h3 class="anchored" data-anchor-id="severityfilter">SeverityFilter</h3>
+<p>How to read an alert’s severity from one export record, and the floor that counts.</p>
+<p>Severity vocabularies are collector-specific, so the goal declares the extraction: <code>pattern</code> is a regex with exactly one capture group, applied per newline-delimited export record. Numeric mode (no <code>levels</code>): the capture parses as an integer, <code>floor</code> is an integer, and <code>lower_is_more_severe</code> flips the comparison for vocabularies like journald’s <code>PRIORITY</code> (0 is emergency, 7 is debug, so a floor of 4 counts captures of 4 or lower). Ordered mode (<code>levels</code> given, least to most severe): the capture and <code>floor</code> are both level names. Records the pattern does not match, or whose capture does not parse in the declared vocabulary, are not alerts and never count toward the threshold.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L463">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SeverityFilter(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">pattern</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Regex with exactly one capture group extracting the severity token from a record.</p>
+</dd>
+<dt><code class="ref-definition">floor</code> <span class="element-type"><span class="element-type-name">int</span> | <span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Severity at or beyond which a record counts: an integer in numeric mode, a level name in ordered mode.</p>
+</dd>
+<dt><code class="ref-definition">levels</code> <span class="element-type">list[<span class="element-type-name">str</span>] | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Ordered severity vocabulary, least to most severe; omitted means numeric mode.</p>
+</dd>
+<dt><code class="ref-definition">lower_is_more_severe</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>Numeric mode only: lower captured numbers are more severe (journald <code>PRIORITY</code> semantics).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="evadegoal" class="level3">
+<h3 class="anchored" data-anchor-id="evadegoal">EvadeGoal</h3>
+<p>Achieve objectives while staying quiet (attacker direction): the dual of <code>detection</code>.</p>
+<p>Alerts matching the declared filter stay at or below <code>threshold</code> within the window, scored from the exported telemetry under the same completeness precondition as <code>detection</code>: a silenced collector reads per <code>on_sensor_tamper</code>, never as a free stealth pass. Export records are newline-delimited (the v1 convention); window edges resolve at chunk-span granularity like <code>detection</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L542">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> EvadeGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">collector</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Declared telemetry collector or sink whose export is counted.</p>
+</dd>
+<dt><code class="ref-definition">severity</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#severityfilter">SeverityFilter</a></span></span></dt>
+<dd>
+<p>How severity is read from a record and the floor at which it counts.</p>
+</dd>
+<dt><code class="ref-definition">match</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Optional regex a record must also match to count (a tag or alert marker); omitted means every record is a candidate.</p>
+</dd>
+<dt><code class="ref-definition">threshold</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+<p>Maximum qualifying alerts for full credit.</p>
+</dd>
+<dt><code class="ref-definition">zero_at</code> <span class="element-type"><span class="element-type-name">int</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Count at which partial credit reaches zero (linear decay above <code>threshold</code>); omitted means binary at the threshold.</p>
+</dd>
+<dt><code class="ref-definition">window_s</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Observation window in seconds; omitted means the whole run.</p>
+</dd>
+<dt><code class="ref-definition">on_sensor_tamper</code> <span class="element-type"><span class="element-type-name">Literal</span>['indeterminate', 'fail', 'succeed']</span></dt>
+<dd>
+<p>What a completeness violation means: <code>indeterminate</code> (default; never a free stealth pass), <code>fail</code> (tampering is out of bounds; accepts that an infrastructure gap also fails this goal), or <code>succeed</code> (sensor destruction is legitimate evasion; waives completeness but never erases alerts already recorded).</p>
+</dd>
+<dt><code class="ref-definition">default_primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>No default label: evade is a constraint on how objectives are reached, not a capability (the primitive mapping is a v1 proposal; see <code>challenges-v1.md</code>).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="judgegoal" class="level3">
+<h3 class="anchored" data-anchor-id="judgegoal">JudgeGoal</h3>
+<p>Produce an open-ended artifact graded by an LLM or human (<code>model-graded</code>, weight-capped by the engine).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L597">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> JudgeGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">rubric</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Grading instructions for the hardened judge template.</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>observers</dt>
+<dd>
+<p>The trusted observers this goal requires; every goal’s plant record needs the sink.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L174">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> observers(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">frozenset</span>[ObserverKind]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+</dl>
+</section>
+</section>
+<section id="patchgoal" class="level3">
+<h3 class="anchored" data-anchor-id="patchgoal">PatchGoal</h3>
+<p>Fix a vulnerability (defender direction): the reference exploit re-run fails while the functional check passes.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L607">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PatchGoal(GoalBase)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Goal name, unique within its challenge; <code>verify_goal(goal_id, value)</code> binds to it.</p>
+</dd>
+<dt><code class="ref-definition">weight</code> <span class="element-type"><span class="element-type-name">float</span></span></dt>
+<dd>
+<p>Relative contribution under the challenge’s scoring mode.</p>
+</dd>
+<dt><code class="ref-definition">primitive</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Capability label override; <code>None</code> means the type’s default applies.</p>
+</dd>
+<dt><code class="ref-definition">primitive_label</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#primitive">Primitive</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The effective capability label: the authored override, else the type default.</p>
+</dd>
+<dt><code class="ref-definition">host</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Guest the vulnerability lives on.</p>
+</dd>
+<dt><code class="ref-definition">exploit</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>Identifier of the reference exploit chain re-run at scoring time.</p>
+</dd>
+<dt><code class="ref-definition">port</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+<p>Service port of the functional check that must still pass.</p>
+</dd>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Network the probe reaches the service through; omitted means the host’s first interface on a probed segment. A declared segment must carry a probe endpoint in the plan, or setup refuses.</p>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+<section id="custom-goal-types" class="level2">
+<h2 class="anchored" data-anchor-id="custom-goal-types">Custom Goal Types</h2>
+<section id="goaltype" class="level3">
+<h3 class="anchored" data-anchor-id="goaltype">GoalType</h3>
+<p>One goal type’s proof mechanics; stateless, registered once, shared across samples.</p>
+<p><code>spec</code> is the schema class the YAML dispatched to; <code>assurance</code> is the type’s default label (override <code>assurance_for</code> when a goal’s declared source moves the trust, as <code>answer</code>’s oracle-read source does).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L124">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> GoalType(ABC)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">uses_submissions</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>Whether <code>check</code> consumes the submissions view. When False, the scorer runs ONE check per goal instead of one per submitted candidate: an agent must not be able to multiply a type’s scoring cost (a patch exploit re-run, an evidence scan) by flooding <code>verify_goal</code> with values the check never reads.</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>assurance_for</dt>
+<dd>
+<p>The assurance label for this specific goal (default: the type’s label).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L136">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> assurance_for(<span class="va">self</span>, goal: GoalBase) <span class="op">-&gt;</span> Assurance</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">goal</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#goalbase">GoalBase</a></span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>setup</dt>
+<dd>
+<p>Plant per-sample material; returns plant-store keys for unwind (default: nothing).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L140">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> setup(<span class="va">self</span>, goal: GoalBase, oracle: <span class="st">"RangeOracle"</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">goal</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#goalbase">GoalBase</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">oracle</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#rangeoracle">RangeOracle</a></span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>check</dt>
+<dd>
+<p>Gather raw observations; never sends an expected value guest-ward.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L144">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="at">@abstractmethod</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> check(</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, goal: GoalBase, oracle: <span class="st">"RangeOracle"</span>, submissions: <span class="st">"Submissions"</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> Observations</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">goal</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#goalbase">GoalBase</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">oracle</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#rangeoracle">RangeOracle</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">submissions</code> <span class="element-type"><span class="element-type-name">Submissions</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>compare</dt>
+<dd>
+<p>Pure, host-side verdict over the observations and the plant record.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L150">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="at">@abstractmethod</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compare(</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, goal: GoalBase, obs: Observations, store: <span class="st">"PlantStore"</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> GoalResult</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">goal</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#goalbase">GoalBase</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">obs</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#observations">Observations</a></span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">store</code> <span class="element-type"><span class="element-type-name">PlantStore</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</section>
+<section id="goalresult" class="level3">
+<h3 class="anchored" data-anchor-id="goalresult">GoalResult</h3>
+<p>One goal’s verdict, produced host-side by <code>compare</code> (or by the scorer on a failed check).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L85">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> GoalResult(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">achieved</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>The proof contract was satisfied.</p>
+</dd>
+<dt><code class="ref-definition">partial</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Partial credit in [0, 1] for types that declare a measure; <code>None</code> means binary.</p>
+</dd>
+<dt><code class="ref-definition">corroborated</code> <span class="element-type"><span class="element-type-name">bool</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Outside evidence confirmed the result (<code>None</code>: no corroborating observer declared).</p>
+</dd>
+<dt><code class="ref-definition">indeterminate</code> <span class="element-type"><span class="element-type-name">bool</span></span></dt>
+<dd>
+<p>The check could not run; the sample’s validity reflects it (never agent failure).</p>
+</dd>
+<dt><code class="ref-definition">reason</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Value-free diagnostic (operation names and codes only, never plant material).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="register_goal_type" class="level3">
+<h3 class="anchored" data-anchor-id="register_goal_type">register_goal_type</h3>
+<p>Register a goal type under its name(s); duplicate names refuse.</p>
+<p>Registration opens both ends for the type: the engine dispatches scoring to it, and <code>challenges.yaml</code> parsing dispatches its YAML <code>type</code> name(s) to its <code>spec</code> class. Registration must therefore run before any challenges file naming the type parses: under inspect, register from an <code>inspect_ai</code> entry-point module (the mechanism <code>inspect_ranges</code> uses for its own built-ins, imported in every inspect process); a plain <code>load_challenges</code>/<code>validate_challenges</code> caller outside inspect must import the registering module first, or the type’s name refuses as unknown.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L160">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> register_goal_type(</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>    goal_type: GoalType, <span class="op">*</span>, names: <span class="bu">tuple</span>[<span class="bu">str</span>, ...] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">goal_type</code> <span class="element-type"><span class="element-type-name"><a href="../reference/inspect_ranges.html#goaltype">GoalType</a></span></span></dt>
+<dd>
+<p>The stateless type instance.</p>
+</dd>
+<dt><code class="ref-definition">names</code> <span class="element-type">tuple[<span class="element-type-name">str</span>, ...] | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Registry names; defaults to <code>(goal_type.name,)</code>. <code>control</code>/<code>privilege</code> share one implementation under two names.</p>
+</dd>
+</dl>
+</section>
+<section id="register_exploit" class="level3">
+<h3 class="anchored" data-anchor-id="register_exploit">register_exploit</h3>
+<p>Register a reference exploit chain for <code>patch</code> scoring under <code>name</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/observedtypes.py#L713">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> register_exploit(name: <span class="bu">str</span>, script: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">name</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">script</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</section>
+<section id="rangeoracle" class="level3">
+<h3 class="anchored" data-anchor-id="rangeoracle">RangeOracle</h3>
+<p>Privileged access to one sample’s range for setup and scoring. Not a <span class="element-type-name ref-interlink"><a href="https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandboxenvironment">SandboxEnvironment</a></span>.</p>
+<p>Obtain one with <span class="element-type-name ref-interlink"><a href="../reference/inspect_ranges.html#range_oracle">range_oracle()</a></span> from setup or scoring code running in the sample context, or attach out of band to a running <code>up</code> project with <code>with range_oracle("&lt;project&gt;") as oracle:</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L87">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeOracle</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">store</code> <span class="element-type"><span class="element-type-name">PlantStore</span></span></dt>
+<dd>
+<p>The sample’s plant record: values in memory, digests at T1.</p>
+</dd>
+<dt><code class="ref-definition">project</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+<p>The sample’s compose project name (how the prober addresses the probe sidecar).</p>
+</dd>
+<dt><code class="ref-definition">channel</code> <span class="element-type"><span class="element-type-name"><a href="../reference/host.html#messagechannel">MessageChannel</a></span></span></dt>
+<dd>
+<p>The sample’s raw channel (the telemetry poller polls through it; same residue rules as every oracle verb).</p>
+</dd>
+</dl>
+</section>
+<section class="level4 class-methods">
+<h4 class="class-methods anchored" data-anchor-id="">Methods</h4>
+<dl>
+<dt>evidence_session</dt>
+<dd>
+<p>The sample’s evidence session (producer registration, driver stream appends); <code>None</code> when evidence is unavailable.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L118">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> evidence_session(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="st">"EvidenceSession | None"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>nonce</dt>
+<dd>
+<p>A fresh per-call secret from independent entropy, never derived from any recorded seed.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L122">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> nonce(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>available_observers</dt>
+<dd>
+<p>The trusted observers this sample’s deployment can supply right now.</p>
+<p><code>evidence-sink</code> exists when the evidence session is live; <code>segment-pcap</code> and <code>console</code> when capture was rendered into the range; <code>active-prober</code> when the plan carries rendered probe endpoints. <code>telemetry-collector</code> is deployment knowledge the oracle cannot see (which collector specs exist), so <code>challenge_setup</code> supplies it as an extra observer to <code>run_setup</code> when a matching spec was passed; a challenge requiring an observer absent from the union refuses at planting.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L126">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> available_observers(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">frozenset</span>[<span class="bu">str</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>resolved</dt>
+<dd>
+<p>The sample’s resolved plan (per-guest address and CID allocations; see <code>guest_segment_ip</code>). Variables never ride the plan: <code>answer</code> goals read declared defaults from <code>range_spec()</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L142">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> resolved(<span class="va">self</span>) <span class="op">-&gt;</span> ResolvedPlan</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>range_spec</dt>
+<dd>
+<p>The sample’s validated range spec: declared variables (defaults until draws land) and scenario content.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L148">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> range_spec(<span class="va">self</span>) <span class="op">-&gt;</span> RangeSpec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>is_windows</dt>
+<dd>
+<p>Whether <code>guest</code> runs Windows, from the sample’s resolved plan; a plan-less handle (unit fixtures) treats every guest as linux.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L156">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> is_windows(<span class="va">self</span>, guest: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">bool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>exec</dt>
+<dd>
+<p>Run <code>cmd</code> (argv, never an implicit shell) in <code>guest</code> over the raw channel.</p>
+<p><code>cmd</code> must never carry plant material: values travel as <code>write_file</code> bulk or <code>read_file</code> replies only. <code>env</code> is the Windows path-carrying contract (fixed script literals read <code>IR_PLANT_*</code> from it); it must never carry plant material either.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L163">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> <span class="bu">exec</span>(</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>    guest: <span class="bu">str</span>,</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>    cmd: <span class="bu">list</span>[<span class="bu">str</span>],</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>    user: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>    timeout_s: <span class="bu">float</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a>    env: <span class="bu">dict</span>[<span class="bu">str</span>, <span class="bu">str</span>] <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ExecOutcome</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">cmd</code> <span class="element-type">list[<span class="element-type-name">str</span>]</span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">user</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">timeout_s</code> <span class="element-type"><span class="element-type-name">float</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">env</code> <span class="element-type">dict[<span class="element-type-name">str</span>, <span class="element-type-name">str</span>] | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>read_file</dt>
+<dd>
+<p>Read a guest file raw (a T3 read like any other; the cost rule applies to oracle reads too).</p>
+<p>The daemon’s file plane reads as the daemon identity (the agent user), so privileged locations (a 0600 root plant, another principal’s file) need <code>user</code>: the read then rides the exec plane (<code>cat</code> with only the path in argv; the content returns as reply bulk, the same privacy class as a file read).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L186">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> read_file(</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>    guest: <span class="bu">str</span>,</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>    path: <span class="bu">str</span>,</span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>    cap: <span class="bu">int</span> <span class="op">=</span> DEFAULT_BULK_CAP,</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>    user: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">bytes</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">cap</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">user</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>write_file</dt>
+<dd>
+<p>Write a guest file with <code>mode</code> applied from the first byte; <code>owner</code> sets the principal.</p>
+<p>Without <code>owner</code>, this is the daemon’s file plane (mode pinned atomically with the write, daemon identity, so the path must be daemon-writable; the Windows daemon ignores <code>mode</code> by design — NTFS has ACLs, not permission bits). With <code>owner</code>, the write rides the exec plane: on Linux as root into <code>umask 077 &amp;&amp; cat</code> then <code>chmod</code>/<code>chown</code> by positional argument; on a Windows guest (dispatched from the sample’s plan) as the daemon’s SYSTEM identity into <code>WIN_PLANT_SCRIPT</code>, whose ACL grant (inheritance stripped, SYSTEM full + the principal read) is the mode analogue. Either way the value travels as exec stdin (request bulk, the same transport privacy as a file write and never argv or env). Any failure removes the file in the same script: a plant is never left behind under the wrong mode or principal.</p>
+<p>On every failure path this frame scrubs <code>data</code> before raising, so a locals-rendered traceback (<code>INSPECT_TRACEBACK_LOCALS=1</code>) cannot carry plant bytes from here; lower channel frames are outside this guarantee, which is why that flag is forbidden on scoring runs.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L217">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> write_file(</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>,</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>    guest: <span class="bu">str</span>,</span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>    path: <span class="bu">str</span>,</span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a>    data: <span class="bu">bytes</span>,</span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a>    mode: <span class="bu">int</span> <span class="op">=</span> <span class="bn">0o600</span>,</span>
+<span id="cb47-8"><a href="#cb47-8" aria-hidden="true" tabindex="-1"></a>    owner: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb47-9"><a href="#cb47-9" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="va">None</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">data</code> <span class="element-type"><span class="element-type-name">bytes</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">mode</code> <span class="element-type"><span class="element-type-name">int</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">owner</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>evidence_memo</dt>
+<dd>
+<p>Memoize the evidence accessors for the duration of one scoring pass.</p>
+<p>The evidence record is immutable once written, so within a pass every accessor returns the same bytes; without the memo, scoring cost scales with the number of agent-submitted candidates (each candidate’s <code>check</code> refetches the capture), which hands the agent linear control over scoring cost through <code>verify_goal</code> calls. The memo is per-key (<code>pcap/&lt;segment&gt;</code>, <code>telemetry/&lt;collector&gt;</code>, …) and cleared when the outermost open exits. Reentrant: <code>challenge_scorer</code> opens one memo around the whole pass (so two goals on the same segment share one fetch), and <code>score_challenge</code>’s per-goal open nests inside it as a no-op; the poller never fetches evidence, setup runs before any evidence exists, and <code>corroborate()</code> deliberately bypasses the memo (its claim-scoped reads ride <code>stream_chunks</code> directly).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L290">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="at">@contextmanager</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> evidence_memo(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="st">"Generator[None]"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div>
+
+</div>
+</dd>
+<dt>pcap</dt>
+<dd>
+<p>The segment’s captured pcap chunks from the sample’s evidence record (host writer).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L316">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> pcap(<span class="va">self</span>, segment: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">bytes</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>telemetry</dt>
+<dd>
+<p>The collector’s exported telemetry chunks (driver writer); query semantics arrive with the detection engine.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L328">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> telemetry(<span class="va">self</span>, collector: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">bytes</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">collector</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>console</dt>
+<dd>
+<p>The guest’s continuous serial-console chunks from the sample’s evidence record (host writer).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L340">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> console(<span class="va">self</span>, guest: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">bytes</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>probe_records</dt>
+<dd>
+<p>The goal’s recorded probe verdicts (driver writer) plus whether the stream carries gaps.</p>
+<p>A gap is an observation hole: the prober flushes <code>down</code> verdicts immediately, so a lost chunk is disproportionately likely to be the one carrying failures, and the prober types treat a gapped stream as indeterminate rather than trusting the survivors.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L352">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> probe_records(<span class="va">self</span>, goal_id: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="st">"tuple[list[SpannedRecord], bool]"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">goal_id</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+<dt>telemetry_export</dt>
+<dd>
+<p>The collector’s export for scoring: meta records, data chunks with spans (<code>None</code> spans mark the delivered-but-uncommitted tail), and the gap flag.</p>
+<p>One manifest fetch serves both streams (the detection check runs per goal, possibly on a poller cadence, against a possibly remote store).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L367">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> telemetry_export(</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>, collector: <span class="bu">str</span></span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="st">"tuple[list[SpannedRecord], list[tuple[bytes, float | None, float | None]], bool]"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">collector</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</section>
+<section id="range_oracle" class="level3">
+<h3 class="anchored" data-anchor-id="range_oracle">range_oracle</h3>
+<p>The range oracle: the current sample’s, or an out-of-band attach to a running project.</p>
+<p>Without arguments, the current sample’s oracle, resolved through the default sandbox: call only from setup (<code>challenge_setup</code>) or scoring code running inside the sample context. The returned capability must never be exposed to the agent’s tool loop.</p>
+<p>With a <code>project</code> name, a context manager attaching to a RUNNING range booted with <code>inspect-ranges up</code> (or <code>up --from-spec</code>), for poking at a range from a REPL or script: <code>with range_oracle("ir-dmz-pivot-...") as oracle:</code> yields the same oracle verbs (<code>exec</code>, <code>read_file</code>, <code>write_file</code>, …) over a transport rebuilt from the project’s recorded state (<code>state_dir</code> overrides the default project state directory). The attach is local-backend only and logs loudly, so an attach during a scoring run is visible in the run’s logs; leaving the context detaches the oracle, and later verbs refuse. An attached oracle carries no sample context: <code>resolved()</code>, <code>range_spec()</code>, and the evidence accessors refuse, and <code>is_windows</code> reads an empty plan, so the owner-flow <code>write_file</code> dispatches the POSIX script on every guest.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L415">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> range_oracle(</span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>    project: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>, <span class="op">*</span>, state_dir: <span class="st">"Path | None"</span> <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="st">"RangeOracle | AbstractContextManager[RangeOracle]"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">project</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">state_dir</code> <span class="element-type"><span class="element-type-name">Path</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</section>
+<section id="oraclesetuperror" class="level3">
+<h3 class="anchored" data-anchor-id="oraclesetuperror">OracleSetupError</h3>
+<p>A privileged setup operation failed; the message names the operation, never a value.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/oracle.py#L39">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> OracleSetupError(<span class="pp">RuntimeError</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="observations" class="level3">
+<h3 class="anchored" data-anchor-id="observations">Observations</h3>
+<p>Raw reads a <code>check</code> gathered; a guest read is attacker-authored in the worst case.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/engine.py#L70">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Observations(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section class="level4">
+<h4 class="anchored" data-anchor-id="">Attributes</h4>
+<dl>
+<dt><code class="ref-definition">source</code> <span class="element-type"><span class="element-type-name">Literal</span>['submission', 'guest', 'evidence']</span></dt>
+<dd>
+<p>Where the primary observation came from.</p>
+</dd>
+<dt><code class="ref-definition">reads</code> <span class="element-type">dict[<span class="element-type-name">str</span>, <span class="element-type-name">bytes</span>]</span></dt>
+<dd>
+<p>Named raw observations; <code>compare</code> interprets them, never <code>check</code>.</p>
+</dd>
+<dt><code class="ref-definition">chunk_reads</code> <span class="element-type">dict[<span class="element-type-name">str</span>, list[<span class="element-type-name">bytes</span>]]</span></dt>
+<dd>
+<p>Named chunked observations (evidence streams: each pcap chunk is a standalone capture file with its own header, so chunks must never be concatenated).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="observerkind" class="level3">
+<h3 class="anchored" data-anchor-id="observerkind">ObserverKind</h3>
+<p>Trusted observers a goal type may require; a deployment that cannot supply one refuses the challenge at planning time. <code>guest-snapshot</code> is designed, not built, and currently refuses at validation.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L97">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>ObserverKind <span class="op">=</span> Literal[</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"evidence-sink"</span>,</span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"segment-pcap"</span>,</span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"telemetry-collector"</span>,</span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"console"</span>,</span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"active-prober"</span>,</span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"guest-snapshot"</span>,</span>
+<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="source_bound_find" class="level3">
+<h3 class="anchored" data-anchor-id="source_bound_find">source_bound_find</h3>
+<p>Whether any captured packet from <code>src</code> carries <code>value</code>.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/pcapscan.py#L19">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> source_bound_find(</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>    chunks: <span class="bu">list</span>[<span class="bu">bytes</span>],</span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>    value: <span class="bu">bytes</span>,</span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>    src: IPv4Address,</span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a>    exclude_src_mac_prefixes: <span class="bu">tuple</span>[<span class="bu">bytes</span>, ...] <span class="op">=</span> (),</span>
+<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">bool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">chunks</code> <span class="element-type">list[<span class="element-type-name">bytes</span>]</span></dt>
+<dd>
+<p>Raw classic-pcap chunks (one capture file each, possibly truncated).</p>
+</dd>
+<dt><code class="ref-definition">value</code> <span class="element-type"><span class="element-type-name">bytes</span></span></dt>
+<dd>
+<p>The bytes to find in a packet from <code>src</code>.</p>
+</dd>
+<dt><code class="ref-definition">src</code> <span class="element-type"><span class="element-type-name">IPv4Address</span></span></dt>
+<dd>
+<p>The required IPv4 source address (the claimed guest’s interface).</p>
+</dd>
+<dt><code class="ref-definition">exclude_src_mac_prefixes</code> <span class="element-type">tuple[<span class="element-type-name">bytes</span>, ...]</span></dt>
+<dd>
+<p>Ethernet source-MAC prefixes whose frames never count, regardless of IP source. <code>corroborate()</code> passes the declared probe convention (<code>02:50:</code>) so probe-sourced flows are excluded from agent-traffic reasoning by spec, not heuristics (<code>challenges-v1.md</code>).</p>
+</dd>
+</dl>
+</section>
+<section id="guest_segment_ip" class="level3">
+<h3 class="anchored" data-anchor-id="guest_segment_ip">guest_segment_ip</h3>
+<p>The guest’s interface address ON the declared segment.</p>
+<p>Source binding must watch the right NIC of a multi-homed guest; the declared segment picks it.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/netident.py#L16">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb59"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> guest_segment_ip(plan: ResolvedPlan, guest: <span class="bu">str</span>, segment: <span class="bu">str</span>) <span class="op">-&gt;</span> IPv4Address</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">plan</code> <span class="element-type"><span class="element-type-name">ResolvedPlan</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">guest</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+<dt><code class="ref-definition">segment</code> <span class="element-type"><span class="element-type-name">str</span></span></dt>
+<dd>
+
+</dd>
+</dl>
+</section>
+<section id="probe_mac_prefix" class="level3">
+<h3 class="anchored" data-anchor-id="probe_mac_prefix">PROBE_MAC_PREFIX</h3>
+<p>The declared probe-endpoint MAC convention (<code>02:50:</code>, the prober spike): frames with this source MAC are excluded from agent-traffic reasoning by spec, in EVERY scan. Plans without probe endpoints are unaffected (nothing carries the prefix).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/netident.py#L12">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb60"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>PROBE_MAC_PREFIX <span class="op">=</span> <span class="st">b"</span><span class="ch">\x02\x50</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="load_collectors" class="level3">
+<h3 class="anchored" data-anchor-id="load_collectors">load_collectors</h3>
+<p>Parse a <code>collectors.yaml</code> into collector specs.</p>
+<p>The file binds a <code>detection</code> or <code>evade</code> goal’s <code>collector</code> name to a real export (poll mechanics are deployment knowledge the challenge schema deliberately does not carry); pass the result to <code>challenge_setup(telemetry_collectors=...)</code>. A malformed declaration refuses with the validation detail: a silently dropped collector would turn a detection goal’s observer gate into an infra riddle.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_evidence/telemetry.py#L111">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_collectors(path: <span class="st">"Path"</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[CollectorSpec]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">Path</span></span></dt>
+<dd>
+<p>The <code>collectors.yaml</code> path (beside the range’s <code>challenges.yaml</code> by convention).</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="challenge-loading" class="level2">
+<h2 class="anchored" data-anchor-id="challenge-loading">Challenge Loading</h2>
+<section id="load_challenges" class="level3">
+<h3 class="anchored" data-anchor-id="load_challenges">load_challenges</h3>
+<p>Load and validate a <code>challenges.yaml</code> file.</p>
+<p>Custom goal types parse only when their <code>register_goal_type</code> registration has already run in this process. Under inspect the <code>inspect_ai</code> entry-point mechanism imports registering modules before any parsing; a plain call outside inspect must import the registering module first, or the custom <code>type</code> name refuses as unknown (an <code>unknown-goal-type</code> error listing the known names, never a misparse).</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L968">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_challenges(path: Path) <span class="op">-&gt;</span> Challenges</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">Path</span></span></dt>
+<dd>
+<p>Path to the YAML file.</p>
+</dd>
+</dl>
+</section>
+<section id="validate_challenges" class="level3">
+<h3 class="anchored" data-anchor-id="validate_challenges">validate_challenges</h3>
+<p>Validate a <code>challenges.yaml</code> file, reporting every detectable issue at once.</p>
+<p>Like <code>validate_range</code>, this never raises on invalid content: unreadable files (a directory, permissions, non-UTF-8 content), YAML syntax errors, structural schema violations, and (when a range is supplied) cross-reference problems all become <span class="element-type-name ref-interlink"><a href="../reference/types.html#issue">Issue</a></span> entries with stable codes and source positions.</p>
+<p>Custom goal types validate only when their <code>register_goal_type</code> registration has already run in this process (see <code>load_challenges</code>); an unregistered custom <code>type</code> name reports <code>unknown-goal-type</code> with the known-name listing, never a misparse.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/_challenges/schema.py#L990">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> validate_challenges(</span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>    path: Path, range_spec: RangeSpec <span class="op">|</span> Path <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ValidationReport</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">Path</span></span></dt>
+<dd>
+<p>Path to the challenges YAML file.</p>
+</dd>
+<dt><code class="ref-definition">range_spec</code> <span class="element-type"><span class="element-type-name"><a href="../reference/types.html#rangespec">RangeSpec</a></span> | <span class="element-type-name">Path</span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>The range to cross-reference against: a validated spec, or a <code>range.yaml</code> path to load. Omitted means structural validation only. An invalid range file becomes a <code>range-invalid</code> issue (cross-reference checks skipped), never a raise.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="range-loading" class="level2">
+<h2 class="anchored" data-anchor-id="range-loading">Range Loading</h2>
 <section id="load_range" class="level3">
 <h3 class="anchored" data-anchor-id="load_range">load_range</h3>
 <p>Load and validate a <code>range.yaml</code> file.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/schema.py#L199">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L199">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_range(path: Path) <span class="op">-&gt;</span> RangeSpec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_range(path: Path) <span class="op">-&gt;</span> RangeSpec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
 <dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">Path</span></span></dt>
 <dd>
@@ -851,9 +3016,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Validate a <code>range.yaml</code> file, reporting every detectable issue at once.</p>
 <p>Unlike <code>load_range</code>, this never raises on invalid content: unreadable files (a directory, permissions, non-UTF-8 content), YAML syntax errors, structural schema violations, and semantic cross-reference problems all become <span class="element-type-name ref-interlink"><a href="../reference/types.html#issue">Issue</a></span> entries with stable codes, source positions, and hints where available. Field-level structural errors suppress the cross-reference pass (reflected in <code>ValidationReport.semantic_checked</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/schema.py#L135">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L135">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> validate_range(path: Path) <span class="op">-&gt;</span> ValidationReport</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> validate_range(path: Path) <span class="op">-&gt;</span> ValidationReport</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
 <dt><code class="ref-definition">path</code> <span class="element-type"><span class="element-type-name">Path</span></span></dt>
 <dd>
@@ -866,9 +3031,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Re-run full validation on a possibly mutated spec, returning a validated copy.</p>
 <p>Spec models are mutable for flexible programmatic construction, so validity at construction is a point-in-time property. Consumer boundaries (the sandbox provider, the compiler) call this at handoff: the spec round-trips through <code>model_validate</code>, which catches semantic drift and type-unsafe mutations alike.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/schema.py#L222">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L222">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> revalidate_range(spec: RangeSpec) <span class="op">-&gt;</span> RangeSpec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> revalidate_range(spec: RangeSpec) <span class="op">-&gt;</span> RangeSpec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
 <dt><code class="ref-definition">spec</code> <span class="element-type"><span class="element-type-name"><a href="../reference/types.html#rangespec">RangeSpec</a></span></span></dt>
 <dd>
@@ -884,9 +3049,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Run every cross-reference check on a structurally valid spec, collecting all findings.</p>
 <p>This is the single implementation of the semantic checks: <span class="element-type-name ref-interlink"><a href="../reference/types.html#rangespec">RangeSpec</a></span> validation calls it (raising if any issue is found, so a freshly constructed spec is always consistent), and <code>validate_range</code> calls it via that same validation to report every issue at once.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/types.py#L1093">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/types.py#L1101">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> semantic_issues(spec: RangeSpec) <span class="op">-&gt;</span> <span class="bu">list</span>[Issue]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> semantic_issues(spec: RangeSpec) <span class="op">-&gt;</span> <span class="bu">list</span>[Issue]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <dl>
 <dt><code class="ref-definition">spec</code> <span class="element-type"><span class="element-type-name"><a href="../reference/types.html#rangespec">RangeSpec</a></span></span></dt>
 <dd>
@@ -898,9 +3063,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="range_json_schema">range_json_schema</h3>
 <p>Return the JSON Schema for <code>range.yaml</code> v0.1 (aliased field names, e.g.&nbsp;<code>from</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/d3fa0e1f34526ceb86120496aca67d4787321315/src/inspect_ranges/schema.py#L239">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/656bb65fb796861d1fef89d28820232e6e0b7141/src/inspect_ranges/schema.py#L239">Source</a>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> range_json_schema() <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, Any]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb68"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> range_json_schema() <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, Any]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>
@@ -1421,13 +3586,13 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../reference/index.html" class="pagination-link" aria-label="Reference">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Reference</span>
+      <a href="../reference/host.html#heartbeat" class="pagination-link" aria-label="Heartbeat">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Heartbeat</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../reference/inspect_ranges.html#load_range" class="pagination-link" aria-label="load_range">
-        <span class="nav-page-text">load_range</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../reference/inspect_ranges.html#challenge_dataset" class="pagination-link" aria-label="challenge_dataset">
+        <span class="nav-page-text">challenge_dataset</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1451,11 +3616,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -1463,6 +3623,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>

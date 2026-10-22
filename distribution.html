@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Publishing and consuming built ranges: locations in three forms, push and spec-driven pull, the implicit pull at eval init, catalog images, mirroring and the air gap, and cache reclamation.">
+<meta name="description" content="Publishing built ranges and consuming them by automatic pull. Covers registry and directory locations, mirroring, and the image catalog.">
 
 <title>Distribution – Inspect Ranges</title>
 <style>
@@ -72,8 +72,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./catalog.html" rel="next">
-<link href="./provider.html" rel="prev">
+<link href="./security.html" rel="next">
+<link href="./images.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -111,22 +111,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script async="" src="https://hypothes.is/embed.js"></script>
-<script>
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    document.body.classList.add('hypothesis-enabled');
-  });
-</script>
 <link rel="alternate" type="text/markdown" title="LLM-readable docs index" href="./llms.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (full)" href="./llms-full.txt">
 <link rel="alternate" type="text/markdown" title="LLM-readable docs (user guide)" href="./llms-guide.txt">
 
 
+<link rel="stylesheet" href="styles.css">
 <meta property="og:title" content="Inspect Ranges">
-<meta property="og:description" content="Inspect AI extension for ranges.">
+<meta property="og:description" content="Inspect AI extension for cyber ranges.">
 <meta property="og:site_name" content="Inspect Ranges">
 <meta name="twitter:title" content="Inspect Ranges">
-<meta name="twitter:description" content="Inspect AI extension for ranges.">
+<meta name="twitter:description" content="Inspect AI extension for cyber ranges.">
 <meta name="twitter:card" content="summary">
 </head>
 
@@ -149,17 +144,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
     <a class="nav-link active" href="./index.html" aria-current="page"> 
-<span class="menu-text">Getting Started</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./tutorial.html"> 
-<span class="menu-text">Tutorial</span></a>
+<span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Building Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-building" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Building</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-building-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-building">    
         <li>
     <a class="dropdown-item" href="./building.html">
  <span class="dropdown-text">Overview</span></a>
@@ -198,37 +189,68 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running-ranges" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Running Ranges</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-running" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Running</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-running-ranges">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-running">    
         <li>
-    <a class="dropdown-item" href="./cli.html">
- <span class="dropdown-text">Overview</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./provider.html">
- <span class="dropdown-text">Sandbox Provider</span></a>
+    <a class="dropdown-item" href="./images.html">
+ <span class="dropdown-text">Images</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./distribution.html">
  <span class="dropdown-text">Distribution</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./catalog.html">
- <span class="dropdown-text">Image Catalog</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="./examples.html">
- <span class="dropdown-text">Example Ranges</span></a>
+    <a class="dropdown-item" href="./security.html">
+ <span class="dropdown-text">Security</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./topology.html">
- <span class="dropdown-text">Host Topology</span></a>
+ <span class="dropdown-text">Range Host</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./security.html">
- <span class="dropdown-text">Security</span></a>
+    <a class="dropdown-item" href="./provider.html">
+ <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./cli.html">
+ <span class="dropdown-text">Operations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="./examples/dmz_pivot.html">
+ <span class="dropdown-text">dmz_pivot</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/vulhub_zabbix.html">
+ <span class="dropdown-text">vulhub_zabbix</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/kypo_demo.html">
+ <span class="dropdown-text">kypo_demo</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/cyris_basic.html">
+ <span class="dropdown-text">cyris_basic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/equifax.html">
+ <span class="dropdown-text">equifax</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/goad_light.html">
+ <span class="dropdown-text">goad_light</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/splunk_detection.html">
+ <span class="dropdown-text">splunk_detection</span></a>
   </li>  
     </ul>
   </li>
@@ -238,10 +260,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link" href="./CHANGELOG.html"> 
-<span class="menu-text">Changelog</span></a>
-  </li>  
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges"> <i class="bi bi-github" role="img">
 </i> 
@@ -258,7 +276,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./cli.html">Running Ranges</a></li><li class="breadcrumb-item"><a href="./distribution.html">Distribution</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./images.html">Running</a></li><li class="breadcrumb-item"><a href="./distribution.html">Distribution</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -273,19 +291,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Getting Started</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./tutorial.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Tutorial</span></a>
+ <span class="menu-text">Home</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Building Ranges</span></a>
+ <span class="menu-text">Building</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -349,7 +361,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Running Ranges</span></a>
+ <span class="menu-text">Running</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
@@ -357,14 +369,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Overview</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./provider.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Sandbox Provider</span></a>
+  <a href="./images.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Images</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -375,26 +381,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./catalog.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Image Catalog</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./examples.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Example Ranges</span></a>
+  <a href="./security.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Security</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./topology.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Host Topology</span></a>
+ <span class="menu-text">Range Host</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./security.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Security</span></a>
+  <a href="./provider.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cli.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Operations</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Examples</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/dmz_pivot.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">dmz_pivot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/vulhub_zabbix.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">vulhub_zabbix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/kypo_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">kypo_demo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/cyris_basic.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">cyris_basic</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/equifax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">equifax</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/goad_light.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">goad_light</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">splunk_detection</span></a>
   </div>
 </li>
       </ul>
@@ -403,29 +462,454 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Python API</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
-          <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges</span></a>
           <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.host</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendfactory" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendFactory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackendcontext" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackendContext</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostbackend" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostBackend</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#channelforlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ChannelForLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#reclaimfn" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ReclaimFn</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#doctorprobe" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DoctorProbe</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostprovider" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostProvider</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#samplespec" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SampleSpec</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaseplacement" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeasePlacement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostcapabilities" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostCapabilities</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostfacts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostFacts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#isolationlevel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IsolationLevel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#hostlease" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HostLease</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leasestore" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#leaselosterror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LeaseLostError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#lease_ttl_s" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">lease_ttl_s</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#localrangehost" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LocalRangeHost</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#local_host_facts" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">local_host_facts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#rangechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#messagechannel" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MessageChannel</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#transport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Transport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#bytestream" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ByteStream</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execrequest" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecRequest</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#execoutcome" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecOutcome</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#stagereport" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">StageReport</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#forwardreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ForwardReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#pongreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PongReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#diagreply" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DiagReply</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/host.html#heartbeat" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heartbeat</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/inspect_ranges.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_dataset" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_dataset</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_setup" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_setup</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge_scorer" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">challenge_scorer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenge" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenge</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#scoring" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scoring</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#primitive" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Primitive</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalbase" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalBase</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#flaggoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">FlagGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#answergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AnswerGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#exfiltrategoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExfiltrateGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#executegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ExecuteGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#hijackgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">HijackGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#controlgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ControlGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#degradegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DegradeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#tampergoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TamperGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#availabilitygoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AvailabilityGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#detectiongoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DetectionGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#severityfilter" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SeverityFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#evadegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">EvadeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#judgegoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">JudgeGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#patchgoal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PatchGoal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goaltype" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#goalresult" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">GoalResult</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_goal_type</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#register_exploit" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">register_exploit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#rangeoracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RangeOracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_oracle" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_oracle</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#oraclesetuperror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OracleSetupError</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observations" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#observerkind" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ObserverKind</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#source_bound_find" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">source_bound_find</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#guest_segment_ip" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">guest_segment_ip</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#probe_mac_prefix" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PROBE_MAC_PREFIX</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_collectors" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_collectors</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#load_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">load_challenges</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#validate_challenges" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">validate_challenges</span></a>
+  </div>
+</li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#load_range" class="sidebar-item-text sidebar-link">
@@ -460,13 +944,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
           <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">inspect_ranges.types</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <a href="./reference/scanners.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.scanners</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/scanners.html#range_apparatus" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_apparatus</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./reference/types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect_ranges.types</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/types.html#rangespec" class="sidebar-item-text sidebar-link">
@@ -667,8 +1168,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#parse_egress_entry" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">parse_egress_entry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/types.html#issue" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Issue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/types.html#issueerror" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IssueError</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -685,11 +1198,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div class="sidebar-item-container"> 
             <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CLI Commands</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/applier.html" class="sidebar-item-text sidebar-link">
@@ -740,8 +1253,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/mirror.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges mirror</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/plan.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">inspect-ranges plan</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/publish.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges publish</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/pull.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges pull</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/push.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">inspect-ranges push</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -790,27 +1327,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
   <li><a href="#locations" id="toc-locations" class="nav-link" data-scroll-target="#locations">Locations</a></li>
-  <li><a href="#publishing-a-range-push" id="toc-publishing-a-range-push" class="nav-link" data-scroll-target="#publishing-a-range-push">Publishing a range: <code>push</code></a></li>
-  <li><a href="#consuming-a-range-pull-and-the-implicit-pull" id="toc-consuming-a-range-pull-and-the-implicit-pull" class="nav-link" data-scroll-target="#consuming-a-range-pull-and-the-implicit-pull">Consuming a range: <code>pull</code> and the implicit pull</a></li>
-  <li><a href="#catalog-images-images-pull-and-images-refresh" id="toc-catalog-images-images-pull-and-images-refresh" class="nav-link" data-scroll-target="#catalog-images-images-pull-and-images-refresh">Catalog images: <code>images pull</code> and <code>images refresh</code></a></li>
-  <li><a href="#the-hardened-range-container-image" id="toc-the-hardened-range-container-image" class="nav-link" data-scroll-target="#the-hardened-range-container-image">The hardened range container image</a></li>
-  <li><a href="#mirroring-and-the-air-gap-mirror" id="toc-mirroring-and-the-air-gap-mirror" class="nav-link" data-scroll-target="#mirroring-and-the-air-gap-mirror">Mirroring and the air gap: <code>mirror</code></a></li>
-  <li><a href="#reclaiming-space-images-prune---chains" id="toc-reclaiming-space-images-prune---chains" class="nav-link" data-scroll-target="#reclaiming-space-images-prune---chains">Reclaiming space: <code>images prune --chains</code></a></li>
-  <li><a href="#fleet-guidance-for-docker-hub" id="toc-fleet-guidance-for-docker-hub" class="nav-link" data-scroll-target="#fleet-guidance-for-docker-hub">Fleet guidance for Docker Hub</a></li>
+  <li><a href="#publishing" id="toc-publishing" class="nav-link" data-scroll-target="#publishing">Publishing</a>
+  <ul class="collapse">
+  <li><a href="#range-builds-push" id="toc-range-builds-push" class="nav-link" data-scroll-target="#range-builds-push">Range Builds: <code>push</code></a></li>
+  <li><a href="#the-catalog-list" id="toc-the-catalog-list" class="nav-link" data-scroll-target="#the-catalog-list">Images and the Catalog List</a></li>
+  <li><a href="#republish-discipline" id="toc-republish-discipline" class="nav-link" data-scroll-target="#republish-discipline">Republish Discipline</a></li>
+  </ul></li>
+  <li><a href="#consuming-a-range-pull" id="toc-consuming-a-range-pull" class="nav-link" data-scroll-target="#consuming-a-range-pull">Consuming a Range: <code>pull</code></a></li>
+  <li><a href="#catalog-images-images-pull-and-refresh" id="toc-catalog-images-images-pull-and-refresh" class="nav-link" data-scroll-target="#catalog-images-images-pull-and-refresh">Catalog Images: <code>images pull</code> and <code>refresh</code></a></li>
+  <li><a href="#the-hardened-range-container-image" id="toc-the-hardened-range-container-image" class="nav-link" data-scroll-target="#the-hardened-range-container-image">Range Container Image</a></li>
+  <li><a href="#mirroring-and-the-air-gap-mirror" id="toc-mirroring-and-the-air-gap-mirror" class="nav-link" data-scroll-target="#mirroring-and-the-air-gap-mirror">Mirroring and the Air Gap: <code>mirror</code></a></li>
+  <li><a href="#reclaiming-space-images-prune---chains" id="toc-reclaiming-space-images-prune---chains" class="nav-link" data-scroll-target="#reclaiming-space-images-prune---chains">Reclaiming Space: <code>images prune --chains</code></a></li>
+  <li><a href="#environment-vars" id="toc-environment-vars" class="nav-link" data-scroll-target="#environment-vars">Environment Vars</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./cli.html">Running Ranges</a></li><li class="breadcrumb-item"><a href="./distribution.html">Distribution</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./images.html">Running</a></li><li class="breadcrumb-item"><a href="./distribution.html">Distribution</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Distribution</h1>
 </div>
 
 <div>
   <div class="description">
-    Publishing and consuming built ranges: locations in three forms, push and spec-driven pull, the implicit pull at eval init, catalog images, mirroring and the air gap, and cache reclamation.
+    Publishing built ranges and consuming them by automatic pull. Covers registry and directory locations, mirroring, and the image catalog.
   </div>
 </div>
 
@@ -829,77 +1371,132 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>A range is built once and consumed everywhere: <code>inspect-ranges build</code> produces captured, verified images and a build manifest (<a href="./building.html">Building Ranges</a>), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec’s normalized-form hash, recorded in the build manifest and matched exactly at pull time.</p>
-<p>Every artifact is content-addressed: qcow2 images, provenance sidecars, recipe bundles, and the build manifest itself publish as OCI artifacts whose blobs verify against their digests on every path (push, pull, mirror, and out of a directory archive). A pulled range is byte-identical to the built one, and nothing unverified ever lands under a consumable name.</p>
+<p>A range is built once and consumed everywhere: <code>inspect-ranges build</code> produces captured, verified images and a build manifest (<a href="./building.html">Building Ranges</a>), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec’s normalized-form hash (a hash over the definition’s semantic content, so comment and formatting edits do not change it), recorded in the build manifest and matched exactly at pull time.</p>
+<p>Every artifact is content-addressed: qcow2 images, provenance sidecars (each image’s record of the digests it was built from), recipe bundles, and the build manifest itself publish as OCI artifacts whose blobs verify against their digests on every path (push, pull, mirror, and out of a directory archive). A pulled range is byte-identical to the built one, and nothing unverified ever lands under a consumable name.</p>
+<p>Deployment recipes (mirroring for an air gap, pinning a fleet, running offline) live in <a href="./images.html">Images</a>; this page is the mechanics those recipes rest on.</p>
 </section>
 <section id="locations" class="level2">
 <h2 class="anchored" data-anchor-id="locations">Locations</h2>
 <p>Everywhere a registry location appears (<code>push --to</code>, <code>pull --from</code>, <code>mirror</code>, the configured search path) it takes one of three interchangeable forms:</p>
 <ul>
-<li><strong>The public hub</strong>: <code>docker.io/meridianlabsai/inspect-ranges</code>, the out-of-box default carrying the reusable base tier (the hub is two-level, so the third segment is a repo-NAME prefix: name <code>attack</code> lives in the repo <code>meridianlabsai/inspect-ranges-attack</code>; any <code>docker.io/&lt;org&gt;/&lt;prefix&gt;</code> location spells repos the same way) (goldens, the daemon bundle, common recipes).</li>
+<li><strong>The public hub</strong>: <code>docker.io/meridianlabsai/inspect-ranges</code>, the out-of-box default, carrying the reusable base tier: goldens (the catalog’s verified base images), the guest control daemon bundle, and common recipes (<a href="./images.html#catalog">Images</a> describes each) and published range builds (dmz-pivot today). The hub is two-level, so the third segment is a repo-name prefix: name <code>attack</code> lives in the repo <code>meridianlabsai/inspect-ranges-attack</code>, and any <code>docker.io/&lt;org&gt;/&lt;prefix&gt;</code> location spells repos the same way.</li>
 <li><strong>A private OCI registry</strong>: <code>registry.example.net/ranges</code> (served over https; an explicit <code>http://host:port/path</code> form exists for local registries).</li>
 <li><strong>A directory</strong> in standard OCI image-layout format: <code>./archive</code> or <code>/mnt/mirror</code>. This is the registry-less shape: tar it, ship it across an air gap, untar it, and everything still verifies, because identity is content, not transport. Directory locations must look like paths (start with <code>/</code>, <code>./</code>, <code>../</code>, or <code>~</code>), so a configured value parses the same way in every working directory.</li>
 </ul>
 <p>The search path is <code>INSPECT_RANGES_REGISTRY</code>, an ordered comma-separated list, first match wins. A deployment prepends its own registry and its artifacts shadow public names deterministically; the public org stays as the fallback so connected deployments never need to mirror. A broken location in the path (an unmounted mirror directory, a registry answering errors) aborts resolution with the location named rather than silently falling through, because silent fallback would un-shadow the location the operator put first. Nothing in any spec or manifest names a registry host: redirection is configuration, never spec content.</p>
 </section>
-<section id="publishing-a-range-push" class="level2">
-<h2 class="anchored" data-anchor-id="publishing-a-range-push">Publishing a range: <code>push</code></h2>
+<section id="publishing" class="level2">
+<h2 class="anchored" data-anchor-id="publishing">Publishing</h2>
+<p>Everything in this section is the producer’s side: pushing range builds, promoting images, and maintaining the catalog list. Consumers never run these verbs.</p>
+<section id="range-builds-push" class="level3">
+<h3 class="anchored" data-anchor-id="range-builds-push">Range Builds: <code>push</code></h3>
 <p>From a built range’s directory:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges push <span class="at">--to</span> registry.example.net/ranges</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">manifest</span>  vulhub-zabbix <span class="er">(</span><span class="ex">spec</span> sha256:77ab41...<span class="kw">)</span> <span class="ex">-</span><span class="op">&gt;</span> registry.example.net/ranges</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">manifest</span>  vulhub-zabbix <span class="er">(</span><span class="ex">spec</span> 77ab41...<span class="kw">)</span> <span class="ex">-</span><span class="op">&gt;</span> registry.example.net/ranges</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">push</span> OK   vulhub-zabbix@sha256:ab12e0...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>push</code> reads the current directory’s build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto, the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed <code>name@digest</code> is the range’s publishable identity. Each push also names the root under an exact-spec reference, which is what spec-driven pull resolves.</p>
+<p><code>push</code> reads the current directory’s build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto (each realized image rebases onto a golden, which derives from a vendor base), the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed <code>name@digest</code> is the range’s publishable identity. Each push also tags the root with a reference derived from the spec’s normalized-form hash (the exact-spec reference); a later <code>pull</code> holding the same spec resolves that reference to this build.</p>
 <p><code>push</code> has no default destination: pass <code>--to</code> or configure <code>INSPECT_RANGES_REGISTRY</code>. Pushing to the public org is the project publisher’s job, never a user move, and user ranges must not aim anywhere public by accident.</p>
 </section>
-<section id="consuming-a-range-pull-and-the-implicit-pull" class="level2">
-<h2 class="anchored" data-anchor-id="consuming-a-range-pull-and-the-implicit-pull">Consuming a range: <code>pull</code> and the implicit pull</h2>
+<section id="the-catalog-list" class="level3">
+<h3 class="anchored" data-anchor-id="the-catalog-list">Images and the Catalog List</h3>
+<p><code>publish</code> promotes a built guest’s realized image, a cache golden, or the daemon artifact to a bare catalog name, and every image publish appends the name to the location’s published catalog list (the reserved <code>catalog</code> ref). <code>publish --list</code> rewrites the list to an exact set of names: the repair and rename verb, and how a publisher adds pushed ranges to enumeration.</p>
+<p>The list is typed: each entry records a name and its kind (<code>image</code> or <code>range</code>), and a pre-kind list of bare strings reads as all images, so earlier published lists keep working unchanged. <code>publish --list</code> detects each kind from what the destination actually serves (a pushed range’s root records its build identity and spec-suffixed refs; a published image’s root records its published name, the same identity <code>images pull</code> verifies) and refuses <code>catalog-kind-unknown</code> for a root recording neither, rather than guessing. The kinds split consumers by purpose: enumeration (<code>mirror</code>, whole-location) carries every entry, so one command mirrors images and published range builds together, while <code>images pin</code> writes the image entries only. A range never enters a pin file: it pins via the consuming clone’s spec hash, and a pin-file entry would refuse <code>pin-mismatch</code> on every republish, since a republished build mints a new root digest by design.</p>
+</section>
+<section id="republish-discipline" class="level3">
+<h3 class="anchored" data-anchor-id="republish-discipline">Republish Discipline</h3>
+<p>Every consumer-held artifact is digest-verified, a republished image is a new digest, and the attack image’s recipe version must bump for each republish, so a rebuilt image gets a new identity instead of silently replacing the old one under the same name. Between publishes the catalog deliberately lags upstream package feeds; the manifest records what shipped.</p>
+</section>
+</section>
+<section id="consuming-a-range-pull" class="level2">
+<h2 class="anchored" data-anchor-id="consuming-a-range-pull">Consuming a Range: <code>pull</code></h2>
 <p>The minimal connected journey is <code>git clone</code>, <code>inspect eval</code>: the provider runs the resolve-verify-fetch automatically at eval init (<code>task_init</code>), once per distinct sandbox config, before the eval UI comes up, with docker-pull-shaped progress (one line per blob, <code>Already exists</code> for dedup hits, a final <code>name@digest</code> line). A failure is a clean one-line refusal that aborts the run before any sample starts.</p>
 <p>The explicit verb is preflight for warming caches ahead of a run:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges pull</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">resolve</span>   spec sha256:77ab41... <span class="at">-</span><span class="op">&gt;</span> vulhub-zabbix@sha256:ab12e0... <span class="er">(</span><span class="ex">registry.example.net/ranges</span><span class="kw">)</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">fetch</span>     9 fetched, 0 already present, verified</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pull</span> OK</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Bare <code>pull</code> reads the directory’s <code>range.yaml</code>, computes its normalized-form hash, and selects the published build whose recorded hash matches exactly; comment and formatting edits do not de-match, semantic edits do. When no published build matches, the refusal names the nearest build per location:</p>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">resolve</span>   spec 77ab41... <span class="at">-</span><span class="op">&gt;</span> vulhub-zabbix@sha256:ab12e0...</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>          <span class="kw">(</span><span class="ex">registry.example.net/ranges</span><span class="kw">)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">fetch</span>     9 fetched, 0 already present, verified</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pull</span> OK</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Bare <code>pull</code> reads the directory’s <code>range.yaml</code>, computes its normalized-form hash, and selects the published build whose recorded hash matches exactly; comment and formatting edits do not de-match, semantic edits do. The pin covers <code>range.yaml</code> alone: <code>challenges.yaml</code> and the check scripts are proven at build time (their digests ride the build manifest) but travel by git, so a consumer running the proven build against a locally edited challenges file is not detected. Treat the range repository as the integrity boundary for everything but the build. When no published build matches, the refusal names the nearest build per location:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges pull</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Error:</span> <span class="pp">[</span><span class="ss">no</span><span class="pp">-</span><span class="ss">build</span><span class="pp">-</span><span class="ss">for</span><span class="pp">-</span><span class="ss">spec</span><span class="pp">]</span> no build of <span class="st">'vulhub-zabbix'</span> matching this range.yaml</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">(</span><span class="ex">spec</span> 3c91e4...<span class="kw">)</span> <span class="er">in</span> <span class="ex">[registry.example.net/ranges]</span><span class="kw">;</span> <span class="ex">nearest:</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">registry.example.net/ranges</span> holds vulhub-zabbix@sha256:ab12e0... <span class="er">(</span><span class="ex">built</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">2026-10-17T...</span> from spec 77ab41...<span class="kw">);</span> <span class="ex">run</span> <span class="st">'inspect-ranges build'</span> for the edited</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">spec,</span> or check out the spec revision matching a published build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>name@sha256:</code> form pulls an exact published root with no spec in hand: <code>inspect-ranges pull vulhub-zabbix@sha256:ab12e0...</code>. Either way, what a reference RESOLVED TO is untrusted until the landed manifest’s recorded identity matches what was asked for: registry tags are mutable, and a re-pointed reference refuses before anything consumable lands.</p>
-<p>The warm path costs one spec hash plus artifact-presence checks and touches no network: a local build manifest matching the spec short-circuits, and a pruned artifact heals by re-pull. Byte integrity is enforced where it matters: <code>up</code> verifies every image, its backing golden, and (whenever the golden’s provenance sidecar is readable) the golden’s vendor base against the recorded digests on every boot, so a corrupt or mixed cache refuses with a named cause; a golden whose provenance cannot be read skips the vendor edge, which <code>images prune --chains</code> and doctor surface as a frozen chain to fix.</p>
-<p><code>INSPECT_RANGES_NEVER_PULL=1</code> pins a host against implicit transfers: the provider’s auto-pull and the build’s registry tier refuse or skip instead of touching the network. Explicit verbs still work on a pinned host, because typing them is the operator’s intent; a fully offline host simply configures no reachable locations.</p>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Error:</span> <span class="pp">[</span><span class="ss">no</span><span class="pp">-</span><span class="ss">build</span><span class="pp">-</span><span class="ss">for</span><span class="pp">-</span><span class="ss">spec</span><span class="pp">]</span> no build of <span class="st">'vulhub-zabbix'</span> matching</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">this</span> range.yaml <span class="er">(</span><span class="ex">spec</span> 3c91e4...<span class="kw">)</span> <span class="er">in</span> <span class="ex">[registry.example.net/ranges]</span><span class="kw">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">nearest:</span> registry.example.net/ranges holds</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">vulhub-zabbix@sha256:ab12e0...</span> <span class="er">(</span><span class="ex">built</span> 2026-10-17T... from spec</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">77ab41...</span><span class="kw">);</span> <span class="ex">run</span> <span class="st">'inspect-ranges build'</span> for the edited spec, or</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="ex">check</span> out the spec revision matching a published build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>name@sha256:</code> form pulls an exact published root with no spec in hand: <code>inspect-ranges pull vulhub-zabbix@sha256:ab12e0...</code>. Either way, what a reference resolved to is untrusted until the landed manifest’s recorded identity matches what was asked for: registry tags are mutable, and a re-pointed reference refuses before anything consumable lands.</p>
+<p>The warm path costs one spec hash plus artifact-presence checks and touches no network: a local build manifest matching the spec short-circuits, and a pruned artifact heals by re-pull. <code>up</code> verifies every image, its backing golden, and (whenever the golden’s provenance sidecar is readable) the golden’s vendor base against the recorded digests on every boot, so a corrupt or mixed cache refuses with a named cause. A golden whose provenance cannot be read skips the vendor edge; <code>images prune --chains</code> and doctor surface it as a chain with unreadable provenance to fix.</p>
+<p><code>INSPECT_RANGES_NEVER_PULL=1</code> pins a host against implicit transfers (the provider’s auto-pull and the build’s registry tier refuse or skip); the locked-down host shape is in <a href="./images.html#locked-down-host">Images</a>.</p>
 </section>
-<section id="catalog-images-images-pull-and-images-refresh" class="level2">
-<h2 class="anchored" data-anchor-id="catalog-images-images-pull-and-images-refresh">Catalog images: <code>images pull</code> and <code>images refresh</code></h2>
-<p>Bare image names (<code>image: ubuntu-focal</code>) resolve pin first, then the local cache, then the search path. A build whose golden is absent from the cache fetches it through the search path once; thereafter the name is sticky: later builds keep resolving the cached artifact even as the registry moves on (freezing is automatic, and each build manifest records the digests it resolved). Moving forward is explicit:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges images pull ubuntu-focal        <span class="co"># fetch a published chain</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges images refresh ubuntu-focal     <span class="co"># the explicit move-forward act</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="catalog-images-images-pull-and-refresh" class="level2">
+<h2 class="anchored" data-anchor-id="catalog-images-images-pull-and-refresh">Catalog Images: <code>images pull</code> and <code>refresh</code></h2>
+<p>Bare image names (<code>image: ubuntu-focal</code>) resolve pin first (a fleet pin file, when one is configured; see <a href="./images.html#pinned-fleet">Images</a>), then the local cache, then the search path. A build whose golden is absent from the cache fetches it through the search path once; thereafter the name is sticky: later builds keep resolving the cached artifact even as the registry moves on (freezing is automatic, and each build manifest records the digests it resolved). Moving forward is explicit:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges images pull ubuntu-focal     <span class="co"># fetch a published chain</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges images refresh ubuntu-focal  <span class="co"># explicitly move forward</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A plain <code>images pull</code> of a name whose published chain moved refuses rather than silently replacing the cache; <code>refresh</code> replaces the whole chain (image, provenance sidecar, vendor base) together, and the next build’s keys change accordingly.</p>
 </section>
 <section id="the-hardened-range-container-image" class="level2">
-<h2 class="anchored" data-anchor-id="the-hardened-range-container-image">The hardened range container image</h2>
-<p>The range container (the hardened jail every guest boots inside) is an ordinary Docker image, not an OCI-artifact qcow2, so it distributes as one: the project publishes it to a conventional Docker repo (<code>docker.io/meridianlabsai/inspect-ranges-range</code>), and a consumer opts in by pinning it:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">INSPECT_RANGES_RANGE_IMAGE</span><span class="op">=</span>docker.io/meridianlabsai/inspect-ranges-range@sha256:ab12e0...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>With the knob set, <code>up</code> pulls the pin once (plain <code>docker pull</code>, so hub credentials and private mirrors work exactly as they do for any image) and every range boots inside it; doctor’s range-image row reports the pinned source. The pin is mandatory: a mutable tag could swap the hardened jail under a fleet, so an unpinned value refuses before anything boots, as does a pin the registry does not hold.</p>
+<h2 class="anchored" data-anchor-id="the-hardened-range-container-image">Range Container Image</h2>
+<p>The range container (the hardened jail every guest boots inside) is an ordinary Docker image, not an OCI-artifact qcow2, so it distributes as one: the project publishes it to a conventional Docker repo (<code>docker.io/meridianlabsai/inspect-ranges-range</code>), and a consumer opts in by pinning it (the recipe is in <a href="./images.html#range-container-pin">Images</a>). With <code>INSPECT_RANGES_RANGE_IMAGE</code> set to a digest pin, <code>up</code> pulls the pin once (plain <code>docker pull</code>, so hub credentials and private mirrors work exactly as they do for any image) and every range boots inside it; doctor’s range-image row reports the pinned source. The pin is mandatory: a mutable tag could swap the hardened jail under a fleet, so an unpinned value refuses before anything boots, as does a pin the registry does not hold.</p>
 <p>Unset (the default and the dev loop), <code>up</code> builds the image locally from package data, keyed by a content label over the package version and build context, so an edited Dockerfile rebuilds within one version. The digest pin plays the same role for published images that the content label plays for local ones: the identity that decides whether the image on this host is the one intended.</p>
 </section>
 <section id="mirroring-and-the-air-gap-mirror" class="level2">
-<h2 class="anchored" data-anchor-id="mirroring-and-the-air-gap-mirror">Mirroring and the air gap: <code>mirror</code></h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror <span class="at">--from</span> registry.other-group.net/ranges <span class="at">--to</span> registry.example.net/ranges   <span class="co"># seed/sync everything the source lists</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror vulhub-zabbix <span class="at">--from</span> docker.io/meridianlabsai/inspect-ranges <span class="at">--to</span> ./archive              <span class="co"># one name's current build</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror . <span class="at">--from</span> registry.other-group.net/ranges <span class="at">--to</span> registry.example.net/ranges <span class="co"># the cross-group move: this range.yaml selects the source build exactly</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror vulhub-zabbix@sha256:ab12e0... <span class="at">--from</span> X <span class="at">--to</span> Y                            <span class="co"># an exact root</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A mirrored root carries its transitive closure and its exact-spec reference, so spec-driven <code>pull</code> works from the mirror; manifests move as raw verified bytes, so digests survive the copy even for foreign-produced content. For the air gap, mirror into a directory, <code>tar</code> it, carry it across, untar, and set <code>INSPECT_RANGES_REGISTRY</code> to the directory: the consuming session is then identical to the connected one. A whole-location mirror carries the source’s catalog list verbatim, replacing the destination’s: names published only at the destination stay served by ref but drop out of enumeration and pin generation, so merge-style syncs between two publishing locations should republish rather than mirror. Whole-location mirroring enumerates the source’s catalog listing; the public hub does not expose org enumeration through the OCI API, so whole-org mirrors from the hub name their artifacts explicitly (the published catalog list is a recorded follow-up of the catalog phase).</p>
+<h2 class="anchored" data-anchor-id="mirroring-and-the-air-gap-mirror">Mirroring and the Air Gap: <code>mirror</code></h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># seed/sync everything the source lists</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror <span class="at">--from</span> registry.other-group.net/ranges <span class="dt">\</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--to</span> registry.example.net/ranges</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># one name's current build</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror vulhub-zabbix <span class="dt">\</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--from</span> docker.io/meridianlabsai/inspect-ranges <span class="at">--to</span> ./archive</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"># the cross-group move: this range.yaml selects the source build</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror . <span class="at">--from</span> registry.other-group.net/ranges <span class="dt">\</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">--to</span> registry.example.net/ranges</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co"># an exact root</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges mirror vulhub-zabbix@sha256:ab12e0... <span class="at">--from</span> X <span class="at">--to</span> Y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A mirrored root carries its transitive closure and its exact-spec reference, so spec-driven <code>pull</code> works from the mirror; manifests move as raw verified bytes, so digests survive the copy even for foreign-produced content. The air-gap recipe (mirror to a directory, carry it across, point <code>INSPECT_RANGES_REGISTRY</code> at it) is in <a href="./images.html#air-gap">Images</a>.</p>
+<p>A whole-location mirror enumerates the source through its published catalog list (see <a href="#the-catalog-list">the Catalog List</a>) and carries that list verbatim, replacing the destination’s: names published only at the destination stay served by ref but drop out of enumeration and pin generation, so merge-style syncs between two publishing locations should republish rather than mirror. A location with no published list falls back to its own listing surface (a layout’s refs, a registry’s <code>/v2/_catalog</code>); the public hub exposes neither, so a hub location that has not published a list refuses whole-org mirrors and takes explicit names (the public org publishes its list).</p>
 </section>
 <section id="reclaiming-space-images-prune---chains" class="level2">
-<h2 class="anchored" data-anchor-id="reclaiming-space-images-prune---chains">Reclaiming space: <code>images prune --chains</code></h2>
+<h2 class="anchored" data-anchor-id="reclaiming-space-images-prune---chains">Reclaiming Space: <code>images prune --chains</code></h2>
 <p><code>images prune</code> reports and reclaims superseded realized images, stranded capture and pull temps, and orphan sidecars; <code>--chains</code> extends it to goldens and vendor bases nothing references. Eviction is by whole chain, never a backing out from under a dependent: a golden survives while any realized image, build manifest, or live project names it, and a vendor base survives while any surviving golden’s provenance does. Reports by default; <code>--yes</code> deletes.</p>
 <p><code>inspect-ranges doctor</code> carries the Distribution rows: configured locations parse (directory forms must be valid layouts), and the cache’s provenance chains are whole, with broken backing references named.</p>
 </section>
-<section id="fleet-guidance-for-docker-hub" class="level2">
-<h2 class="anchored" data-anchor-id="fleet-guidance-for-docker-hub">Fleet guidance for Docker Hub</h2>
-<p>Anonymous hub pulls are rate-limited per address (measured 2026-10-18: 100 pulls per rolling hour), so a fleet cold-pulling the public org should prepend its own registry (connected: bases fall through to the org only once) or mirror the org (disconnected, or to remove the hub availability dependency). One operational note for hosts logged into the hub with a narrowly-scoped access token: the docker CLI sends the stored credential for public pulls too, and the hub rejects an insufficiently-scoped token rather than falling back to anonymous, so public <code>docker pull</code>s fail on such a host. The distribution client is unaffected (it authenticates only where it must), but host provisioning that pulls public images should account for it.</p>
+<section id="environment-vars" class="level2">
+<h2 class="anchored" data-anchor-id="environment-vars">Environment Vars</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>INSPECT_RANGES_REGISTRY</code></td>
+<td>the public org</td>
+<td>Ordered, comma-separated search path of locations; first match wins, broken locations abort resolution.</td>
+</tr>
+<tr class="even">
+<td><code>INSPECT_RANGES_NEVER_PULL</code></td>
+<td>unset</td>
+<td>Any non-empty value refuses implicit transfers (the provider’s auto-pull and the build’s registry tier); explicit verbs still work.</td>
+</tr>
+<tr class="odd">
+<td><code>INSPECT_RANGES_RANGE_IMAGE</code></td>
+<td>unset (local build)</td>
+<td>Digest-pinned published range container image; <code>up</code> pulls it once and boots every range inside it.</td>
+</tr>
+</tbody>
+</table>
 
 
 </section>
@@ -1419,13 +2016,13 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./provider.html" class="pagination-link" aria-label="Sandbox Provider">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Sandbox Provider</span>
+      <a href="./images.html" class="pagination-link" aria-label="Images">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Images</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./catalog.html" class="pagination-link" aria-label="Image Catalog">
-        <span class="nav-page-text">Image Catalog</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./security.html" class="pagination-link" aria-label="Security">
+        <span class="nav-page-text">Security</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1449,11 +2046,6 @@ document.addEventListener("DOMContentLoaded", function () {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
-<p>Changelog</p>
-</a>
-  </li>  
-    <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/LICENSE">
 <p>License</p>
 </a>
@@ -1461,6 +2053,11 @@ document.addEventListener("DOMContentLoaded", function () {
     <li class="nav-item">
     <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/issues">
 <p>Issues</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/meridianlabs-ai/inspect_ranges/blob/main/CHANGELOG.md">
+<p>Changelog</p>
 </a>
   </li>  
 </ul>
