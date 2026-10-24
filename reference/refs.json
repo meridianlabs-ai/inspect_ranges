@@ -33,6 +33,7 @@
   "challenge_setup": "inspect_ranges.qmd#challenge_setup",
   "challenge_scorer": "inspect_ranges.qmd#challenge_scorer",
   "verify_goal": "inspect_ranges.qmd#verify_goal",
+  "terminal": "inspect_ranges.qmd#terminal",
   "Challenge": "inspect_ranges.qmd#challenge",
   "Challenges": "inspect_ranges.qmd#challenges",
   "Goal": "inspect_ranges.qmd#goal",

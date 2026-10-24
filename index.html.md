@@ -25,7 +25,7 @@ cd inspect_ranges && pip install .
 inspect-ranges doctor
 
 # run an example
-inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5
+inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5 --time-limit 5400
 ```
 
 This documentation is also available in LLM-friendly markdown ([llms.txt](https://llmstxt.org/)): register the index with an IDE or coding agent, or paste a variant directly into a model’s context window.
@@ -196,12 +196,12 @@ A task brings together the challenge dataset, a setup step that plants per-sampl
 ``` python
 from inspect_ai import Task, task
 from inspect_ai.agent import react
-from inspect_ai.tool import bash
 
 from inspect_ranges import (
     challenge_dataset,
     challenge_scorer,
     challenge_setup,
+    terminal,
     verify_goal,
 )
 from inspect_ranges.scanners import range_apparatus
@@ -214,7 +214,7 @@ def dmz_pivot() -> Task:
         ),
         setup=challenge_setup(),
         solver=react(
-            tools=[bash(), verify_goal()]
+            tools=[terminal(), verify_goal()]
         ),
         scorer=[challenge_scorer(), range_apparatus()],
         sandbox=("range", "range.yaml"),
@@ -230,11 +230,15 @@ Evaluate a packaged example by its registry name, or a `task.py` beside your own
     Terminal
 
 ``` bash
-inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5-5
-inspect eval task.py --model anthropic/claude-opus-5-5
+inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5 --time-limit 5400
+inspect eval task.py --model anthropic/claude-opus-5 --time-limit 5400
 ```
 
 Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain; targets are reachable only through the range network, never from the tool loop.
+
+### Terminal Sessions
+
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks (the shipped examples wire it as shown above), and each session records to evidence with an asciicast for playback. [Challenges](./challenges.html.md#terminal-sessions) covers the actions, waiting modes, and the one caveat: tool surface changes measured difficulty, so compare like with like.
 
 ### SWE Agents
 

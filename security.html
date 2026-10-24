@@ -48,7 +48,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -188,6 +188,10 @@ ul.task-list li input[type="checkbox"] {
         <li>
     <a class="dropdown-item" href="./provider.html">
  <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./attackbox.html">
+ <span class="dropdown-text">Attack Box</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./cli.html">
@@ -371,6 +375,12 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="./provider.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./attackbox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Attack Box</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -674,6 +684,12 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
  <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#terminal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">terminal</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1308,6 +1324,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#control-plane" id="toc-control-plane" class="nav-link" data-scroll-target="#control-plane">Control Plane</a></li>
   <li><a href="#network-containment" id="toc-network-containment" class="nav-link" data-scroll-target="#network-containment">Network Containment</a></li>
   <li><a href="#proving-containment" id="toc-proving-containment" class="nav-link" data-scroll-target="#proving-containment">Proving Containment</a></li>
+  <li><a href="#external-attack-boxes" id="toc-external-attack-boxes" class="nav-link" data-scroll-target="#external-attack-boxes">External Attack Boxes</a></li>
   <li><a href="#score-integrity" id="toc-score-integrity" class="nav-link" data-scroll-target="#score-integrity">Score Integrity</a></li>
   <li><a href="#topologies-and-credentials" id="toc-topologies-and-credentials" class="nav-link" data-scroll-target="#topologies-and-credentials">Topologies and Credentials</a></li>
   </ul>
@@ -1378,6 +1395,7 @@ ul.task-list li input[type="checkbox"] {
 <li>The plane is strictly connect-from-host: the in-guest daemon accepts connections only from the host, and no host-side <code>AF_VSOCK</code> listeners exist for a compromised guest to dial.</li>
 <li>Cloud Hypervisor guests are reached over the VMM’s hybrid-vsock Unix socket with the peer-credential check described in <a href="#virtual-machine-monitors">Virtual Machine Monitors</a>.</li>
 <li>Everything received over the channel comes from guests the agent may have compromised and is treated as untrusted input: strict schema validation, reader-side byte caps, and tamper verdicts for protocol violations an honest endpoint cannot produce (see <a href="./provider.html#the-retry-contract">the retry contract</a>).</li>
+<li>The <a href="./evidence.html#the-exec-witness">exec witness</a> is guest-tier evidence under the same rule: the pre-compromise exec timeline is immutable once streamed, a root attacker can forge or starve it from the moment the guest falls (visibly, never silently), and nothing scores over it.</li>
 </ul>
 <p>In the other direction, in-range defenders can detect everything the agent transmits (that is realism, not a leak), but they cannot observe the agent’s interior, connect to it (standard images ship zero network listeners), or reach the channel controlling it.</p>
 </section>
@@ -1394,6 +1412,10 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="proving-containment">Proving Containment</h2>
 <p>A range that carries <a href="./building.html#behavioral-checks">behavioral checks</a> proves its containment at build time. Before the checks, the proof boot (the build’s second boot of the captured images, where the checks run; see <a href="./building.html#behavioral-checks">Behavioral Checks</a>) runs the <code>conformance</code> stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed check, so an uncontained range is never consumable.</p>
 <p>The stage’s scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without behavioral checks has no proof boot, so it gets no conformance stage either.</p>
+</section>
+<section id="external-attack-boxes" class="level2">
+<h2 class="anchored" data-anchor-id="external-attack-boxes">External Attack Boxes</h2>
+<p>A deployment may substitute an externally-managed VM for the dedicated attack box (<a href="./attackbox.html#external-providers">Attack Box</a>). The substitution preserves the structural pieces here by construction: the attachment is a tap built inside the range container’s network namespace with its fd handed to the external VMM, so the host netns still carries zero range state, and bridge-side evidence capture still sees every frame the box sends. What changes is whose containment stack holds the agent’s seat: the range then carries the weaker of the two stories, with the <a href="./attackbox.html#attackbox-verify">conformance battery</a> as the proven floor (surface sweep, exec parity, lifecycle) rather than this page’s architecture. The box’s missing console stream is recorded as a declared evidence gap, and <code>inspect-ranges doctor</code> carries a standing warning while the provider is configured.</p>
 </section>
 <section id="score-integrity" class="level2">
 <h2 class="anchored" data-anchor-id="score-integrity">Score Integrity</h2>

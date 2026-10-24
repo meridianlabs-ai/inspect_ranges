@@ -208,7 +208,7 @@ Policy (`acl`) and routing (`routes`, gateway election) are covered in [Networks
 
 ## Attacker
 
-The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init (see [Images](./images.html.md)):
+The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init (its tool contract and boot defaults are on [Attack Box](./attackbox.html.md)):
 
 ``` yaml
 range:
@@ -269,7 +269,7 @@ With `host:`, the attacker declares no machine of its own (the foothold is the m
 
 Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest (what the guest looks like once fully set up), not boot-time actions. Each declaration is realized at build time and the range ships verified; the runtime never applies guest content per sample.
 
-[`inspect-ranges build`](./building.html.md) converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses ([Authoring Recipes](./building.html.md#authoring-recipes)). The build then independently verifies every declared `services` and `vulnerabilities` entry against the live guests and captures each guest’s disk as a realized image. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (`users` realized by their `provisioning` recipes); they declare no `services` or `vulnerabilities`, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (`range-not-built`) until a matching build exists; once one does, the range boots those captured images. `scheduled_activity` has no realizer yet and refuses at planning (`guest-config-not-realized`), so nothing boots with silently missing content.
+[`inspect-ranges build`](./building.html.md) converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses ([Authoring Recipes](./building.html.md#authoring-recipes)). The build then independently verifies every declared `services` and `vulnerabilities` entry against the live guests and captures each guest’s disk as a realized image. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (`users` realized by their `provisioning` recipes); they declare no `services` or `vulnerabilities`, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (`range-not-built`) until a matching build exists; once one does, the range boots those captured images. `scheduled_activity` realizes at build too: each declaration installs as a persistent unit in the captured image and is verified afterward ([Scheduled Activity](#scheduled-activity)).
 
 ## Users
 
@@ -803,7 +803,9 @@ provisioned = RangeSpec(
 
 ## Scheduled Activity
 
-`scheduled_activity` declares recurring in-guest behavior simulation: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them):
+`scheduled_activity` declares recurring in-guest behavior: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them). The build realizes each declaration as a persistent unit in the captured image: a systemd service (plus a timer for interval schedules) on Linux, a scheduled task on Windows. Every boot of the captured image then runs the activity on its schedule, with no per-sample work.
+
+`script` is a relative path resolved from the `activities/` directory beside `range.yaml`. Its content digest enters the guest’s build key, so an edited script rebuilds exactly the guests that declare it. A Linux script needs a shebang (the service executes the file); a Windows script runs through `powershell -NoProfile -ExecutionPolicy Bypass -File`. `schedule` accepts two forms: `@boot` (run once at each boot) and `every <N><unit>`, where `<N>` is a positive integer and `<unit>` is `s`, `m`, or `h` (for example `every 5m`); any other value refuses at validation, a declaration without one refuses at build, and a seconds interval on a Windows host refuses at build (the Windows task scheduler repeats at one-minute granularity). The activity runs as the declared `user` (on Windows with no stored credential), or as root/SYSTEM when omitted. After realization the build verifies that each unit or task exists and is enabled, and records the result in the manifest:
 
 ``` yaml
 range:
@@ -819,8 +821,9 @@ hosts:
     image: windows-2022
     interfaces: [{ network: corp }]
     scheduled_activity:
-      - { script: responder.ps1 }
+      - { script: responder.ps1, schedule: "every 1h" }
       - script: rdp_scheduler.ps1
+        schedule: every 15m
         user: admin.user
         note: creates a stealable session
 attacker:
@@ -844,9 +847,12 @@ activity = RangeSpec(
             image="windows-2022",
             interfaces=[Interface(network="corp")],
             scheduled_activity=[
-                ScheduledActivity(script="responder.ps1"),
+                ScheduledActivity(
+                    script="responder.ps1", schedule="every 1h"
+                ),
                 ScheduledActivity(
                     script="rdp_scheduler.ps1",
+                    schedule="every 15m",
                     user="admin.user",
                     note="creates a stealable session",
                 ),
@@ -861,14 +867,18 @@ activity = RangeSpec(
 
 ## Variables
 
-`variables` declares values intended to differ between generated instances of the same range: ports, passwords, flag hints. No per-instance values are drawn yet: every variable requires a `default` and loading substitutes the defaults before validation; the generation layer that would draw differing values is deferred (per-sample secrets come from the challenge plant layer instead; see [Challenges](./challenges.html.md)). References are `"{{name}}"`: a whole-scalar reference keeps the variable’s type (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in `range.yaml` (ports, passwords, `provisioning` `vars`, prose fields) and only `range.yaml`: `challenges.yaml` never substitutes, and a goal reads a variable by name instead (`answer`’s `variable:` source). A reference naming no declared variable is a positioned `undeclared-variable` error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:
+`variables` declares values intended to differ between instances of the same range: ports, passwords, flag hints. Every variable requires a `default`, and loading substitutes the defaults before validation.
+
+A variable marked `draw: boot` also gets a per-sample value, drawn when the sample’s range boots. The draw comes from the declared constraints (`port` and `int` from `min`/`max`, `choice` from `choices`) and never lands on the default. The drawn values are written to `/etc/guestd/draws.json` in every Linux guest’s cloud-init seed, as a JSON mapping of variable name to value; the agent’s foothold is excluded, since a drawn value is often a challenge’s expected answer. Applying a draw is the range author’s job: a recipe installs a boot unit that reads the file and reconfigures the service (the kypo_demo example moves telnetd to the drawn port this way). Everything else keeps the default: builds substitute defaults, realized images and build keys never change with a draw, and every substituted reference in `range.yaml` (a declared service port, a recipe `vars` entry) still reads the default. `draw: boot` requires type `port`, `int` (explicit `min` and `max`), or `choice`; a `password` variable refuses it (per-sample secrets come from the challenge plant layer; see [Challenges](./challenges.html.md)), and `text` has no constraints to draw from. An `answer` goal naming a drawn variable scores the drawn value.
+
+References are `"{{name}}"`: a whole-scalar reference keeps the variable’s type (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in `range.yaml` (ports, passwords, `provisioning` `vars`, prose fields) and only `range.yaml`: `challenges.yaml` never substitutes, and a goal reads a variable by name instead (`answer`’s `variable:` source). A reference naming no declared variable is a positioned `undeclared-variable` error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:
 
 ``` yaml
 range:
   name: randomized
   description: A randomized service port and a templated credential.
 variables:
-  telnet_port: { type: port, min: 1500, default: 2323 }
+  telnet_port: { type: port, min: 1500, default: 2323, draw: boot }
   admin_password: { type: password, default: "changeme123!" }
 networks:
   - name: lab
@@ -900,7 +910,7 @@ def randomized(
         ),
         variables={
             "telnet_port": Variable(
-                type="port", min=1500, default=2323
+                type="port", min=1500, default=2323, draw="boot"
             ),
             "admin_password": Variable(
                 type="password", default="changeme123!"

@@ -27,6 +27,7 @@
 - [Security](https://meridianlabs-ai.github.io/inspect_ranges/security.html.md): How untrusted agents stay contained while they attack the range. Covers the threat model, the layered boundaries, and how containment is proven.
 - [Range Host](https://meridianlabs-ai.github.io/inspect_ranges/topology.html.md): Running the range on the eval machine, or on a separate range host. Covers the applier, the reaper, and host leases.
 - [Range Sandbox](https://meridianlabs-ai.github.io/inspect_ranges/provider.html.md): Running Inspect evals against ranges with the range sandbox provider. Covers configuration, retries, and cleanup.
+- [Attack Box](https://meridianlabs-ai.github.io/inspect_ranges/attackbox.html.md): The machine the agent attacks from: the default image and its tool contract, boot defaults, custom images, and the provider seam for supplying the box externally.
 - [Operations](https://meridianlabs-ai.github.io/inspect_ranges/cli.html.md): Operating ranges on a host: render a definition into a bundle, bring the range up, tear it down, and run the applier, reaper, and doctor.
 
 ## Examples

@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -223,6 +223,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="./provider.html">
  <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./attackbox.html">
+ <span class="dropdown-text">Attack Box</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./cli.html">
@@ -406,6 +410,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./provider.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./attackbox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Attack Box</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -709,6 +719,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
  <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#terminal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">terminal</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1599,7 +1615,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="the-attacker-guest" class="level2">
 <h2 class="anchored" data-anchor-id="the-attacker-guest">Attacker</h2>
-<p>The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what <code>sandbox("default")</code> resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares <code>interfaces</code>; <code>name</code> defaults to <code>attacker</code>, and omitting <code>image</code> selects the catalog’s <code>attack</code>, a kali-class toolset image pulled automatically at eval init (see <a href="./images.html">Images</a>):</p>
+<p>The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what <code>sandbox("default")</code> resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares <code>interfaces</code>; <code>name</code> defaults to <code>attacker</code>, and omitting <code>image</code> selects the catalog’s <code>attack</code>, a kali-class toolset image pulled automatically at eval init (its tool contract and boot defaults are on <a href="./attackbox.html">Attack Box</a>):</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-4-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-1" role="tab" aria-controls="tabset-4-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-4-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-2" role="tab" aria-controls="tabset-4-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -1660,7 +1676,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="guest-content" class="level2">
 <h2 class="anchored" data-anchor-id="guest-content">Guest Content</h2>
 <p>Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest (what the guest looks like once fully set up), not boot-time actions. Each declaration is realized at build time and the range ships verified; the runtime never applies guest content per sample.</p>
-<p><a href="./building.html"><code>inspect-ranges build</code></a> converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses (<a href="./building.html#authoring-recipes">Authoring Recipes</a>). The build then independently verifies every declared <code>services</code> and <code>vulnerabilities</code> entry against the live guests and captures each guest’s disk as a realized image. Declared <code>users</code>, <code>misconfigurations</code>, and <code>data</code> are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (<code>users</code> realized by their <code>provisioning</code> recipes); they declare no <code>services</code> or <code>vulnerabilities</code>, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (<code>range-not-built</code>) until a matching build exists; once one does, the range boots those captured images. <code>scheduled_activity</code> has no realizer yet and refuses at planning (<code>guest-config-not-realized</code>), so nothing boots with silently missing content.</p>
+<p><a href="./building.html"><code>inspect-ranges build</code></a> converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses (<a href="./building.html#authoring-recipes">Authoring Recipes</a>). The build then independently verifies every declared <code>services</code> and <code>vulnerabilities</code> entry against the live guests and captures each guest’s disk as a realized image. Declared <code>users</code>, <code>misconfigurations</code>, and <code>data</code> are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (<code>users</code> realized by their <code>provisioning</code> recipes); they declare no <code>services</code> or <code>vulnerabilities</code>, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (<code>range-not-built</code>) until a matching build exists; once one does, the range boots those captured images. <code>scheduled_activity</code> realizes at build too: each declaration installs as a persistent unit in the captured image and is verified afterward (<a href="#scheduled-activity">Scheduled Activity</a>).</p>
 </section>
 <section id="users" class="level2">
 <h2 class="anchored" data-anchor-id="users">Users</h2>
@@ -2214,7 +2230,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="scheduled-activity" class="level2">
 <h2 class="anchored" data-anchor-id="scheduled-activity">Scheduled Activity</h2>
-<p><code>scheduled_activity</code> declares recurring in-guest behavior simulation: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them):</p>
+<p><code>scheduled_activity</code> declares recurring in-guest behavior: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them). The build realizes each declaration as a persistent unit in the captured image: a systemd service (plus a timer for interval schedules) on Linux, a scheduled task on Windows. Every boot of the captured image then runs the activity on its schedule, with no per-sample work.</p>
+<p><code>script</code> is a relative path resolved from the <code>activities/</code> directory beside <code>range.yaml</code>. Its content digest enters the guest’s build key, so an edited script rebuilds exactly the guests that declare it. A Linux script needs a shebang (the service executes the file); a Windows script runs through <code>powershell -NoProfile -ExecutionPolicy Bypass -File</code>. <code>schedule</code> accepts two forms: <code>@boot</code> (run once at each boot) and <code>every &lt;N&gt;&lt;unit&gt;</code>, where <code>&lt;N&gt;</code> is a positive integer and <code>&lt;unit&gt;</code> is <code>s</code>, <code>m</code>, or <code>h</code> (for example <code>every 5m</code>); any other value refuses at validation, a declaration without one refuses at build, and a seconds interval on a Windows host refuses at build (the Windows task scheduler repeats at one-minute granularity). The activity runs as the declared <code>user</code> (on Windows with no stored credential), or as root/SYSTEM when omitted. After realization the build verifies that each unit or task exists and is enabled, and records the result in the manifest:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-12-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-12-1" role="tab" aria-controls="tabset-12-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-12-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-12-2" role="tab" aria-controls="tabset-12-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -2232,13 +2249,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">image</span><span class="kw">:</span><span class="at"> windows-2022</span></span>
 <span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
 <span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">scheduled_activity</span><span class="kw">:</span></span>
-<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">script</span><span class="kw">:</span><span class="at"> responder.ps1 </span><span class="kw">}</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">script</span><span class="kw">:</span><span class="at"> responder.ps1</span><span class="kw">,</span><span class="at"> </span><span class="fu">schedule</span><span class="kw">:</span><span class="at"> </span><span class="st">"every 1h"</span><span class="at"> </span><span class="kw">}</span></span>
 <span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">script</span><span class="kw">:</span><span class="at"> rdp_scheduler.ps1</span></span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">user</span><span class="kw">:</span><span class="at"> admin.user</span></span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">note</span><span class="kw">:</span><span class="at"> creates a stealable session</span></span>
-<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
-<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
-<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">schedule</span><span class="kw">:</span><span class="at"> every 15m</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">user</span><span class="kw">:</span><span class="at"> admin.user</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">note</span><span class="kw">:</span><span class="at"> creates a stealable session</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="fu">attacker</span><span class="kw">:</span></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> corp </span><span class="kw">}]</span></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> assumed-breach</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div id="tabset-12-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-12-2-tab">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python plan-invalid code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>activity <span class="op">=</span> RangeSpec(</span>
@@ -2256,26 +2274,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>            image<span class="op">=</span><span class="st">"windows-2022"</span>,</span>
 <span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>            interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"corp"</span>)],</span>
 <span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>            scheduled_activity<span class="op">=</span>[</span>
-<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>                ScheduledActivity(script<span class="op">=</span><span class="st">"responder.ps1"</span>),</span>
-<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>                ScheduledActivity(</span>
-<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>                    script<span class="op">=</span><span class="st">"rdp_scheduler.ps1"</span>,</span>
-<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>                    user<span class="op">=</span><span class="st">"admin.user"</span>,</span>
-<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>                    note<span class="op">=</span><span class="st">"creates a stealable session"</span>,</span>
-<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>                ),</span>
-<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>            ],</span>
-<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>    attacker<span class="op">=</span>Attacker(</span>
-<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>        interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"corp"</span>)], entry<span class="op">=</span><span class="st">"assumed-breach"</span></span>
-<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>                ScheduledActivity(</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>                    script<span class="op">=</span><span class="st">"responder.ps1"</span>, schedule<span class="op">=</span><span class="st">"every 1h"</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>                ),</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>                ScheduledActivity(</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>                    script<span class="op">=</span><span class="st">"rdp_scheduler.ps1"</span>,</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>                    schedule<span class="op">=</span><span class="st">"every 15m"</span>,</span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>                    user<span class="op">=</span><span class="st">"admin.user"</span>,</span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>                    note<span class="op">=</span><span class="st">"creates a stealable session"</span>,</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>                ),</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>            ],</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>    attacker<span class="op">=</span>Attacker(</span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a>        interfaces<span class="op">=</span>[Interface(network<span class="op">=</span><span class="st">"corp"</span>)], entry<span class="op">=</span><span class="st">"assumed-breach"</span></span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </div>
 </section>
 <section id="variables" class="level2">
 <h2 class="anchored" data-anchor-id="variables">Variables</h2>
-<p><code>variables</code> declares values intended to differ between generated instances of the same range: ports, passwords, flag hints. No per-instance values are drawn yet: every variable requires a <code>default</code> and loading substitutes the defaults before validation; the generation layer that would draw differing values is deferred (per-sample secrets come from the challenge plant layer instead; see <a href="./challenges.html">Challenges</a>). References are <code>"{{name}}"</code>: a whole-scalar reference keeps the variable’s type (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in <code>range.yaml</code> (ports, passwords, <code>provisioning</code> <code>vars</code>, prose fields) and only <code>range.yaml</code>: <code>challenges.yaml</code> never substitutes, and a goal reads a variable by name instead (<code>answer</code>’s <code>variable:</code> source). A reference naming no declared variable is a positioned <code>undeclared-variable</code> error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:</p>
+<p><code>variables</code> declares values intended to differ between instances of the same range: ports, passwords, flag hints. Every variable requires a <code>default</code>, and loading substitutes the defaults before validation.</p>
+<p>A variable marked <code>draw: boot</code> also gets a per-sample value, drawn when the sample’s range boots. The draw comes from the declared constraints (<code>port</code> and <code>int</code> from <code>min</code>/<code>max</code>, <code>choice</code> from <code>choices</code>) and never lands on the default. The drawn values are written to <code>/etc/guestd/draws.json</code> in every Linux guest’s cloud-init seed, as a JSON mapping of variable name to value; the agent’s foothold is excluded, since a drawn value is often a challenge’s expected answer. Applying a draw is the range author’s job: a recipe installs a boot unit that reads the file and reconfigures the service (the kypo_demo example moves telnetd to the drawn port this way). Everything else keeps the default: builds substitute defaults, realized images and build keys never change with a draw, and every substituted reference in <code>range.yaml</code> (a declared service port, a recipe <code>vars</code> entry) still reads the default. <code>draw: boot</code> requires type <code>port</code>, <code>int</code> (explicit <code>min</code> and <code>max</code>), or <code>choice</code>; a <code>password</code> variable refuses it (per-sample secrets come from the challenge plant layer; see <a href="./challenges.html">Challenges</a>), and <code>text</code> has no constraints to draw from. An <code>answer</code> goal naming a drawn variable scores the drawn value.</p>
+<p>References are <code>"{{name}}"</code>: a whole-scalar reference keeps the variable’s type (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in <code>range.yaml</code> (ports, passwords, <code>provisioning</code> <code>vars</code>, prose fields) and only <code>range.yaml</code>: <code>challenges.yaml</code> never substitutes, and a goal reads a variable by name instead (<code>answer</code>’s <code>variable:</code> source). A reference naming no declared variable is a positioned <code>undeclared-variable</code> error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset" data-group="definition-language">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-13-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-13-1" role="tab" aria-controls="tabset-13-1" aria-selected="true" href="">YAML</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-13-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-13-2" role="tab" aria-controls="tabset-13-2" aria-selected="false" href="">Python</a></li></ul>
 <div class="tab-content" data-group="definition-language">
@@ -2284,7 +2307,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> randomized</span></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> A randomized service port and a templated credential.</span></span>
 <span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">variables</span><span class="kw">:</span></span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">telnet_port</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> port</span><span class="kw">,</span><span class="at"> </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">1500</span><span class="kw">,</span><span class="at"> </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="dv">2323</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">telnet_port</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> port</span><span class="kw">,</span><span class="at"> </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">1500</span><span class="kw">,</span><span class="at"> </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="dv">2323</span><span class="kw">,</span><span class="at"> </span><span class="fu">draw</span><span class="kw">:</span><span class="at"> boot </span><span class="kw">}</span></span>
 <span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">admin_password</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> password</span><span class="kw">,</span><span class="at"> </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="st">"changeme123!"</span><span class="at"> </span><span class="kw">}</span></span>
 <span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
 <span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> lab</span></span>
@@ -2315,7 +2338,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>        variables<span class="op">=</span>{</span>
 <span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"telnet_port"</span>: Variable(</span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>                <span class="bu">type</span><span class="op">=</span><span class="st">"port"</span>, <span class="bu">min</span><span class="op">=</span><span class="dv">1500</span>, default<span class="op">=</span><span class="dv">2323</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>                <span class="bu">type</span><span class="op">=</span><span class="st">"port"</span>, <span class="bu">min</span><span class="op">=</span><span class="dv">1500</span>, default<span class="op">=</span><span class="dv">2323</span>, draw<span class="op">=</span><span class="st">"boot"</span></span>
 <span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>            ),</span>
 <span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>            <span class="st">"admin_password"</span>: Variable(</span>
 <span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>                <span class="bu">type</span><span class="op">=</span><span class="st">"password"</span>, default<span class="op">=</span><span class="st">"changeme123!"</span></span>

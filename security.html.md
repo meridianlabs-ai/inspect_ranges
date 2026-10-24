@@ -41,6 +41,7 @@ Guest control rides virtio-vsock, not a management network. The rules:
 - The plane is strictly connect-from-host: the in-guest daemon accepts connections only from the host, and no host-side `AF_VSOCK` listeners exist for a compromised guest to dial.
 - Cloud Hypervisor guests are reached over the VMM’s hybrid-vsock Unix socket with the peer-credential check described in [Virtual Machine Monitors](#virtual-machine-monitors).
 - Everything received over the channel comes from guests the agent may have compromised and is treated as untrusted input: strict schema validation, reader-side byte caps, and tamper verdicts for protocol violations an honest endpoint cannot produce (see [the retry contract](./provider.html.md#the-retry-contract)).
+- The [exec witness](./evidence.html.md#the-exec-witness) is guest-tier evidence under the same rule: the pre-compromise exec timeline is immutable once streamed, a root attacker can forge or starve it from the moment the guest falls (visibly, never silently), and nothing scores over it.
 
 In the other direction, in-range defenders can detect everything the agent transmits (that is realism, not a leak), but they cannot observe the agent’s interior, connect to it (standard images ship zero network listeners), or reach the channel controlling it.
 
@@ -57,6 +58,10 @@ Scenario networking and operator containment are different authorities, each wit
 A range that carries [behavioral checks](./building.html.md#behavioral-checks) proves its containment at build time. Before the checks, the proof boot (the build’s second boot of the captured images, where the checks run; see [Behavioral Checks](./building.html.md#behavioral-checks)) runs the `conformance` stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed check, so an uncontained range is never consumable.
 
 The stage’s scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without behavioral checks has no proof boot, so it gets no conformance stage either.
+
+## External Attack Boxes
+
+A deployment may substitute an externally-managed VM for the dedicated attack box ([Attack Box](./attackbox.html.md#external-providers)). The substitution preserves the structural pieces here by construction: the attachment is a tap built inside the range container’s network namespace with its fd handed to the external VMM, so the host netns still carries zero range state, and bridge-side evidence capture still sees every frame the box sends. What changes is whose containment stack holds the agent’s seat: the range then carries the weaker of the two stories, with the [conformance battery](./attackbox.html.md#attackbox-verify) as the proven floor (surface sweep, exec parity, lifecycle) rather than this page’s architecture. The box’s missing console stream is recorded as a declared evidence gap, and `inspect-ranges doctor` carries a standing warning while the provider is configured.
 
 ## Score Integrity
 

@@ -146,12 +146,11 @@ The built range is published to the project catalog, so no build is needed to co
 # task.py
 from inspect_ai import Task, task
 from inspect_ai.agent import react
-from inspect_ai.tool import bash
-
 from inspect_ranges import (
     challenge_dataset,
     challenge_scorer,
     challenge_setup,
+    terminal,
     verify_goal,
 )
 
@@ -161,14 +160,14 @@ def dmz_pivot() -> Task:
     return Task(
         dataset=challenge_dataset("challenges.yaml", range_spec="range.yaml"),
         setup=challenge_setup(),
-        solver=react(tools=[bash(), verify_goal()]),
+        solver=react(tools=[terminal(), verify_goal()]),
         scorer=challenge_scorer(),
         sandbox=("range", "range.yaml"),
     )
 ```
 
 ``` bash
-inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5-5
+inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5 --time-limit 5400
 ```
 
 Images resolve from the published catalog: the hosts boot the `ubuntu-noble` golden and the attacker boots the standard attack image, pulled automatically on first use.

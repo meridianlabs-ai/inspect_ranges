@@ -28,12 +28,12 @@ The standard images publish at the project org, each consumable by bare name (hu
 
 | Name | Contents |
 |----|----|
-| `attack` | The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with an asserted tool contract (below) and a refusal to build if anything listens beyond loopback. A dedicated attack box with no `image:` boots it by default. |
+| `attack` | The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with a build-asserted tool contract and a refusal to build if anything listens beyond loopback (see [Attack Box](./attackbox.html.md#default-image)). A dedicated attack box with no `image:` boots it by default. |
 | `ubuntu-noble` / `ubuntu-focal` | Golden images, published as chains (the image, its provenance sidecar, and the vendor base it derives from), each with the guest control daemon baked in. |
 | `daemon-bundle` | The guest control daemon artifact, for fleets that derive their own goldens: `daemon-bundle --pull` fetches it with no Go toolchain. |
 | `inspect-ranges-range` | The hardened range container, published as a conventional Docker image (consumed as a full Docker ref, not a bare `image:` name) by digest pin (below). |
 
-The attack image’s tool contract is asserted at image build, so [behavioral checks](./building.html.md#behavioral-checks), which run with no egress, may rely on every name here: `nmap`, `ncat`, `socat`, `curl`, `wget`, `tcpdump`, `sqlmap`, `hydra`, `john`, `gobuster`, `ffuf`, `smbclient`, `ldapsearch`, `dig`, `nc`, `msfconsole`, `msfvenom`, the impacket scripts `psexec.py`, `wmiexec.py`, `secretsdump.py`, `GetUserSPNs.py`, `raiseChild.py`, `lookupsid.py`, `atexec.py`, `smbexec.py`, and `mssqlclient.py`, plus `impacket` and `requests` importable from python3 and metasploit at major version 6. A missing tool fails the image build, never an eval. Beyond the contract, `/etc/attack-image.manifest` inside the image records every package and version the feeds actually delivered; read it from a pulled copy without booting anything by finding the cached file with `inspect-ranges images list` and running `virt-cat -a <file> /etc/attack-image.manifest` (`virt-cat` installs with libguestfs-tools, which `doctor` already requires).
+The attack image’s operating system, asserted tool contract, and per-build package manifest are documented on [Attack Box](./attackbox.html.md#default-image).
 
 The goldens are minimal Ubuntu cloud images with nothing enabled beyond the daemon: derivation disables ssh and the systemd-resolved DNS stub listener. A recipe installs and enables whatever its scenario needs; `apt` works, and builds run with network egress so recipes can install packages.
 
@@ -96,7 +96,11 @@ inspect-ranges images pin \
 export INSPECT_RANGES_PIN_FILE=pins.json
 ```
 
-A pinned host lands exactly the recorded root digests and refuses `pin-mismatch` when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: `images refresh <name>`, or regenerating the pin file.
+The environment variable is optional: a `pins.json` at or above the working directory applies automatically, lockfile-style, so a repository that tracks one pairs its source with the catalog state it expects and a fresh clone is pinned with no setup. Set `INSPECT_RANGES_PIN_FILE` to point somewhere else, or to the empty string to run unpinned; a discovered file that does not parse as a pin file refuses rather than silently unpinning.
+
+A pinned host lands exactly the recorded root digests and refuses `pin-mismatch` when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: `images refresh <name>`, or regenerating the pin file. Already-cached images are sticky by contract, so a pin update alone never changes what a build uses; `inspect-ranges build` warns when a cached catalog image’s recorded origin diverges from the pin, naming the refresh command.
+
+Note that pins bind `refresh` too: on a pinned host it re-lands the PINNED root, which is the fleet guarantee working — and exactly what you do not want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with `INSPECT_RANGES_PIN_FILE=` set empty.
 
 ### Locked-Down Host
 

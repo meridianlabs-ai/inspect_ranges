@@ -73,7 +73,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
 <link href="./examples/dmz_pivot.html" rel="next">
-<link href="./provider.html" rel="prev">
+<link href="./attackbox.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -212,6 +212,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="./provider.html">
  <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./attackbox.html">
+ <span class="dropdown-text">Attack Box</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./cli.html">
@@ -395,6 +399,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./provider.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./attackbox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Attack Box</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -698,6 +708,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
  <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#terminal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">terminal</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1413,7 +1429,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>up</code> realizes cold-boot bundles only: checkpoint instantiation is planned later work. <code>provisioning</code>, <code>services</code>, and <code>vulnerabilities</code> realize through <a href="./building.html"><code>build</code></a>: a range declaring them refuses every content-consuming verb (<code>range-not-built</code>) until a matching build manifest exists, and boots its captured realized images once one does. <code>users</code>, <code>misconfigurations</code>, and <code>data</code> realize through <code>build</code> like the content sections, as do <code>roles</code>, <code>defense</code>, Active Directory, and telemetry-bearing postures; <code>scheduled_activity</code> still validates but refuses at planning until its support lands, so nothing boots with silently missing content. Windows guests are first-class (goldens derive locally with <code>images derive-windows</code>). Bundles are trusted operator input: verification proves integrity, not provenance (bundle signing is planned as part of image-distribution work).</p>
+<p><code>up</code> realizes cold-boot bundles only: checkpoint instantiation is planned later work. <code>provisioning</code>, <code>services</code>, and <code>vulnerabilities</code> realize through <a href="./building.html"><code>build</code></a>: a range declaring them refuses every content-consuming verb (<code>range-not-built</code>) until a matching build manifest exists, and boots its captured realized images once one does. <code>users</code>, <code>misconfigurations</code>, and <code>data</code> realize through <code>build</code> like the content sections, as do <code>roles</code>, <code>defense</code>, Active Directory, telemetry-bearing postures, and <code>scheduled_activity</code> (installed as persistent units in the captured images), so nothing boots with silently missing content. Windows guests are first-class (goldens derive locally with <code>images derive-windows</code>). Bundles are trusted operator input: verification proves integrity, not provenance (bundle signing is planned as part of image-distribution work).</p>
 </div>
 </div>
 
@@ -1935,8 +1951,8 @@ document.addEventListener("DOMContentLoaded", function () {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./provider.html" class="pagination-link" aria-label="Range Sandbox">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Range Sandbox</span>
+      <a href="./attackbox.html" class="pagination-link" aria-label="Attack Box">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Attack Box</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
