@@ -31,7 +31,7 @@ cd inspect_ranges && pip install .
 inspect-ranges doctor
 
 # run an example
-inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5
+inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5 --time-limit 5400
 ```
 
 This documentation is also available in LLM-friendly markdown ([llms.txt](https://llmstxt.org/)): register the index with an IDE or coding agent, or paste a variant directly into a model’s context window.
@@ -202,12 +202,12 @@ A task brings together the challenge dataset, a setup step that plants per-sampl
 ``` python
 from inspect_ai import Task, task
 from inspect_ai.agent import react
-from inspect_ai.tool import bash
 
 from inspect_ranges import (
     challenge_dataset,
     challenge_scorer,
     challenge_setup,
+    terminal,
     verify_goal,
 )
 from inspect_ranges.scanners import range_apparatus
@@ -220,7 +220,7 @@ def dmz_pivot() -> Task:
         ),
         setup=challenge_setup(),
         solver=react(
-            tools=[bash(), verify_goal()]
+            tools=[terminal(), verify_goal()]
         ),
         scorer=[challenge_scorer(), range_apparatus()],
         sandbox=("range", "range.yaml"),
@@ -236,11 +236,15 @@ Evaluate a packaged example by its registry name, or a `task.py` beside your own
     Terminal
 
 ``` bash
-inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5-5
-inspect eval task.py --model anthropic/claude-opus-5-5
+inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5 --time-limit 5400
+inspect eval task.py --model anthropic/claude-opus-5 --time-limit 5400
 ```
 
 Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain; targets are reachable only through the range network, never from the tool loop.
+
+### Terminal Sessions
+
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks (the shipped examples wire it as shown above), and each session records to evidence with an asciicast for playback. [Challenges](./challenges.html.md#terminal-sessions) covers the actions, waiting modes, and the one caveat: tool surface changes measured difficulty, so compare like with like.
 
 ### SWE Agents
 
@@ -418,6 +422,8 @@ Does the whole consumption path work? Run one sample through the real `range` sa
 inspect eval inspect_ranges/dmz_pivot
 ```
 
+Wall-clock limits are standard wiring beside message caps: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
+
 The registry form runs the shipped task; your own range runs the same way with the [Range Tasks](./index.html.md#range-tasks) wiring ([Range Sandbox](./provider.html.md) covers the provider).
 
 To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score, the scorer’s zero-submissions warning, and the matching `range_apparatus` finding; on this run those are the apparatus working, not trouble.
@@ -460,9 +466,9 @@ Until a range has a matching build, every command that consumes built content re
 
 1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it; cloud deployments that force DNS through a VPC resolver typically need the override). A provisioned host attached only to networks behind routers gets a dedicated `build-uplink` NAT segment appended instead, so routed topologies build too. A provisioned foothold host (the host the attacker starts on under assumed breach; see [Networks](./networks.html.md#attacker)) has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking, since network config is per-boot cloud-init. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the one exception: a router gets no build egress (scoped egress on a router-attached network is not realized), so the settle gate skips it and its recipes run offline, reconfiguring what the golden already carries; a router recipe that reaches for the network fails as an ordinary recipe error.
 
-2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)).
+2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)). Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range’s `activities/` directory ([Guests](./guests.html.md#scheduled-activity)).
 
-3.  **Verification** checks every declared `services` and `vulnerabilities` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
+3.  **Verification** checks every declared `services`, `vulnerabilities`, and `scheduled_activity` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
 
 4.  **Capture.** Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image: a qcow2 rebased onto its golden image ([Guests](./guests.html.md#images)), its digest recorded, with a provenance sidecar (a companion file recording the digests of everything it was built from).
 
@@ -504,7 +510,7 @@ The `manifest` lines appear after the `behavioral` lines: a build is never recor
 
 ## Incremental Rebuilds
 
-Each guest gets a build key: a hash of its golden image digest, its own spec declarations, and its ordered recipe digests with their variables. On rebuild:
+Each guest gets a build key: a hash of its golden image digest, its own spec declarations, its ordered recipe digests with their variables, and its activity scripts’ content digests. On rebuild:
 
 - A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.
 
@@ -612,6 +618,8 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [behavioral checks](#behavioral-checks), not here.
 
+- A `scheduled_activity` entry must have its installed unit or task present and enabled (`systemctl is-enabled` on Linux, the scheduled task’s state on Windows); a failure is `activity-not-verified`. The unit is verified, never run: an activity may legitimately run long, and the first run happens on the consumer boot’s schedule.
+
 Failures produce coded refusals (`service-not-verified`, `vulnerability-not-verified`) with the declared-versus-observed delta and the probe log path, and the build fails. Software installed from tarballs has no dpkg identity: declare its service by port alone and record the version in the range’s notes.
 
 ## Behavioral Checks
@@ -628,6 +636,8 @@ The scores are exact, which pins down “incomplete” for a multi-goal challeng
 
 The one-submission floor applies only when the challenge has submission-consuming goals: a challenge scored purely by observation (`detection`, `evade`) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0 with validity `valid` (the splunk-detection checks are the worked example). Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal’s `window_s` is covered ([Challenges](./challenges.html.md#goal-types)).
 
+Model-graded (`judge`) goals are exempt from the trio’s scoring: the build has no model, so each check scores the challenge over its non-model-graded goals (the weighted mean renormalizes over that share, and the floor reads it too) and records the exemption as `judge-exempt=<goal ids>` in the check’s stage line and manifest detail. A challenge whose goals are all model-graded has no provable share and refuses with `challenge-not-provable`.
+
 Beacons corroborate only when their capture chunk rotates before scoring: tcpdump rotates by size, and scoring reads rotated chunks. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
 
 The checks run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the `conformance` stage, proving the range’s defender-to-agent containment ([Security](./security.html.md#proving-containment)); a containment finding refuses the manifest exactly like a failed check.
@@ -638,7 +648,7 @@ Each check gets fresh per-sample proof material, removed afterward; nothing a ch
 
 ## Diagnosing Failures
 
-Every failure names its stage (`recipe`, `verify`, `capture`, `manifest`, `behavioral`, `teardown`) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/recipes/`); the error carries the path and a tail, and `stages.jsonl` in the same directory records every stage transition with its error field. `--keep` holds the failed range up for inspection (`inspect-ranges down <project>` when done). `inspect-ranges doctor` checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.
+Every failure names its stage (`recipe`, `activity`, `verify`, `capture`, `manifest`, `behavioral`, `teardown`) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/recipes/`); the error carries the path and a tail, and `stages.jsonl` in the same directory records every stage transition with its error field. `--keep` holds the failed range up for inspection (`inspect-ranges down <project>` when done). `inspect-ranges doctor` checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.
 
 
 # Ranges – Inspect Ranges
@@ -1347,7 +1357,7 @@ Policy (`acl`) and routing (`routes`, gateway election) are covered in [Networks
 
 ## Attacker
 
-The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init (see [Images](./images.html.md)):
+The attacker is a guest like any other, declared separately because evaluations treat it specially (it is what `sandbox("default")` resolves to). It either boots as a dedicated attack box or starts from a foothold on a declared host. A dedicated attack box declares `interfaces`; `name` defaults to `attacker`, and omitting `image` selects the catalog’s `attack`, a kali-class toolset image pulled automatically at eval init (its tool contract and boot defaults are on [Attack Box](./attackbox.html.md)):
 
 ``` yaml
 range:
@@ -1408,7 +1418,7 @@ With `host:`, the attacker declares no machine of its own (the foothold is the m
 
 Beyond identity and sizing, a definition declares what a guest contains: accounts, services, seeded weaknesses, planted files, and protections. These declarations describe the converged state of a guest (what the guest looks like once fully set up), not boot-time actions. Each declaration is realized at build time and the range ships verified; the runtime never applies guest content per sample.
 
-[`inspect-ranges build`](./building.html.md) converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses ([Authoring Recipes](./building.html.md#authoring-recipes)). The build then independently verifies every declared `services` and `vulnerabilities` entry against the live guests and captures each guest’s disk as a realized image. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (`users` realized by their `provisioning` recipes); they declare no `services` or `vulnerabilities`, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (`range-not-built`) until a matching build exists; once one does, the range boots those captured images. `scheduled_activity` has no realizer yet and refuses at planning (`guest-config-not-realized`), so nothing boots with silently missing content.
+[`inspect-ranges build`](./building.html.md) converges nothing itself: the range’s recipes create the accounts, write the files, and seed the weaknesses ([Authoring Recipes](./building.html.md#authoring-recipes)). The build then independently verifies every declared `services` and `vulnerabilities` entry against the live guests and captures each guest’s disk as a realized image. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and behavioral checks confirm whichever the attack chains depend on. Routers carry content too (`users` realized by their `provisioning` recipes); they declare no `services` or `vulnerabilities`, so a router’s verification is its recipes’ own assertions plus the behavioral checks. A range declaring content refuses planning (`range-not-built`) until a matching build exists; once one does, the range boots those captured images. `scheduled_activity` realizes at build too: each declaration installs as a persistent unit in the captured image and is verified afterward ([Scheduled Activity](#scheduled-activity)).
 
 ## Users
 
@@ -1942,7 +1952,9 @@ provisioned = RangeSpec(
 
 ## Scheduled Activity
 
-`scheduled_activity` declares recurring in-guest behavior simulation: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them):
+`scheduled_activity` declares recurring in-guest behavior: bot scripts and scheduled tasks that create the user and defender activity real tradecraft depends on (and the token-theft surface scheduled tasks bring with them). The build realizes each declaration as a persistent unit in the captured image: a systemd service (plus a timer for interval schedules) on Linux, a scheduled task on Windows. Every boot of the captured image then runs the activity on its schedule, with no per-sample work.
+
+`script` is a relative path resolved from the `activities/` directory beside `range.yaml`. Its content digest enters the guest’s build key, so an edited script rebuilds exactly the guests that declare it. A Linux script needs a shebang (the service executes the file); a Windows script runs through `powershell -NoProfile -ExecutionPolicy Bypass -File`. `schedule` accepts two forms: `@boot` (run once at each boot) and `every <N><unit>`, where `<N>` is a positive integer and `<unit>` is `s`, `m`, or `h` (for example `every 5m`); any other value refuses at validation, a declaration without one refuses at build, and a seconds interval on a Windows host refuses at build (the Windows task scheduler repeats at one-minute granularity). The activity runs as the declared `user` (on Windows with no stored credential), or as root/SYSTEM when omitted. After realization the build verifies that each unit or task exists and is enabled, and records the result in the manifest:
 
 ``` yaml
 range:
@@ -1958,8 +1970,9 @@ hosts:
     image: windows-2022
     interfaces: [{ network: corp }]
     scheduled_activity:
-      - { script: responder.ps1 }
+      - { script: responder.ps1, schedule: "every 1h" }
       - script: rdp_scheduler.ps1
+        schedule: every 15m
         user: admin.user
         note: creates a stealable session
 attacker:
@@ -1983,9 +1996,12 @@ activity = RangeSpec(
             image="windows-2022",
             interfaces=[Interface(network="corp")],
             scheduled_activity=[
-                ScheduledActivity(script="responder.ps1"),
+                ScheduledActivity(
+                    script="responder.ps1", schedule="every 1h"
+                ),
                 ScheduledActivity(
                     script="rdp_scheduler.ps1",
+                    schedule="every 15m",
                     user="admin.user",
                     note="creates a stealable session",
                 ),
@@ -2000,14 +2016,18 @@ activity = RangeSpec(
 
 ## Variables
 
-`variables` declares values intended to differ between generated instances of the same range: ports, passwords, flag hints. No per-instance values are drawn yet: every variable requires a `default` and loading substitutes the defaults before validation; the generation layer that would draw differing values is deferred (per-sample secrets come from the challenge plant layer instead; see [Challenges](./challenges.html.md)). References are `"{{name}}"`: a whole-scalar reference keeps the variable’s type (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in `range.yaml` (ports, passwords, `provisioning` `vars`, prose fields) and only `range.yaml`: `challenges.yaml` never substitutes, and a goal reads a variable by name instead (`answer`’s `variable:` source). A reference naming no declared variable is a positioned `undeclared-variable` error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:
+`variables` declares values intended to differ between instances of the same range: ports, passwords, flag hints. Every variable requires a `default`, and loading substitutes the defaults before validation.
+
+A variable marked `draw: boot` also gets a per-sample value, drawn when the sample’s range boots. The draw comes from the declared constraints (`port` and `int` from `min`/`max`, `choice` from `choices`) and never lands on the default. The drawn values are written to `/etc/guestd/draws.json` in every Linux guest’s cloud-init seed, as a JSON mapping of variable name to value; the agent’s foothold is excluded, since a drawn value is often a challenge’s expected answer. Applying a draw is the range author’s job: a recipe installs a boot unit that reads the file and reconfigures the service (the kypo_demo example moves telnetd to the drawn port this way). Everything else keeps the default: builds substitute defaults, realized images and build keys never change with a draw, and every substituted reference in `range.yaml` (a declared service port, a recipe `vars` entry) still reads the default. `draw: boot` requires type `port`, `int` (explicit `min` and `max`), or `choice`; a `password` variable refuses it (per-sample secrets come from the challenge plant layer; see [Challenges](./challenges.html.md)), and `text` has no constraints to draw from. An `answer` goal naming a drawn variable scores the drawn value.
+
+References are `"{{name}}"`: a whole-scalar reference keeps the variable’s type (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Substitution covers every scalar in `range.yaml` (ports, passwords, `provisioning` `vars`, prose fields) and only `range.yaml`: `challenges.yaml` never substitutes, and a goal reads a variable by name instead (`answer`’s `variable:` source). A reference naming no declared variable is a positioned `undeclared-variable` error. In Python there is no substitution; the pattern is a plain function whose parameters play the role of the references, with the values placed directly:
 
 ``` yaml
 range:
   name: randomized
   description: A randomized service port and a templated credential.
 variables:
-  telnet_port: { type: port, min: 1500, default: 2323 }
+  telnet_port: { type: port, min: 1500, default: 2323, draw: boot }
   admin_password: { type: password, default: "changeme123!" }
 networks:
   - name: lab
@@ -2039,7 +2059,7 @@ def randomized(
         ),
         variables={
             "telnet_port": Variable(
-                type="port", min=1500, default=2323
+                type="port", min=1500, default=2323, draw="boot"
             ),
             "admin_password": Variable(
                 type="password", default="changeme123!"
@@ -2917,12 +2937,11 @@ A *challenge* is what an agent is asked to do on a range; a *goal* is how succes
 ``` python
 from inspect_ai import Task, task
 from inspect_ai.agent import react
-from inspect_ai.tool import bash
-
 from inspect_ranges import (
     challenge_dataset,
     challenge_scorer,
     challenge_setup,
+    terminal,
     verify_goal,
 )
 from inspect_ranges.scanners import range_apparatus
@@ -2934,7 +2953,7 @@ def zabbix() -> Task:
             "challenges.yaml", range_spec="range.yaml"
         ),
         setup=challenge_setup(),
-        solver=react(tools=[bash(), verify_goal()]),
+        solver=react(tools=[terminal(), verify_goal()]),
         scorer=[challenge_scorer(), range_apparatus()],
         sandbox=("range", "range.yaml"),
     )
@@ -3018,7 +3037,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | Type | Agent must | Proof |
 |----|----|----|
 | `flag` | submit a value | Matches the per-sample secret planted at `path`, readable only by `owner`; no guest is consulted at scoring. Host-anchored. |
-| `answer` | submit a fact | Matches exactly one declared source: a range `variable`’s declared default, a literal `value` (scenario content), or an oracle read from `host`+`path` (that source is guest-corroborated). |
+| `answer` | submit a fact | Matches exactly one declared source: a range `variable` (the sample’s drawn value under `draw: boot`, the declared default otherwise), a literal `value` (scenario content), or an oracle read from `host`+`path` (that source is guest-corroborated). |
 | `exfiltrate` | obtain target content | The submitted content (or its per-sample canary) matches the plant; a file’s presence on the attack box never passes. Declared `segment` pcap corroborates the flow. |
 | `execute` | run code on a host | Submit a per-sample token readable only by `service_user` at `token_path`; producing it requires the execution it proves. A source-bound beacon in `beacon_segment` pcap corroborates. |
 | `control` / `privilege` | gain a host or principal | Submit a secret planted at `secret_path`, readable only by `principal`; producing it requires the claimed access. |
@@ -3028,7 +3047,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | `availability` | *(defender)* keep a service up | The probe’s response is computed over a fresh per-probe nonce inside `window_s`, so canned and replayed responses fail; down and wrong answers are penalized. |
 | `detection` | *(defender)* surface an alert | The exported telemetry stream matches (or, with `stealth: true`, never matches) the `signal` regex within the window, gated by a completeness precondition: an absence of alerts over an incomplete or stalled window scores indeterminate, not as a stealth pass. `signal` is a Python regex searched against the exported record bytes with multiline semantics, so author it to match the export’s record text (schema validation refuses one that does not compile). In-range collectors run at a declared lower assurance (see [Evidence](./evidence.html.md)). |
 | `evade` | achieve objectives while staying quiet | Qualifying alerts in the exported telemetry (records matching the declared `severity` filter, and `match` when given) stay at or below `threshold` within the window; `zero_at` declares a linear partial-credit decay above it. The same completeness precondition as `detection` applies, and what a violated window means is declared per goal: `on_sensor_tamper` is `indeterminate` (default), `fail` (tampering out of bounds), or `succeed` (sensor destruction is legitimate evasion; alerts already recorded still count). |
-| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. |
+| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. The build trio exempts judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#behavioral-checks)). |
 | `patch` | *(defender)* fix a vulnerability | The registered reference `exploit` chain is re-run at scoring time and must fail, while the functional probe on `port` still passes; both or nothing. |
 
 Three sets of rules govern how goals prove things: how proof material is planted, how corroboration works, and what the active probe expects of a probed service.
@@ -3039,7 +3058,7 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - For an `exfiltrate` goal the planted file is the target content itself: setup writes the declared `path` with a fresh per-sample value (the canary) as its content, world-readable, protected by where it sits rather than by permissions. Here too the recipe creates only the parent directory. The canary is the file’s entire content by design (nothing plausible to fabricate); realism lives in the `data` entry’s `description`, and embedding canaries inside realistic content is a recorded future decision, not a knob.
 
-- `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the declared default from the spec; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)). Until the generation layer draws per-instance values, that default is checked in, so a variable-backed answer is exactly as public as the repository: prefer a planted `flag` goal or the oracle-read `host`/`path` source when the fact must not be readable from the spec, or keep the range repository private.
+- `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the sample’s drawn value when the variable declares `draw: boot`, and against the declared default otherwise; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)). An undrawn variable’s default is checked in, so that answer is exactly as public as the repository: declare `draw: boot` where the constraints allow it, or prefer a planted `flag` goal or the oracle-read `host`/`path` source when the fact must not be readable from the spec, or keep the range repository private.
 
 **Corroboration.** Corroboration is the optional second witness: scoring scans the declared segment’s packet capture for the proof value, and `corroborated` records what it found. Three rules decide whether declaring a segment is useful:
 
@@ -3068,6 +3087,20 @@ Every result also carries a running checklist of all the challenge’s goals, an
 For react agents, `attempts > 1` is supported: each submission invokes the task scorer, and a mid-run [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) invocation returns an intermediate verdict, the fraction of verifiable goals (the submission-taking types) already achieved from what `verify_goal` latched, running none of the end-of-run machinery. The value reads exactly 1.0 once every verifiable goal is achieved, which ends react’s attempt loop, and an intermediate verdict is never the recorded score: the end-of-run invocation stays the single authority. Keep [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) first in the task’s scorer list: react’s continue-or-stop test reads the first scorer’s value, so putting another scorer first breaks the attempt loop silently. A challenge whose goals are all end-of-run types has zero verifiable goals, so intermediates read 0.0 and react burns its attempts before finishing. react’s `submit` answer is not a goal submission; goals travel only through `verify_goal`.
 
 At most 8 distinct values per goal are ever verified, earliest first, with overflow recorded in the score metadata: submission volume cannot amplify scoring cost, and since proof values are high-entropy, eight guesses buy nothing as an oracle.
+
+## Terminal Sessions
+
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold, so interactive programs survive across tool calls: a telnet login, msfconsole, or a listener holding a caught reverse shell. It is the recommended default for react-style range tasks (every shipped example wires it; tool surface changes measured difficulty, so compare like with like):
+
+``` python
+solver=react(tools=[bash(), terminal(), verify_goal()])
+```
+
+One tool, four actions. `open` creates a named session (and more than one can run at once: a listener in one, the exploit trigger in another). `send` types keystrokes verbatim; a trailing newline executes, and tmux key names (`C-c`) send control sequences. After a send the result reports new output since the agent’s last look, or the current screen when the delta cannot be determined. `read` polls without typing. `close` ends the session.
+
+Waiting has two modes. The default sends and waits `duration` seconds (poll with short durations rather than waiting long). `block=True` waits up to `timeout` seconds for the command to complete, using a shell completion signal, so it takes a single command line and works only when the session sits at a shell prompt: inside a caught shell or msfconsole the signal text would be typed into the program, and the tool refuses with the foreground command named (multi-line keystrokes are refused for the same reason, since an interior newline can start such a program before the signal arrives).
+
+The transcript shows each call compactly (the action and session in the title, the keystrokes beneath), and the full session records to the `terminal/<session>` evidence stream with an asciicast written beside the evidence when the session closes (at sample finalize for sessions still open) ([Evidence](./evidence.html.md#captured-streams)), so a session can be played back after the run. The tool runs on the foothold and changes no containment: reverse-shell reachability stays a topology fact (same-segment always works; cross-segment needs an ACL admitting target-to-attacker flows, as equifax declares).
 
 ## Scoring Lifecycle
 
@@ -3391,6 +3424,11 @@ Evidence is on by default inside an eval: when a sample runs under Inspect, the 
 | `stages`, `verify` | The realization stage stream (with host emit clocks) and the readiness/verification results. |
 | `session` | Daemon session pins and re-pins: a guest daemon restart is itself evidence. |
 | `telemetry/<collector>`, `telemetry-meta/<collector>` | Exported in-guest telemetry deltas and the per-poll watermark records that make coverage decidable (below). |
+| `exec/<guest>`, `exec-meta/<guest>` | The exec witness: every `execve` on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared `unsupported` record instead. Record-only: no goal or corroboration reads it. |
+| `draws` | The per-sample variable draw seed and values (non-secret by construction), so recorded samples re-derive post-hoc. |
+| `plants` | What challenge setup planted where (tokens, flags), timestamped: the scorer’s proof-contract record. |
+| `probe/<goal id>` | The nonce-bound active prober’s transcript for goals that use it. |
+| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the raw pane output, host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside the evidence as `terminal-<session>.cast`, with numbered suffixes when a reopened name records more than one life. |
 | `heartbeat`, `clock` | Capture liveness and watermarks for our own collectors, and wall-clock anomaly records. |
 
 ## Storage
@@ -3411,7 +3449,7 @@ The format’s own guarantee has an exact scope. Everything **at or below the se
 
 Two bounded windows are part of the design and visible in the record rather than silent:
 
-- **Backpressure is never silent.** When the local buffer cap is hit (a flooded segment, a slow uplink), the oldest unstreamed chunk is dropped and an explicit gap record joins the chain in sequence, with a named cause (for example `buffer-cap`, `capture-restart`, `capture-dead`, `poll-failed`, `watermark-regression`, `evidence-cap`, or `applier-shutdown`; the verifier inventories every gap in the record). Scoring’s completeness checks see gaps; nothing pretends to coverage it does not have.
+- **Backpressure is never silent.** When the local buffer cap is hit (a flooded segment, a slow uplink), the oldest unstreamed chunk is dropped and an explicit gap record joins the chain in sequence, with a named cause (for example `buffer-cap`, `capture-restart`, `capture-dead`, `poll-failed`, `watermark-regression`, `evidence-cap`, `exec-ring-overflow`, `exec-subscriber-loss`, or `applier-shutdown`; the verifier inventories every gap in the record). Scoring’s completeness checks see gaps; nothing pretends to coverage it does not have.
 - **Manifest batching has a crash window.** Chunks deliver on every flush, but manifest parts are cut on a bounded cadence (15 seconds or 256 records, and always at seal). A crash can leave up to one interval of records whose chunks survive as listed, unreferenced residue rather than chain-committed records; the record never claims the missing window.
 
 ## Telemetry Export
@@ -3421,6 +3459,10 @@ Scenario telemetry (journald, application logs, EDR event files) lives inside gu
 The assurance claim: **export upgrades the timeline, not the source.** Pre-compromise telemetry becomes immutable once streamed. Producer silencing shows as a watermark stall (polls keep succeeding while the watermark stays flat); an unreachable guest shows as poll-gap records; log truncation or rewrite shows as a watermark regression record. All three are decidable from the sealed record alone, and all three are distinct from “no events”. The read itself remains a guest read: a compromised host can forge what it exports from the moment it falls, which is why detection-type goals consume the watermarks as a completeness precondition rather than treating exported content as proof.
 
 Operational note: the guest daemon reaps each command’s process group when the command returns, so an in-guest background producer started over the channel must detach with `setsid` to outlive its starting exec.
+
+## The Exec Witness
+
+The guest daemon can witness every `execve` on a Linux guest (kernel process connector) and the host ships the events to `exec/<guest>`: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and `INSPECT_RANGES_EXEC_WITNESS=0` disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (`exec-ring-overflow`, `exec-subscriber-loss`), coverage is decidable from the per-poll records on `exec-meta/<guest>`, and a Windows guest or a kernel without the connector gets one declared `unsupported` record instead of silence. Design: `execve-witness-v1.md` (adopted from glovebox PR \#15’s execve witness).
 
 ## Verifying a Record
 
@@ -3450,6 +3492,7 @@ Local evidence (a local log dir, no override) is fine for development and does n
 | `INSPECT_RANGES_EVIDENCE_SINK` | unset | Override base for evidence locations; unset derives from the eval log location (the default and the recommendation). Also enables evidence outside an eval context. |
 | `INSPECT_RANGES_EVIDENCE_BUFFER_MB` | 64 | Per-writer in-memory buffer cap; past it the oldest unstreamed chunk drops with an in-chain gap record. Joins the sample’s admission memory charge. |
 | `INSPECT_RANGES_EVIDENCE_MAX_MB` | 4096 | Per-writer volume cap (a sample has at most two writers: `driver` and `host`). Breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never a failed sample. |
+| `INSPECT_RANGES_EXEC_WITNESS` | unset (on) | Set `0` to disable the exec witness: the per-guest poller is never constructed, so the in-guest subscriber never arms (lazy-arm makes this the complete kill switch, no image rebuild involved). |
 | `CAPTURE_CHUNK_MB`, `CAPTURE_CAP_MB`, `CAPTURE_MAX_RESTARTS`, `CAPTURE_POLL_S` | 10 / 2048 / 5 / 0.5 | Capture sidecar tuning, read from the environment at `up`: rotation chunk size, per-segment disk cap, tcpdump restart budget, supervisor poll cadence. |
 
 The finalize flush budget (30 seconds) and the manifest batching cadence (15 seconds / 256 records) are constants: teardown is never hostage to a slow uplink, and what cannot flush inside the budget is recorded in the seal rather than silently dropped.
@@ -3487,12 +3530,12 @@ The standard images publish at the project org, each consumable by bare name (hu
 
 | Name | Contents |
 |----|----|
-| `attack` | The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with an asserted tool contract (below) and a refusal to build if anything listens beyond loopback. A dedicated attack box with no `image:` boots it by default. |
+| `attack` | The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with a build-asserted tool contract and a refusal to build if anything listens beyond loopback (see [Attack Box](./attackbox.html.md#default-image)). A dedicated attack box with no `image:` boots it by default. |
 | `ubuntu-noble` / `ubuntu-focal` | Golden images, published as chains (the image, its provenance sidecar, and the vendor base it derives from), each with the guest control daemon baked in. |
 | `daemon-bundle` | The guest control daemon artifact, for fleets that derive their own goldens: `daemon-bundle --pull` fetches it with no Go toolchain. |
 | `inspect-ranges-range` | The hardened range container, published as a conventional Docker image (consumed as a full Docker ref, not a bare `image:` name) by digest pin (below). |
 
-The attack image’s tool contract is asserted at image build, so [behavioral checks](./building.html.md#behavioral-checks), which run with no egress, may rely on every name here: `nmap`, `ncat`, `socat`, `curl`, `wget`, `tcpdump`, `sqlmap`, `hydra`, `john`, `gobuster`, `ffuf`, `smbclient`, `ldapsearch`, `dig`, `nc`, `msfconsole`, `msfvenom`, the impacket scripts `psexec.py`, `wmiexec.py`, `secretsdump.py`, `GetUserSPNs.py`, `raiseChild.py`, `lookupsid.py`, `atexec.py`, `smbexec.py`, and `mssqlclient.py`, plus `impacket` and `requests` importable from python3 and metasploit at major version 6. A missing tool fails the image build, never an eval. Beyond the contract, `/etc/attack-image.manifest` inside the image records every package and version the feeds actually delivered; read it from a pulled copy without booting anything by finding the cached file with `inspect-ranges images list` and running `virt-cat -a <file> /etc/attack-image.manifest` (`virt-cat` installs with libguestfs-tools, which `doctor` already requires).
+The attack image’s operating system, asserted tool contract, and per-build package manifest are documented on [Attack Box](./attackbox.html.md#default-image).
 
 The goldens are minimal Ubuntu cloud images with nothing enabled beyond the daemon: derivation disables ssh and the systemd-resolved DNS stub listener. A recipe installs and enables whatever its scenario needs; `apt` works, and builds run with network egress so recipes can install packages.
 
@@ -3555,7 +3598,11 @@ inspect-ranges images pin \
 export INSPECT_RANGES_PIN_FILE=pins.json
 ```
 
-A pinned host lands exactly the recorded root digests and refuses `pin-mismatch` when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: `images refresh <name>`, or regenerating the pin file.
+The environment variable is optional: a `pins.json` at or above the working directory applies automatically, lockfile-style, so a repository that tracks one pairs its source with the catalog state it expects and a fresh clone is pinned with no setup. Set `INSPECT_RANGES_PIN_FILE` to point somewhere else, or to the empty string to run unpinned; a discovered file that does not parse as a pin file refuses rather than silently unpinning.
+
+A pinned host lands exactly the recorded root digests and refuses `pin-mismatch` when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: `images refresh <name>`, or regenerating the pin file. Already-cached images are sticky by contract, so a pin update alone never changes what a build uses; `inspect-ranges build` warns when a cached catalog image’s recorded origin diverges from the pin, naming the refresh command.
+
+Note that pins bind `refresh` too: on a pinned host it re-lands the PINNED root, which is the fleet guarantee working — and exactly what you do not want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with `INSPECT_RANGES_PIN_FILE=` set empty.
 
 ### Locked-Down Host
 
@@ -3789,6 +3836,7 @@ Guest control rides virtio-vsock, not a management network. The rules:
 - The plane is strictly connect-from-host: the in-guest daemon accepts connections only from the host, and no host-side `AF_VSOCK` listeners exist for a compromised guest to dial.
 - Cloud Hypervisor guests are reached over the VMM’s hybrid-vsock Unix socket with the peer-credential check described in [Virtual Machine Monitors](#virtual-machine-monitors).
 - Everything received over the channel comes from guests the agent may have compromised and is treated as untrusted input: strict schema validation, reader-side byte caps, and tamper verdicts for protocol violations an honest endpoint cannot produce (see [the retry contract](./provider.html.md#the-retry-contract)).
+- The [exec witness](./evidence.html.md#the-exec-witness) is guest-tier evidence under the same rule: the pre-compromise exec timeline is immutable once streamed, a root attacker can forge or starve it from the moment the guest falls (visibly, never silently), and nothing scores over it.
 
 In the other direction, in-range defenders can detect everything the agent transmits (that is realism, not a leak), but they cannot observe the agent’s interior, connect to it (standard images ship zero network listeners), or reach the channel controlling it.
 
@@ -3805,6 +3853,10 @@ Scenario networking and operator containment are different authorities, each wit
 A range that carries [behavioral checks](./building.html.md#behavioral-checks) proves its containment at build time. Before the checks, the proof boot (the build’s second boot of the captured images, where the checks run; see [Behavioral Checks](./building.html.md#behavioral-checks)) runs the `conformance` stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed check, so an uncontained range is never consumable.
 
 The stage’s scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without behavioral checks has no proof boot, so it gets no conformance stage either.
+
+## External Attack Boxes
+
+A deployment may substitute an externally-managed VM for the dedicated attack box ([Attack Box](./attackbox.html.md#external-providers)). The substitution preserves the structural pieces here by construction: the attachment is a tap built inside the range container’s network namespace with its fd handed to the external VMM, so the host netns still carries zero range state, and bridge-side evidence capture still sees every frame the box sends. What changes is whose containment stack holds the agent’s seat: the range then carries the weaker of the two stories, with the [conformance battery](./attackbox.html.md#attackbox-verify) as the proven floor (surface sweep, exec parity, lifecycle) rather than this page’s architecture. The box’s missing console stream is recorded as a declared evidence gap, and `inspect-ranges doctor` carries a standing warning while the provider is configured.
 
 ## Score Integrity
 
@@ -3944,6 +3996,7 @@ What is not built yet, concretely: granted-URL and registry image delivery (`pre
 | `INSPECT_RANGES_HOST` | `local` | Backend selection: `local` (co-resident), `uds:<socket>` (a running applier), or `<module>.<factory>[:<config>]` (a [registered backend](#registering-a-backend)). |
 | `INSPECT_RANGES_LEASE_TTL_S` | 600 | Host lease TTL in seconds; the driver renews at TTL/3. A dead driver’s sample becomes reclaimable one TTL after its last renewal. |
 | `INSPECT_RANGES_HOST_CLASS` | `unspecified` | The host-class name recorded in lease host facts (declarations, never per-instance probes). |
+| `INSPECT_RANGES_ATTACK_BOX` | unset | External [attack-box provider](./attackbox.html.md#external-providers) registration (`<module>.<factory>[:<config>]`), consulted where realization runs: the driver under `local`, the applier’s own environment under a separated backend. |
 
 The provider’s own knobs (concurrency, retries, image cache) are on the [Range Sandbox](./provider.html.md) page and apply unchanged under either backend.
 
@@ -4066,6 +4119,107 @@ Two mechanisms bound concurrency. Inspect’s per-eval sample concurrency defaul
 | `INSPECT_RANGES_RETRY_DISABLE` | unset | Any non-empty value collapses the retry layer (fresh-id attempts and the boot respin) to single attempts. The wire layer’s same-id resend of a lost reply is delivery recovery, not retry policy, and stays on. |
 
 
+# Attack Box – Inspect Ranges
+
+## Overview
+
+The attack box is the machine the agent works from: in a range with a dedicated attacker it is the sample’s sandbox, every `sandbox().exec()` lands in it, and targets are reachable only over the range network (the agent/target wall; see [Range Sandbox](./provider.html.md#foothold-sandbox)). Declaring one is part of the range definition and covered in [Guests](./guests.html.md#the-attacker-guest); an assumed-breach range has no attack box (the agent starts on a declared target host instead), so nothing on this page applies to it.
+
+This page covers what the box actually runs: the default image and its tool contract, the boot defaults, substituting your own image, and, for deployments that want to bring the entire machine from outside the realizer, the external provider seam.
+
+## Default Image
+
+A dedicated attack box with no `image:` boots the catalog’s `attack` image, pulled automatically at eval init like any catalog name (see [Images](./images.html.md)). It is a kali-class toolset built by a pinned recipe over the `ubuntu-noble` golden, so the operating system is Ubuntu 24.04 with the guest control daemon baked in, and the build refuses if anything beyond loopback is left listening (the attacker-surface sweep in [Security](./security.html.md#proving-containment) expects a silent box, and the image guarantees it from birth).
+
+The tool contract is asserted at image build, so [behavioral checks](./building.html.md#behavioral-checks), which run with no egress, may rely on every name here: `nmap`, `ncat`, `socat`, `curl`, `wget`, `tcpdump`, `sqlmap`, `hydra`, `john`, `gobuster`, `ffuf`, `smbclient`, `ldapsearch`, `dig`, `nc`, `tmux`, `msfconsole`, `msfvenom`, the impacket scripts `psexec.py`, `wmiexec.py`, `secretsdump.py`, `GetUserSPNs.py`, `raiseChild.py`, `lookupsid.py`, `atexec.py`, `smbexec.py`, and `mssqlclient.py`, plus `impacket` and `requests` importable from python3 and metasploit at major version 6. A missing tool fails the image build, never an eval.
+
+Beyond the contract, `/etc/attack-image.manifest` inside the image records every package and version the feeds actually delivered; read it from a pulled copy without booting anything by finding the cached file with `inspect-ranges images list` and running `virt-cat -a <file> /etc/attack-image.manifest` (`virt-cat` installs with libguestfs-tools, which `doctor` already requires).
+
+## Boot Defaults
+
+- **Name**: `attacker` unless the definition declares one; this is the guest name exec targets and ACL endpoints use.
+- **VMM**: Cloud Hypervisor, so the most adversarial guest gets the smaller device model (unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to opt out.
+- **Sizing**: 1 cpu and 1024 MB unless `resources:` declares otherwise.
+- **Execution identity**: commands run as the unprivileged `agent` user (home `/home/agent`); `user=` switches, with the environment semantics described in [Range Sandbox](./provider.html.md#execution-identity).
+- **Egress**: whatever the definition declares, `none` being the shipped examples’ posture; see [Networks](./networks.html.md#egress).
+
+## Custom Images
+
+Declare `image:` on the attacker to boot any image instead: another catalog name, or your own golden. The one hard requirement is the guest control daemon (exec, files, and readiness all ride it); derive your image over a published golden, or bake the daemon in with the `daemon-bundle` artifact (see [Images](./images.html.md#catalog)). The tool contract above is a property of the `attack` image, not of attack boxes generally: behavioral checks that rely on it should keep the default image or assert their own tooling.
+
+## External Providers
+
+Everything above has the realizer render and boot the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an L2 attachment point on the foothold’s segment and routes [sandbox()](https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandbox) operations to the surface the provider returns; the provider supplies the machine behind both and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.
+
+Selection is deployment knowledge, never part of the range: `range.yaml` has no provider field, and the same published bundle realizes identically with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified content guest, so it is excluded by construction and realizes normally.
+
+``` bash
+INSPECT_RANGES_ATTACK_BOX=glovebox_ranges.provider.factory:cell-pool-a \
+  inspect eval my_task.py
+```
+
+The variable is consulted where realization runs: the eval process under the `local` host backend, the applier’s own environment under a separated one (see [Range Host](./topology.html.md)).
+
+## Registering a Provider
+
+The variable’s value is the registration, exactly as `INSPECT_RANGES_HOST` works: `<module>.<factory>[:<config>]` names an `AttackBoxFactory` that is imported and called at resolution, and the value splits on the first colon, so a config may itself contain colons. The same value persists verbatim as the project’s attack-box origin, so a fresh process (`inspect-ranges down`, the reaper) re-resolves teardown from disk alone; the only cross-process requirement is that the provider’s package is installed where the reclaiming process runs. Factories must be cheap and must not dial anything; remote work belongs in the provider’s `boot`.
+
+The factory returns an `AttackBoxBackend` bundle:
+
+``` python
+from inspect_ranges.attackbox import (
+    AttackBoxBackend, AttackBoxContext, AttackBoxHandle,
+    FootholdAttachment, HybridEndpoint,
+)
+
+def factory(ctx: AttackBoxContext) -> AttackBoxBackend:
+    return AttackBoxBackend(
+        provider=CellProvider(ctx.config, ctx.state_dir),
+        doctor_probe=lambda: None,   # None when healthy, else detail
+    )
+```
+
+## Provider Contract
+
+`boot(attachment)` receives a `FootholdAttachment` and returns an `AttackBoxHandle`; `teardown(project, reclaim_token)` must be idempotent and tolerate a token from a half-completed boot.
+
+**Attachment in.** The realizer creates one tap per attacker interface inside the range container’s network namespace (never a bridge or veth leg in the host netns: the [containment invariant](./security.html.md) that the host carries zero range state survives by construction) and hands over the open fds. Each `AttachedInterface` carries the tap fd plus the allocated facts the box must present on that segment: the MAC and address the range’s ACLs and scoring treat as this guest. The provider owns the fds from the moment `boot` is called: pass them to the VMM, close them at teardown. The taps are non-persistent (they die with the last fd, and unconditionally with the range container) and carry `IFF_VNET_HDR`, matching what QEMU and Cloud Hypervisor request when creating taps themselves.
+
+**Exec surface out.** `AttackBoxHandle.exec_endpoint` is a unix socket plus the uid its peer must have (`SO_PEERCRED`-checked at every dial), serving the Cloud Hypervisor hybrid-vsock shape: the `CONNECT <port>` / `OK <port>` preamble, then one guest-control request per connection in the daemon wire protocol. That protocol includes the [exec witness](./evidence.html.md#the-exec-witness) (`exec_events`), and the witness is part of the attack-box bar: the evidence poller reads the box’s process timeline through this surface every two seconds, and the battery requires it to actually witness (a typed `ENOSYS`/`EPROTO` refusal is the declared-drop path for ordinary guests, but fails `attackbox verify`, since every native dedicated attack box serves it). The straightforward way to be conformant is to run the standard in-guest daemon in the box; a shim is acceptable exactly as far as the battery passes it. Readiness at boot is daemon liveness (the realizer pings the surface through its ordinary strict loop and fails the sample loudly if it never answers); the battery holds the deeper bar.
+
+**Lifecycle.** The realizer writes the attack-box record before `boot` runs and completes it (reclaim token, exec socket) after. Teardown is deny-first through `inspect-ranges down`: the origin resolves and the provider’s box is reclaimed before any range resource is touched, so the box never outlives its NIC and an unresolvable origin refuses rather than stranding a live VM.
+
+## Evidence and Doctor
+
+The provider’s box produces no console stream, and that loss is declared rather than silent: evidence capture records one in-chain gap (`console-external-attack-box`) on `console/<guest>` and never polls the guest, so the absence is verifiable offline. Segment pcap and beacon corroboration are unaffected: capture is bridge-side, and the foreign box’s frames cross the same bridges. The [exec witness](./evidence.html.md#the-exec-witness) is the opposite case: it rides the exec surface the provider supplies, so a conformant box ships its `exec/<guest>` process timeline like any native guest. Declaring `console_stream=True` is refused (there is no ingest path).
+
+`inspect-ranges doctor` gains an Attack box group: resolution of the configured value, the bundle’s own reachability probe, and a standing warn stating the declared console gap and the containment caveat below.
+
+## `attackbox verify`
+
+The conformance battery is the gate: **a provider boots when it passes**. It realizes a range through the registered provider and holds every obligation as a report row:
+
+``` bash
+INSPECT_RANGES_ATTACK_BOX=their.pkg.factory:cfg \
+  inspect-ranges attackbox verify --spec dmz_pivot/range.yaml
+```
+
+- **capabilities**: the bundle declares honestly (`console_stream=False`).
+- **realize**: attach, boot, and strict readiness through the real `up`.
+- **foothold-reach**: the box holds its reserved address, probed from the shared-segment defender before the sweep.
+- **attacker-surface**: the agent-containment negative checks against the foreign box: a shared-segment defender sweeping the attacker finds zero answers, hypervisor endpoints answer exactly their declared service, reserved segment addresses stay silent.
+- **session-stability**: the exec surface pins one daemon session across dials.
+- **exec-parity**: inspect-ai’s full sandbox `self_check` suite over the surface, with an empty xfail pin; exit codes, truncation, budgets, `user=`, and timeout kills must all behave.
+- **exec-witness**: a marker command run through the surface appears in the box’s `exec/<guest>` stream with honest cursor semantics; serving the verb with an eternally empty ring fails, and so does a typed refusal.
+- **teardown**: `down` reclaims the box before the netns, clears the record, re-dial refuses, and a second `down` is a no-op.
+
+`--keep` leaves the range running for inspection (teardown obligations are skipped and the final `down` command printed); `--json` emits the report machine-readably; a failing row exits nonzero. The canonical battery spec is `dmz_pivot` (a dedicated attack box with a Linux defender sharing its segment, so every obligation engages); any spec with that shape works.
+
+## Containment Caveat
+
+A range with an external attack box carries the weaker of the two containment stories: the battery proves point-in-time behavior, not architecture, and the exec surface’s operator controls its implementation. That is the same trust position as root on a compromised target, declared rather than hidden; [Security](./security.html.md) states where the boundary sits. For runs where the realizer’s own containment stack is the requirement, leave the variable unset.
+
+
 # Operations – Inspect Ranges
 
 ## Workflow
@@ -4121,4 +4275,4 @@ On failure, the error names the stage and guest, the affected guests’ serial c
 
 > **NOTE: NoteCurrent Boundaries**
 >
-> `up` realizes cold-boot bundles only: checkpoint instantiation is planned later work. `provisioning`, `services`, and `vulnerabilities` realize through [`build`](./building.html.md): a range declaring them refuses every content-consuming verb (`range-not-built`) until a matching build manifest exists, and boots its captured realized images once one does. `users`, `misconfigurations`, and `data` realize through `build` like the content sections, as do `roles`, `defense`, Active Directory, and telemetry-bearing postures; `scheduled_activity` still validates but refuses at planning until its support lands, so nothing boots with silently missing content. Windows guests are first-class (goldens derive locally with `images derive-windows`). Bundles are trusted operator input: verification proves integrity, not provenance (bundle signing is planned as part of image-distribution work).
+> `up` realizes cold-boot bundles only: checkpoint instantiation is planned later work. `provisioning`, `services`, and `vulnerabilities` realize through [`build`](./building.html.md): a range declaring them refuses every content-consuming verb (`range-not-built`) until a matching build manifest exists, and boots its captured realized images once one does. `users`, `misconfigurations`, and `data` realize through `build` like the content sections, as do `roles`, `defense`, Active Directory, telemetry-bearing postures, and `scheduled_activity` (installed as persistent units in the captured images), so nothing boots with silently missing content. Windows guests are first-class (goldens derive locally with `images derive-windows`). Bundles are trusted operator input: verification proves integrity, not provenance (bundle signing is planned as part of image-distribution work).

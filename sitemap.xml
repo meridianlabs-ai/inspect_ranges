@@ -2,178 +2,182 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/vulhub_zabbix.html</loc>
-    <lastmod>2026-10-22T15:28:18.636Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.947Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/kypo_demo.html</loc>
-    <lastmod>2026-10-22T15:33:19.704Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.944Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/equifax.html</loc>
-    <lastmod>2026-10-22T15:33:47.521Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.943Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/cyris_basic.html</loc>
-    <lastmod>2026-10-22T15:33:47.478Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.942Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/security.html</loc>
-    <lastmod>2026-10-21T14:25:24.132Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.897Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/up.html</loc>
-    <lastmod>2026-10-18T17:52:34.490Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.863Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/schema.html</loc>
-    <lastmod>2026-10-18T17:52:34.490Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.862Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/render.html</loc>
-    <lastmod>2026-10-18T17:52:34.490Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.862Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/push.html</loc>
-    <lastmod>2026-10-20T21:49:23.359Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/publish.html</loc>
-    <lastmod>2026-10-21T01:03:51.761Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/mirror.html</loc>
-    <lastmod>2026-10-20T21:49:23.414Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/index.html</loc>
-    <lastmod>2026-10-22T01:39:08.286Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.897Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/host.html</loc>
-    <lastmod>2026-10-22T01:39:06.437Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.896Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/down.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.857Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/devbox.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.857Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/build.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.857Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/ranges.html</loc>
-    <lastmod>2026-10-21T14:33:44.051Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.125Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/networks.html</loc>
-    <lastmod>2026-10-22T12:36:16.020Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.896Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/images.html</loc>
-    <lastmod>2026-10-22T12:52:11.282Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.895Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/goals.html</loc>
-    <lastmod>2026-10-21T20:29:07.989Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.123Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/distribution.html</loc>
-    <lastmod>2026-10-22T07:28:09.392Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.892Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/challenges.html</loc>
-    <lastmod>2026-10-22T12:53:01.886Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.873Z</lastmod>
+  </url>
+  <url>
+    <loc>https://meridianlabs-ai.github.io/inspect_ranges/attackbox.html</loc>
+    <lastmod>2026-10-24T01:26:35.872Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/building.html</loc>
-    <lastmod>2026-10-22T12:51:52.523Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.872Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/cli.html</loc>
-    <lastmod>2026-10-22T01:39:20.160Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.873Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/evidence.html</loc>
-    <lastmod>2026-10-21T14:25:24.131Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.893Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/guests.html</loc>
-    <lastmod>2026-10-22T07:28:21.546Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.895Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/index.html</loc>
-    <lastmod>2026-10-21T18:12:03.306Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.896Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/provider.html</loc>
-    <lastmod>2026-10-21T18:56:26.008Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.125Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/applier.html</loc>
-    <lastmod>2026-10-18T17:52:34.488Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.857Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/daemon-bundle.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.857Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/doctor.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.857Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/evidence.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.858Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/images.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.858Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/inspect_ranges.html</loc>
-    <lastmod>2026-10-21T18:56:26.008Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.897Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/plan.html</loc>
-    <lastmod>2026-10-18T17:52:34.489Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.862Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/pull.html</loc>
-    <lastmod>2026-10-20T21:49:23.391Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/reaper.html</loc>
-    <lastmod>2026-10-18T17:52:34.490Z</lastmod>
+    <lastmod>2026-10-18T18:33:56.862Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/scanners.html</loc>
-    <lastmod>2026-10-21T18:56:47.219Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/types.html</loc>
-    <lastmod>2026-10-20T21:48:42.221Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/validate.html</loc>
-    <lastmod>2026-10-21T02:08:29.331Z</lastmod>
+    <lastmod>2026-10-21T23:09:22.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/topology.html</loc>
-    <lastmod>2026-10-22T01:41:00.905Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.897Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/dmz_pivot.html</loc>
-    <lastmod>2026-10-22T15:33:19.653Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.943Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/goad_light.html</loc>
-    <lastmod>2026-10-22T15:34:20.183Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.944Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/splunk_detection.html</loc>
-    <lastmod>2026-10-22T15:34:20.220Z</lastmod>
+    <lastmod>2026-10-24T01:26:35.946Z</lastmod>
   </url>
 </urlset>

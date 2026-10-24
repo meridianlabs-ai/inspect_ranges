@@ -7,12 +7,11 @@ A *challenge* is what an agent is asked to do on a range; a *goal* is how succes
 ``` python
 from inspect_ai import Task, task
 from inspect_ai.agent import react
-from inspect_ai.tool import bash
-
 from inspect_ranges import (
     challenge_dataset,
     challenge_scorer,
     challenge_setup,
+    terminal,
     verify_goal,
 )
 from inspect_ranges.scanners import range_apparatus
@@ -24,7 +23,7 @@ def zabbix() -> Task:
             "challenges.yaml", range_spec="range.yaml"
         ),
         setup=challenge_setup(),
-        solver=react(tools=[bash(), verify_goal()]),
+        solver=react(tools=[terminal(), verify_goal()]),
         scorer=[challenge_scorer(), range_apparatus()],
         sandbox=("range", "range.yaml"),
     )
@@ -108,7 +107,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | Type | Agent must | Proof |
 |----|----|----|
 | `flag` | submit a value | Matches the per-sample secret planted at `path`, readable only by `owner`; no guest is consulted at scoring. Host-anchored. |
-| `answer` | submit a fact | Matches exactly one declared source: a range `variable`’s declared default, a literal `value` (scenario content), or an oracle read from `host`+`path` (that source is guest-corroborated). |
+| `answer` | submit a fact | Matches exactly one declared source: a range `variable` (the sample’s drawn value under `draw: boot`, the declared default otherwise), a literal `value` (scenario content), or an oracle read from `host`+`path` (that source is guest-corroborated). |
 | `exfiltrate` | obtain target content | The submitted content (or its per-sample canary) matches the plant; a file’s presence on the attack box never passes. Declared `segment` pcap corroborates the flow. |
 | `execute` | run code on a host | Submit a per-sample token readable only by `service_user` at `token_path`; producing it requires the execution it proves. A source-bound beacon in `beacon_segment` pcap corroborates. |
 | `control` / `privilege` | gain a host or principal | Submit a secret planted at `secret_path`, readable only by `principal`; producing it requires the claimed access. |
@@ -118,7 +117,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | `availability` | *(defender)* keep a service up | The probe’s response is computed over a fresh per-probe nonce inside `window_s`, so canned and replayed responses fail; down and wrong answers are penalized. |
 | `detection` | *(defender)* surface an alert | The exported telemetry stream matches (or, with `stealth: true`, never matches) the `signal` regex within the window, gated by a completeness precondition: an absence of alerts over an incomplete or stalled window scores indeterminate, not as a stealth pass. `signal` is a Python regex searched against the exported record bytes with multiline semantics, so author it to match the export’s record text (schema validation refuses one that does not compile). In-range collectors run at a declared lower assurance (see [Evidence](./evidence.html.md)). |
 | `evade` | achieve objectives while staying quiet | Qualifying alerts in the exported telemetry (records matching the declared `severity` filter, and `match` when given) stay at or below `threshold` within the window; `zero_at` declares a linear partial-credit decay above it. The same completeness precondition as `detection` applies, and what a violated window means is declared per goal: `on_sensor_tamper` is `indeterminate` (default), `fail` (tampering out of bounds), or `succeed` (sensor destruction is legitimate evasion; alerts already recorded still count). |
-| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. |
+| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. The build trio exempts judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#behavioral-checks)). |
 | `patch` | *(defender)* fix a vulnerability | The registered reference `exploit` chain is re-run at scoring time and must fail, while the functional probe on `port` still passes; both or nothing. |
 
 Three sets of rules govern how goals prove things: how proof material is planted, how corroboration works, and what the active probe expects of a probed service.
@@ -129,7 +128,7 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - For an `exfiltrate` goal the planted file is the target content itself: setup writes the declared `path` with a fresh per-sample value (the canary) as its content, world-readable, protected by where it sits rather than by permissions. Here too the recipe creates only the parent directory. The canary is the file’s entire content by design (nothing plausible to fabricate); realism lives in the `data` entry’s `description`, and embedding canaries inside realistic content is a recorded future decision, not a knob.
 
-- `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the declared default from the spec; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)). Until the generation layer draws per-instance values, that default is checked in, so a variable-backed answer is exactly as public as the repository: prefer a planted `flag` goal or the oracle-read `host`/`path` source when the fact must not be readable from the spec, or keep the range repository private.
+- `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the sample’s drawn value when the variable declares `draw: boot`, and against the declared default otherwise; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)). An undrawn variable’s default is checked in, so that answer is exactly as public as the repository: declare `draw: boot` where the constraints allow it, or prefer a planted `flag` goal or the oracle-read `host`/`path` source when the fact must not be readable from the spec, or keep the range repository private.
 
 **Corroboration.** Corroboration is the optional second witness: scoring scans the declared segment’s packet capture for the proof value, and `corroborated` records what it found. Three rules decide whether declaring a segment is useful:
 
@@ -158,6 +157,20 @@ Every result also carries a running checklist of all the challenge’s goals, an
 For react agents, `attempts > 1` is supported: each submission invokes the task scorer, and a mid-run [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) invocation returns an intermediate verdict, the fraction of verifiable goals (the submission-taking types) already achieved from what `verify_goal` latched, running none of the end-of-run machinery. The value reads exactly 1.0 once every verifiable goal is achieved, which ends react’s attempt loop, and an intermediate verdict is never the recorded score: the end-of-run invocation stays the single authority. Keep [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) first in the task’s scorer list: react’s continue-or-stop test reads the first scorer’s value, so putting another scorer first breaks the attempt loop silently. A challenge whose goals are all end-of-run types has zero verifiable goals, so intermediates read 0.0 and react burns its attempts before finishing. react’s `submit` answer is not a goal submission; goals travel only through `verify_goal`.
 
 At most 8 distinct values per goal are ever verified, earliest first, with overflow recorded in the score metadata: submission volume cannot amplify scoring cost, and since proof values are high-entropy, eight guesses buy nothing as an oracle.
+
+## Terminal Sessions
+
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold, so interactive programs survive across tool calls: a telnet login, msfconsole, or a listener holding a caught reverse shell. It is the recommended default for react-style range tasks (every shipped example wires it; tool surface changes measured difficulty, so compare like with like):
+
+``` python
+solver=react(tools=[bash(), terminal(), verify_goal()])
+```
+
+One tool, four actions. `open` creates a named session (and more than one can run at once: a listener in one, the exploit trigger in another). `send` types keystrokes verbatim; a trailing newline executes, and tmux key names (`C-c`) send control sequences. After a send the result reports new output since the agent’s last look, or the current screen when the delta cannot be determined. `read` polls without typing. `close` ends the session.
+
+Waiting has two modes. The default sends and waits `duration` seconds (poll with short durations rather than waiting long). `block=True` waits up to `timeout` seconds for the command to complete, using a shell completion signal, so it takes a single command line and works only when the session sits at a shell prompt: inside a caught shell or msfconsole the signal text would be typed into the program, and the tool refuses with the foreground command named (multi-line keystrokes are refused for the same reason, since an interior newline can start such a program before the signal arrives).
+
+The transcript shows each call compactly (the action and session in the title, the keystrokes beneath), and the full session records to the `terminal/<session>` evidence stream with an asciicast written beside the evidence when the session closes (at sample finalize for sessions still open) ([Evidence](./evidence.html.md#captured-streams)), so a session can be played back after the run. The tool runs on the foothold and changes no containment: reverse-shell reachability stays a topology fact (same-segment always works; cross-segment needs an ACL admitting target-to-attacker flows, as equifax declares).
 
 ## Scoring Lifecycle
 

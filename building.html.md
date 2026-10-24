@@ -113,6 +113,8 @@ Does the whole consumption path work? Run one sample through the real `range` sa
 inspect eval inspect_ranges/dmz_pivot
 ```
 
+Wall-clock limits are standard wiring beside message caps: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
+
 The registry form runs the shipped task; your own range runs the same way with the [Range Tasks](./index.html.md#range-tasks) wiring ([Range Sandbox](./provider.html.md) covers the provider).
 
 To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score, the scorer’s zero-submissions warning, and the matching `range_apparatus` finding; on this run those are the apparatus working, not trouble.
@@ -155,9 +157,9 @@ Until a range has a matching build, every command that consumes built content re
 
 1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it; cloud deployments that force DNS through a VPC resolver typically need the override). A provisioned host attached only to networks behind routers gets a dedicated `build-uplink` NAT segment appended instead, so routed topologies build too. A provisioned foothold host (the host the attacker starts on under assumed breach; see [Networks](./networks.html.md#attacker)) has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking, since network config is per-boot cloud-init. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the one exception: a router gets no build egress (scoped egress on a router-attached network is not realized), so the settle gate skips it and its recipes run offline, reconfiguring what the golden already carries; a router recipe that reaches for the network fails as an ordinary recipe error.
 
-2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)).
+2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)). Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range’s `activities/` directory ([Guests](./guests.html.md#scheduled-activity)).
 
-3.  **Verification** checks every declared `services` and `vulnerabilities` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
+3.  **Verification** checks every declared `services`, `vulnerabilities`, and `scheduled_activity` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
 
 4.  **Capture.** Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image: a qcow2 rebased onto its golden image ([Guests](./guests.html.md#images)), its digest recorded, with a provenance sidecar (a companion file recording the digests of everything it was built from).
 
@@ -199,7 +201,7 @@ The `manifest` lines appear after the `behavioral` lines: a build is never recor
 
 ## Incremental Rebuilds
 
-Each guest gets a build key: a hash of its golden image digest, its own spec declarations, and its ordered recipe digests with their variables. On rebuild:
+Each guest gets a build key: a hash of its golden image digest, its own spec declarations, its ordered recipe digests with their variables, and its activity scripts’ content digests. On rebuild:
 
 - A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.
 
@@ -307,6 +309,8 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [behavioral checks](#behavioral-checks), not here.
 
+- A `scheduled_activity` entry must have its installed unit or task present and enabled (`systemctl is-enabled` on Linux, the scheduled task’s state on Windows); a failure is `activity-not-verified`. The unit is verified, never run: an activity may legitimately run long, and the first run happens on the consumer boot’s schedule.
+
 Failures produce coded refusals (`service-not-verified`, `vulnerability-not-verified`) with the declared-versus-observed delta and the probe log path, and the build fails. Software installed from tarballs has no dpkg identity: declare its service by port alone and record the version in the range’s notes.
 
 ## Behavioral Checks
@@ -323,6 +327,8 @@ The scores are exact, which pins down “incomplete” for a multi-goal challeng
 
 The one-submission floor applies only when the challenge has submission-consuming goals: a challenge scored purely by observation (`detection`, `evade`) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0 with validity `valid` (the splunk-detection checks are the worked example). Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal’s `window_s` is covered ([Challenges](./challenges.html.md#goal-types)).
 
+Model-graded (`judge`) goals are exempt from the trio’s scoring: the build has no model, so each check scores the challenge over its non-model-graded goals (the weighted mean renormalizes over that share, and the floor reads it too) and records the exemption as `judge-exempt=<goal ids>` in the check’s stage line and manifest detail. A challenge whose goals are all model-graded has no provable share and refuses with `challenge-not-provable`.
+
 Beacons corroborate only when their capture chunk rotates before scoring: tcpdump rotates by size, and scoring reads rotated chunks. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
 
 The checks run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the `conformance` stage, proving the range’s defender-to-agent containment ([Security](./security.html.md#proving-containment)); a containment finding refuses the manifest exactly like a failed check.
@@ -333,4 +339,4 @@ Each check gets fresh per-sample proof material, removed afterward; nothing a ch
 
 ## Diagnosing Failures
 
-Every failure names its stage (`recipe`, `verify`, `capture`, `manifest`, `behavioral`, `teardown`) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/recipes/`); the error carries the path and a tail, and `stages.jsonl` in the same directory records every stage transition with its error field. `--keep` holds the failed range up for inspection (`inspect-ranges down <project>` when done). `inspect-ranges doctor` checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.
+Every failure names its stage (`recipe`, `activity`, `verify`, `capture`, `manifest`, `behavioral`, `teardown`) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/recipes/`); the error carries the path and a tail, and `stages.jsonl` in the same directory records every stage transition with its error field. `--keep` holds the failed range up for inspection (`inspect-ranges down <project>` when done). `inspect-ranges doctor` checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.

@@ -83,7 +83,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -212,6 +212,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="./provider.html">
  <span class="dropdown-text">Range Sandbox</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./attackbox.html">
+ <span class="dropdown-text">Attack Box</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./cli.html">
@@ -395,6 +399,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./provider.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Range Sandbox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./attackbox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Attack Box</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -698,6 +708,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#verify_goal" class="sidebar-item-text sidebar-link">
  <span class="menu-text">verify_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#terminal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">terminal</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1390,10 +1406,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="catalog">Catalog</h2>
 <p>The standard images publish at the project org, each consumable by bare name (hub repos are spelled <code>inspect-ranges-&lt;name&gt;</code>; specs keep writing the bare name):</p>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1403,7 +1415,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td><code>attack</code></td>
-<td>The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with an asserted tool contract (below) and a refusal to build if anything listens beyond loopback. A dedicated attack box with no <code>image:</code> boots it by default.</td>
+<td>The standard attack box: a kali-class toolset built by a pinned recipe over the noble golden, with a build-asserted tool contract and a refusal to build if anything listens beyond loopback (see <a href="./attackbox.html#default-image">Attack Box</a>). A dedicated attack box with no <code>image:</code> boots it by default.</td>
 </tr>
 <tr class="even">
 <td><code>ubuntu-noble</code> / <code>ubuntu-focal</code></td>
@@ -1419,7 +1431,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p>The attack image’s tool contract is asserted at image build, so <a href="./building.html#behavioral-checks">behavioral checks</a>, which run with no egress, may rely on every name here: <code>nmap</code>, <code>ncat</code>, <code>socat</code>, <code>curl</code>, <code>wget</code>, <code>tcpdump</code>, <code>sqlmap</code>, <code>hydra</code>, <code>john</code>, <code>gobuster</code>, <code>ffuf</code>, <code>smbclient</code>, <code>ldapsearch</code>, <code>dig</code>, <code>nc</code>, <code>msfconsole</code>, <code>msfvenom</code>, the impacket scripts <code>psexec.py</code>, <code>wmiexec.py</code>, <code>secretsdump.py</code>, <code>GetUserSPNs.py</code>, <code>raiseChild.py</code>, <code>lookupsid.py</code>, <code>atexec.py</code>, <code>smbexec.py</code>, and <code>mssqlclient.py</code>, plus <code>impacket</code> and <code>requests</code> importable from python3 and metasploit at major version 6. A missing tool fails the image build, never an eval. Beyond the contract, <code>/etc/attack-image.manifest</code> inside the image records every package and version the feeds actually delivered; read it from a pulled copy without booting anything by finding the cached file with <code>inspect-ranges images list</code> and running <code>virt-cat -a &lt;file&gt; /etc/attack-image.manifest</code> (<code>virt-cat</code> installs with libguestfs-tools, which <code>doctor</code> already requires).</p>
+<p>The attack image’s operating system, asserted tool contract, and per-build package manifest are documented on <a href="./attackbox.html#default-image">Attack Box</a>.</p>
 <p>The goldens are minimal Ubuntu cloud images with nothing enabled beyond the daemon: derivation disables ssh and the systemd-resolved DNS stub listener. A recipe installs and enables whatever its scenario needs; <code>apt</code> works, and builds run with network egress so recipes can install packages.</p>
 <p>A republished image is always a new digest, never a silent replacement; the publisher-side rules are in <a href="./distribution.html#republish-discipline">Distribution</a>.</p>
 </section>
@@ -1480,7 +1492,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--out</span> pins.json</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">INSPECT_RANGES_PIN_FILE</span><span class="op">=</span>pins.json</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>A pinned host lands exactly the recorded root digests and refuses <code>pin-mismatch</code> when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: <code>images refresh &lt;name&gt;</code>, or regenerating the pin file.</p>
+<p>The environment variable is optional: a <code>pins.json</code> at or above the working directory applies automatically, lockfile-style, so a repository that tracks one pairs its source with the catalog state it expects and a fresh clone is pinned with no setup. Set <code>INSPECT_RANGES_PIN_FILE</code> to point somewhere else, or to the empty string to run unpinned; a discovered file that does not parse as a pin file refuses rather than silently unpinning.</p>
+<p>A pinned host lands exactly the recorded root digests and refuses <code>pin-mismatch</code> when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: <code>images refresh &lt;name&gt;</code>, or regenerating the pin file. Already-cached images are sticky by contract, so a pin update alone never changes what a build uses; <code>inspect-ranges build</code> warns when a cached catalog image’s recorded origin diverges from the pin, naming the refresh command.</p>
+<p>Note that pins bind <code>refresh</code> too: on a pinned host it re-lands the PINNED root, which is the fleet guarantee working — and exactly what you do not want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with <code>INSPECT_RANGES_PIN_FILE=</code> set empty.</p>
 </section>
 <section id="locked-down-host" class="level3">
 <h3 class="anchored" data-anchor-id="locked-down-host">Locked-Down Host</h3>
