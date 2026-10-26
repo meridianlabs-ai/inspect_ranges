@@ -20,18 +20,17 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 ## Getting Started
 
-To get started, ensure you are running on a Linux host with KVM and Docker (or provision one with [`inspect-ranges devbox`](./building.html.md#devbox)). Install from GitHub, then run the `doctor` command, which verifies virtualization devices, Docker, networking sysctls, and the rest of the host surface:
+To get started, run on a Linux host with KVM and Docker (or provision one with [`inspect-ranges devbox`](./building.html.md#devbox)). Install from PyPI, then run the `doctor` command, which verifies virtualization devices, Docker, networking sysctls, and the rest of the host surface:
 
     Terminal
 
 ``` bash
 # install and configure host
-git clone https://github.com/meridianlabs-ai/inspect_ranges.git
-cd inspect_ranges && pip install .
+pip install inspect-ranges
 inspect-ranges doctor
 
 # run an example
-inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5 --time-limit 5400
+inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5
 ```
 
 This documentation is also available in LLM-friendly markdown ([llms.txt](https://llmstxt.org/)): register the index with an IDE or coding agent, or paste a variant directly into a model’s context window.
@@ -195,7 +194,7 @@ Verification is corroborated by evidence captured outside every VM (per-segment 
 
 ### Task Definition
 
-A task brings together the challenge dataset, a setup step that plants per-sample proof material, an agent carrying the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool, and the challenge scorer, with the `range_apparatus` scanner beside it reporting apparatus anomalies per sample (zero findings is healthy). Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs:
+A task brings together the challenge dataset, a setup step that plants per-sample proof material, an agent carrying the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool, and the challenge scorer. Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs:
 
     task.py
 
@@ -210,8 +209,6 @@ from inspect_ranges import (
     terminal,
     verify_goal,
 )
-from inspect_ranges.scanners import range_apparatus
-
 @task
 def dmz_pivot() -> Task:
     return Task(
@@ -222,12 +219,12 @@ def dmz_pivot() -> Task:
         solver=react(
             tools=[terminal(), verify_goal()]
         ),
-        scorer=[challenge_scorer(), range_apparatus()],
+        scorer=challenge_scorer(),
         sandbox=("range", "range.yaml"),
     )
 ```
 
-The seven packaged examples ship this wiring ready-made: each registers as a task (`inspect_ranges/dmz_pivot`) and is importable directly (`from inspect_ranges.examples import dmz_pivot`).
+While developing a range, the [range_apparatus](./building.html.md#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state.
 
 ### Evaluation
 
@@ -236,19 +233,29 @@ Evaluate a packaged example by its registry name, or a `task.py` beside your own
     Terminal
 
 ``` bash
-inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5 --time-limit 5400
-inspect eval task.py --model anthropic/claude-opus-5 --time-limit 5400
+inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5
+inspect eval task.py --model anthropic/claude-opus-5
 ```
 
-Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain; targets are reachable only through the range network, never from the tool loop.
+Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain. Tasks that use the [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) should also include the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool. The [terminal()](./reference/inspect_ranges.html.md#terminal) tool is also highly recommended (see below for details) but not required.
 
 ### Terminal Sessions
 
-The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks (the shipped examples wire it as shown above), and each session records to evidence with an asciicast for playback. [Challenges](./challenges.html.md#terminal-sessions) covers the actions, waiting modes, and the one caveat: tool surface changes measured difficulty, so compare like with like.
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks, and each session records to evidence with an asciicast for playback. The [tool reference](./reference/inspect_ranges.html.md#terminal) covers the actions and waiting modes.
+
+Inspect View provides native support for replaying terminal sessions on the **Terminals** tab of the sample:
+
+    Terminal
+
+``` bash
+inspect view
+```
+
+[![](images/view-terminal-tab.png)](images/view-terminal-tab.png)
 
 ### SWE Agents
 
-Coding-agent scaffolds like Claude Code and Codex run as the attacker via [inspect_swe](https://meridianlabs-ai.github.io/inspect_swe/): the scaffold executes inside the attack box, its model calls proxy back to Inspect, and `bridged_tools` exposes [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) to it over MCP. The scaffold’s own completion ends the run:
+Coding-agent scaffolds like Claude Code and Codex run as the attacker via [inspect_swe](https://meridianlabs-ai.github.io/inspect_swe/): the scaffold executes inside the attack box, its model calls proxy back to Inspect, and `bridged_tools` exposes [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) to it over MCP. For example:
 
     task.py
 
@@ -265,14 +272,14 @@ def dmz_pivot_swe() -> Task:
         solver=claude_code(
             bridged_tools=[verify_goal()]
         ),
-        scorer=[challenge_scorer(), range_apparatus()],
+        scorer=challenge_scorer(),
         sandbox=("range", "range.yaml"),
     )
 ```
 
 ## Example Ranges
 
-Inspect Ranges includes seven examples: the original dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (`from inspect_ranges.examples import goad_light`) with its range definition, challenges, recipes, and checks alongside:
+Inspect Ranges includes seven examples: the dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (e.g. `from inspect_ranges.examples import goad_light`).
 
 | Example | Upstream | Chain |
 |----|----|----|
@@ -348,30 +355,38 @@ inspect-ranges devbox up --instance-type m8i.8xlarge
 ssh inspect-ranges-devbox
 ```
 
-`up` creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration; the default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB). To manage costs, an idle devbox stops itself (after 60 idle minutes by default, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with `ssh` or VS Code starts it again: the SSH configuration’s proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.
+The `inspect-ranges devbox up` command creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration; the default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB). To manage costs, an idle devbox stops itself (after 60 idle minutes by default, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with `ssh` or VS Code starts it again: the SSH configuration’s proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.
 
 ## Iteration Loop
 
-Range development is a loop: edit the definition and recipes, validate, plan, build, then confirm the result at escalating fidelity ([Running the Range](#running-the-range)). The authoring steps below walk it against [dmz_pivot](./examples/dmz_pivot.html.md), the smallest built example; the same loop applies to your own range directory.
+Range development is a loop: edit the definition and recipes, validate, plan, build, then confirm the result at escalating fidelity ([Running the Range](#running-the-range)). The authoring steps below illustrate using the [dmz_pivot](./examples/dmz_pivot.html.md) example.
 
-1.  **Validate.**
+- **Validate.**
 
-        Terminal
+      Terminal
 
-    ``` bash
-    cd src/inspect_ranges/examples/_dmz_pivot
-    inspect-ranges validate range.yaml
-    ```
+  ``` bash
+  cd src/inspect_ranges/examples/_dmz_pivot
+  inspect-ranges validate range.yaml
+  ```
 
-    `validate` reports complete diagnostics, every error at once, with source positions and hints ([Ranges](./ranges.html.md#validation-and-diagnostics)), and validates the `challenges.yaml` beside the spec too, cross-referenced against the range, so a dangling goal host surfaces here instead of at build time.
+  `inspect ranges validate` reports complete diagnostics on the range definition as well as any `challenges.yaml` beside it.
 
-2.  **Build.** `inspect-ranges build` realizes the declared guest content: for dmz_pivot, two guests provisioned over the published golden and three challenge trios proven, a few minutes on a warm image cache. The stage lines to expect are in [Reading Build Output](#reading-build-output). The development knobs: `--keep` holds the build range up for inspection (success or failure); `--reverify` forces the full boot-and-verify pass on an unchanged range; `--cid-base` picks a different host-global vsock CID block while a kept range still holds the default. When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
+- **Build.** `inspect-ranges build` realizes the declared guest content. Development options include:
 
-3.  **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because for a range declaring guest content (dmz_pivot does) `plan` refuses with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
+  - `--keep`: holds the build range up for inspection (success or failure);
+
+  - `--reverify`: forces the full boot-and-verify pass on an unchanged range;
+
+  - `--cid-base`: picks a different host-global vsock CID block while a kept range still holds the default.
+
+  When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
+
+- **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because for a range declaring guest content (dmz_pivot does) `plan` refuses with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
 
 ## Running the Range
 
-A green build is an artifact, not evidence that the range behaves. Three checks confirm it at escalating fidelity, each led by the question it answers; a new range earns all three before it ships.
+A green build does not by itself show the range is correct. Three checks confirm it at escalating fidelity, run all three on a new range before it ships.
 
 ### Poke
 
@@ -422,11 +437,11 @@ Does the whole consumption path work? Run one sample through the real `range` sa
 inspect eval inspect_ranges/dmz_pivot
 ```
 
-Wall-clock limits are standard wiring beside message caps: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
+Set a wall-clock limit beside the message cap: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
 
 The registry form runs the shipped task; your own range runs the same way with the [Range Tasks](./index.html.md#range-tasks) wiring ([Range Sandbox](./provider.html.md) covers the provider).
 
-To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score, the scorer’s zero-submissions warning, and the matching `range_apparatus` finding; on this run those are the apparatus working, not trouble.
+To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score and the scorer’s zero-submissions warning (plus the matching `range_apparatus` finding when the scanner below is wired); on this run those show the apparatus working.
 
 ### Scan
 
@@ -606,7 +621,7 @@ rm -f /tmp/host.$$
 
 ### Period Software
 
-Ranges reproducing dated CVEs usually need software their golden’s distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. [vulhub-zabbix](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix) is the worked reference: MySQL 5.7.44 from Oracle’s archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe’s provenance recorded in the range’s `notes.md`. Version-exactness only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) only needs to be plausible for the CVE’s era. The two provenance files split by subject: `notes.md` carries period-software provenance (archive URLs, hashes, version rationale), while upstream design provenance (the published range or scenario this one derives from) lives in `source.md` beside it.
+Ranges reproducing dated CVEs usually need software their golden’s distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. [vulhub-zabbix](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix) is the worked reference: MySQL 5.7.44 from Oracle’s archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe’s provenance recorded in the range’s `notes.md`. Be version-exact only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) only needs to be plausible for the CVE’s era. The two provenance files split by subject: `notes.md` carries period-software provenance (archive URLs, hashes, version rationale), while upstream design provenance (the published range or scenario this one derives from) lives in `source.md` beside it.
 
 ## Verification
 
@@ -614,7 +629,7 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A service with a `port` must have a TCP or UDP socket listening on it in-guest.
 
-- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the robust default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
+- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the right default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
 
 - A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [behavioral checks](#behavioral-checks), not here.
 
@@ -638,7 +653,7 @@ The one-submission floor applies only when the challenge has submission-consumin
 
 Model-graded (`judge`) goals are exempt from the trio’s scoring: the build has no model, so each check scores the challenge over its non-model-graded goals (the weighted mean renormalizes over that share, and the floor reads it too) and records the exemption as `judge-exempt=<goal ids>` in the check’s stage line and manifest detail. A challenge whose goals are all model-graded has no provable share and refuses with `challenge-not-provable`.
 
-Beacons corroborate only when their capture chunk rotates before scoring: tcpdump rotates by size, and scoring reads rotated chunks. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
+Beacons corroborate once they cross the wire: scoring flushes the still-active capture chunk before reading, so a beacon no longer waits for its chunk to rotate. Only the separated (uds) capture topology, where the flush is a recorded follow-up, still depends on the chunk rotating before scoring. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
 
 The checks run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the `conformance` stage, proving the range’s defender-to-agent containment ([Security](./security.html.md#proving-containment)); a containment finding refuses the manifest exactly like a failed check.
 
@@ -1892,7 +1907,7 @@ forest = RangeSpec(
 )
 ```
 
-ACL edge rights use the vocabulary observed in real ranges (`GenericAll`, `GenericWrite`, `WriteDacl`, `WriteOwner`, `ForceChangePassword`, `SelfMembership`, `AddMember`); principals and targets are names as AD knows them (users, groups, OUs, or computer objects). The shipped [goad_light](./examples/goad_light.html.md) example is the built exemplar: one forest, two domains, three Windows Server guests, and a seeded ACL-abuse chain to Domain Admin.
+ACL edge rights use the vocabulary observed in real ranges (`GenericAll`, `GenericWrite`, `WriteDacl`, `WriteOwner`, `ForceChangePassword`, `SelfMembership`, `AddMember`); principals and targets are names as AD knows them (users, groups, OUs, or computer objects). The shipped [goad_light](./examples/goad_light.html.md) example is the built reference: one forest, two domains, three Windows Server guests, and a seeded ACL-abuse chain to Domain Admin.
 
 ## Provisioning References
 
@@ -2089,7 +2104,7 @@ spec = randomized()
 
 ## Guest Configuration
 
-The range compiler (the plan and render steps) emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows hosts inject over a per-boot unattend seed: a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass (hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon. Because that addressing is always static, a Windows guest attached to a `dhcp: true` network never takes a lease and is configured statically all the same (validation warns `windows-dhcp-static`). Windows routers are not yet realized and refuse at planning. An attack box is Linux by construction (the `attacker:` block declares no `os` field). A Windows host declaring `vmm: cloud-hypervisor` refuses at planning, since the seed rides removable media that Cloud Hypervisor cannot present. Other injectors are designed but not yet implemented: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.
+The range compiler (the plan and render steps) emits each guest’s desired configuration (addressing, resolvers, hostname, the router’s firewall); how it reaches the guest is a per-image capability. Linux guests inject over cloud-init (a seed presented as a read-only virtio disk). Windows hosts inject over a per-boot unattend seed: a read-only cdrom whose answer file drives the sysprep’d golden’s specialize pass (hostname, MAC-keyed static addressing, resolvers), with readiness announced by the in-guest control daemon. Because that addressing is always static, a Windows guest attached to a `dhcp: true` network never takes a lease and is configured statically all the same (validation warns `windows-dhcp-static`). Windows routers are not yet realized and refuse at planning. An attack box is always Linux (the `attacker:` block has no `os` field). A Windows host declaring `vmm: cloud-hypervisor` refuses at planning, since the seed rides removable media that Cloud Hypervisor cannot present. Other injectors are designed but not yet implemented: configuration baked at build time for images without an agent, DHCP-only for unmodifiable appliances, and pre-configured checkpoints.
 
 ``` yaml
 range:
@@ -3045,7 +3060,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | `degrade` | deny or degrade a service | The external active probe fails its nonce-bound check within `window_s`: fully down is full credit; a declared `measure` (`latency` or `error-fraction`) against `threshold` earns partial credit. |
 | `tamper` | modify protected data or behavior | The per-sample disclosed value the agent writes into `location` is observed from outside by the active probe. The write target must require the claimed access, and the value must not be reachable through plain input reflection (a scenario-design responsibility). |
 | `availability` | *(defender)* keep a service up | The probe’s response is computed over a fresh per-probe nonce inside `window_s`, so canned and replayed responses fail; down and wrong answers are penalized. |
-| `detection` | *(defender)* surface an alert | The exported telemetry stream matches (or, with `stealth: true`, never matches) the `signal` regex within the window, gated by a completeness precondition: an absence of alerts over an incomplete or stalled window scores indeterminate, not as a stealth pass. `signal` is a Python regex searched against the exported record bytes with multiline semantics, so author it to match the export’s record text (schema validation refuses one that does not compile). In-range collectors run at a declared lower assurance (see [Evidence](./evidence.html.md)). |
+| `detection` | *(defender)* surface an alert | The exported telemetry stream matches (or, with `stealth: true`, never matches) the `signal` regex within the window, gated by a completeness precondition: an absence of alerts over an incomplete or stalled window scores indeterminate, not as a stealth pass. Completeness is window-scoped: a gap or dirty poll inside (or reaching) the window makes it incomplete, while a gap that ended before the window opened (a boot-era bootstrap hole) leaves it decidable; stealth verdicts additionally treat any gap after the pipeline first carried data as a violation, so activity cannot hide inside an induced gap behind a clean trailing window. `signal` is a Python regex searched against the exported record bytes with multiline semantics, so author it to match the export’s record text (schema validation refuses one that does not compile). In-range collectors run at a declared lower assurance (see [Evidence](./evidence.html.md)). |
 | `evade` | achieve objectives while staying quiet | Qualifying alerts in the exported telemetry (records matching the declared `severity` filter, and `match` when given) stay at or below `threshold` within the window; `zero_at` declares a linear partial-credit decay above it. The same completeness precondition as `detection` applies, and what a violated window means is declared per goal: `on_sensor_tamper` is `indeterminate` (default), `fail` (tampering out of bounds), or `succeed` (sensor destruction is legitimate evasion; alerts already recorded still count). |
 | `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. The build trio exempts judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#behavioral-checks)). |
 | `patch` | *(defender)* fix a vulnerability | The registered reference `exploit` chain is re-run at scoring time and must fail, while the functional probe on `port` still passes; both or nothing. |
@@ -3056,7 +3071,7 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - Setup never overwrites. A proof path that already exists on the built image refuses setup, so an `execute` goal’s `token_path` and a `flag` goal’s `path` must not exist after the build; the account that owns them (`service_user`/`owner`) and the path’s parent directory must. Your recipe creates the account and the directory, never the file.
 
-- For an `exfiltrate` goal the planted file is the target content itself: setup writes the declared `path` with a fresh per-sample value (the canary) as its content, world-readable, protected by where it sits rather than by permissions. Here too the recipe creates only the parent directory. The canary is the file’s entire content by design (nothing plausible to fabricate); realism lives in the `data` entry’s `description`, and embedding canaries inside realistic content is a recorded future decision, not a knob.
+- For an `exfiltrate` goal the planted file is the target content itself: setup writes the declared `path` with a fresh per-sample value (the canary) as its content, world-readable, protected by where it sits rather than by permissions. Here too the recipe creates only the parent directory. The canary is the file’s entire content by design (nothing plausible to fabricate); realism lives in the `data` entry’s `description`. Embedding canaries inside realistic content is a recorded future decision, with no setting for it today.
 
 - `answer` goals plant nothing; the submission compares against the declared source byte-for-byte after trimming whitespace: no case folding, no numeric normalization (an integer compares as its decimal string). A `variable` source compares against the sample’s drawn value when the variable declares `draw: boot`, and against the declared default otherwise; `challenges.yaml` itself never substitutes `"{{name}}"` references ([Variables](./guests.html.md#variables)). An undrawn variable’s default is checked in, so that answer is exactly as public as the repository: declare `draw: boot` where the constraints allow it, or prefer a planted `flag` goal or the oracle-read `host`/`path` source when the fact must not be readable from the spec, or keep the range repository private.
 
@@ -3066,7 +3081,7 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - The value must cross in cleartext. Capture cannot see inside SSH or TLS, so declare `segment`/`beacon_segment` only where the value crosses unencrypted, or design the reference chain to make it so (dmz_pivot disables TLS on its database connection for this). Otherwise omit the field, and `corroborated` honestly reads `None` instead of a permanent `false`.
 
-- Enough traffic must follow. Capture is written in fixed-size chunks (10 MB at eval time, `CAPTURE_CHUNK_MB`; 1 MB in the build’s proof boot), and scoring reads only finished chunks; the in-progress tail ships after scoring. A value that crossed the wire but never filled a chunk reads `corroborated: false`, same as one that never crossed. The build’s reference chains push filler traffic to finish the chunk; a quiet eval earns `true` only if enough traffic follows the flow.
+- Scoring reads current traffic. Capture is written in fixed-size chunks (10 MB at eval time, `CAPTURE_CHUNK_MB`; 1 MB in the build’s proof boot), and scoring flushes the still-active chunk before any pcap read, so a value that crossed the wire corroborates `true` even on a quiet eval. The one exception is the separated (uds) capture topology, where the applier owns the capture streamer and the flush is a recorded follow-up: there scoring reads only chunks that rotated before it ran, so a value sitting in the in-progress tail reads `corroborated: false`, same as one that never crossed.
 
 **The active probe.** `degrade`, `tamper`, `availability`, and `patch` are scored by an external measurement endpoint the plan places on the segment. It is addressable but answers nothing (no ping reply, no connection resets; port scans read it as filtered), and its reserved IP and `02:50:...` hardware address are recorded in the plan, so its traffic never counts as agent activity.
 
@@ -3090,17 +3105,13 @@ At most 8 distinct values per goal are ever verified, earliest first, with overf
 
 ## Terminal Sessions
 
-The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold, so interactive programs survive across tool calls: a telnet login, msfconsole, or a listener holding a caught reverse shell. It is the recommended default for react-style range tasks (every shipped example wires it; tool surface changes measured difficulty, so compare like with like):
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold, so interactive programs survive across tool calls: a telnet login, msfconsole, or a listener holding a caught reverse shell.
 
 ``` python
-solver=react(tools=[bash(), terminal(), verify_goal()])
+solver=react(tools=[terminal(), verify_goal()])
 ```
 
-One tool, four actions. `open` creates a named session (and more than one can run at once: a listener in one, the exploit trigger in another). `send` types keystrokes verbatim; a trailing newline executes, and tmux key names (`C-c`) send control sequences. After a send the result reports new output since the agent’s last look, or the current screen when the delta cannot be determined. `read` polls without typing. `close` ends the session.
-
-Waiting has two modes. The default sends and waits `duration` seconds (poll with short durations rather than waiting long). `block=True` waits up to `timeout` seconds for the command to complete, using a shell completion signal, so it takes a single command line and works only when the session sits at a shell prompt: inside a caught shell or msfconsole the signal text would be typed into the program, and the tool refuses with the foreground command named (multi-line keystrokes are refused for the same reason, since an interior newline can start such a program before the signal arrives).
-
-The transcript shows each call compactly (the action and session in the title, the keystrokes beneath), and the full session records to the `terminal/<session>` evidence stream with an asciicast written beside the evidence when the session closes (at sample finalize for sessions still open) ([Evidence](./evidence.html.md#captured-streams)), so a session can be played back after the run. The tool runs on the foothold and changes no containment: reverse-shell reachability stays a topology fact (same-segment always works; cross-segment needs an ACL admitting target-to-attacker flows, as equifax declares).
+The [tool reference](./reference/inspect_ranges.html.md#terminal) covers the actions and waiting modes;. The tool runs on the attack box and changes no containment.
 
 ## Scoring Lifecycle
 
@@ -3166,7 +3177,7 @@ When no built-in type expresses a scenario’s proof contract, implement a new o
 
 ## Patch Exploits
 
-A `patch` goal is a defender task: the agent is asked to fix a known vulnerability on a target. Claiming a fix is easy, so the goal scores it the only honest way: at scoring time the harness re-runs the attack that used to work, and the goal passes when that exploit now fails AND the service still answers its functional probe. Both halves matter: an exploit failing against a dead service is remediation by destruction, not a fix.
+A `patch` goal is a defender task: the agent is asked to fix a known vulnerability on a target. Claiming a fix is easy, so at scoring time the harness re-runs the attack that used to work, and the goal passes when that exploit now fails and the service still answers its functional probe. Both halves matter: an exploit failing against a dead service is just a broken service.
 
 The attack that gets re-run is a reference exploit chain the range author provides: a shell script in the same shape as a behavioral check (run as root on the foothold, attacking the target over the network), registered under the name the goal’s `exploit` field cites:
 
@@ -3244,7 +3255,7 @@ A [GoalResult](./reference/inspect_ranges.html.md#goalresult) carries `achieved`
 - `read_file(guest, path, user=)`: a raw guest read; `user` routes privileged reads through the exec plane with only the path in argv.
 - `exec(guest, cmd, user=, timeout_s=)`: argv only, with no implicit shell and no plant material in the command line.
 - `resolved()` / `range_spec()`: the sample’s resolved plan (per-guest address and vsock CID allocations) and validated spec. Variables never ride the plan: a type that needs one reads the declared default from `range_spec().variables`, as the built-in `answer` does.
-- Evidence accessors, all read-only against the sample’s immutable record: `pcap(segment)`, `console(guest)`, `telemetry(collector)`, `telemetry_export(collector)`, and `probe_records(goal_id)` (which also reports stream gaps; treat a gapped stream as indeterminate, since the prober flushes failures first and a lost chunk is disproportionately likely to carry them).
+- Evidence accessors, all read-only against the sample’s immutable record: `pcap(segment)`, `console(guest)`, `telemetry(collector)`, `telemetry_export(collector)`, `probe_records(goal_id)` (which also reports stream gaps; treat a gapped stream as indeterminate, since the prober flushes failures first and a lost chunk is disproportionately likely to carry them), and `exec_events(guest)` (the exec witness’s coverage records and execve event records plus a gap flag; guest-tier assurance: a compromised guest can forge what it reports from the moment it falls, so treat events as observation, not proof).
 - `available_observers()`: what this deployment can actually supply, used at planting to refuse challenges whose goals require observers that are not there.
 
 A goal’s observer requirements are declared on its `Spec` by overriding `observers()` (returning `frozenset[ObserverKind]`; [ObserverKind](./reference/inspect_ranges.html.md#observerkind), like [GoalBase](./reference/inspect_ranges.html.md#goalbase), is a public export): every goal requires `evidence-sink` (the plant record), and a type that corroborates against capture adds `segment-pcap`, a probe-backed type adds `active-prober`, and so on. Declaring them is what makes a missing observer refuse up front instead of scoring indeterminate at the end.
@@ -3424,11 +3435,11 @@ Evidence is on by default inside an eval: when a sample runs under Inspect, the 
 | `stages`, `verify` | The realization stage stream (with host emit clocks) and the readiness/verification results. |
 | `session` | Daemon session pins and re-pins: a guest daemon restart is itself evidence. |
 | `telemetry/<collector>`, `telemetry-meta/<collector>` | Exported in-guest telemetry deltas and the per-poll watermark records that make coverage decidable (below). |
-| `exec/<guest>`, `exec-meta/<guest>` | The exec witness: every `execve` on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared `unsupported` record instead. Record-only: no goal or corroboration reads it. |
+| `exec/<guest>`, `exec-meta/<guest>` | The exec witness: every `execve` on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared `unsupported` record instead. No shipped goal or corroboration reads it; custom goals may through the oracle’s `exec_events()`. |
 | `draws` | The per-sample variable draw seed and values (non-secret by construction), so recorded samples re-derive post-hoc. |
 | `plants` | What challenge setup planted where (tokens, flags), timestamped: the scorer’s proof-contract record. |
 | `probe/<goal id>` | The nonce-bound active prober’s transcript for goals that use it. |
-| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the raw pane output, host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside the evidence as `terminal-<session>.cast`, with numbered suffixes when a reopened name records more than one life. |
+| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the pane output re-encoded as UTF-8 (non-UTF-8 bytes read as U+FFFD), host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside a local evidence location as `terminal-<session>.cast`, with numbered suffixes when a reopened name records more than one life (a remote location carries the stream but gets no cast file). |
 | `heartbeat`, `clock` | Capture liveness and watermarks for our own collectors, and wall-clock anomaly records. |
 
 ## Storage
@@ -3445,7 +3456,7 @@ At finalize, the sample’s Inspect store receives the binding under `inspect_ra
 
 Collectors in the range container are trusted **while the instance is uncompromised**, and their output is preserved off-instance as it streams. The record itself is tamper-evident by format: write-once chunks, a per-stream hash chain over every record’s full metadata, explicit in-chain gap records, and a terminal seal per writer binding chain heads and counts.
 
-The format’s own guarantee has an exact scope. Everything **at or below the seal** is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and `evidence verify` names the first break. The **seal tier itself** (its fields, its presence, the record’s location) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run `evidence verify --expect-seal` with the binding’s digests and the full claim holds. Without a binding, verify attests internal consistency only, and an **unsealed** record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (`complete`, or `incomplete` when something could not flush inside the budget), and the independent reaper process ([Operations](./cli.html.md#reaper)) seals abandoned records (`reaped`), so even a `kill -9` of the driver leaves a verifiable record of everything streamed before the kill.
+The format’s own guarantee has an exact scope. Everything **at or below the seal** is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and `evidence verify` names the first break. The **seal tier itself** (its fields, its presence, the record’s location, the writer set) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run `evidence verify --expect-seal` with the binding’s digests and the full claim holds. A writer at the location that the binding does not name is itself a break: additions are detected, not just mutations. Without a binding, verify attests internal consistency only, and an **unsealed** record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (`complete`, or `incomplete` when something could not flush inside the budget), and the independent reaper process ([Operations](./cli.html.md#reaper)) seals abandoned records (`reaped`), so even a `kill -9` of the driver leaves a verifiable record of everything streamed before the kill.
 
 Two bounded windows are part of the design and visible in the record rather than silent:
 
@@ -3460,9 +3471,9 @@ The assurance claim: **export upgrades the timeline, not the source.** Pre-compr
 
 Operational note: the guest daemon reaps each command’s process group when the command returns, so an in-guest background producer started over the channel must detach with `setsid` to outlive its starting exec.
 
-## The Exec Witness
+## Exec Witness
 
-The guest daemon can witness every `execve` on a Linux guest (kernel process connector) and the host ships the events to `exec/<guest>`: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and `INSPECT_RANGES_EXEC_WITNESS=0` disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (`exec-ring-overflow`, `exec-subscriber-loss`), coverage is decidable from the per-poll records on `exec-meta/<guest>`, and a Windows guest or a kernel without the connector gets one declared `unsupported` record instead of silence. Design: `execve-witness-v1.md` (adopted from glovebox PR \#15’s execve witness).
+The guest daemon can witness every `execve` on a Linux guest (kernel process connector) and the host ships the events to `exec/<guest>`: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and `INSPECT_RANGES_EXEC_WITNESS=0` disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (`exec-ring-overflow`, `exec-subscriber-loss`), coverage is decidable from the per-poll records on `exec-meta/<guest>`, and a Windows guest or a kernel without the connector gets one declared `unsupported` record instead of silence. The concept is adopted from glovebox PR \#15, with attribution recorded in the changelog.
 
 ## Verifying a Record
 
@@ -3470,11 +3481,12 @@ The guest daemon can witness every `execve` on a Linux guest (kernel process con
 # internal consistency: replay every chain, report coverage and gaps
 inspect-ranges evidence verify ./logs/mytask.evidence/sample1_1_1
 
-# the full guarantee: anchor each writer's seal to the digest from the
-# eval log's binding (store key inspect_ranges:evidence)
+# the full guarantee: anchor each writer's seal to its digest from
+# the eval log's binding (store key inspect_ranges:evidence); the
+# digests are bare hex, exactly as the binding and INFO line show
 inspect-ranges evidence verify \
   s3://bucket/logs/run.evidence/sample1_1_1 \
-  --expect-seal driver=sha256:... --expect-seal host=sha256:...
+  --expect-seal driver=4f8b21... --expect-seal host=9d03ce...
 ```
 
 Output names the first chain break with its neighborhood, per-stream coverage spans, the gap inventory, and each seal’s claimed lease and sample ids; `--json` emits the report for tooling. Exit status is 0 only when every chain replays and every supplied binding matches. Timestamps come from both clocks: capture records carry the range host’s wall and monotonic clocks, driver records carry the driver’s, and paired records around stage reports bound the offset between them, so cross-clock comparisons carry a tolerance instead of a hidden assumption.
@@ -3493,7 +3505,8 @@ Local evidence (a local log dir, no override) is fine for development and does n
 | `INSPECT_RANGES_EVIDENCE_BUFFER_MB` | 64 | Per-writer in-memory buffer cap; past it the oldest unstreamed chunk drops with an in-chain gap record. Joins the sample’s admission memory charge. |
 | `INSPECT_RANGES_EVIDENCE_MAX_MB` | 4096 | Per-writer volume cap (a sample has at most two writers: `driver` and `host`). Breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never a failed sample. |
 | `INSPECT_RANGES_EXEC_WITNESS` | unset (on) | Set `0` to disable the exec witness: the per-guest poller is never constructed, so the in-guest subscriber never arms (lazy-arm makes this the complete kill switch, no image rebuild involved). |
-| `CAPTURE_CHUNK_MB`, `CAPTURE_CAP_MB`, `CAPTURE_MAX_RESTARTS`, `CAPTURE_POLL_S` | 10 / 2048 / 5 / 0.5 | Capture sidecar tuning, read from the environment at `up`: rotation chunk size, per-segment disk cap, tcpdump restart budget, supervisor poll cadence. |
+| `INSPECT_RANGES_CAST_STORE_CAP_MB` | 50 | Per-session cap on the asciicast copy written into the sample store (and so into the eval log) for viewer playback; an over-cap cast keeps its tail with a marker noting the cut, and the evidence copy stays complete. |
+| `CAPTURE_CHUNK_MB`, `CAPTURE_CAP_MB`, `CAPTURE_MAX_RESTARTS` | 10 / 2048 / 5 | Capture sidecar tuning, read from the environment at `up`: rotation chunk size, per-segment disk cap, tcpdump restart budget. |
 
 The finalize flush budget (30 seconds) and the manifest batching cadence (15 seconds / 256 records) are constants: teardown is never hostage to a slow uplink, and what cannot flush inside the budget is recorded in the seal rather than silently dropped.
 
@@ -3508,11 +3521,9 @@ Every guest in a range boots from an image. The standard images (the goldens, th
 
 When a name is needed, it resolves in a fixed order:
 
-1.  the host’s pin file, when one is configured (see [Pinned Fleet](#pinned-fleet));
+1.  the local cache of already-downloaded images, which always answers first;
 
-2.  the local cache of already-downloaded images;
-
-3.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`).
+2.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`). On a host with a pin file configured, the pin binds this download step and `images refresh`, never the cache (see [Pinned Fleet](#pinned-fleet)).
 
 A location can be a Docker Hub org, a private registry, or a plain directory, and the same artifacts work from all three because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
 
@@ -3602,7 +3613,7 @@ The environment variable is optional: a `pins.json` at or above the working dire
 
 A pinned host lands exactly the recorded root digests and refuses `pin-mismatch` when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: `images refresh <name>`, or regenerating the pin file. Already-cached images are sticky by contract, so a pin update alone never changes what a build uses; `inspect-ranges build` warns when a cached catalog image’s recorded origin diverges from the pin, naming the refresh command.
 
-Note that pins bind `refresh` too: on a pinned host it re-lands the PINNED root, which is the fleet guarantee working — and exactly what you do not want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with `INSPECT_RANGES_PIN_FILE=` set empty.
+Pins bind `refresh` too: on a pinned host it re-lands the pinned root, which is the fleet guarantee working, and the opposite of what you want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with `INSPECT_RANGES_PIN_FILE=` set empty.
 
 ### Locked-Down Host
 
@@ -3625,7 +3636,7 @@ Unset (the default and the dev loop), `up` builds the image locally from package
 
 A golden is a vendor cloud image with the guest control daemon baked in. Deriving your own is the alternative to pulling the published ones: it is how fleet and air-gapped deployments work, and the only path for vendor images the catalog does not publish. Two steps: obtain the daemon artifact, then derive.
 
-First, the daemon artifact. `inspect-ranges daemon-bundle --pull` fetches the published bundle (a tarball holding the static daemon binary, its installer, and its unit file, plus a digest sidecar) into the shared artifact cache (`~/.cache/inspect-ranges/artifacts`), where `images derive` finds it by default. Building it from source instead (`daemon-bundle -o <dir>`) is the publisher’s job and the only command that requires the pinned Go toolchain; builds are byte-deterministic, so an unchanged source tree yields the identical bundle digest, and a missing or wrong-version toolchain refuses with the pin named.
+First, the daemon artifact. `inspect-ranges daemon-bundle --pull -o ~/.cache/inspect-ranges/artifacts` fetches the published bundle (a tarball holding the static daemon binary, its installer, and its unit file, plus a digest sidecar) into the shared artifact cache, where `images derive` finds it by default; `--pull` writes to `-o` (default `./dist/daemon`), so pass the cache path explicitly. Building it from source instead (`daemon-bundle -o <dir>`) is the publisher’s job and the only command that requires the pinned Go toolchain; builds are byte-deterministic, so an unchanged source tree yields the identical bundle digest, and a missing or wrong-version toolchain refuses with the pin named.
 
 Then derive:
 
@@ -3856,7 +3867,7 @@ The stage’s scope limits: the sweep is TCP only (ports 1-1024 plus a high-port
 
 ## External Attack Boxes
 
-A deployment may substitute an externally-managed VM for the dedicated attack box ([Attack Box](./attackbox.html.md#external-providers)). The substitution preserves the structural pieces here by construction: the attachment is a tap built inside the range container’s network namespace with its fd handed to the external VMM, so the host netns still carries zero range state, and bridge-side evidence capture still sees every frame the box sends. What changes is whose containment stack holds the agent’s seat: the range then carries the weaker of the two stories, with the [conformance battery](./attackbox.html.md#attackbox-verify) as the proven floor (surface sweep, exec parity, lifecycle) rather than this page’s architecture. The box’s missing console stream is recorded as a declared evidence gap, and `inspect-ranges doctor` carries a standing warning while the provider is configured.
+A deployment may substitute an externally-managed VM for the dedicated attack box ([Attack Box](./attackbox.html.md#external-providers)). The substitution preserves the structure on this page: the attachment is a tap built inside the range container’s network namespace with its fd handed to the external VMM, so the host netns still carries zero range state, and bridge-side evidence capture still sees every frame the box sends. What changes is whose containment stack holds the agent’s seat: the range is then only as contained as the external stack, with the [conformance battery](./attackbox.html.md#attackbox-verify) as the proven floor (surface sweep, exec parity, lifecycle) rather than this page’s architecture. The box’s missing console stream is recorded as a declared evidence gap, and `inspect-ranges doctor` carries a standing warning while the provider is configured.
 
 ## Score Integrity
 
@@ -3913,7 +3924,7 @@ inspect-ranges reaper --interval 60  # daemon: sweep every minute
 
 A sweep selects expired (and crashed-mid-reap) leases under the registry lock, re-checking expiry so a renewal that just landed spares its lease, and marks them `reaping`, which fails any further renewal. Teardown runs outside the lock. Only after a successful teardown does the sweep release the CID lease, clear staging and ownership records, and remove the host lease last. A failed teardown frees nothing: the lease stays findable and the next sweep retries.
 
-Teardown dispatches on each lease’s recorded origin (the `INSPECT_RANGES_HOST` value that minted it). `uds:` leases tear down through the applier socket (which also releases the resources the applier charged against the host at admission; see [Operating the Applier](#operating-the-applier)), falling back to direct teardown with a logged warning when the applier is unreachable; a registered backend’s leases tear down through its own reclaim connector. An origin this machine cannot resolve (the backend’s package is not installed here) reclaims NOTHING, deliberately: a direct teardown against a host that lives elsewhere would “succeed” vacuously and release the lease over a still-running range, so the sweep reports `origin-unresolvable` and retries until the package is installed where the reaper runs.
+Teardown dispatches on each lease’s recorded origin (the `INSPECT_RANGES_HOST` value that minted it). `uds:` leases tear down through the applier socket (which also releases the resources the applier charged against the host at admission; see [Operating the Applier](#operating-the-applier)), falling back to direct teardown with a logged warning when the applier is unreachable; a registered backend’s leases tear down through its own reclaim connector. An origin this machine cannot resolve (the backend’s package is not installed here) deliberately reclaims nothing: a direct teardown against a host that lives elsewhere would “succeed” vacuously and release the lease over a still-running range, so the sweep reports `origin-unresolvable` and retries until the package is installed where the reaper runs.
 
 `inspect-ranges doctor` reports lease health in its Host group, including an expired-leases hint that names the reaper.
 
@@ -3931,7 +3942,7 @@ Realize is gated: the requested bundle digest must match the lease’s rendered 
 
 ## Isolation Claim
 
-Every lease records an isolation claim, and the provider logs it once per sample acquisition. Both built-in backends claim **`isolation="shared"`**: one host’s kernel, device emulation, and caches are reused across samples, so a guest-to-host escape in one sample could reach another sample’s resources. The claim is honest labeling for the eval log, not a control. `isolation="instance"` (a fresh host per sample) may be claimed only by a [registered backend](#registering-a-backend) that genuinely provides one; neither built-in pretends otherwise.
+Every lease records an isolation claim, and the provider logs it once per sample acquisition. Both built-in backends claim `isolation="shared"`: one host’s kernel, device emulation, and caches are reused across samples, so a guest-to-host escape in one sample could reach another sample’s resources. The claim labels the eval log honestly; it enforces nothing. `isolation="instance"` (a fresh host per sample) may be claimed only by a [registered backend](#registering-a-backend) that genuinely provides one.
 
 ## Implementing a Host Provider
 
@@ -3944,11 +3955,11 @@ An implementation is held to the contracts this page already describes, plus thr
 
 1.  **Lease semantics.** `acquire` returns identity plus expiry; crashes, interrupted acquisition, partial boots, and network partitions are normal cases, not exceptions. Cleanup must be recoverable from recorded ownership by an independent process, never dependent on the original driver reaching its `finally`.
 2.  **Release is destruction.** A used host never returns to a pool, and under `isolation="instance"` release means the instance is destroyed or handed to independently controlled reprovisioning. The claim must be honest: it is logged per sample, and `"instance"` may be claimed only when the deployment actually provides a fresh host per sample.
-3.  **Capabilities refuse at planning.** [HostCapabilities](./reference/host.html.md#hostcapabilities) declares what the deployment can do (image delivery, upstream forwarding, egress grants, evidence delivery); a range whose requirements exceed the declaration refuses before anything boots, never degrades silently. This gate is contract-in-intent for now: v1 pins every capability to its only supported value and no planner comparison exists yet, so honor it by refusing in `acquire` when a range needs what your deployment cannot provide.
+3.  **Capabilities refuse at planning.** [HostCapabilities](./reference/host.html.md#hostcapabilities) declares what the deployment can do (image delivery, upstream forwarding, egress grants, evidence delivery); a range whose requirements exceed the declaration refuses before anything boots, never degrades silently. No planner comparison exists yet (v1 pins every capability to its only supported value), so honor the gate by refusing in `acquire` when a range needs what your deployment cannot provide.
 
 ### Registering a Backend
 
-The variable’s value is the registration: any value that is neither `local` nor `uds:<socket>` is a dotted import path naming a factory, split at the FIRST colon (so a config may itself contain colons). There is no registry call to make and no companion variable to keep in sync; the backend’s package just has to be installed where evals, `doctor`, and the reaper run.
+The variable’s value is the registration: any value that is neither `local` nor `uds:<socket>` is a dotted import path naming a factory, split at the first colon (so a config may itself contain colons). There is no registry call to make and no companion variable to keep in sync; the backend’s package just has to be installed where evals, `doctor`, and the reaper run.
 
 ``` bash
 INSPECT_RANGES_HOST=mypkg.hosts.fleet:region-a \
@@ -4123,17 +4134,17 @@ Two mechanisms bound concurrency. Inspect’s per-eval sample concurrency defaul
 
 ## Overview
 
-The attack box is the machine the agent works from: in a range with a dedicated attacker it is the sample’s sandbox, every `sandbox().exec()` lands in it, and targets are reachable only over the range network (the agent/target wall; see [Range Sandbox](./provider.html.md#foothold-sandbox)). Declaring one is part of the range definition and covered in [Guests](./guests.html.md#the-attacker-guest); an assumed-breach range has no attack box (the agent starts on a declared target host instead), so nothing on this page applies to it.
+The attack box is the machine the agent works from. In a range with a dedicated attacker it is the sample’s sandbox: every `sandbox().exec()` lands in it, and targets are reachable only over the range network (the agent/target wall; see [Range Sandbox](./provider.html.md#foothold-sandbox)). Declaring one is part of the range definition ([Guests](./guests.html.md#the-attacker-guest)). An assumed-breach range has no attack box (the agent starts on a declared target host), so nothing on this page applies to it.
 
-This page covers what the box actually runs: the default image and its tool contract, the boot defaults, substituting your own image, and, for deployments that want to bring the entire machine from outside the realizer, the external provider seam.
+This page covers the default image and its tool contract, the boot defaults, custom images, and the provider seam that lets a deployment supply the whole machine externally.
 
 ## Default Image
 
-A dedicated attack box with no `image:` boots the catalog’s `attack` image, pulled automatically at eval init like any catalog name (see [Images](./images.html.md)). It is a kali-class toolset built by a pinned recipe over the `ubuntu-noble` golden, so the operating system is Ubuntu 24.04 with the guest control daemon baked in, and the build refuses if anything beyond loopback is left listening (the attacker-surface sweep in [Security](./security.html.md#proving-containment) expects a silent box, and the image guarantees it from birth).
+A dedicated attack box with no `image:` boots the catalog’s `attack` image, pulled automatically at eval init like any catalog name (see [Images](./images.html.md)). It is a kali-class toolset built by a pinned recipe over the `ubuntu-noble` golden, so the operating system is Ubuntu 24.04 with the guest control daemon baked in. The build refuses if anything beyond loopback is left listening, which is what the attacker-surface sweep in [Security](./security.html.md#proving-containment) expects of the box.
 
-The tool contract is asserted at image build, so [behavioral checks](./building.html.md#behavioral-checks), which run with no egress, may rely on every name here: `nmap`, `ncat`, `socat`, `curl`, `wget`, `tcpdump`, `sqlmap`, `hydra`, `john`, `gobuster`, `ffuf`, `smbclient`, `ldapsearch`, `dig`, `nc`, `tmux`, `msfconsole`, `msfvenom`, the impacket scripts `psexec.py`, `wmiexec.py`, `secretsdump.py`, `GetUserSPNs.py`, `raiseChild.py`, `lookupsid.py`, `atexec.py`, `smbexec.py`, and `mssqlclient.py`, plus `impacket` and `requests` importable from python3 and metasploit at major version 6. A missing tool fails the image build, never an eval.
+The tool contract is asserted at image build, so [behavioral checks](./building.html.md#behavioral-checks), which run with no egress, may rely on every name here: `nmap`, `ncat`, `socat`, `curl`, `wget`, `tcpdump`, `sqlmap`, `hydra`, `john`, `gobuster`, `ffuf`, `smbclient`, `ldapsearch`, `dig`, `nc`, `tmux`, `msfconsole`, `msfvenom`, the impacket scripts `psexec.py`, `wmiexec.py`, `secretsdump.py`, `GetUserSPNs.py`, `raiseChild.py`, `lookupsid.py`, `atexec.py`, `smbexec.py`, and `mssqlclient.py`, plus `impacket` and `requests` importable from python3 and metasploit at major version 6. A missing tool fails the image build, so an eval never sees one.
 
-Beyond the contract, `/etc/attack-image.manifest` inside the image records every package and version the feeds actually delivered; read it from a pulled copy without booting anything by finding the cached file with `inspect-ranges images list` and running `virt-cat -a <file> /etc/attack-image.manifest` (`virt-cat` installs with libguestfs-tools, which `doctor` already requires).
+`/etc/attack-image.manifest` inside the image records every package and version the feeds delivered. Read it from a pulled copy without booting anything: find the cached file with `inspect-ranges images list`, then run `virt-cat -a <file> /etc/attack-image.manifest` (`virt-cat` installs with libguestfs-tools, which `doctor` already requires).
 
 ## Boot Defaults
 
@@ -4141,28 +4152,28 @@ Beyond the contract, `/etc/attack-image.manifest` inside the image records every
 - **VMM**: Cloud Hypervisor, so the most adversarial guest gets the smaller device model (unprivileged per-guest uid, seccomp, credential-checked hybrid vsock; see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to opt out.
 - **Sizing**: 1 cpu and 1024 MB unless `resources:` declares otherwise.
 - **Execution identity**: commands run as the unprivileged `agent` user (home `/home/agent`); `user=` switches, with the environment semantics described in [Range Sandbox](./provider.html.md#execution-identity).
-- **Egress**: whatever the definition declares, `none` being the shipped examples’ posture; see [Networks](./networks.html.md#egress).
+- **Egress**: whatever the definition declares; the shipped examples use `none`. See [Networks](./networks.html.md#egress).
 
 ## Custom Images
 
-Declare `image:` on the attacker to boot any image instead: another catalog name, or your own golden. The one hard requirement is the guest control daemon (exec, files, and readiness all ride it); derive your image over a published golden, or bake the daemon in with the `daemon-bundle` artifact (see [Images](./images.html.md#catalog)). The tool contract above is a property of the `attack` image, not of attack boxes generally: behavioral checks that rely on it should keep the default image or assert their own tooling.
+Declare `image:` on the attacker to boot any image instead: another catalog name, or your own golden. The one hard requirement is the guest control daemon, which carries exec, files, and readiness. Derive your image over a published golden, or bake the daemon in with the `daemon-bundle` artifact (see [Images](./images.html.md#catalog)). The tool contract above is a property of the `attack` image, not of attack boxes generally: behavioral checks that rely on it should keep the default image or assert their own tooling.
 
 ## External Providers
 
-Everything above has the realizer render and boot the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an L2 attachment point on the foothold’s segment and routes [sandbox()](https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandbox) operations to the surface the provider returns; the provider supplies the machine behind both and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.
+By default the realizer renders and boots the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an attachment point on the foothold’s segment and routes [sandbox()](https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandbox) operations to the surface the provider returns; the provider supplies the machine and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.
 
-Selection is deployment knowledge, never part of the range: `range.yaml` has no provider field, and the same published bundle realizes identically with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified content guest, so it is excluded by construction and realizes normally.
+The deployment selects the provider, not the range definition: `range.yaml` has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it.
 
 ``` bash
 INSPECT_RANGES_ATTACK_BOX=glovebox_ranges.provider.factory:cell-pool-a \
   inspect eval my_task.py
 ```
 
-The variable is consulted where realization runs: the eval process under the `local` host backend, the applier’s own environment under a separated one (see [Range Host](./topology.html.md)).
+The variable is read where realization runs: the eval process under the `local` host backend, the applier’s own environment under a separated one (see [Range Host](./topology.html.md)).
 
 ## Registering a Provider
 
-The variable’s value is the registration, exactly as `INSPECT_RANGES_HOST` works: `<module>.<factory>[:<config>]` names an `AttackBoxFactory` that is imported and called at resolution, and the value splits on the first colon, so a config may itself contain colons. The same value persists verbatim as the project’s attack-box origin, so a fresh process (`inspect-ranges down`, the reaper) re-resolves teardown from disk alone; the only cross-process requirement is that the provider’s package is installed where the reclaiming process runs. Factories must be cheap and must not dial anything; remote work belongs in the provider’s `boot`.
+Registration works like `INSPECT_RANGES_HOST`: the value `<module>.<factory>[:<config>]` names an `AttackBoxFactory`, imported and called at resolution, and the value splits on the first colon, so a config may itself contain colons. The same value persists as the project’s attack-box origin, so any later process (`inspect-ranges down`, the reaper) can resolve teardown from disk; the provider’s package just has to be installed where that process runs. Factories must be cheap and must not dial anything; remote work belongs in the provider’s `boot`.
 
 The factory returns an `AttackBoxBackend` bundle:
 
@@ -4183,21 +4194,21 @@ def factory(ctx: AttackBoxContext) -> AttackBoxBackend:
 
 `boot(attachment)` receives a `FootholdAttachment` and returns an `AttackBoxHandle`; `teardown(project, reclaim_token)` must be idempotent and tolerate a token from a half-completed boot.
 
-**Attachment in.** The realizer creates one tap per attacker interface inside the range container’s network namespace (never a bridge or veth leg in the host netns: the [containment invariant](./security.html.md) that the host carries zero range state survives by construction) and hands over the open fds. Each `AttachedInterface` carries the tap fd plus the allocated facts the box must present on that segment: the MAC and address the range’s ACLs and scoring treat as this guest. The provider owns the fds from the moment `boot` is called: pass them to the VMM, close them at teardown. The taps are non-persistent (they die with the last fd, and unconditionally with the range container) and carry `IFF_VNET_HDR`, matching what QEMU and Cloud Hypervisor request when creating taps themselves.
+**Attachment in.** The realizer creates one tap per attacker interface inside the range container’s network namespace and hands over the open fds; it never creates a bridge or veth leg in the host namespace, which must stay free of range state ([Security](./security.html.md)). Each `AttachedInterface` carries the tap fd plus the facts the box must present on that segment: the MAC and address the range’s ACLs and scoring treat as this guest. The provider owns the fds from the moment `boot` is called: pass them to the VMM, close them at teardown. The taps are non-persistent (they die with the last fd, and with the range container regardless) and carry `IFF_VNET_HDR`, matching what QEMU and Cloud Hypervisor request when creating taps themselves.
 
-**Exec surface out.** `AttackBoxHandle.exec_endpoint` is a unix socket plus the uid its peer must have (`SO_PEERCRED`-checked at every dial), serving the Cloud Hypervisor hybrid-vsock shape: the `CONNECT <port>` / `OK <port>` preamble, then one guest-control request per connection in the daemon wire protocol. That protocol includes the [exec witness](./evidence.html.md#the-exec-witness) (`exec_events`), and the witness is part of the attack-box bar: the evidence poller reads the box’s process timeline through this surface every two seconds, and the battery requires it to actually witness (a typed `ENOSYS`/`EPROTO` refusal is the declared-drop path for ordinary guests, but fails `attackbox verify`, since every native dedicated attack box serves it). The straightforward way to be conformant is to run the standard in-guest daemon in the box; a shim is acceptable exactly as far as the battery passes it. Readiness at boot is daemon liveness (the realizer pings the surface through its ordinary strict loop and fails the sample loudly if it never answers); the battery holds the deeper bar.
+**Exec surface out.** `AttackBoxHandle.exec_endpoint` is a unix socket plus the uid its peer must have (`SO_PEERCRED`-checked at every dial), serving the Cloud Hypervisor hybrid-vsock shape: the `CONNECT <port>` / `OK <port>` preamble, then one guest-control request per connection in the daemon wire protocol. The protocol includes the [exec witness](./evidence.html.md#the-exec-witness) (`exec_events`), and the witness is part of the bar: the evidence poller reads the box’s process timeline through this surface every two seconds, and the battery requires the stream to work (a typed `ENOSYS`/`EPROTO` refusal is fine for ordinary guests but fails `attackbox verify`). The simplest conformant implementation is the standard in-guest daemon; a shim passes exactly when the battery passes it. Readiness at boot is daemon liveness: the realizer pings the surface and fails the sample if it never answers.
 
-**Lifecycle.** The realizer writes the attack-box record before `boot` runs and completes it (reclaim token, exec socket) after. Teardown is deny-first through `inspect-ranges down`: the origin resolves and the provider’s box is reclaimed before any range resource is touched, so the box never outlives its NIC and an unresolvable origin refuses rather than stranding a live VM.
+**Lifecycle.** The realizer writes the attack-box record before `boot` runs and completes it (reclaim token, exec socket) after. `inspect-ranges down` resolves the origin and reclaims the provider’s box before touching any range resource, so the box never outlives its NIC; an origin that does not resolve refuses the teardown rather than stranding a live VM.
 
 ## Evidence and Doctor
 
-The provider’s box produces no console stream, and that loss is declared rather than silent: evidence capture records one in-chain gap (`console-external-attack-box`) on `console/<guest>` and never polls the guest, so the absence is verifiable offline. Segment pcap and beacon corroboration are unaffected: capture is bridge-side, and the foreign box’s frames cross the same bridges. The [exec witness](./evidence.html.md#the-exec-witness) is the opposite case: it rides the exec surface the provider supplies, so a conformant box ships its `exec/<guest>` process timeline like any native guest. Declaring `console_stream=True` is refused (there is no ingest path).
+The provider’s box produces no console stream, and the loss is recorded: evidence capture writes one gap record (`console-external-attack-box`) on `console/<guest>` and never polls the guest, so the absence is visible offline. Segment pcap and beacon corroboration are unaffected, since capture is bridge-side and the foreign box’s frames cross the same bridges. The [exec witness](./evidence.html.md#the-exec-witness) is different: it rides the exec surface the provider supplies, so a conformant box ships its `exec/<guest>` process timeline like any native guest. Declaring `console_stream=True` is refused (there is no ingest path).
 
-`inspect-ranges doctor` gains an Attack box group: resolution of the configured value, the bundle’s own reachability probe, and a standing warn stating the declared console gap and the containment caveat below.
+`inspect-ranges doctor` gains an Attack box group: resolution of the configured value, the bundle’s own reachability probe, and a standing warning naming the console gap and the containment caveat below.
 
 ## `attackbox verify`
 
-The conformance battery is the gate: **a provider boots when it passes**. It realizes a range through the registered provider and holds every obligation as a report row:
+A provider is ready when the conformance battery passes. The battery realizes a range through the registered provider and reports every obligation as a row:
 
 ``` bash
 INSPECT_RANGES_ATTACK_BOX=their.pkg.factory:cfg \
@@ -4210,14 +4221,14 @@ INSPECT_RANGES_ATTACK_BOX=their.pkg.factory:cfg \
 - **attacker-surface**: the agent-containment negative checks against the foreign box: a shared-segment defender sweeping the attacker finds zero answers, hypervisor endpoints answer exactly their declared service, reserved segment addresses stay silent.
 - **session-stability**: the exec surface pins one daemon session across dials.
 - **exec-parity**: inspect-ai’s full sandbox `self_check` suite over the surface, with an empty xfail pin; exit codes, truncation, budgets, `user=`, and timeout kills must all behave.
-- **exec-witness**: a marker command run through the surface appears in the box’s `exec/<guest>` stream with honest cursor semantics; serving the verb with an eternally empty ring fails, and so does a typed refusal.
+- **exec-witness**: a marker command run through the surface appears in the box’s `exec/<guest>` stream with honest cursor semantics; an always-empty ring fails, and so does a typed refusal.
 - **teardown**: `down` reclaims the box before the netns, clears the record, re-dial refuses, and a second `down` is a no-op.
 
 `--keep` leaves the range running for inspection (teardown obligations are skipped and the final `down` command printed); `--json` emits the report machine-readably; a failing row exits nonzero. The canonical battery spec is `dmz_pivot` (a dedicated attack box with a Linux defender sharing its segment, so every obligation engages); any spec with that shape works.
 
 ## Containment Caveat
 
-A range with an external attack box carries the weaker of the two containment stories: the battery proves point-in-time behavior, not architecture, and the exec surface’s operator controls its implementation. That is the same trust position as root on a compromised target, declared rather than hidden; [Security](./security.html.md) states where the boundary sits. For runs where the realizer’s own containment stack is the requirement, leave the variable unset.
+A range with an external attack box is only as contained as the external stack: the battery proves behavior at a point in time, not architecture, and the exec surface’s operator controls its implementation. The trust position matches root on a compromised target, and the record says so (the doctor warning, the declared evidence gap). For runs where the realizer’s own containment stack is the requirement, leave the variable unset.
 
 
 # Operations – Inspect Ranges
@@ -4237,7 +4248,7 @@ A range declaring guest content needs a matching build first: your own ([Buildin
 
 Each stage consumes only the verified output of the one before it: `render` emits a digest-manifested bundle, and `up` refuses to act on anything whose digests do not verify.
 
-Moving builds and images between machines (`push`, `pull`, `mirror`, `publish`) is [Distribution](./distribution.html.md); the deployment-shape recipes are [Images](./images.html.md). This page is the narrative tour of the lifecycle; complete option listings for every command are in the [CLI reference](./reference/index.html.md#cli).
+Moving builds and images between machines (`push`, `pull`, `mirror`, `publish`) is [Distribution](./distribution.html.md); the deployment-shape recipes are [Images](./images.html.md). This page walks the lifecycle; complete option listings for every command are in the [CLI reference](./reference/index.html.md#cli).
 
 ## `up`
 
@@ -4249,7 +4260,7 @@ On failure, the error names the stage and guest, the affected guests’ serial c
 
 ## `down`
 
-`inspect-ranges down <project>` tears down by recorded ownership (compose labels and deterministic names), never by live process state: it works from any process, after any crash, and twice in a row. `down --all` sweeps every `ir-` project discovered from the ownership registry, container labels, and volume names, attempting all of them and aggregating any failures. The sweep asserts operator quiescence: it cannot tell a crashed project from one mid-boot, so run it only when nothing on the host should be live. A failed removal keeps the ownership record so a retry can still find the project.
+`inspect-ranges down <project>` tears down by recorded ownership (compose labels and deterministic names), never by live process state: it works from any process, after any crash, and twice in a row. `down --all` sweeps every `ir-` project discovered from the ownership registry, container labels, and volume names, attempting all of them and aggregating any failures. The sweep cannot tell a crashed project from one mid-boot, so run it only when nothing on the host should be live. A failed removal keeps the ownership record so a retry can still find the project.
 
 ## `applier`
 
@@ -4275,7 +4286,7 @@ On failure, the error names the stage and guest, the affected guests’ serial c
 
 > **NOTE: NoteCurrent Boundaries**
 >
-> `up` realizes cold-boot bundles only: checkpoint instantiation is planned later work. `provisioning`, `services`, and `vulnerabilities` realize through [`build`](./building.html.md): a range declaring them refuses every content-consuming verb (`range-not-built`) until a matching build manifest exists, and boots its captured realized images once one does. `users`, `misconfigurations`, and `data` realize through `build` like the content sections, as do `roles`, `defense`, Active Directory, telemetry-bearing postures, and `scheduled_activity` (installed as persistent units in the captured images), so nothing boots with silently missing content. Windows guests are first-class (goldens derive locally with `images derive-windows`). Bundles are trusted operator input: verification proves integrity, not provenance (bundle signing is planned as part of image-distribution work).
+> `up` realizes cold-boot bundles only: checkpoint instantiation is planned later work. `provisioning`, `services`, and `vulnerabilities` realize through [`build`](./building.html.md): a range declaring them refuses every content-consuming verb (`range-not-built`) until a matching build manifest exists, and boots its captured realized images once one does. `users`, `misconfigurations`, and `data` realize through `build` like the content sections, as do `roles`, `defense`, Active Directory, telemetry-bearing postures, and `scheduled_activity` (installed as persistent units in the captured images), so nothing boots with silently missing content. Windows guests are supported (goldens derive locally with `images derive-windows`). Bundles are trusted operator input: verification proves integrity, not provenance (bundle signing is planned as part of image-distribution work).
 
 
 # inspect-ranges applier – Inspect Ranges
@@ -4572,7 +4583,7 @@ inspect-ranges evidence verify [OPTIONS] LOCATION
 |----|----|----|----|
 | `--shallow` | boolean | Replay manifests, chains, and seals only (skip fetching chunk bytes). | `Sentinel.UNSET` |
 | `--json` | boolean | Emit the full report as JSON. | `Sentinel.UNSET` |
-| `--expect-seal` | text | Externally-held seal digest to bind against (repeatable, one per writer). Without it, verification attests internal consistency only: the chain anchors everything at or below the seal, but a forged or absent seal, or a record transplanted from another location, is not detectable from the location alone. | `Sentinel.UNSET` |
+| `--expect-seal` | text | Externally-held seal digest to bind against (repeatable, one per writer). DIGEST is the bare hex from the sample-store binding or its INFO log line; a leading `sha256:` prefix is accepted and stripped. With any binding supplied, a writer at the location that no –expect-seal names is itself a break (the binding records the complete writer set, so additions are detected). Without it, verification attests internal consistency only: the chain anchors everything at or below the seal, but a forged or absent seal, an added writer, or a record transplanted from another location, is not detectable from the location alone. | `Sentinel.UNSET` |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
 
 
@@ -4586,7 +4597,7 @@ The range-host extension point: a [HostBackendFactory](../reference/host.html.md
 
 What a custom backend exports under the dotted path `INSPECT_RANGES_HOST` names. Must be cheap: no dialing, no probing; remote work belongs in the provider’s `acquire`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/backend.py#L87)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/backend.py#L87)
 
 ``` python
 HostBackendFactory = Callable[[HostBackendContext], HostBackend]
@@ -4596,7 +4607,7 @@ HostBackendFactory = Callable[[HostBackendContext], HostBackend]
 
 What a [HostBackendFactory](../reference/host.html.md#hostbackendfactory) is called with.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/backend.py#L44)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/backend.py#L44)
 
 ``` python
 @dataclass(frozen=True)
@@ -4620,7 +4631,7 @@ One resolved backend bundle: the provider plus the hooks a [HostProvider](../ref
 
 `channel_for_lease` is `None` for a co-resident backend (the runtime keeps its local `up`/`down`/channel seams); a separated backend supplies it and the runtime derives the swapped seams from it (`seams.py`). `reclaim` overrides the reaper’s teardown-by-origin connector; left `None`, a separated backend gets the channel-teardown default and a co-resident one the reaper’s direct `down`. `doctor_probe` lets `inspect-ranges doctor` check reachability.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/backend.py#L56)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/backend.py#L56)
 
 ``` python
 @dataclass(frozen=True)
@@ -4637,7 +4648,7 @@ Whether the backend reaches its host through a channel rather than running co-re
 reclaimer  
 The teardown-by-origin connector the reaper runs: the explicit `reclaim`, the channel-teardown default for a separated backend, or `None` for a co-resident one (the reaper’s direct `down` applies).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/backend.py#L73)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/backend.py#L73)
 
 ``` python
 def reclaimer(self) -> ReclaimFn | None
@@ -4647,7 +4658,7 @@ def reclaimer(self) -> ReclaimFn | None
 
 A control channel to the (possibly remote) host a lease names: the one hook a separated backend supplies, from which the runtime derives every other seam it needs. A typical implementation wraps the backend’s own [Transport](../reference/host.html.md#transport) in a [MessageChannel](../reference/host.html.md#messagechannel), inheriting the whole wire discipline (request ids, retries, budgets, validation).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/seams.py#L32)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/seams.py#L32)
 
 ``` python
 ChannelForLease = Callable[[HostLease], MessageChannel]
@@ -4657,7 +4668,7 @@ ChannelForLease = Callable[[HostLease], MessageChannel]
 
 The reaper’s teardown-by-origin connector: `(lease, state_dir)`; raises on failure, after which the lease stays `reaping` and the next sweep retries.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/backend.py#L19)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/backend.py#L19)
 
 ``` python
 ReclaimFn = Callable[[HostLease, Path], None]
@@ -4667,7 +4678,7 @@ ReclaimFn = Callable[[HostLease, Path], None]
 
 An optional reachability probe for `inspect-ranges doctor`: `None` when healthy, else the failure detail.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/backend.py#L22)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/backend.py#L22)
 
 ``` python
 DoctorProbe = Callable[[], str | None]
@@ -4681,7 +4692,7 @@ Acquires and releases range hosts.
 
 `acquire` returns a lease (identity plus expiry; a sample that outlives its lease is reclaimed by the independent reaper), gates on doctor readiness, logs the isolation claim, and starts renewal. `release` is destruction and must only follow a successful teardown: a used host is never returned to a pool, and a failed teardown frees nothing. `abandon` is the deliberate keep-it-running path (`cleanup=False`): renewal stops but the lease stays, so the reaper reclaims after expiry.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L87)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L87)
 
 ``` python
 class HostProvider(Protocol)
@@ -4693,7 +4704,7 @@ One acquired range host: the channel to it, and what the deployment claims about
 
 `channel` is `None` between acquire and boot in the co-resident backend (the local path builds its channel from booted guest CIDs, after `up`); the separated backend attaches it at acquire. Consumers that need the channel assert its presence at their boundary.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L71)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L71)
 
 ``` python
 class RangeHost(Protocol)
@@ -4704,7 +4715,7 @@ class RangeHost(Protocol)
 check_lease  
 Raise [LeaseLostError](../reference/host.html.md#leaselosterror) when this host’s lease has been lost (reaped, or expired and reclaimed); ops call this first, so lease loss fails the sample loudly at its next operation instead of silently running on a reclaimed host.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L82)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L82)
 
 ``` python
 def check_lease(self) -> None
@@ -4714,7 +4725,7 @@ def check_lease(self) -> None
 
 What a `HostProvider.acquire` needs to know about the sample it hosts.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L18)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L18)
 
 ``` python
 class SampleSpec(BaseModel)
@@ -4731,7 +4742,7 @@ Driver-side placement facts the lease record needs so the reaper can act from di
 
 [SampleSpec](../reference/host.html.md#samplespec) deliberately carries none of these (they are placement, not sample identity), yet the recorded lease shape requires them; `acquire` takes them as a second argument. Recorded in the `range-host-v1.md` ledger as a seam-signature extension over the `host-provider.md:83-91` sketch.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L56)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L56)
 
 ``` python
 class LeasePlacement(BaseModel)
@@ -4748,7 +4759,7 @@ What the deployment declares it can do; absence refuses at planning, never degra
 
 v1 pins every capability to its only supported value: image delivery is pre-seeded (the cache already holds the verified chain), and neither `forward` upstream reach nor egress grants exist yet.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L31)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L31)
 
 ``` python
 class HostCapabilities(BaseModel)
@@ -4763,7 +4774,7 @@ How the host delivers capture evidence (`host-provider.md:104`): it writes to th
 
 Host-class identity: render inputs are host-class declarations, never per-instance probes.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L46)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L46)
 
 ``` python
 class HostFacts(BaseModel)
@@ -4773,7 +4784,7 @@ class HostFacts(BaseModel)
 
 The per-sample isolation claim, logged so the eval-log claim stays truthful (`host-provider.md:27`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/host.py#L14)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/host.py#L14)
 
 ``` python
 IsolationLevel = Literal["instance", "shared"]
@@ -4785,7 +4796,7 @@ IsolationLevel = Literal["instance", "shared"]
 
 One sample’s claim on a host: identity plus absolute expiry, the exact record shape from `range-host-v1.md`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L58)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L58)
 
 ``` python
 class HostLease(BaseModel)
@@ -4811,7 +4822,7 @@ Cross-process host leases over a flock-guarded `leases.json`, keyed by lease id.
 
 Shares the `JsonRegistry` discipline with the CID allocator: atomic sorted writes, and entries another version wrote are preserved verbatim, never silently dropped.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L93)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L93)
 
 ``` python
 class LeaseStore
@@ -4822,7 +4833,7 @@ class LeaseStore
 acquire  
 Mint a fresh active lease expiring `ttl_s` (default [lease_ttl_s()](../reference/host.html.md#lease_ttl_s)) from now.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L105)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L105)
 
 ``` python
 def acquire(
@@ -4867,7 +4878,7 @@ def acquire(
 renew  
 The renewal CAS: extend expiry if and only if the lease still exists and is `active`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L143)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L143)
 
 ``` python
 def renew(self, lease_id: str, ttl_s: float | None = None) -> HostLease
@@ -4880,7 +4891,7 @@ def renew(self, lease_id: str, ttl_s: float | None = None) -> HostLease
 release  
 Remove the lease; idempotent, callable from any process. Release is destruction: call only after a successful teardown.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L165)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L165)
 
 ``` python
 def release(self, lease_id: str) -> None
@@ -4891,7 +4902,7 @@ def release(self, lease_id: str) -> None
 leases  
 Every parseable lease, sorted by lease id (read-only; never rewrites the file).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L174)
 
 ``` python
 def leases(self) -> list[HostLease]
@@ -4900,7 +4911,7 @@ def leases(self) -> list[HostLease]
 expired  
 Leases past expiry or already `reaping`, without mutating anything (the doctor-hint view of what a sweep would select).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L179)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L179)
 
 ``` python
 def expired(self) -> list[HostLease]
@@ -4911,7 +4922,7 @@ One sweep selection under the flock: every lease already `reaping` (crash resume
 
 A sweep that selects nothing never rewrites the file (an idle `--interval` reaper must not churn `leases.json`), so candidates are probed read-only first and the marking write re-checks under its own lock.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L188)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L188)
 
 ``` python
 def mark_reaping(self) -> list[HostLease]
@@ -4921,7 +4932,7 @@ def mark_reaping(self) -> list[HostLease]
 
 The sample’s host lease is gone or being reaped; the sample fails loudly as lease loss, never limps on.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L54)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L54)
 
 ``` python
 class LeaseLostError(RuntimeError)
@@ -4931,7 +4942,7 @@ class LeaseLostError(RuntimeError)
 
 `INSPECT_RANGES_LEASE_TTL_S` as a positive float, default 600; renewal runs at a third of it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/leases.py#L32)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/leases.py#L32)
 
 ``` python
 def lease_ttl_s() -> float
@@ -4941,7 +4952,7 @@ def lease_ttl_s() -> float
 
 One leased co-resident host. The channel is attached by the provider after boot (today’s path builds it from booted guest CIDs), so it is `None` until then.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/local.py#L45)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/local.py#L45)
 
 ``` python
 class LocalRangeHost
@@ -4952,7 +4963,7 @@ class LocalRangeHost
 check_lease  
 Raise the [LeaseLostError](../reference/host.html.md#leaselosterror) a renewal step recorded, so lease loss fails the sample loudly at its next operation.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/local.py#L60)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/local.py#L60)
 
 ``` python
 def check_lease(self) -> None
@@ -4961,7 +4972,7 @@ def check_lease(self) -> None
 renew_now  
 One renewal step, exactly what the background task runs at TTL/3; the renewal-versus-reap tests drive it directly.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/local.py#L69)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/local.py#L69)
 
 ``` python
 async def renew_now(self) -> None
@@ -4971,7 +4982,7 @@ async def renew_now(self) -> None
 
 This machine’s host-class identity; `INSPECT_RANGES_HOST_CLASS` names the class (declarations, never per-instance probes).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_host/local.py#L36)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_host/local.py#L36)
 
 ``` python
 def local_host_facts() -> HostFacts
@@ -4985,7 +4996,7 @@ Transport-agnostic control plane to one sample’s range (`host-provider.md`).
 
 Implementations: [MessageChannel](../reference/host.html.md#messagechannel) over a real or mock transport. Nothing above this interface may know which transport carries it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L198)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L198)
 
 ``` python
 class RangeChannel(Protocol)
@@ -4995,7 +5006,7 @@ class RangeChannel(Protocol)
 
 [RangeChannel](../reference/host.html.md#rangechannel) implementation over any per-operation-connect [Transport](../reference/host.html.md#transport).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L244)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L244)
 
 ``` python
 class MessageChannel
@@ -5003,10 +5014,42 @@ class MessageChannel
 
 #### Methods
 
+\_\_init\_\_  
+A channel over `transport`, with `expected_unready` naming the one channel whose unreachability is routine.
+
+`expected_unready` demotes retry lines and loss/budget trace dumps from WARNING/ERROR to INFO: on the boot-time readiness channel a daemon that is not up yet is the normal state, and a warning the user can do nothing about reads as a defect (user policy, 2026-10-25). Tamper verdicts stay ERROR on every channel: malformed replies are extraordinary even mid-boot.
+
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L247)
+
+``` python
+def __init__(
+    self,
+    transport: Transport,
+    *,
+    label: str = "channel",
+    channel_budget_s: float = DEFAULT_CHANNEL_BUDGET_MS / 1000,
+    untimed_bound_s: float = DEFAULT_UNTIMED_BOUND_MS / 1000,
+    grace_s: float = _CHANNEL_GRACE_S,
+    expected_unready: bool = False,
+) -> None
+```
+
+`transport` [Transport](../reference/host.html.md#transport)  
+
+`label` str  
+
+`channel_budget_s` float  
+
+`untimed_bound_s` float  
+
+`grace_s` float  
+
+`expected_unready` bool  
+
 trace_tail  
 The most recent codec trace events, formatted one per line.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L266)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L273)
 
 ``` python
 def trace_tail(self, limit: int = 40) -> list[str]
@@ -5017,7 +5060,7 @@ def trace_tail(self, limit: int = 40) -> list[str]
 ping  
 Liveness and protocol-version probe for one guest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L575)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L588)
 
 ``` python
 async def ping(self, guest: str) -> PongReply
@@ -5030,7 +5073,7 @@ The guest daemon’s current session id, via a fresh ping.
 
 The provider pins it per guest at boot and treats a later change as a daemon restart: the wire layer’s exactly-once guarantee (dedupe, tombstones, durable replies) holds only within one session (`SessionHex`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L581)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L594)
 
 ``` python
 async def session(self, guest: str) -> str
@@ -5045,7 +5088,7 @@ Liveness-polled: the initial reply wait is capped so at least one poll precedes 
 
 At-most-once: a resend is only legal while the request provably never left (connect failed); once delivery is possible, a daemon `ENOENT`/`ESTALE` for the id surfaces as `TransportFailure`, never a re-run.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L588)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L601)
 
 ``` python
 async def exec(
@@ -5069,7 +5112,7 @@ async def exec(
 read_file  
 Read a guest file, capped at `cap` bytes.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L830)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L843)
 
 ``` python
 async def read_file(
@@ -5090,7 +5133,7 @@ Write `data` to a guest file (exactly once per request id, even across retries).
 
 Returns the delivery-attempt count: above 1 means a same-id resend happened (the provider’s session-invalidation policy reads this for side-effecting operations).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L848)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L861)
 
 ``` python
 async def write_file(
@@ -5109,7 +5152,7 @@ async def write_file(
 forward  
 Open a capability-gated forward (not implemented until the realizer integration).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L874)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L887)
 
 ``` python
 async def forward(self, guest: str, host: str, port: int) -> ForwardReply
@@ -5124,7 +5167,7 @@ async def forward(self, guest: str, host: str, port: int) -> ForwardReply
 diag  
 Read the daemon’s diagnostics: the in-guest ring buffer tail plus the supervised listener-restart count.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L881)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L894)
 
 ``` python
 async def diag(self, guest: str, *, max_entries: int = 100) -> DiagReply
@@ -5139,7 +5182,7 @@ Read the daemon’s exec-witness ring from `since_seq` (execve-witness-v1); the 
 
 A daemon without the witness answers a typed error that surfaces as `GuestError` (`ENOSYS` from a Linux daemon whose kernel lacks the process connector; `EPROTO` from the Windows daemon’s unknown-kind fallback): the caller records a declared capability drop, never a failure.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L887)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L900)
 
 ``` python
 async def exec_events(
@@ -5158,7 +5201,7 @@ Poll the applier for uptime and per-guest state (the driver-initiated heartbeat 
 
 The seam’s “periodic heartbeat” (`host-provider.md`) is driver-polled: a pull verb fits per-operation-connect and connectionless transports where an unsolicited push does not. The poll reuses the existing `PingRequest` to the host endpoint and expects the existing [Heartbeat](../reference/host.html.md#heartbeat) reply with the matching id, so no wire kind was added; a dedicated `HeartbeatRequest` kind is the recorded multi-host growth path (`range-host-v1.md`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L902)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L915)
 
 ``` python
 async def heartbeat(self) -> Heartbeat
@@ -5173,7 +5216,7 @@ Hardened per the realize policy: every transport interaction (connect, send, eac
 
 Stage-order leniency, deliberate: skipping stages is allowed (a cache-hitting applier legitimately jumps ahead) and `failed` is allowed anywhere including first (an honest fast failure); only `ready` as the very first report is tamper. A hostile applier can emit the honest sequence anyway, so tightening buys no security.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L911)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L924)
 
 ``` python
 async def realize(
@@ -5194,7 +5237,7 @@ async def realize(
 teardown  
 Tear the range down. Teardown is contractually idempotent: callers may retry with a fresh id.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L1116)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L1129)
 
 ``` python
 async def teardown(self) -> None
@@ -5204,7 +5247,7 @@ async def teardown(self) -> None
 
 Per-operation connection factory; `endpoint` is a guest name or `HOST_APPLIER`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L192)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L192)
 
 ``` python
 class Transport(Protocol)
@@ -5214,7 +5257,7 @@ class Transport(Protocol)
 
 One connection’s byte stream; `receive` returns empty bytes at EOF.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L184)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L184)
 
 ``` python
 class ByteStream(Protocol)
@@ -5224,7 +5267,7 @@ class ByteStream(Protocol)
 
 Run an argv command in the guest (never an implicit shell); stdin rides the bulk.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/protocol.py#L142)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/protocol.py#L142)
 
 ``` python
 class ExecRequest(_BulkMessage)
@@ -5241,7 +5284,7 @@ Validated exec result with the bulk split back into streams.
 
 `attempts` counts deliveries of the exec request itself (not liveness polls): a value above 1 means a same-id resend happened, which the provider’s session-invalidation policy uses to decide whether exactly-once still holds for side-effecting operations.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/channel.py#L167)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/channel.py#L167)
 
 ``` python
 @dataclass
@@ -5260,7 +5303,7 @@ Whether stdout was cut at the guest’s output cap (`SUBMIT`-style line protocol
 
 Staged realization progress; `failed` carries diagnostics in `detail`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/protocol.py#L438)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/protocol.py#L438)
 
 ``` python
 class StageReport(_MessageBase)
@@ -5270,7 +5313,7 @@ class StageReport(_MessageBase)
 
 Reply to a granted `forward`; `handle` names the opened forward (capability-gated, wire-stable ahead of its implementation).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/protocol.py#L300)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/protocol.py#L300)
 
 ``` python
 class ForwardReply(_MessageBase)
@@ -5280,7 +5323,7 @@ class ForwardReply(_MessageBase)
 
 Reply to `ping`: the daemon’s identity string, protocol version, and boot session.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/protocol.py#L240)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/protocol.py#L240)
 
 ``` python
 class PongReply(_MessageBase)
@@ -5295,7 +5338,7 @@ Required: an honest daemon always reports its session (provider-v1 layer 2b).
 
 Reply to `diag`: the tail of the daemon’s in-guest diagnostic ring buffer.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/protocol.py#L315)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/protocol.py#L315)
 
 ``` python
 class DiagReply(_MessageBase)
@@ -5310,7 +5353,7 @@ Supervised listener recreations since daemon start: the storm battery asserts it
 
 The host’s heartbeat reply, driver-polled (a pull verb fits per-operation-connect transports): uptime plus per-guest state.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_channel/protocol.py#L447)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_channel/protocol.py#L447)
 
 ``` python
 class Heartbeat(_MessageBase)
@@ -5494,7 +5537,7 @@ The package’s top-level surface. The eval wiring is covered in [Challenges](..
 
 Build an Inspect dataset from a challenges file.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/dataset.py#L63)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/dataset.py#L63)
 
 ``` python
 def challenge_dataset(
@@ -5517,9 +5560,9 @@ Pass as the task’s `setup=`, or equivalently prepend to the solver chain (the 
 
 Prober-based goals (`availability`, `degrade`, `tamper`) start the active prober after a successful setup, probing from the rendered probe endpoint on a cadence; `detection` and `evade` goals start the telemetry export poller for their collector, which must have a matching entry in `telemetry_collectors` (poll mechanics are deployment knowledge the schema deliberately does not carry: the collector name binds the two). Both producers write evidence mid-run and are stopped by the evidence session at finalize; the scorer reads recorded results only.
 
-This solver never touches the agent’s tools: [verify_goal()](../reference/inspect_ranges.html.md#verify_goal) is the only submission channel, and the task author always passes it to their agent (`react(tools=[bash(), verify_goal()])`, or inspect_swe’s `bridged_tools=[verify_goal()]`). The dataset’s appended prompt paragraph names the tool and the goal ids for every challenge; this solver registers the sample’s verification context so the tool can verify cheap-tier goals at call time.
+This solver never touches the agent’s tools: [verify_goal()](../reference/inspect_ranges.html.md#verify_goal) is the only submission channel, and the task author always passes it to their agent (`react(tools=[terminal(), verify_goal()])`, or inspect_swe’s `bridged_tools=[verify_goal()]`). The dataset’s appended prompt paragraph names the tool and the goal ids for every challenge; this solver registers the sample’s verification context so the tool can verify cheap-tier goals at call time.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/setup.py#L267)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/setup.py#L267)
 
 ``` python
 @solver
@@ -5538,7 +5581,7 @@ The scorer is a single end-of-run authority; its machinery (probers, corroborati
 
 Raises (at scoring time): `RuntimeError` when the sample carries no challenge metadata.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/scorer.py#L361)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/scorer.py#L361)
 
 ``` python
 @scorer(metrics=[accuracy()])
@@ -5551,7 +5594,7 @@ A tool verifying submitted proof values against challenge goals.
 
 Pass it to the agent (`react(tools=[bash(), verify_goal()])`, or inspect_swe’s `bridged_tools=[verify_goal()]`); it is the only submission channel, and `challenge_dataset` names it with the goal ids in every sample’s instructions.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/verify.py#L76)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/verify.py#L76)
 
 ``` python
 @tool
@@ -5565,14 +5608,19 @@ Report the per-call verification outcome and the running goal checklist in tool 
 
 A tool giving the agent persistent terminal sessions on its foothold.
 
-Pass it alongside [bash()](https://inspect.aisi.org.uk/reference/inspect_ai.tool.html#bash) (`react(tools=[bash(), terminal(), verify_goal()])`). Sessions are tmux sessions on the foothold guest, so interactive programs (telnet, caught reverse shells, msfconsole) stay alive across tool calls. Adding the tool changes measured difficulty: adopt it per task, deliberately (`terminal-tool-v1.md`).
+Sessions are tmux sessions on the foothold guest, so interactive programs (telnet, caught reverse shells, msfconsole) stay alive across tool calls. Adding the tool changes measured difficulty: adopt it per task, deliberately (`terminal-tool-v1.md`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_terminal/tool.py#L115)
+Instancing follows `bash_session`: tools sharing an `instance` (or both leaving it `None` in the same tool-state scope) share their sessions; distinct instances (or distinct scopes, e.g. concurrent agents in one sample) get fully separate terminals, down to the guest’s tmux sessions and the evidence casts. The default namespace keeps today’s bare tmux names.
+
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_terminal/tool.py#L180)
 
 ``` python
 @tool(viewer=_terminal_viewer, parallel=False)
-def terminal() -> Tool
+def terminal(instance: str | None = None) -> Tool
 ```
+
+`instance` str \| None  
+Instance id (each unique instance id has its own terminal namespace).
 
 ## Challenges
 
@@ -5580,7 +5628,7 @@ def terminal() -> Tool
 
 One agent-facing prompt paired with the typed goals that verify it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L720)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L720)
 
 ``` python
 class Challenge(_StrictModel)
@@ -5604,7 +5652,7 @@ Aggregation of goal results (weights by default).
 
 A complete `challenges.yaml`: the list of challenges a range serves.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L797)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L797)
 
 ``` python
 class Challenges(_StrictModel)
@@ -5619,7 +5667,7 @@ The challenges; each becomes one Inspect sample.
 
 One typed goal; the YAML shape is flat and dispatches on `type` (built-ins through the union, registered custom types through `_dispatch_goal`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L658)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L658)
 
 ``` python
 Goal = Annotated[
@@ -5645,7 +5693,7 @@ Goal = Annotated[
 
 How a challenge’s goal results aggregate.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L696)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L696)
 
 ``` python
 class Scoring(_StrictModel)
@@ -5663,7 +5711,7 @@ Under `milestones`, a later step passing implies the earlier steps.
 
 Capability labels for cross-benchmark aggregation: descriptive only, never a scoring input.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L92)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L92)
 
 ``` python
 Primitive = Literal[
@@ -5683,7 +5731,7 @@ Override `observers()` to declare the trusted observers goals of the type requir
 
 A custom spec parses from YAML only in processes where the type’s registration has already run: under inspect the `inspect_ai` entry-point mechanism imports registering modules before any parsing, while a plain `load_challenges`/`validate_challenges` caller must import the registering module first, or the goal’s `type` name refuses as unknown.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L119)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L119)
 
 ``` python
 class GoalBase(_StrictModel)
@@ -5711,7 +5759,7 @@ The effective capability label: the authored override, else the type default.
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -5721,7 +5769,7 @@ def observers(self) -> frozenset[ObserverKind]
 
 Submit a per-sample secret planted at a path; no guest is consulted at scoring.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L179)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L179)
 
 ``` python
 class FlagGoal(GoalBase)
@@ -5755,7 +5803,7 @@ Account the planted file is readable by (mode 0600, owned by `owner`).
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -5767,7 +5815,7 @@ Submit a fact about the environment, compared against exactly one declared sourc
 
 Sources: `variable` (the sample’s drawn value when the variable declares `draw: boot`, the declared default otherwise; an undrawn variable’s expected answer is as visible as the spec itself), `value` (a literal fact that is scenario content, visible in the spec by design), or `host` plus `path` (read by the oracle from the live instance). Exactly one source must be declared.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L193)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L193)
 
 ``` python
 class AnswerGoal(GoalBase)
@@ -5804,7 +5852,7 @@ In-guest path the oracle reads the expected fact from, with `host`.
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -5816,7 +5864,7 @@ Obtain target content: the submitted content or its per-sample canary matches th
 
 A file’s presence on the attack box never passes. When `segment` is declared, source-bound pcap corroborates the flow.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L241)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L241)
 
 ``` python
 class ExfiltrateGoal(GoalBase)
@@ -5849,7 +5897,7 @@ Network whose pcap corroborates the exfiltration flow, when declared.
 
 Run code on a host: produce a per-sample token readable only by the targeted execution context.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L262)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L262)
 
 ``` python
 class ExecuteGoal(GoalBase)
@@ -5887,7 +5935,7 @@ Redirect control flow short of code execution: the crash record shows the per-sa
 
 The proof is `guest-corroborated` with a declared floor: forging the crash record costs code execution on the target (an unprivileged process renamed to the service can jump to the disclosed address and the kernel emits a genuinely matching segfault line), so the type is sound when the claimed capability is cheaper than execution on that host.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L282)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L282)
 
 ``` python
 class HijackGoal(GoalBase)
@@ -5919,7 +5967,7 @@ Gain a host or principal: produce a secret planted where the claim lives.
 
 Registered under both `control` and `privilege`; `privilege` defaults the capability label to `escalate`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L300)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L300)
 
 ``` python
 class ControlGoal(GoalBase)
@@ -5950,7 +5998,7 @@ In-guest path of the planted secret (mode 0600, owned by `principal`).
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -5962,7 +6010,7 @@ Deny or degrade a service: the declared external probe fails its nonce-bound che
 
 DOWN is full credit; a declared degradation `measure` with its `threshold` earns partial credit between MUMBLE and DOWN.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L323)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L323)
 
 ``` python
 class DegradeGoal(GoalBase)
@@ -6006,7 +6054,7 @@ Modify target data or behavior: the written per-sample value is observed from ou
 
 The write target must require the claimed access (the placement rule). `observer: guest-snapshot` (write-what-where) is designed, pending the introspected channel, and refuses at validation.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L363)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L363)
 
 ``` python
 class TamperGoal(GoalBase)
@@ -6042,7 +6090,7 @@ How the written value is observed from outside.
 
 Keep a service up (defender direction): the external probe answers its per-probe nonce within the window.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L403)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L403)
 
 ``` python
 class AvailabilityGoal(GoalBase)
@@ -6080,7 +6128,7 @@ Surface an alert (defender direction): the collector contains, or for stealth la
 
 Scored inside the observation window with a completeness precondition: no alert over an incomplete window is indeterminate, never a stealth pass.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L422)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L422)
 
 ``` python
 class DetectionGoal(GoalBase)
@@ -6118,7 +6166,7 @@ How to read an alert’s severity from one export record, and the floor that cou
 
 Severity vocabularies are collector-specific, so the goal declares the extraction: `pattern` is a regex with exactly one capture group, applied per newline-delimited export record. Numeric mode (no `levels`): the capture parses as an integer, `floor` is an integer, and `lower_is_more_severe` flips the comparison for vocabularies like journald’s `PRIORITY` (0 is emergency, 7 is debug, so a floor of 4 counts captures of 4 or lower). Ordered mode (`levels` given, least to most severe): the capture and `floor` are both level names. Records the pattern does not match, or whose capture does not parse in the declared vocabulary, are not alerts and never count toward the threshold.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L463)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L463)
 
 ``` python
 class SeverityFilter(_StrictModel)
@@ -6144,7 +6192,7 @@ Achieve objectives while staying quiet (attacker direction): the dual of `detect
 
 Alerts matching the declared filter stay at or below `threshold` within the window, scored from the exported telemetry under the same completeness precondition as `detection`: a silenced collector reads per `on_sensor_tamper`, never as a free stealth pass. Export records are newline-delimited (the v1 convention); window edges resolve at chunk-span granularity like `detection`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L542)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L542)
 
 ``` python
 class EvadeGoal(GoalBase)
@@ -6192,7 +6240,7 @@ No default label: evade is a constraint on how objectives are reached, not a cap
 
 Produce an open-ended artifact graded by an LLM or human (`model-graded`, weight-capped by the engine).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L597)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L597)
 
 ``` python
 class JudgeGoal(GoalBase)
@@ -6220,7 +6268,7 @@ Grading instructions for the hardened judge template.
 observers  
 The trusted observers this goal requires; every goal’s plant record needs the sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L174)
 
 ``` python
 def observers(self) -> frozenset[ObserverKind]
@@ -6230,7 +6278,7 @@ def observers(self) -> frozenset[ObserverKind]
 
 Fix a vulnerability (defender direction): the reference exploit re-run fails while the functional check passes.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L607)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L607)
 
 ``` python
 class PatchGoal(GoalBase)
@@ -6270,7 +6318,7 @@ One goal type’s proof mechanics; stateless, registered once, shared across sam
 
 `spec` is the schema class the YAML dispatched to; `assurance` is the type’s default label (override `assurance_for` when a goal’s declared source moves the trust, as `answer`’s oracle-read source does).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L124)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L124)
 
 ``` python
 class GoalType(ABC)
@@ -6286,7 +6334,7 @@ Whether `check` consumes the submissions view. When False, the scorer runs ONE c
 assurance_for  
 The assurance label for this specific goal (default: the type’s label).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L136)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L136)
 
 ``` python
 def assurance_for(self, goal: GoalBase) -> Assurance
@@ -6297,7 +6345,7 @@ def assurance_for(self, goal: GoalBase) -> Assurance
 setup  
 Plant per-sample material; returns plant-store keys for unwind (default: nothing).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L140)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L140)
 
 ``` python
 async def setup(self, goal: GoalBase, oracle: "RangeOracle") -> list[str]
@@ -6310,7 +6358,7 @@ async def setup(self, goal: GoalBase, oracle: "RangeOracle") -> list[str]
 check  
 Gather raw observations; never sends an expected value guest-ward.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L144)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L144)
 
 ``` python
 @abstractmethod
@@ -6328,7 +6376,7 @@ async def check(
 compare  
 Pure, host-side verdict over the observations and the plant record.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L150)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L150)
 
 ``` python
 @abstractmethod
@@ -6347,7 +6395,7 @@ def compare(
 
 One goal’s verdict, produced host-side by `compare` (or by the scorer on a failed check).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L85)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L85)
 
 ``` python
 class GoalResult(BaseModel)
@@ -6376,7 +6424,7 @@ Register a goal type under its name(s); duplicate names refuse.
 
 Registration opens both ends for the type: the engine dispatches scoring to it, and `challenges.yaml` parsing dispatches its YAML `type` name(s) to its `spec` class. Registration must therefore run before any challenges file naming the type parses: under inspect, register from an `inspect_ai` entry-point module (the mechanism `inspect_ranges` uses for its own built-ins, imported in every inspect process); a plain `load_challenges`/`validate_challenges` caller outside inspect must import the registering module first, or the type’s name refuses as unknown.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L160)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L160)
 
 ``` python
 def register_goal_type(
@@ -6394,7 +6442,7 @@ Registry names; defaults to `(goal_type.name,)`. `control`/`privilege` share one
 
 Register a reference exploit chain for `patch` scoring under `name`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/observedtypes.py#L713)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/observedtypes.py#L750)
 
 ``` python
 def register_exploit(name: str, script: str) -> None
@@ -6410,7 +6458,7 @@ Privileged access to one sample’s range for setup and scoring. Not a [SandboxE
 
 Obtain one with [range_oracle()](../reference/inspect_ranges.html.md#range_oracle) from setup or scoring code running in the sample context, or attach out of band to a running `up` project with `with range_oracle("<project>") as oracle:`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L90)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L91)
 
 ``` python
 class RangeOracle
@@ -6432,7 +6480,7 @@ The sample’s raw channel (the telemetry poller polls through it; same residue 
 evidence_session  
 The sample’s evidence session (producer registration, driver stream appends); `None` when evidence is unavailable.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L121)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L122)
 
 ``` python
 def evidence_session(self) -> "EvidenceSession | None"
@@ -6443,7 +6491,7 @@ Snapshot-ship the active capture chunks so scoring reads current traffic; never 
 
 Size-based rotation means a quiet segment’s beacon usually sits in the still-active tcpdump file at scoring time; the scorer calls this once before any pcap read (the 2026-10-23 fleet-pass finding). Returns the snapshot chunks shipped: `0` with no evidence session, under separated capture (the applier owns the streamer; a flush verb there is a recorded follow-up), or on any failure.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L125)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L126)
 
 ``` python
 async def flush_capture(self) -> int
@@ -6452,7 +6500,7 @@ async def flush_capture(self) -> int
 nonce  
 A fresh per-call secret from independent entropy, never derived from any recorded seed.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L142)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L143)
 
 ``` python
 def nonce(self) -> str
@@ -6463,7 +6511,7 @@ The trusted observers this sample’s deployment can supply right now.
 
 `evidence-sink` exists when the evidence session is live; `segment-pcap` and `console` when capture was rendered into the range; `active-prober` when the plan carries rendered probe endpoints. `telemetry-collector` is deployment knowledge the oracle cannot see (which collector specs exist), so `challenge_setup` supplies it as an extra observer to `run_setup` when a matching spec was passed; a challenge requiring an observer absent from the union refuses at planting.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L146)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L147)
 
 ``` python
 def available_observers(self) -> frozenset[str]
@@ -6472,7 +6520,7 @@ def available_observers(self) -> frozenset[str]
 resolved  
 The sample’s resolved plan (per-guest address and CID allocations; see `guest_segment_ip`). Variables never ride the plan: `answer` goals read `variable_value()`, which folds the sample’s draws over the declared defaults.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L162)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L163)
 
 ``` python
 def resolved(self) -> ResolvedPlan
@@ -6481,7 +6529,7 @@ def resolved(self) -> ResolvedPlan
 range_spec  
 The sample’s validated range spec: declared variables (defaults; see `draws()` for the sample’s drawn values) and scenario content.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L168)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L169)
 
 ``` python
 def range_spec(self) -> RangeSpec
@@ -6490,7 +6538,7 @@ def range_spec(self) -> RangeSpec
 draws  
 The sample’s drawn variable values (variable-draws-v0), keyed by variable name; empty when the range declares no `draw: boot` variables or the handle carries no sample context.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L174)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L175)
 
 ``` python
 def draws(self) -> dict[str, int | str]
@@ -6499,7 +6547,7 @@ def draws(self) -> dict[str, int | str]
 variable_value  
 The sample’s value for a declared variable: the drawn value when one exists, the declared default otherwise. The one place the draw-else-default rule lives; `answer` scoring reads it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L178)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L179)
 
 ``` python
 def variable_value(self, name: str) -> str | int | bool
@@ -6510,7 +6558,7 @@ def variable_value(self, name: str) -> str | int | bool
 is_windows  
 Whether `guest` runs Windows, from the sample’s resolved plan; a plan-less handle (unit fixtures) treats every guest as linux.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L191)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L192)
 
 ``` python
 def is_windows(self, guest: str) -> bool
@@ -6523,7 +6571,7 @@ Run `cmd` (argv, never an implicit shell) in `guest` over the raw channel.
 
 `cmd` must never carry plant material: values travel as `write_file` bulk or `read_file` replies only. `env` is the Windows path-carrying contract (fixed script literals read `IR_PLANT_*` from it); it must never carry plant material either.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L198)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L199)
 
 ``` python
 async def exec(
@@ -6552,7 +6600,7 @@ Read a guest file raw (a T3 read like any other; the cost rule applies to oracle
 
 The daemon’s file plane reads as the daemon identity (the agent user), so privileged locations (a 0600 root plant, another principal’s file) need `user`: the read then rides the exec plane (`cat` with only the path in argv; the content returns as reply bulk, the same privacy class as a file read).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L221)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L222)
 
 ``` python
 async def read_file(
@@ -6580,7 +6628,7 @@ Without `owner`, this is the daemon’s file plane (mode pinned atomically with 
 
 On every failure path this frame scrubs `data` before raising, so a locals-rendered traceback (`INSPECT_TRACEBACK_LOCALS=1`) cannot carry plant bytes from here; lower channel frames are outside this guarantee, which is why that flag is forbidden on scoring runs.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L252)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L253)
 
 ``` python
 async def write_file(
@@ -6609,7 +6657,7 @@ Memoize the evidence accessors for the duration of one scoring pass.
 
 The evidence record is immutable once written, so within a pass every accessor returns the same bytes; without the memo, scoring cost scales with the number of agent-submitted candidates (each candidate’s `check` refetches the capture), which hands the agent linear control over scoring cost through `verify_goal` calls. The memo is per-key (`pcap/<segment>`, `telemetry/<collector>`, …) and cleared when the outermost open exits. Reentrant: `challenge_scorer` opens one memo around the whole pass (so two goals on the same segment share one fetch), and `score_challenge`’s per-goal open nests inside it as a no-op; the poller never fetches evidence, setup runs before any evidence exists, and `corroborate()` deliberately bypasses the memo (its claim-scoped reads ride `stream_chunks` directly).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L325)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L326)
 
 ``` python
 @contextmanager
@@ -6619,7 +6667,7 @@ def evidence_memo(self) -> "Generator[None]"
 pcap  
 The segment’s captured pcap chunks from the sample’s evidence record (host writer).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L351)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L352)
 
 ``` python
 async def pcap(self, segment: str) -> list[bytes]
@@ -6630,7 +6678,7 @@ async def pcap(self, segment: str) -> list[bytes]
 telemetry  
 The collector’s exported telemetry chunks (driver writer); query semantics arrive with the detection engine.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L363)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L364)
 
 ``` python
 async def telemetry(self, collector: str) -> list[bytes]
@@ -6641,7 +6689,7 @@ async def telemetry(self, collector: str) -> list[bytes]
 console  
 The guest’s continuous serial-console chunks from the sample’s evidence record (host writer).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L375)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L376)
 
 ``` python
 async def console(self, guest: str) -> list[bytes]
@@ -6654,7 +6702,7 @@ The goal’s recorded probe verdicts (driver writer) plus whether the stream car
 
 A gap is an observation hole: the prober flushes `down` verdicts immediately, so a lost chunk is disproportionately likely to be the one carrying failures, and the prober types treat a gapped stream as indeterminate rather than trusting the survivors.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L387)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L388)
 
 ``` python
 async def probe_records(self, goal_id: str) -> "tuple[list[SpannedRecord], bool]"
@@ -6663,19 +6711,40 @@ async def probe_records(self, goal_id: str) -> "tuple[list[SpannedRecord], bool]
 `goal_id` str  
 
 telemetry_export  
-The collector’s export for scoring: meta records, data chunks with spans (`None` spans mark the delivered-but-uncommitted tail), and the gap flag.
+The collector’s export for scoring: meta records, data chunks with spans (`None` spans mark the delivered-but-uncommitted tail), and the wall-clock spans of every in-chain gap on either stream (empty means no gaps; the consumer window-scopes them, 2026-10-25 amendment).
 
 One manifest fetch serves both streams (the detection check runs per goal, possibly on a poller cadence, against a possibly remote store).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L402)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L403)
 
 ``` python
 async def telemetry_export(
     self, collector: str
-) -> "tuple[list[SpannedRecord], list[tuple[bytes, float | None, float | None]], bool]"
+) -> "tuple[list[SpannedRecord], list[tuple[bytes, float | None, float | None]], list[tuple[float, float]]]"
 ```
 
 `collector` str  
+
+exec_events  
+The guest’s exec-witness record for scoring: coverage meta records (`exec-meta/<guest>`), witnessed execve event records (`exec/<guest>`), and the gap flag.
+
+Guest-tier assurance, like `telemetry_export`: the pre-compromise timeline is immutable once streamed, but a compromised guest can forge what it reports from the moment it falls, so events are observation, never proof against an in-guest root adversary.
+
+The gap flag is True when either stream carries any counted loss (`exec-ring-overflow`, `exec-subscriber-loss`, `exec-witness-restart`, `poll-failed`): an observation hole, and the consumer decides what incompleteness means for its verdict. A guest whose daemon can never serve the verb gets one declared meta record instead of silence, `outcome: "unsupported"` with `reason: "daemon-unsupported"` plus the `errno` and `detail` that named the refusal; a Windows guest gets the same `unsupported` shape with `reason: "os-windows"`, declared at witness start without ever being polled.
+
+Event records carry the guest clock (`ts_ms`); chunk spans carry host wall clocks. Exec events stamp no `wall` key, so `SpannedRecord.wall()` falls back to the enclosing chunk’s span start for them (meta records’ host stamp is `host_ts`, so the same fallback applies there).
+
+One manifest fetch serves both streams (the `telemetry_export` discipline: a custom goal may check per candidate against a possibly remote store).
+
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L437)
+
+``` python
+async def exec_events(
+    self, guest: str
+) -> "tuple[list[SpannedRecord], list[SpannedRecord], bool]"
+```
+
+`guest` str  
 
 ### range_oracle
 
@@ -6685,7 +6754,7 @@ Without arguments, the current sample’s oracle, resolved through the default s
 
 With a `project` name, a context manager attaching to a RUNNING range booted with `inspect-ranges up` (or `up --from-spec`), for poking at a range from a REPL or script: `with range_oracle("ir-dmz-pivot-...") as oracle:` yields the same oracle verbs (`exec`, `read_file`, `write_file`, …) over a transport rebuilt from the project’s recorded state (`state_dir` overrides the default project state directory). The attach is local-backend only and logs loudly, so an attach during a scoring run is visible in the run’s logs; leaving the context detaches the oracle, and later verbs refuse. An attached oracle carries no sample context: `resolved()`, `range_spec()`, and the evidence accessors refuse, and `is_windows` reads an empty plan, so the owner-flow `write_file` dispatches the POSIX script on every guest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L450)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L491)
 
 ``` python
 def range_oracle(
@@ -6701,7 +6770,7 @@ def range_oracle(
 
 A privileged setup operation failed; the message names the operation, never a value.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/oracle.py#L42)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/oracle.py#L43)
 
 ``` python
 class OracleSetupError(RuntimeError)
@@ -6711,7 +6780,7 @@ class OracleSetupError(RuntimeError)
 
 Raw reads a `check` gathered; a guest read is attacker-authored in the worst case.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/engine.py#L70)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/engine.py#L70)
 
 ``` python
 class Observations(BaseModel)
@@ -6732,7 +6801,7 @@ Named chunked observations (evidence streams: each pcap chunk is a standalone ca
 
 Trusted observers a goal type may require; a deployment that cannot supply one refuses the challenge at planning time. `guest-snapshot` is designed, not built, and currently refuses at validation.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L97)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L97)
 
 ``` python
 ObserverKind = Literal[
@@ -6749,7 +6818,7 @@ ObserverKind = Literal[
 
 Whether any captured packet from `src` carries `value`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/pcapscan.py#L19)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/pcapscan.py#L19)
 
 ``` python
 def source_bound_find(
@@ -6779,7 +6848,7 @@ The guest’s interface address ON the declared segment.
 
 Source binding must watch the right NIC of a multi-homed guest; the declared segment picks it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/netident.py#L16)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/netident.py#L16)
 
 ``` python
 def guest_segment_ip(plan: ResolvedPlan, guest: str, segment: str) -> IPv4Address
@@ -6795,7 +6864,7 @@ def guest_segment_ip(plan: ResolvedPlan, guest: str, segment: str) -> IPv4Addres
 
 The declared probe-endpoint MAC convention (`02:50:`, the prober spike): frames with this source MAC are excluded from agent-traffic reasoning by spec, in EVERY scan. Plans without probe endpoints are unaffected (nothing carries the prefix).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/netident.py#L12)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/netident.py#L12)
 
 ``` python
 PROBE_MAC_PREFIX = b"\x02\x50"
@@ -6807,7 +6876,7 @@ Parse a `collectors.yaml` into collector specs.
 
 The file binds a `detection` or `evade` goal’s `collector` name to a real export (poll mechanics are deployment knowledge the challenge schema deliberately does not carry); pass the result to `challenge_setup(telemetry_collectors=...)`. A malformed declaration refuses with the validation detail: a silently dropped collector would turn a detection goal’s observer gate into an infra riddle.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_evidence/telemetry.py#L111)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_evidence/telemetry.py#L114)
 
 ``` python
 def load_collectors(path: "Path") -> list[CollectorSpec]
@@ -6824,7 +6893,7 @@ Load and validate a `challenges.yaml` file.
 
 Custom goal types parse only when their `register_goal_type` registration has already run in this process. Under inspect the `inspect_ai` entry-point mechanism imports registering modules before any parsing; a plain call outside inspect must import the registering module first, or the custom `type` name refuses as unknown (an `unknown-goal-type` error listing the known names, never a misparse).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L968)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L968)
 
 ``` python
 def load_challenges(path: Path) -> Challenges
@@ -6841,7 +6910,7 @@ Like `validate_range`, this never raises on invalid content: unreadable files (a
 
 Custom goal types validate only when their `register_goal_type` registration has already run in this process (see `load_challenges`); an unregistered custom `type` name reports `unknown-goal-type` with the known-name listing, never a misparse.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_challenges/schema.py#L990)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_challenges/schema.py#L990)
 
 ``` python
 def validate_challenges(
@@ -6861,7 +6930,7 @@ The range to cross-reference against: a validated spec, or a `range.yaml` path t
 
 Load and validate a `range.yaml` file.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/schema.py#L210)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/schema.py#L210)
 
 ``` python
 def load_range(path: Path) -> RangeSpec
@@ -6876,7 +6945,7 @@ Validate a `range.yaml` file, reporting every detectable issue at once.
 
 Unlike `load_range`, this never raises on invalid content: unreadable files (a directory, permissions, non-UTF-8 content), YAML syntax errors, structural schema violations, and semantic cross-reference problems all become [Issue](../reference/types.html.md#issue) entries with stable codes, source positions, and hints where available. Field-level structural errors suppress the cross-reference pass (reflected in `ValidationReport.semantic_checked`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/schema.py#L146)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/schema.py#L146)
 
 ``` python
 def validate_range(path: Path) -> ValidationReport
@@ -6891,7 +6960,7 @@ Re-run full validation on a possibly mutated spec, returning a validated copy.
 
 Spec models are mutable for flexible programmatic construction, so validity at construction is a point-in-time property. Consumer boundaries (the sandbox provider, the compiler) call this at handoff: the spec round-trips through `model_validate`, which catches semantic drift and type-unsafe mutations alike.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/schema.py#L233)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/schema.py#L233)
 
 ``` python
 def revalidate_range(spec: RangeSpec) -> RangeSpec
@@ -6908,7 +6977,7 @@ Run every cross-reference check on a structurally valid spec, collecting all fin
 
 This is the single implementation of the semantic checks: [RangeSpec](../reference/types.html.md#rangespec) validation calls it (raising if any issue is found, so a freshly constructed spec is always consistent), and `validate_range` calls it via that same validation to report every issue at once.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L1211)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L1211)
 
 ``` python
 def semantic_issues(spec: RangeSpec) -> list[Issue]
@@ -6921,7 +6990,7 @@ A structurally valid range definition.
 
 Return the JSON Schema for `range.yaml` v0.1 (aliased field names, e.g. `from`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/schema.py#L250)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/schema.py#L250)
 
 ``` python
 def range_json_schema() -> dict[str, Any]
@@ -7095,7 +7164,7 @@ The result value is the finding count (0 is healthy; the [mean()](https://inspec
 
 Detector families: PLUMBING (post-readiness channel/transport failures, repeated retries against one guest, evidence finalize/teardown errors, the in-guest tool’s rc 124/125 contract), CONFIG-AWARE REACHABILITY (reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes: connectivity failures toward addresses the spec declares reachable from the foothold under its ACLs, and attempts toward private addresses no declared network holds), VERIFY_GOAL BEHAVIOR (zero recorded submissions, submissions binding to no goal, dropped candidates, completion claims over unattempted goals), and SCORING/EVIDENCE INTEGRITY (recorded validity other than `valid`, corroboration flags, the all-segment-goals-uncorroborated hint).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/scanners.py#L36)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/scanners.py#L36)
 
 ``` python
 @scanner(messages="all", events="all", metadata=True, metrics=[mean()])
@@ -7132,7 +7201,7 @@ Models validate fully at construction (structural and cross-reference checks) an
 
 A complete v0.1 range definition.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L1027)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L1027)
 
 ``` python
 class RangeSpec(_StrictModel)
@@ -7173,7 +7242,7 @@ Identity of the range.
 
 Upstream provenance is a convention, not schema: record it in a `source.md` next to the `range.yaml`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L84)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L84)
 
 ``` python
 class RangeMeta(_StrictModel)
@@ -7196,7 +7265,7 @@ What the range is and why it exists.
 
 A target guest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L800)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L800)
 
 ``` python
 class Host(_StrictModel)
@@ -7259,7 +7328,7 @@ Recurring in-guest behavior simulation, realized at build as persistent units in
 
 A gateway guest joining two or more networks, carrying the inter-segment ACL.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L766)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L766)
 
 ``` python
 class Router(_StrictModel)
@@ -7303,7 +7372,7 @@ The agent’s foothold: either a dedicated attack box or an existing host.
 
 Declare `host` to start on a declared host (assumed breach), or `interfaces` (plus optionally `name`, `image`, `resources`) to boot a dedicated attack box.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L855)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L855)
 
 ``` python
 class Attacker(_StrictModel)
@@ -7339,7 +7408,7 @@ Attacker-reachable egress from the range: `none` (default), `open`, or a scoped 
 
 Guest operating system.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L329)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L329)
 
 ``` python
 class Os(_StrictModel)
@@ -7360,7 +7429,7 @@ Windows version, e.g. `server-2019`.
 
 Backend-neutral guest sizing.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L342)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L342)
 
 ``` python
 class Resources(_StrictModel)
@@ -7385,7 +7454,7 @@ A local account on a guest.
 
 Scenario credentials are scenario content and belong in the definition in plaintext; per-sample proof material (flags, canaries) never appears here. Domain accounts live in `active_directory`, not on hosts.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L355)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L355)
 
 ``` python
 class User(_StrictModel)
@@ -7409,7 +7478,7 @@ Free-text intent, e.g. why the account exists or what makes it interesting.
 
 A credential pair a service accepts.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L374)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L374)
 
 ``` python
 class Credentials(_StrictModel)
@@ -7429,7 +7498,7 @@ An assertion about a guest’s converged listening surface.
 
 Services are declarations, never an install language: the build satisfies them (via a provisioning recipe, content baked into the image, or a checkpoint) and verifies them before the range ships. Installation itself belongs in `provisioning`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L384)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L384)
 
 ``` python
 class Service(_StrictModel)
@@ -7461,7 +7530,7 @@ A seeded exploitable weakness on a guest.
 
 Exploitable vulnerabilities and misconfigurations are distinct lists because real intrusions lean heavily on the second; the list itself is the classification.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L409)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L409)
 
 ``` python
 class Vulnerability(_StrictModel)
@@ -7485,7 +7554,7 @@ What the weakness is and how it is reachable.
 
 A seeded misconfiguration on a guest (weak policy, dangerous sudoers line, disabled protection).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L428)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L428)
 
 ``` python
 class Misconfiguration(_StrictModel)
@@ -7503,7 +7572,7 @@ What is misconfigured and why it matters.
 
 A scenario-content file declaration: a record of what the guest carries, realized by the recipes (or, for `exfiltrate` targets, planted per sample by the challenge layer).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L438)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L438)
 
 ``` python
 class DataFile(_StrictModel)
@@ -7526,7 +7595,7 @@ A build-time recipe reference, applied in list order.
 
 Recipes run at build time and never per sample; their output is captured into images and checkpoints. The recipe language itself is deliberately out of the definition: a step names a recipe and its inputs, nothing more.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L464)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L464)
 
 ``` python
 class ProvisioningStep(_StrictModel)
@@ -7549,7 +7618,7 @@ Recurring in-guest behavior, simulating users or defenders (bot scripts, schedul
 
 The build realizes each declaration as a persistent unit in the captured image (a systemd service plus timer on Linux, a scheduled task on Windows), installed from `activities/<script>` beside `range.yaml` and verified after realization (scheduled-activity-v1).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L484)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L484)
 
 ``` python
 class ScheduledActivity(_StrictModel)
@@ -7575,7 +7644,7 @@ A named per-instance value with a required default; `draw: boot` adds a per-samp
 
 Definitions reference variables as `"{{name}}"` in YAML scalars; loading substitutes the defaults before validation, so a whole-scalar reference takes the variable’s typed value (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Required defaults mean every definition always validates and realizes concretely: builds substitute defaults, and realized images never carry a draw. A variable marked `draw: boot` additionally gets a per-sample value when the sample’s range boots, delivered to guests through the cloud-init draws file and applied by range-authored boot units (variable-draws-v0.md); per-sample secrets stay the challenge plant layer’s job. Python authors draw values and construct concretely instead of using references.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L534)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L534)
 
 ``` python
 class Variable(_StrictModel)
@@ -7609,7 +7678,7 @@ When a per-sample value is drawn: `boot` draws one at sample boot from the typed
 draw_bounds  
 The inclusive numeric draw range for a `port` or `int` variable: the declared `min`/`max`, with `port` falling back to `PORT_DRAW_MIN`/`PORT_DRAW_MAX`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L561)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L561)
 
 ``` python
 def draw_bounds(self) -> tuple[int, int]
@@ -7621,7 +7690,7 @@ def draw_bounds(self) -> tuple[int, int]
 
 The range’s defensive posture, on the D0 (no defenders) to D5 (adaptive defender) spectrum.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L932)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L932)
 
 ``` python
 class Defense(_StrictModel)
@@ -7642,7 +7711,7 @@ Telemetry flows, when the range records or forwards signals.
 
 Per-host protection toggles (typed knowns; extended when evidence forces).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L451)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L451)
 
 ``` python
 class HostDefense(_StrictModel)
@@ -7663,7 +7732,7 @@ Windows Update on or off.
 
 One telemetry flow: which guest’s signals reach which sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L919)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L919)
 
 ``` python
 class Telemetry(_StrictModel)
@@ -7688,7 +7757,7 @@ Range-scoped Active Directory identity data.
 
 Identity is declared here, not on hosts, because accounts exist in the domain. The build realizes it (promotion, joins, account and ACL seeding) and captures the converged result; see `design/inspect-ranges/range-build.md`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L1014)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L1014)
 
 ``` python
 class ActiveDirectory(_StrictModel)
@@ -7706,7 +7775,7 @@ The forest’s domains.
 
 One domain in the forest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L992)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L992)
 
 ``` python
 class AdDomain(_StrictModel)
@@ -7736,7 +7805,7 @@ Seeded ACL-abuse edges.
 
 A domain account.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L973)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L973)
 
 ``` python
 class AdUser(_StrictModel)
@@ -7765,7 +7834,7 @@ One seeded ACL-abuse edge: `principal` holds `right` over `target`.
 
 Principals and targets are names as AD knows them (users, groups, OUs, or computer objects) and are not cross-validated against declared users this round.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L957)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L957)
 
 ``` python
 class AdAcl(_StrictModel)
@@ -7786,7 +7855,7 @@ What the right applies to.
 
 Seeded AD ACL rights (the vocabulary observed in surveyed ranges; extended when evidence forces).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L945)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L945)
 
 ``` python
 AdRight = Literal[
@@ -7806,7 +7875,7 @@ AdRight = Literal[
 
 A layer-2 segment with its addressing and egress posture.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L255)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L255)
 
 ``` python
 class Network(_StrictModel)
@@ -7839,7 +7908,7 @@ Scoped egress allowlist; only meaningful with `mode: nat` (the hypervisor NATs e
 
 A guest’s attachment to a network.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L309)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L309)
 
 ``` python
 class Interface(_StrictModel)
@@ -7859,7 +7928,7 @@ Per-network DNS, as a union of the shapes real ranges need.
 
 `records` serves name-based discovery on flat networks; `nameservers` points guests at external resolvers; `authoritative` names guests (e.g. domain controllers) that are the network’s DNS servers, optionally chaining to `forwarder`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L116)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L116)
 
 ``` python
 class DnsConfig(_StrictModel)
@@ -7883,7 +7952,7 @@ Upstream forwarder for the authoritative chain.
 
 A name record served on a network.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L100)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L100)
 
 ``` python
 class DnsRecord(_StrictModel)
@@ -7903,7 +7972,7 @@ A scoped egress allowlist: exactly what may leave, nothing else.
 
 Entries are `CIDR[:proto/port]` (a bare address is its `/32`; omitting the service allows all traffic to the CIDR) or `FQDN:proto/port`. FQDN entries are in the vocabulary but gated by `egress-fqdn-not-realized` until their realization lands (networking-v0.2 §3).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L204)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L204)
 
 ``` python
 class EgressPolicy(_StrictModel)
@@ -7918,7 +7987,7 @@ Allowlist entries, e.g. `198.51.100.7:tcp/443`, `0.0.0.0/0:udp/123`; empty allo
 
 A static route on a router, for traffic to segments it reaches through another router.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L732)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L732)
 
 ``` python
 class Route(_StrictModel)
@@ -7938,7 +8007,7 @@ One ordered rule on a router, carrying exactly one of `allow:` or `deny:`.
 
 Rules evaluate first-match in list order against new connections `from` one endpoint `to` another; anything no rule matches is dropped (default-deny), and return traffic of allowed flows always passes (stateful). Endpoints are a network name, a guest name (resolved to its allocated addresses at plan time), or a CIDR (`/32` for a literal host, `0.0.0.0/0` for any). `deny` exists for carve-outs inside a broader allow. In typed construction the source field is spelled `from_` (the YAML surface keeps `from:`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L665)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L665)
 
 ``` python
 class AclRule(_StrictModel)
@@ -7962,7 +8031,7 @@ Services to drop at this point in the rule order (same entry syntax as `allow`).
 
 Either address family. IPv6 values validate structurally but are rejected by the `ipv6-not-realized` gate until their realization lands (networking-v0.2 §4).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L28)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L28)
 
 ``` python
 AnyIPAddress = IPv4Address | IPv6Address
@@ -7972,7 +8041,7 @@ AnyIPAddress = IPv4Address | IPv6Address
 
 Either address family. IPv6 values validate structurally but are rejected by the `ipv6-not-realized` gate until their realization lands (networking-v0.2 §4).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L31)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L31)
 
 ``` python
 AnyIPNetwork = IPv4Network | IPv6Network
@@ -7984,7 +8053,7 @@ Split an egress allowlist entry into its target and service.
 
 Entries are `CIDR[:proto/port]` or `FQDN:proto/port`; a bare address is its `/32`. The service is returned unvalidated (callers validate; the compiler receives only validated specs).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/types.py#L178)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L178)
 
 ``` python
 def parse_egress_entry(
@@ -8000,7 +8069,7 @@ def parse_egress_entry(
 
 One problem found in a range definition.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_diagnostics.py#L47)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L47)
 
 ``` python
 class Issue(BaseModel)
@@ -8038,7 +8107,7 @@ Carrier for collected issues raised inside pydantic validators.
 
 Subclasses `ValueError` so pydantic wraps it as an ordinary validation error; `issues_from_validation_error` recovers the original list from the error context, so both the raise path (`RangeSpec.model_validate`) and the report path (`validate_range`) share one implementation of every check.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_diagnostics.py#L77)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L77)
 
 ``` python
 class IssueError(ValueError)
@@ -8048,7 +8117,7 @@ class IssueError(ValueError)
 
 Every issue found in one `range.yaml`, with rendering helpers.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_diagnostics.py#L88)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L88)
 
 ``` python
 class ValidationReport(BaseModel)
@@ -8076,7 +8145,7 @@ True when no error-severity issues were found.
 render  
 Render the report as aligned, human-readable text (warnings do not invalidate).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_diagnostics.py#L110)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L110)
 
 ``` python
 def render(self) -> str
@@ -8085,7 +8154,7 @@ def render(self) -> str
 to_json  
 Return the report as JSON-serializable data with stable field names.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/bc7b698e4543ca9c7c111f9ab75fdd349568bf28/src/inspect_ranges/_diagnostics.py#L144)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L144)
 
 ``` python
 def to_json(self) -> dict[str, Any]

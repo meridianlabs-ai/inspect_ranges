@@ -1346,7 +1346,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#storage" id="toc-storage" class="nav-link" data-scroll-target="#storage">Storage</a></li>
   <li><a href="#tamper-evidence" id="toc-tamper-evidence" class="nav-link" data-scroll-target="#tamper-evidence">Tamper Evidence</a></li>
   <li><a href="#telemetry-export" id="toc-telemetry-export" class="nav-link" data-scroll-target="#telemetry-export">Telemetry Export</a></li>
-  <li><a href="#the-exec-witness" id="toc-the-exec-witness" class="nav-link" data-scroll-target="#the-exec-witness">The Exec Witness</a></li>
+  <li><a href="#the-exec-witness" id="toc-the-exec-witness" class="nav-link" data-scroll-target="#the-exec-witness">Exec Witness</a></li>
   <li><a href="#verifying-a-record" id="toc-verifying-a-record" class="nav-link" data-scroll-target="#verifying-a-record">Verifying a Record</a></li>
   <li><a href="#deployment-guidance-store-side-prevention" id="toc-deployment-guidance-store-side-prevention" class="nav-link" data-scroll-target="#deployment-guidance-store-side-prevention">Deployment Guidance</a></li>
   <li><a href="#environment-vars" id="toc-environment-vars" class="nav-link" data-scroll-target="#environment-vars">Environment Vars</a></li>
@@ -1422,7 +1422,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td><code>exec/&lt;guest&gt;</code>, <code>exec-meta/&lt;guest&gt;</code></td>
-<td>The exec witness: every <code>execve</code> on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared <code>unsupported</code> record instead. Record-only: no goal or corroboration reads it.</td>
+<td>The exec witness: every <code>execve</code> on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared <code>unsupported</code> record instead. No shipped goal or corroboration reads it; custom goals may through the oracle’s <code>exec_events()</code>.</td>
 </tr>
 <tr class="even">
 <td><code>draws</code></td>
@@ -1438,7 +1438,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td><code>terminal/&lt;session&gt;</code></td>
-<td>The agent’s terminal sessions when the task wires the <a href="./challenges.html#terminal-sessions">terminal</a> tool: the raw pane output, host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside the evidence as <code>terminal-&lt;session&gt;.cast</code>, with numbered suffixes when a reopened name records more than one life.</td>
+<td>The agent’s terminal sessions when the task wires the <a href="./challenges.html#terminal-sessions">terminal</a> tool: the pane output re-encoded as UTF-8 (non-UTF-8 bytes read as U+FFFD), host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside a local evidence location as <code>terminal-&lt;session&gt;.cast</code>, with numbered suffixes when a reopened name records more than one life (a remote location carries the stream but gets no cast file).</td>
 </tr>
 <tr class="even">
 <td><code>heartbeat</code>, <code>clock</code></td>
@@ -1457,7 +1457,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tamper-evidence" class="level2">
 <h2 class="anchored" data-anchor-id="tamper-evidence">Tamper Evidence</h2>
 <p>Collectors in the range container are trusted <strong>while the instance is uncompromised</strong>, and their output is preserved off-instance as it streams. The record itself is tamper-evident by format: write-once chunks, a per-stream hash chain over every record’s full metadata, explicit in-chain gap records, and a terminal seal per writer binding chain heads and counts.</p>
-<p>The format’s own guarantee has an exact scope. Everything <strong>at or below the seal</strong> is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and <code>evidence verify</code> names the first break. The <strong>seal tier itself</strong> (its fields, its presence, the record’s location) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run <code>evidence verify --expect-seal</code> with the binding’s digests and the full claim holds. Without a binding, verify attests internal consistency only, and an <strong>unsealed</strong> record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (<code>complete</code>, or <code>incomplete</code> when something could not flush inside the budget), and the independent reaper process (<a href="./cli.html#reaper">Operations</a>) seals abandoned records (<code>reaped</code>), so even a <code>kill -9</code> of the driver leaves a verifiable record of everything streamed before the kill.</p>
+<p>The format’s own guarantee has an exact scope. Everything <strong>at or below the seal</strong> is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and <code>evidence verify</code> names the first break. The <strong>seal tier itself</strong> (its fields, its presence, the record’s location, the writer set) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run <code>evidence verify --expect-seal</code> with the binding’s digests and the full claim holds. A writer at the location that the binding does not name is itself a break: additions are detected, not just mutations. Without a binding, verify attests internal consistency only, and an <strong>unsealed</strong> record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (<code>complete</code>, or <code>incomplete</code> when something could not flush inside the budget), and the independent reaper process (<a href="./cli.html#reaper">Operations</a>) seals abandoned records (<code>reaped</code>), so even a <code>kill -9</code> of the driver leaves a verifiable record of everything streamed before the kill.</p>
 <p>Two bounded windows are part of the design and visible in the record rather than silent:</p>
 <ul>
 <li><strong>Backpressure is never silent.</strong> When the local buffer cap is hit (a flooded segment, a slow uplink), the oldest unstreamed chunk is dropped and an explicit gap record joins the chain in sequence, with a named cause (for example <code>buffer-cap</code>, <code>capture-restart</code>, <code>capture-dead</code>, <code>poll-failed</code>, <code>watermark-regression</code>, <code>evidence-cap</code>, <code>exec-ring-overflow</code>, <code>exec-subscriber-loss</code>, or <code>applier-shutdown</code>; the verifier inventories every gap in the record). Scoring’s completeness checks see gaps; nothing pretends to coverage it does not have.</li>
@@ -1471,19 +1471,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Operational note: the guest daemon reaps each command’s process group when the command returns, so an in-guest background producer started over the channel must detach with <code>setsid</code> to outlive its starting exec.</p>
 </section>
 <section id="the-exec-witness" class="level2">
-<h2 class="anchored" data-anchor-id="the-exec-witness">The Exec Witness</h2>
-<p>The guest daemon can witness every <code>execve</code> on a Linux guest (kernel process connector) and the host ships the events to <code>exec/&lt;guest&gt;</code>: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and <code>INSPECT_RANGES_EXEC_WITNESS=0</code> disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (<code>exec-ring-overflow</code>, <code>exec-subscriber-loss</code>), coverage is decidable from the per-poll records on <code>exec-meta/&lt;guest&gt;</code>, and a Windows guest or a kernel without the connector gets one declared <code>unsupported</code> record instead of silence. Design: <code>execve-witness-v1.md</code> (adopted from glovebox PR #15’s execve witness).</p>
+<h2 class="anchored" data-anchor-id="the-exec-witness">Exec Witness</h2>
+<p>The guest daemon can witness every <code>execve</code> on a Linux guest (kernel process connector) and the host ships the events to <code>exec/&lt;guest&gt;</code>: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and <code>INSPECT_RANGES_EXEC_WITNESS=0</code> disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (<code>exec-ring-overflow</code>, <code>exec-subscriber-loss</code>), coverage is decidable from the per-poll records on <code>exec-meta/&lt;guest&gt;</code>, and a Windows guest or a kernel without the connector gets one declared <code>unsupported</code> record instead of silence. The concept is adopted from glovebox PR #15, with attribution recorded in the changelog.</p>
 </section>
 <section id="verifying-a-record" class="level2">
 <h2 class="anchored" data-anchor-id="verifying-a-record">Verifying a Record</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># internal consistency: replay every chain, report coverage and gaps</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify ./logs/mytask.evidence/sample1_1_1</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the full guarantee: anchor each writer's seal to the digest from the</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># eval log's binding (store key inspect_ranges:evidence)</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify <span class="dt">\</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  s3://bucket/logs/run.evidence/sample1_1_1 <span class="dt">\</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--expect-seal</span> driver=sha256:... <span class="at">--expect-seal</span> host=sha256:...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the full guarantee: anchor each writer's seal to its digest from</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># the eval log's binding (store key inspect_ranges:evidence); the</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># digests are bare hex, exactly as the binding and INFO line show</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify <span class="dt">\</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  s3://bucket/logs/run.evidence/sample1_1_1 <span class="dt">\</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--expect-seal</span> driver=4f8b21... <span class="at">--expect-seal</span> host=9d03ce...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output names the first chain break with its neighborhood, per-stream coverage spans, the gap inventory, and each seal’s claimed lease and sample ids; <code>--json</code> emits the report for tooling. Exit status is 0 only when every chain replays and every supplied binding matches. Timestamps come from both clocks: capture records carry the range host’s wall and monotonic clocks, driver records carry the driver’s, and paired records around stage reports bound the offset between them, so cross-clock comparisons carry a tolerance instead of a hidden assumption.</p>
 </section>
 <section id="deployment-guidance-store-side-prevention" class="level2">
@@ -1528,9 +1529,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Set <code>0</code> to disable the exec witness: the per-guest poller is never constructed, so the in-guest subscriber never arms (lazy-arm makes this the complete kill switch, no image rebuild involved).</td>
 </tr>
 <tr class="odd">
-<td><code>CAPTURE_CHUNK_MB</code>, <code>CAPTURE_CAP_MB</code>, <code>CAPTURE_MAX_RESTARTS</code>, <code>CAPTURE_POLL_S</code></td>
-<td>10 / 2048 / 5 / 0.5</td>
-<td>Capture sidecar tuning, read from the environment at <code>up</code>: rotation chunk size, per-segment disk cap, tcpdump restart budget, supervisor poll cadence.</td>
+<td><code>INSPECT_RANGES_CAST_STORE_CAP_MB</code></td>
+<td>50</td>
+<td>Per-session cap on the asciicast copy written into the sample store (and so into the eval log) for viewer playback; an over-cap cast keeps its tail with a marker noting the cut, and the evidence copy stays complete.</td>
+</tr>
+<tr class="even">
+<td><code>CAPTURE_CHUNK_MB</code>, <code>CAPTURE_CAP_MB</code>, <code>CAPTURE_MAX_RESTARTS</code></td>
+<td>10 / 2048 / 5</td>
+<td>Capture sidecar tuning, read from the environment at <code>up</code>: rotation chunk size, per-segment disk cap, tcpdump restart budget.</td>
 </tr>
 </tbody>
 </table>

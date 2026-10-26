@@ -18,11 +18,11 @@ Evidence is on by default inside an eval: when a sample runs under Inspect, the 
 | `stages`, `verify` | The realization stage stream (with host emit clocks) and the readiness/verification results. |
 | `session` | Daemon session pins and re-pins: a guest daemon restart is itself evidence. |
 | `telemetry/<collector>`, `telemetry-meta/<collector>` | Exported in-guest telemetry deltas and the per-poll watermark records that make coverage decidable (below). |
-| `exec/<guest>`, `exec-meta/<guest>` | The exec witness: every `execve` on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared `unsupported` record instead. Record-only: no goal or corroboration reads it. |
+| `exec/<guest>`, `exec-meta/<guest>` | The exec witness: every `execve` on a Linux guest (pid, ppid, uid, argv, guest timestamp), from a daemon subscriber armed by the host’s first poll, with per-poll coverage records so “no events” vs “witness dead” is decidable; a Windows guest or a connector-less kernel gets one declared `unsupported` record instead. No shipped goal or corroboration reads it; custom goals may through the oracle’s `exec_events()`. |
 | `draws` | The per-sample variable draw seed and values (non-secret by construction), so recorded samples re-derive post-hoc. |
 | `plants` | What challenge setup planted where (tokens, flags), timestamped: the scorer’s proof-contract record. |
 | `probe/<goal id>` | The nonce-bound active prober’s transcript for goals that use it. |
-| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the raw pane output, host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside the evidence as `terminal-<session>.cast`, with numbered suffixes when a reopened name records more than one life. |
+| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the pane output re-encoded as UTF-8 (non-UTF-8 bytes read as U+FFFD), host-timestamped; at close (or sample finalize for a session still open) an asciicast assembled from it (with per-call markers) lands beside a local evidence location as `terminal-<session>.cast`, with numbered suffixes when a reopened name records more than one life (a remote location carries the stream but gets no cast file). |
 | `heartbeat`, `clock` | Capture liveness and watermarks for our own collectors, and wall-clock anomaly records. |
 
 ## Storage
@@ -39,7 +39,7 @@ At finalize, the sample’s Inspect store receives the binding under `inspect_ra
 
 Collectors in the range container are trusted **while the instance is uncompromised**, and their output is preserved off-instance as it streams. The record itself is tamper-evident by format: write-once chunks, a per-stream hash chain over every record’s full metadata, explicit in-chain gap records, and a terminal seal per writer binding chain heads and counts.
 
-The format’s own guarantee has an exact scope. Everything **at or below the seal** is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and `evidence verify` names the first break. The **seal tier itself** (its fields, its presence, the record’s location) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run `evidence verify --expect-seal` with the binding’s digests and the full claim holds. Without a binding, verify attests internal consistency only, and an **unsealed** record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (`complete`, or `incomplete` when something could not flush inside the budget), and the independent reaper process ([Operations](./cli.html.md#reaper)) seals abandoned records (`reaped`), so even a `kill -9` of the driver leaves a verifiable record of everything streamed before the kill.
+The format’s own guarantee has an exact scope. Everything **at or below the seal** is tamper-evident from the location alone: any rewrite, reorder, deletion, or hole breaks the chain and `evidence verify` names the first break. The **seal tier itself** (its fields, its presence, the record’s location, the writer set) is anchored only by the seal digest held outside the record, which is exactly what the sample-store binding provides: run `evidence verify --expect-seal` with the binding’s digests and the full claim holds. A writer at the location that the binding does not name is itself a break: additions are detected, not just mutations. Without a binding, verify attests internal consistency only, and an **unsealed** record is extendable as well as truncatable. The lifecycle makes unsealed-at-rest an anomaly: finalize seals (`complete`, or `incomplete` when something could not flush inside the budget), and the independent reaper process ([Operations](./cli.html.md#reaper)) seals abandoned records (`reaped`), so even a `kill -9` of the driver leaves a verifiable record of everything streamed before the kill.
 
 Two bounded windows are part of the design and visible in the record rather than silent:
 
@@ -54,9 +54,9 @@ The assurance claim: **export upgrades the timeline, not the source.** Pre-compr
 
 Operational note: the guest daemon reaps each command’s process group when the command returns, so an in-guest background producer started over the channel must detach with `setsid` to outlive its starting exec.
 
-## The Exec Witness
+## Exec Witness
 
-The guest daemon can witness every `execve` on a Linux guest (kernel process connector) and the host ships the events to `exec/<guest>`: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and `INSPECT_RANGES_EXEC_WITNESS=0` disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (`exec-ring-overflow`, `exec-subscriber-loss`), coverage is decidable from the per-poll records on `exec-meta/<guest>`, and a Windows guest or a kernel without the connector gets one declared `unsupported` record instead of silence. Design: `execve-witness-v1.md` (adopted from glovebox PR \#15’s execve witness).
+The guest daemon can witness every `execve` on a Linux guest (kernel process connector) and the host ships the events to `exec/<guest>`: pid, parent, uid, argv (sanitized, byte-capped), and the guest timestamp. The subscriber is lazy-armed by the host’s first poll, so builds never activate it, and `INSPECT_RANGES_EXEC_WITNESS=0` disables it completely with no image rebuild. The stream is record-only (no goal or corroboration reads it) and carries the same guest-tier assurance as telemetry export: the pre-compromise timeline is immutable once streamed, loss is always a counted gap (`exec-ring-overflow`, `exec-subscriber-loss`), coverage is decidable from the per-poll records on `exec-meta/<guest>`, and a Windows guest or a kernel without the connector gets one declared `unsupported` record instead of silence. The concept is adopted from glovebox PR \#15, with attribution recorded in the changelog.
 
 ## Verifying a Record
 
@@ -64,11 +64,12 @@ The guest daemon can witness every `execve` on a Linux guest (kernel process con
 # internal consistency: replay every chain, report coverage and gaps
 inspect-ranges evidence verify ./logs/mytask.evidence/sample1_1_1
 
-# the full guarantee: anchor each writer's seal to the digest from the
-# eval log's binding (store key inspect_ranges:evidence)
+# the full guarantee: anchor each writer's seal to its digest from
+# the eval log's binding (store key inspect_ranges:evidence); the
+# digests are bare hex, exactly as the binding and INFO line show
 inspect-ranges evidence verify \
   s3://bucket/logs/run.evidence/sample1_1_1 \
-  --expect-seal driver=sha256:... --expect-seal host=sha256:...
+  --expect-seal driver=4f8b21... --expect-seal host=9d03ce...
 ```
 
 Output names the first chain break with its neighborhood, per-stream coverage spans, the gap inventory, and each seal’s claimed lease and sample ids; `--json` emits the report for tooling. Exit status is 0 only when every chain replays and every supplied binding matches. Timestamps come from both clocks: capture records carry the range host’s wall and monotonic clocks, driver records carry the driver’s, and paired records around stage reports bound the offset between them, so cross-clock comparisons carry a tolerance instead of a hidden assumption.
@@ -87,7 +88,8 @@ Local evidence (a local log dir, no override) is fine for development and does n
 | `INSPECT_RANGES_EVIDENCE_BUFFER_MB` | 64 | Per-writer in-memory buffer cap; past it the oldest unstreamed chunk drops with an in-chain gap record. Joins the sample’s admission memory charge. |
 | `INSPECT_RANGES_EVIDENCE_MAX_MB` | 4096 | Per-writer volume cap (a sample has at most two writers: `driver` and `host`). Breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never a failed sample. |
 | `INSPECT_RANGES_EXEC_WITNESS` | unset (on) | Set `0` to disable the exec witness: the per-guest poller is never constructed, so the in-guest subscriber never arms (lazy-arm makes this the complete kill switch, no image rebuild involved). |
-| `CAPTURE_CHUNK_MB`, `CAPTURE_CAP_MB`, `CAPTURE_MAX_RESTARTS`, `CAPTURE_POLL_S` | 10 / 2048 / 5 / 0.5 | Capture sidecar tuning, read from the environment at `up`: rotation chunk size, per-segment disk cap, tcpdump restart budget, supervisor poll cadence. |
+| `INSPECT_RANGES_CAST_STORE_CAP_MB` | 50 | Per-session cap on the asciicast copy written into the sample store (and so into the eval log) for viewer playback; an over-cap cast keeps its tail with a marker noting the cut, and the evidence copy stays complete. |
+| `CAPTURE_CHUNK_MB`, `CAPTURE_CAP_MB`, `CAPTURE_MAX_RESTARTS` | 10 / 2048 / 5 | Capture sidecar tuning, read from the environment at `up`: rotation chunk size, per-segment disk cap, tcpdump restart budget. |
 
 The finalize flush budget (30 seconds) and the manifest batching cadence (15 seconds / 256 records) are constants: teardown is never hostage to a slow uplink, and what cannot flush inside the budget is recorded in the seal rather than silently dropped.
 

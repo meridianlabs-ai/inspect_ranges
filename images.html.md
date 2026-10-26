@@ -6,11 +6,9 @@ Every guest in a range boots from an image. The standard images (the goldens, th
 
 When a name is needed, it resolves in a fixed order:
 
-1.  the host’s pin file, when one is configured (see [Pinned Fleet](#pinned-fleet));
+1.  the local cache of already-downloaded images, which always answers first;
 
-2.  the local cache of already-downloaded images;
-
-3.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`).
+2.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`). On a host with a pin file configured, the pin binds this download step and `images refresh`, never the cache (see [Pinned Fleet](#pinned-fleet)).
 
 A location can be a Docker Hub org, a private registry, or a plain directory, and the same artifacts work from all three because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
 
@@ -100,7 +98,7 @@ The environment variable is optional: a `pins.json` at or above the working dire
 
 A pinned host lands exactly the recorded root digests and refuses `pin-mismatch` when the first location serving a name no longer serves its pinned root (resolution aborts rather than falling through). Moving the fleet forward is explicit: `images refresh <name>`, or regenerating the pin file. Already-cached images are sticky by contract, so a pin update alone never changes what a build uses; `inspect-ranges build` warns when a cached catalog image’s recorded origin diverges from the pin, naming the refresh command.
 
-Note that pins bind `refresh` too: on a pinned host it re-lands the PINNED root, which is the fleet guarantee working — and exactly what you do not want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with `INSPECT_RANGES_PIN_FILE=` set empty.
+Pins bind `refresh` too: on a pinned host it re-lands the pinned root, which is the fleet guarantee working, and the opposite of what you want when deliberately moving a dev cache ahead of the published pins (a local rebuild of a catalog image before publish day). For that loop, run the refresh with `INSPECT_RANGES_PIN_FILE=` set empty.
 
 ### Locked-Down Host
 
@@ -123,7 +121,7 @@ Unset (the default and the dev loop), `up` builds the image locally from package
 
 A golden is a vendor cloud image with the guest control daemon baked in. Deriving your own is the alternative to pulling the published ones: it is how fleet and air-gapped deployments work, and the only path for vendor images the catalog does not publish. Two steps: obtain the daemon artifact, then derive.
 
-First, the daemon artifact. `inspect-ranges daemon-bundle --pull` fetches the published bundle (a tarball holding the static daemon binary, its installer, and its unit file, plus a digest sidecar) into the shared artifact cache (`~/.cache/inspect-ranges/artifacts`), where `images derive` finds it by default. Building it from source instead (`daemon-bundle -o <dir>`) is the publisher’s job and the only command that requires the pinned Go toolchain; builds are byte-deterministic, so an unchanged source tree yields the identical bundle digest, and a missing or wrong-version toolchain refuses with the pin named.
+First, the daemon artifact. `inspect-ranges daemon-bundle --pull -o ~/.cache/inspect-ranges/artifacts` fetches the published bundle (a tarball holding the static daemon binary, its installer, and its unit file, plus a digest sidecar) into the shared artifact cache, where `images derive` finds it by default; `--pull` writes to `-o` (default `./dist/daemon`), so pass the cache path explicitly. Building it from source instead (`daemon-bundle -o <dir>`) is the publisher’s job and the only command that requires the pinned Go toolchain; builds are byte-deterministic, so an unchanged source tree yields the identical bundle digest, and a missing or wrong-version toolchain refuses with the pin named.
 
 Then derive:
 

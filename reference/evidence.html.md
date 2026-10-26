@@ -32,5 +32,5 @@ inspect-ranges evidence verify [OPTIONS] LOCATION
 |----|----|----|----|
 | `--shallow` | boolean | Replay manifests, chains, and seals only (skip fetching chunk bytes). | `Sentinel.UNSET` |
 | `--json` | boolean | Emit the full report as JSON. | `Sentinel.UNSET` |
-| `--expect-seal` | text | Externally-held seal digest to bind against (repeatable, one per writer). Without it, verification attests internal consistency only: the chain anchors everything at or below the seal, but a forged or absent seal, or a record transplanted from another location, is not detectable from the location alone. | `Sentinel.UNSET` |
+| `--expect-seal` | text | Externally-held seal digest to bind against (repeatable, one per writer). DIGEST is the bare hex from the sample-store binding or its INFO log line; a leading `sha256:` prefix is accepted and stripped. With any binding supplied, a writer at the location that no –expect-seal names is itself a break (the binding records the complete writer set, so additions are detected). Without it, verification attests internal consistency only: the chain anchors everything at or below the seal, but a forged or absent seal, an added writer, or a record transplanted from another location, is not detectable from the location alone. | `Sentinel.UNSET` |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |

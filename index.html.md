@@ -14,18 +14,17 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 ## Getting Started
 
-To get started, ensure you are running on a Linux host with KVM and Docker (or provision one with [`inspect-ranges devbox`](./building.html.md#devbox)). Install from GitHub, then run the `doctor` command, which verifies virtualization devices, Docker, networking sysctls, and the rest of the host surface:
+To get started, run on a Linux host with KVM and Docker (or provision one with [`inspect-ranges devbox`](./building.html.md#devbox)). Install from PyPI, then run the `doctor` command, which verifies virtualization devices, Docker, networking sysctls, and the rest of the host surface:
 
     Terminal
 
 ``` bash
 # install and configure host
-git clone https://github.com/meridianlabs-ai/inspect_ranges.git
-cd inspect_ranges && pip install .
+pip install inspect-ranges
 inspect-ranges doctor
 
 # run an example
-inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5 --time-limit 5400
+inspect eval inspect_ranges/dmz_pivot --model openai/gpt-5.5
 ```
 
 This documentation is also available in LLM-friendly markdown ([llms.txt](https://llmstxt.org/)): register the index with an IDE or coding agent, or paste a variant directly into a model’s context window.
@@ -189,7 +188,7 @@ Verification is corroborated by evidence captured outside every VM (per-segment 
 
 ### Task Definition
 
-A task brings together the challenge dataset, a setup step that plants per-sample proof material, an agent carrying the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool, and the challenge scorer, with the `range_apparatus` scanner beside it reporting apparatus anomalies per sample (zero findings is healthy). Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs:
+A task brings together the challenge dataset, a setup step that plants per-sample proof material, an agent carrying the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool, and the challenge scorer. Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs:
 
     task.py
 
@@ -204,8 +203,6 @@ from inspect_ranges import (
     terminal,
     verify_goal,
 )
-from inspect_ranges.scanners import range_apparatus
-
 @task
 def dmz_pivot() -> Task:
     return Task(
@@ -216,12 +213,12 @@ def dmz_pivot() -> Task:
         solver=react(
             tools=[terminal(), verify_goal()]
         ),
-        scorer=[challenge_scorer(), range_apparatus()],
+        scorer=challenge_scorer(),
         sandbox=("range", "range.yaml"),
     )
 ```
 
-The seven packaged examples ship this wiring ready-made: each registers as a task (`inspect_ranges/dmz_pivot`) and is importable directly (`from inspect_ranges.examples import dmz_pivot`).
+While developing a range, the [range_apparatus](./building.html.md#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state.
 
 ### Evaluation
 
@@ -230,19 +227,29 @@ Evaluate a packaged example by its registry name, or a `task.py` beside your own
     Terminal
 
 ``` bash
-inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5 --time-limit 5400
-inspect eval task.py --model anthropic/claude-opus-5 --time-limit 5400
+inspect eval inspect_ranges/dmz_pivot --model anthropic/claude-opus-5
+inspect eval task.py --model anthropic/claude-opus-5
 ```
 
-Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain; targets are reachable only through the range network, never from the tool loop.
+Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain. Tasks that use the [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) should also include the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool. The [terminal()](./reference/inspect_ranges.html.md#terminal) tool is also highly recommended (see below for details) but not required.
 
 ### Terminal Sessions
 
-The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks (the shipped examples wire it as shown above), and each session records to evidence with an asciicast for playback. [Challenges](./challenges.html.md#terminal-sessions) covers the actions, waiting modes, and the one caveat: tool surface changes measured difficulty, so compare like with like.
+The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks, and each session records to evidence with an asciicast for playback. The [tool reference](./reference/inspect_ranges.html.md#terminal) covers the actions and waiting modes.
+
+Inspect View provides native support for replaying terminal sessions on the **Terminals** tab of the sample:
+
+    Terminal
+
+``` bash
+inspect view
+```
+
+[![](images/view-terminal-tab.png)](images/view-terminal-tab.png)
 
 ### SWE Agents
 
-Coding-agent scaffolds like Claude Code and Codex run as the attacker via [inspect_swe](https://meridianlabs-ai.github.io/inspect_swe/): the scaffold executes inside the attack box, its model calls proxy back to Inspect, and `bridged_tools` exposes [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) to it over MCP. The scaffold’s own completion ends the run:
+Coding-agent scaffolds like Claude Code and Codex run as the attacker via [inspect_swe](https://meridianlabs-ai.github.io/inspect_swe/): the scaffold executes inside the attack box, its model calls proxy back to Inspect, and `bridged_tools` exposes [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) to it over MCP. For example:
 
     task.py
 
@@ -259,14 +266,14 @@ def dmz_pivot_swe() -> Task:
         solver=claude_code(
             bridged_tools=[verify_goal()]
         ),
-        scorer=[challenge_scorer(), range_apparatus()],
+        scorer=challenge_scorer(),
         sandbox=("range", "range.yaml"),
     )
 ```
 
 ## Example Ranges
 
-Inspect Ranges includes seven examples: the original dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (`from inspect_ranges.examples import goad_light`) with its range definition, challenges, recipes, and checks alongside:
+Inspect Ranges includes seven examples: the dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (e.g. `from inspect_ranges.examples import goad_light`).
 
 | Example | Upstream | Chain |
 |----|----|----|

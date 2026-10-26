@@ -1407,18 +1407,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="getting-started" class="level2">
 <h2 class="anchored" data-anchor-id="getting-started">Getting Started</h2>
-<p>To get started, ensure you are running on a Linux host with KVM and Docker (or provision one with <a href="./building.html#devbox"><code>inspect-ranges devbox</code></a>). Install from GitHub, then run the <code>doctor</code> command, which verifies virtualization devices, Docker, networking sysctls, and the rest of the host surface:</p>
+<p>To get started, run on a Linux host with KVM and Docker (or provision one with <a href="./building.html#devbox"><code>inspect-ranges devbox</code></a>). Install from PyPI, then run the <code>doctor</code> command, which verifies virtualization devices, Docker, networking sysctls, and the rest of the host surface:</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># install and configure host</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/meridianlabs-ai/inspect_ranges.git</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> inspect_ranges <span class="kw">&amp;&amp;</span> <span class="ex">pip</span> install .</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> doctor</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># run an example</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot <span class="at">--model</span> openai/gpt-5.5 <span class="at">--time-limit</span> 5400</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install inspect-ranges</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> doctor</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># run an example</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot <span class="at">--model</span> openai/gpt-5.5</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>This documentation is also available in LLM-friendly markdown (<a href="https://llmstxt.org/">llms.txt</a>): register the index with an IDE or coding agent, or paste a variant directly into a model’s context window.</p>
 <table class="caption-top table">
@@ -1568,8 +1567,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Goals are typed, and each type is verified in the environment rather than trusted from the transcript:</p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 33%">
-<col style="width: 66%">
+<col style="width: 34%">
+<col style="width: 65%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1632,7 +1631,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="task-definition" class="level3">
 <h3 class="anchored" data-anchor-id="task-definition">Task Definition</h3>
-<p>A task brings together the challenge dataset, a setup step that plants per-sample proof material, an agent carrying the <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#verify_goal">verify_goal()</a></span> tool, and the challenge scorer, with the <code>range_apparatus</code> scanner beside it reporting apparatus anomalies per sample (zero findings is healthy). Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs:</p>
+<p>A task brings together the challenge dataset, a setup step that plants per-sample proof material, an agent carrying the <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#verify_goal">verify_goal()</a></span> tool, and the challenge scorer. Each sample boots its own fresh copy of the range and tears it down when the sample completes, so no state carries over between samples or runs:</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>task.py</strong></pre>
@@ -1647,23 +1646,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    terminal,</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    verify_goal,</span>
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges.scanners <span class="im">import</span> range_apparatus</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="at">@task</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dmz_pivot() <span class="op">-&gt;</span> Task:</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Task(</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        dataset<span class="op">=</span>challenge_dataset(</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            <span class="st">"challenges.yaml"</span>, range_spec<span class="op">=</span><span class="st">"range.yaml"</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        setup<span class="op">=</span>challenge_setup(),</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        solver<span class="op">=</span>react(</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>            tools<span class="op">=</span>[terminal(), verify_goal()]</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        scorer<span class="op">=</span>[challenge_scorer(), range_apparatus()],</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        sandbox<span class="op">=</span>(<span class="st">"range"</span>, <span class="st">"range.yaml"</span>),</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="at">@task</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dmz_pivot() <span class="op">-&gt;</span> Task:</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Task(</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        dataset<span class="op">=</span>challenge_dataset(</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>            <span class="st">"challenges.yaml"</span>, range_spec<span class="op">=</span><span class="st">"range.yaml"</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        setup<span class="op">=</span>challenge_setup(),</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        solver<span class="op">=</span>react(</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>            tools<span class="op">=</span>[terminal(), verify_goal()]</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        scorer<span class="op">=</span>challenge_scorer(),</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        sandbox<span class="op">=</span>(<span class="st">"range"</span>, <span class="st">"range.yaml"</span>),</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The seven packaged examples ship this wiring ready-made: each registers as a task (<code>inspect_ranges/dmz_pivot</code>) and is importable directly (<code>from inspect_ranges.examples import dmz_pivot</code>).</p>
+<p>While developing a range, the <a href="./building.html#scan">range_apparatus</a> scanner is the companion diagnostic: wire it beside the scorer or run <code>scout scan</code> over finished logs, and zero findings is the healthy state.</p>
 </section>
 <section id="evaluation" class="level3">
 <h3 class="anchored" data-anchor-id="evaluation">Evaluation</h3>
@@ -1672,43 +1669,51 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot <span class="at">--model</span> anthropic/claude-opus-5 <span class="at">--time-limit</span> 5400</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval task.py <span class="at">--model</span> anthropic/claude-opus-5 <span class="at">--time-limit</span> 5400</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot <span class="at">--model</span> anthropic/claude-opus-5</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval task.py <span class="at">--model</span> anthropic/claude-opus-5</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain; targets are reachable only through the range network, never from the tool loop.</p>
+<p>Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain. Tasks that use the <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#challenge_scorer">challenge_scorer()</a></span> should also include the <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#verify_goal">verify_goal()</a></span> tool. The <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#terminal">terminal()</a></span> tool is also highly recommended (see below for details) but not required.</p>
 </section>
 <section id="terminal-sessions" class="level3">
 <h3 class="anchored" data-anchor-id="terminal-sessions">Terminal Sessions</h3>
-<p>The <a href="./reference/inspect_ranges.html#terminal">terminal</a> tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks (the shipped examples wire it as shown above), and each session records to evidence with an asciicast for playback. <a href="./challenges.html#terminal-sessions">Challenges</a> covers the actions, waiting modes, and the one caveat: tool surface changes measured difficulty, so compare like with like.</p>
+<p>The <a href="./reference/inspect_ranges.html#terminal">terminal</a> tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks, and each session records to evidence with an asciicast for playback. The <a href="./reference/inspect_ranges.html#terminal">tool reference</a> covers the actions and waiting modes.</p>
+<p>Inspect View provides native support for replaying terminal sessions on the <strong>Terminals</strong> tab of the sample:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> view</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="images/view-terminal-tab.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="images/view-terminal-tab.png" class="border img-fluid"></a></p>
 </section>
 <section id="swe-agents" class="level3">
 <h3 class="anchored" data-anchor-id="swe-agents">SWE Agents</h3>
-<p>Coding-agent scaffolds like Claude Code and Codex run as the attacker via <a href="https://meridianlabs-ai.github.io/inspect_swe/">inspect_swe</a>: the scaffold executes inside the attack box, its model calls proxy back to Inspect, and <code>bridged_tools</code> exposes <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#verify_goal">verify_goal()</a></span> to it over MCP. The scaffold’s own completion ends the run:</p>
+<p>Coding-agent scaffolds like Claude Code and Codex run as the attacker via <a href="https://meridianlabs-ai.github.io/inspect_swe/">inspect_swe</a>: the scaffold executes inside the attack box, its model calls proxy back to Inspect, and <code>bridged_tools</code> exposes <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#verify_goal">verify_goal()</a></span> to it over MCP. For example:</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>task.py</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="task.py"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_swe <span class="im">import</span> claude_code</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">@task</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dmz_pivot_swe() <span class="op">-&gt;</span> Task:</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Task(</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        dataset<span class="op">=</span>challenge_dataset(</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"challenges.yaml"</span>, range_spec<span class="op">=</span><span class="st">"range.yaml"</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        setup<span class="op">=</span>challenge_setup(),</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        solver<span class="op">=</span>claude_code(</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>            bridged_tools<span class="op">=</span>[verify_goal()]</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        scorer<span class="op">=</span>[challenge_scorer(), range_apparatus()],</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>        sandbox<span class="op">=</span>(<span class="st">"range"</span>, <span class="st">"range.yaml"</span>),</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-filename="task.py"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_swe <span class="im">import</span> claude_code</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">@task</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dmz_pivot_swe() <span class="op">-&gt;</span> Task:</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Task(</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        dataset<span class="op">=</span>challenge_dataset(</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"challenges.yaml"</span>, range_spec<span class="op">=</span><span class="st">"range.yaml"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        setup<span class="op">=</span>challenge_setup(),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        solver<span class="op">=</span>claude_code(</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>            bridged_tools<span class="op">=</span>[verify_goal()]</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        scorer<span class="op">=</span>challenge_scorer(),</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        sandbox<span class="op">=</span>(<span class="st">"range"</span>, <span class="st">"range.yaml"</span>),</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
 <section id="example-ranges" class="level2">
 <h2 class="anchored" data-anchor-id="example-ranges">Example Ranges</h2>
-<p>Inspect Ranges includes seven examples: the original dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (<code>from inspect_ranges.examples import goad_light</code>) with its range definition, challenges, recipes, and checks alongside:</p>
+<p>Inspect Ranges includes seven examples: the dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (e.g.&nbsp;<code>from inspect_ranges.examples import goad_light</code>).</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1760,9 +1765,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="architecture">Architecture</h2>
 <p>Each range runs in a single unprivileged Docker container, which provides the packaged virtualization stack, the network namespace that keeps range state off the host, and one-step teardown. Every guest, including the attack box, is a KVM virtual machine inside that container. Bridges and firewall rules exist only in the container’s network namespace, so the host’s own networking carries no range state. Removing the container destroys every VM, bridge, firewall rule, and disk overlay. A host needs only Docker and KVM; libvirt and QEMU ship inside the container image.</p>
 <p>Guests boot from shared, read-only golden images. Each VM writes its changes to a small private overlay, so every sample starts from a pristine disk and full images are never copied. Images are published as stacks of layers, each fetched once and verified by digest. Ranges with heavy cross-host state (such as Active Directory) are provisioned once at build time; each sample then cold-boots the captured disks:</p>
-<p><a href="diagrams/image-layers.excalidraw.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="diagrams/image-layers.excalidraw.png" class="img-fluid" alt="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above."></a></p>
+<p><a href="diagrams/image-layers.excalidraw.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="diagrams/image-layers.excalidraw.png" class="img-fluid" alt="The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above."></a></p>
 <p>Everything inside a range is assumed hostile: the attacker agent by design, targets once compromised. The agent sits behind three boundaries: its VM, the unprivileged container, and the instance. Its control channel is virtio-vsock, outside the network, so nothing in the range can observe, firewall, or connect to it:</p>
-<p><a href="diagrams/containment.excalidraw.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="diagrams/containment.excalidraw.png" class="img-fluid" alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router and target VMs under QEMU and the agent VM under Cloud Hypervisor, connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."></a></p>
+<p><a href="diagrams/containment.excalidraw.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="diagrams/containment.excalidraw.png" class="img-fluid" alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router and target VMs under QEMU and the agent VM under Cloud Hypervisor, connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."></a></p>
 <p>Evidence streams off the instance as it is generated, so an agent that later escapes cannot rewrite the record already received. See the <a href="./security.html">Security</a> article for full details on security posture and mitigations.</p>
 </section>
 <section id="learning-more" class="level2">

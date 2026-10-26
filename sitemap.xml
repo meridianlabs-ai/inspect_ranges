@@ -2,23 +2,23 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/vulhub_zabbix.html</loc>
-    <lastmod>2026-10-24T01:26:35.947Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.127Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/kypo_demo.html</loc>
-    <lastmod>2026-10-24T01:26:35.944Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.126Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/equifax.html</loc>
-    <lastmod>2026-10-24T01:26:35.943Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.125Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/cyris_basic.html</loc>
-    <lastmod>2026-10-24T01:26:35.942Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.124Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/security.html</loc>
-    <lastmod>2026-10-24T01:26:35.897Z</lastmod>
+    <lastmod>2026-10-25T12:21:47.051Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/reference/up.html</loc>
@@ -74,43 +74,43 @@
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/images.html</loc>
-    <lastmod>2026-10-24T01:26:35.895Z</lastmod>
+    <lastmod>2026-10-25T17:20:45.192Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/goals.html</loc>
-    <lastmod>2026-10-21T23:09:22.123Z</lastmod>
+    <lastmod>2026-10-25T12:21:47.050Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/distribution.html</loc>
-    <lastmod>2026-10-24T01:26:35.892Z</lastmod>
+    <lastmod>2026-10-25T17:21:20.778Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/challenges.html</loc>
-    <lastmod>2026-10-24T01:26:35.873Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.121Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/attackbox.html</loc>
-    <lastmod>2026-10-24T01:26:35.872Z</lastmod>
+    <lastmod>2026-10-25T12:21:47.049Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/building.html</loc>
-    <lastmod>2026-10-24T01:26:35.872Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.120Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/cli.html</loc>
-    <lastmod>2026-10-24T01:26:35.873Z</lastmod>
+    <lastmod>2026-10-25T12:21:47.050Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/evidence.html</loc>
-    <lastmod>2026-10-24T01:26:35.893Z</lastmod>
+    <lastmod>2026-10-25T15:38:59.189Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/guests.html</loc>
-    <lastmod>2026-10-24T01:26:35.895Z</lastmod>
+    <lastmod>2026-10-25T12:21:47.050Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/index.html</loc>
-    <lastmod>2026-10-24T01:26:35.896Z</lastmod>
+    <lastmod>2026-10-26T01:08:43.522Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/provider.html</loc>
@@ -166,18 +166,18 @@
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/topology.html</loc>
-    <lastmod>2026-10-24T01:26:35.897Z</lastmod>
+    <lastmod>2026-10-25T12:21:47.051Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/dmz_pivot.html</loc>
-    <lastmod>2026-10-24T01:26:35.943Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.125Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/goad_light.html</loc>
-    <lastmod>2026-10-24T01:26:35.944Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.125Z</lastmod>
   </url>
   <url>
     <loc>https://meridianlabs-ai.github.io/inspect_ranges/examples/splunk_detection.html</loc>
-    <lastmod>2026-10-24T01:26:35.946Z</lastmod>
+    <lastmod>2026-10-26T01:00:32.126Z</lastmod>
   </url>
 </urlset>

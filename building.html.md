@@ -39,30 +39,38 @@ inspect-ranges devbox up --instance-type m8i.8xlarge
 ssh inspect-ranges-devbox
 ```
 
-`up` creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration; the default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB). To manage costs, an idle devbox stops itself (after 60 idle minutes by default, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with `ssh` or VS Code starts it again: the SSH configuration’s proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.
+The `inspect-ranges devbox up` command creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration; the default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB). To manage costs, an idle devbox stops itself (after 60 idle minutes by default, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with `ssh` or VS Code starts it again: the SSH configuration’s proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.
 
 ## Iteration Loop
 
-Range development is a loop: edit the definition and recipes, validate, plan, build, then confirm the result at escalating fidelity ([Running the Range](#running-the-range)). The authoring steps below walk it against [dmz_pivot](./examples/dmz_pivot.html.md), the smallest built example; the same loop applies to your own range directory.
+Range development is a loop: edit the definition and recipes, validate, plan, build, then confirm the result at escalating fidelity ([Running the Range](#running-the-range)). The authoring steps below illustrate using the [dmz_pivot](./examples/dmz_pivot.html.md) example.
 
-1.  **Validate.**
+- **Validate.**
 
-        Terminal
+      Terminal
 
-    ``` bash
-    cd src/inspect_ranges/examples/_dmz_pivot
-    inspect-ranges validate range.yaml
-    ```
+  ``` bash
+  cd src/inspect_ranges/examples/_dmz_pivot
+  inspect-ranges validate range.yaml
+  ```
 
-    `validate` reports complete diagnostics, every error at once, with source positions and hints ([Ranges](./ranges.html.md#validation-and-diagnostics)), and validates the `challenges.yaml` beside the spec too, cross-referenced against the range, so a dangling goal host surfaces here instead of at build time.
+  `inspect ranges validate` reports complete diagnostics on the range definition as well as any `challenges.yaml` beside it.
 
-2.  **Build.** `inspect-ranges build` realizes the declared guest content: for dmz_pivot, two guests provisioned over the published golden and three challenge trios proven, a few minutes on a warm image cache. The stage lines to expect are in [Reading Build Output](#reading-build-output). The development knobs: `--keep` holds the build range up for inspection (success or failure); `--reverify` forces the full boot-and-verify pass on an unchanged range; `--cid-base` picks a different host-global vsock CID block while a kept range still holds the default. When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
+- **Build.** `inspect-ranges build` realizes the declared guest content. Development options include:
 
-3.  **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because for a range declaring guest content (dmz_pivot does) `plan` refuses with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
+  - `--keep`: holds the build range up for inspection (success or failure);
+
+  - `--reverify`: forces the full boot-and-verify pass on an unchanged range;
+
+  - `--cid-base`: picks a different host-global vsock CID block while a kept range still holds the default.
+
+  When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
+
+- **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because for a range declaring guest content (dmz_pivot does) `plan` refuses with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
 
 ## Running the Range
 
-A green build is an artifact, not evidence that the range behaves. Three checks confirm it at escalating fidelity, each led by the question it answers; a new range earns all three before it ships.
+A green build does not by itself show the range is correct. Three checks confirm it at escalating fidelity, run all three on a new range before it ships.
 
 ### Poke
 
@@ -113,11 +121,11 @@ Does the whole consumption path work? Run one sample through the real `range` sa
 inspect eval inspect_ranges/dmz_pivot
 ```
 
-Wall-clock limits are standard wiring beside message caps: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
+Set a wall-clock limit beside the message cap: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
 
 The registry form runs the shipped task; your own range runs the same way with the [Range Tasks](./index.html.md#range-tasks) wiring ([Range Sandbox](./provider.html.md) covers the provider).
 
-To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score, the scorer’s zero-submissions warning, and the matching `range_apparatus` finding; on this run those are the apparatus working, not trouble.
+To exercise boot, planting, scoring, and teardown with no model spend, run against inspect’s mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score and the scorer’s zero-submissions warning (plus the matching `range_apparatus` finding when the scanner below is wired); on this run those show the apparatus working.
 
 ### Scan
 
@@ -297,7 +305,7 @@ rm -f /tmp/host.$$
 
 ### Period Software
 
-Ranges reproducing dated CVEs usually need software their golden’s distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. [vulhub-zabbix](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix) is the worked reference: MySQL 5.7.44 from Oracle’s archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe’s provenance recorded in the range’s `notes.md`. Version-exactness only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) only needs to be plausible for the CVE’s era. The two provenance files split by subject: `notes.md` carries period-software provenance (archive URLs, hashes, version rationale), while upstream design provenance (the published range or scenario this one derives from) lives in `source.md` beside it.
+Ranges reproducing dated CVEs usually need software their golden’s distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. [vulhub-zabbix](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix) is the worked reference: MySQL 5.7.44 from Oracle’s archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe’s provenance recorded in the range’s `notes.md`. Be version-exact only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) only needs to be plausible for the CVE’s era. The two provenance files split by subject: `notes.md` carries period-software provenance (archive URLs, hashes, version rationale), while upstream design provenance (the published range or scenario this one derives from) lives in `source.md` beside it.
 
 ## Verification
 
@@ -305,7 +313,7 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A service with a `port` must have a TCP or UDP socket listening on it in-guest.
 
-- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the robust default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
+- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the right default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
 
 - A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [behavioral checks](#behavioral-checks), not here.
 
@@ -329,7 +337,7 @@ The one-submission floor applies only when the challenge has submission-consumin
 
 Model-graded (`judge`) goals are exempt from the trio’s scoring: the build has no model, so each check scores the challenge over its non-model-graded goals (the weighted mean renormalizes over that share, and the floor reads it too) and records the exemption as `judge-exempt=<goal ids>` in the check’s stage line and manifest detail. A challenge whose goals are all model-graded has no provable share and refuses with `challenge-not-provable`.
 
-Beacons corroborate only when their capture chunk rotates before scoring: tcpdump rotates by size, and scoring reads rotated chunks. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
+Beacons corroborate once they cross the wire: scoring flushes the still-active capture chunk before reading, so a beacon no longer waits for its chunk to rotate. Only the separated (uds) capture topology, where the flush is a recorded follow-up, still depends on the chunk rotating before scoring. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
 
 The checks run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the `conformance` stage, proving the range’s defender-to-agent containment ([Security](./security.html.md#proving-containment)); a containment finding refuses the manifest exactly like a failed check.
 
