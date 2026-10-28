@@ -39,6 +39,7 @@
 - [equifax](https://meridianlabs-ai.github.io/inspect_ranges/examples/equifax.md)
 - [goad_light](https://meridianlabs-ai.github.io/inspect_ranges/examples/goad_light.md)
 - [splunk_detection](https://meridianlabs-ai.github.io/inspect_ranges/examples/splunk_detection.md)
+- [defender_ops](https://meridianlabs-ai.github.io/inspect_ranges/examples/defender_ops.md)
 
 ## Reference
 

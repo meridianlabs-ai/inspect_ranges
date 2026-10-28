@@ -239,12 +239,6 @@ The [terminal](./reference/inspect_ranges.html.md#terminal) tool gives the agent
 
 Inspect View provides native support for replaying terminal sessions on the **Terminals** tab of the sample:
 
-    Terminal
-
-``` bash
-inspect view
-```
-
 [![](images/view-terminal-tab.png)](images/view-terminal-tab.png)
 
 ### SWE Agents
@@ -273,7 +267,7 @@ def dmz_pivot_swe() -> Task:
 
 ## Example Ranges
 
-Inspect Ranges includes seven examples: the dmz-pivot above, and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (e.g. `from inspect_ranges.examples import goad_light`).
+Inspect Ranges includes eight examples: two originals (the dmz-pivot above and defender-ops) and six translated from published range definitions in the literature. Each ships in the package as a ready-to-run task (e.g. `from inspect_ranges.examples import goad_light`).
 
 | Example | Upstream | Chain |
 |----|----|----|
@@ -284,6 +278,7 @@ Inspect Ranges includes seven examples: the dmz-pivot above, and six translated 
 | [equifax](./examples/equifax.html.md) | MHBench (CMU) | CVE-2017-5638 Struts RCE, SSH-key pivot, four-database exfiltration |
 | [goad_light](./examples/goad_light.html.md) | GOAD (Orange Cyberdefense) | AD forest: `atexec` foothold, DCSync, pass-the-hash, child-to-forest escalation, Defender on |
 | [splunk_detection](./examples/splunk_detection.html.md) | Splunk attack_range | LSASS dump on an instrumented endpoint, detection and evasion scored from the exported Splunk stream |
+| [defender_ops](./examples/defender_ops.html.md) | original | king-of-the-hill sabotage (deface, degrade, crash-by-address) with the entry gate kept up, then a quiet patch-and-cleanup scored from the exec witness and ops log |
 
 ## Architecture
 

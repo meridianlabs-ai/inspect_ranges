@@ -12,7 +12,7 @@ The result value is the finding count (0 is healthy; the [mean()](https://inspec
 
 Detector families: PLUMBING (post-readiness channel/transport failures, repeated retries against one guest, evidence finalize/teardown errors, the in-guest tool’s rc 124/125 contract), CONFIG-AWARE REACHABILITY (reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes: connectivity failures toward addresses the spec declares reachable from the foothold under its ACLs, and attempts toward private addresses no declared network holds), VERIFY_GOAL BEHAVIOR (zero recorded submissions, submissions binding to no goal, dropped candidates, completion claims over unattempted goals), and SCORING/EVIDENCE INTEGRITY (recorded validity other than `valid`, corroboration flags, the all-segment-goals-uncorroborated hint).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/scanners.py#L36)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/scanners.py#L36)
 
 ``` python
 @scanner(messages="all", events="all", metadata=True, metrics=[mean()])

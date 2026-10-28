@@ -256,6 +256,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="./examples/splunk_detection.html">
  <span class="dropdown-text">splunk_detection</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/defender_ops.html">
+ <span class="dropdown-text">defender_ops</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -464,6 +468,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">splunk_detection</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/defender_ops.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">defender_ops</span></a>
   </div>
 </li>
       </ul>
@@ -1470,11 +1480,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="environment-vars" class="level2">
 <h2 class="anchored" data-anchor-id="environment-vars">Environment Vars</h2>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Variable</th>
@@ -1499,31 +1504,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Overrides Inspect’s default sample concurrency for this provider (the resource-weighted admission gate still applies).</td>
 </tr>
 <tr class="even">
+<td><code>INSPECT_RANGES_UPLINK_NETWORK</code></td>
+<td>unset</td>
+<td>The deployment-supplied docker network a spec-declared egress range NATs through (<code>mode: nat</code> networks, attacker <code>egress:</code>). Required to boot such a range; egress-free ranges ignore it. Read where realization runs, like <code>INSPECT_RANGES_ATTACK_BOX</code>: the eval process under <code>local</code>, the applier’s own environment under a separated backend (see <a href="./topology.html">Range Host</a>).</td>
+</tr>
+<tr class="odd">
 <td><code>INSPECT_RANGES_RETRY_EXEC_ATTEMPTS</code></td>
 <td>3</td>
 <td>Retry attempts for <code>exec</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INSPECT_RANGES_RETRY_FILE_ATTEMPTS</code></td>
 <td>5</td>
 <td>Retry attempts for file operations.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INSPECT_RANGES_RETRY_WAIT_INITIAL_S</code></td>
 <td>1</td>
 <td>First retry backoff (exponential with jitter).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INSPECT_RANGES_RETRY_WAIT_MAX_S</code></td>
 <td>10</td>
 <td>Backoff ceiling.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INSPECT_RANGES_RETRY_UP_ATTEMPTS</code></td>
 <td>2</td>
 <td>Boot attempts per sample (a transient boot failure respins once with fresh identity).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INSPECT_RANGES_RETRY_DISABLE</code></td>
 <td>unset</td>
 <td>Any non-empty value collapses the retry layer (fresh-id attempts and the boot respin) to single attempts. The wire layer’s same-id resend of a lost reply is delivery recovery, not retry policy, and stays on.</td>

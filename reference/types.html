@@ -256,6 +256,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="../examples/splunk_detection.html">
  <span class="dropdown-text">splunk_detection</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/defender_ops.html">
+ <span class="dropdown-text">defender_ops</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -464,6 +468,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">splunk_detection</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/defender_ops.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">defender_ops</span></a>
   </div>
 </li>
       </ul>
@@ -1437,7 +1447,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="rangespec">RangeSpec</h3>
 <p>A complete v0.1 range definition.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L1027">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L1049">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeSpec(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1487,7 +1497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Identity of the range.</p>
 <p>Upstream provenance is a convention, not schema: record it in a <code>source.md</code> next to the <code>range.yaml</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L84">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L84">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> RangeMeta(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1515,7 +1525,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="host">Host</h3>
 <p>A target guest.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L800">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L822">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Host(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1596,7 +1606,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="router">Router</h3>
 <p>A gateway guest joining two or more networks, carrying the inter-segment ACL.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L766">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L788">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Router(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1650,7 +1660,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The agent’s foothold: either a dedicated attack box or an existing host.</p>
 <p>Declare <code>host</code> to start on a declared host (assumed breach), or <code>interfaces</code> (plus optionally <code>name</code>, <code>image</code>, <code>resources</code>) to boot a dedicated attack box.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L855">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L877">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Attacker(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1695,7 +1705,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="os">Os</h3>
 <p>Guest operating system.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L329">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L329">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Os(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1720,7 +1730,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="resources">Resources</h3>
 <p>Backend-neutral guest sizing.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L342">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L342">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Resources(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1749,7 +1759,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A local account on a guest.</p>
 <p>Scenario credentials are scenario content and belong in the definition in plaintext; per-sample proof material (flags, canaries) never appears here. Domain accounts live in <code>active_directory</code>, not on hosts.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L355">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L355">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> User(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1778,7 +1788,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="credentials">Credentials</h3>
 <p>A credential pair a service accepts.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L374">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L374">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Credentials(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1800,7 +1810,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>An assertion about a guest’s converged listening surface.</p>
 <p>Services are declarations, never an install language: the build satisfies them (via a provisioning recipe, content baked into the image, or a checkpoint) and verifies them before the range ships. Installation itself belongs in <code>provisioning</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L384">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L384">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Service(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1838,7 +1848,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A seeded exploitable weakness on a guest.</p>
 <p>Exploitable vulnerabilities and misconfigurations are distinct lists because real intrusions lean heavily on the second; the list itself is the classification.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L409">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L409">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Vulnerability(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1867,7 +1877,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="misconfiguration">Misconfiguration</h3>
 <p>A seeded misconfiguration on a guest (weak policy, dangerous sudoers line, disabled protection).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L428">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L428">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Misconfiguration(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1888,7 +1898,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="datafile">DataFile</h3>
 <p>A scenario-content file declaration: a record of what the guest carries, realized by the recipes (or, for <code>exfiltrate</code> targets, planted per sample by the challenge layer).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L438">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L438">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DataFile(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1914,7 +1924,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A build-time recipe reference, applied in list order.</p>
 <p>Recipes run at build time and never per sample; their output is captured into images and checkpoints. The recipe language itself is deliberately out of the definition: a step names a recipe and its inputs, nothing more.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L464">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L464">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ProvisioningStep(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1940,7 +1950,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Recurring in-guest behavior, simulating users or defenders (bot scripts, scheduled tasks).</p>
 <p>The build realizes each declaration as a persistent unit in the captured image (a systemd service plus timer on Linux, a scheduled task on Windows), installed from <code>activities/&lt;script&gt;</code> beside <code>range.yaml</code> and verified after realization (scheduled-activity-v1).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L484">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L484">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ScheduledActivity(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -1970,7 +1980,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A named per-instance value with a required default; <code>draw: boot</code> adds a per-sample value drawn at boot.</p>
 <p>Definitions reference variables as <code>"{{name}}"</code> in YAML scalars; loading substitutes the defaults before validation, so a whole-scalar reference takes the variable’s typed value (<code>port: "{{telnet_port}}"</code> validates as an integer) and embedded references interpolate as text. Required defaults mean every definition always validates and realizes concretely: builds substitute defaults, and realized images never carry a draw. A variable marked <code>draw: boot</code> additionally gets a per-sample value when the sample’s range boots, delivered to guests through the cloud-init draws file and applied by range-authored boot units (variable-draws-v0.md); per-sample secrets stay the challenge plant layer’s job. Python authors draw values and construct concretely instead of using references.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L534">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L534">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Variable(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2013,7 +2023,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>The inclusive numeric draw range for a <code>port</code> or <code>int</code> variable: the declared <code>min</code>/<code>max</code>, with <code>port</code> falling back to <code>PORT_DRAW_MIN</code>/<code>PORT_DRAW_MAX</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L561">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L561">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> draw_bounds(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">tuple</span>[<span class="bu">int</span>, <span class="bu">int</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -2030,7 +2040,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="defense-1">Defense</h3>
 <p>The range’s defensive posture, on the D0 (no defenders) to D5 (adaptive defender) spectrum.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L932">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L954">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Defense(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2055,7 +2065,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="hostdefense">HostDefense</h3>
 <p>Per-host protection toggles (typed knowns; extended when evidence forces).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L451">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L451">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HostDefense(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2080,7 +2090,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="telemetry">Telemetry</h3>
 <p>One telemetry flow: which guest’s signals reach which sink.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L919">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L941">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Telemetry(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2109,7 +2119,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Range-scoped Active Directory identity data.</p>
 <p>Identity is declared here, not on hosts, because accounts exist in the domain. The build realizes it (promotion, joins, account and ACL seeding) and captures the converged result; see <code>design/inspect-ranges/range-build.md</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L1014">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L1036">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ActiveDirectory(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2130,7 +2140,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="addomain">AdDomain</h3>
 <p>One domain in the forest.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L992">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L1014">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdDomain(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2167,7 +2177,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="aduser">AdUser</h3>
 <p>A domain account.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L973">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L995">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdUser(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2201,7 +2211,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One seeded ACL-abuse edge: <code>principal</code> holds <code>right</code> over <code>target</code>.</p>
 <p>Principals and targets are names as AD knows them (users, groups, OUs, or computer objects) and are not cross-validated against declared users this round.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L957">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L979">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AdAcl(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2226,7 +2236,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="adright">AdRight</h3>
 <p>Seeded AD ACL rights (the vocabulary observed in surveyed ranges; extended when evidence forces).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L945">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L967">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>AdRight <span class="op">=</span> Literal[</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GenericAll"</span>,</span>
@@ -2245,7 +2255,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="network">Network</h3>
 <p>A layer-2 segment with its addressing and egress posture.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L255">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L255">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Network(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2286,7 +2296,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="interface">Interface</h3>
 <p>A guest’s attachment to a network.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L309">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L309">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Interface(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2308,7 +2318,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Per-network DNS, as a union of the shapes real ranges need.</p>
 <p><code>records</code> serves name-based discovery on flat networks; <code>nameservers</code> points guests at external resolvers; <code>authoritative</code> names guests (e.g.&nbsp;domain controllers) that are the network’s DNS servers, optionally chaining to <code>forwarder</code>.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L116">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L116">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DnsConfig(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2337,7 +2347,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="dnsrecord">DnsRecord</h3>
 <p>A name record served on a network.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L100">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L100">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DnsRecord(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2359,7 +2369,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A scoped egress allowlist: exactly what may leave, nothing else.</p>
 <p>Entries are <code>CIDR[:proto/port]</code> (a bare address is its <code>/32</code>; omitting the service allows all traffic to the CIDR) or <code>FQDN:proto/port</code>. FQDN entries are in the vocabulary but gated by <code>egress-fqdn-not-realized</code> until their realization lands (networking-v0.2 §3).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L204">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L204">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> EgressPolicy(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2376,7 +2386,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="route">Route</h3>
 <p>A static route on a router, for traffic to segments it reaches through another router.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L732">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L732">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Route(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2398,7 +2408,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>One ordered rule on a router, carrying exactly one of <code>allow:</code> or <code>deny:</code>.</p>
 <p>Rules evaluate first-match in list order against new connections <code>from</code> one endpoint <code>to</code> another; anything no rule matches is dropped (default-deny), and return traffic of allowed flows always passes (stateful). Endpoints are a network name, a guest name (resolved to its allocated addresses at plan time), or a CIDR (<code>/32</code> for a literal host, <code>0.0.0.0/0</code> for any). <code>deny</code> exists for carve-outs inside a broader allow. In typed construction the source field is spelled <code>from_</code> (the YAML surface keeps <code>from:</code>).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L665">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L665">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AclRule(_StrictModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2427,7 +2437,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="anyipaddress">AnyIPAddress</h3>
 <p>Either address family. IPv6 values validate structurally but are rejected by the <code>ipv6-not-realized</code> gate until their realization lands (networking-v0.2 §4).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L28">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L28">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>AnyIPAddress <span class="op">=</span> IPv4Address <span class="op">|</span> IPv6Address</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2435,7 +2445,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="anyipnetwork">AnyIPNetwork</h3>
 <p>Either address family. IPv6 values validate structurally but are rejected by the <code>ipv6-not-realized</code> gate until their realization lands (networking-v0.2 §4).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L31">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L31">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>AnyIPNetwork <span class="op">=</span> IPv4Network <span class="op">|</span> IPv6Network</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2444,7 +2454,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Split an egress allowlist entry into its target and service.</p>
 <p>Entries are <code>CIDR[:proto/port]</code> or <code>FQDN:proto/port</code>; a bare address is its <code>/32</code>. The service is returned unvalidated (callers validate; the compiler receives only validated specs).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/types.py#L178">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L178">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> parse_egress_entry(</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    entry: <span class="bu">str</span>,</span>
@@ -2463,7 +2473,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="issue">Issue</h3>
 <p>One problem found in a range definition.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L47">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L47">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Issue(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2509,7 +2519,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Carrier for collected issues raised inside pydantic validators.</p>
 <p>Subclasses <code>ValueError</code> so pydantic wraps it as an ordinary validation error; <code>issues_from_validation_error</code> recovers the original list from the error context, so both the raise path (<code>RangeSpec.model_validate</code>) and the report path (<code>validate_range</code>) share one implementation of every check.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L77">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L77">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IssueError(<span class="pp">ValueError</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -2517,7 +2527,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="validationreport">ValidationReport</h3>
 <p>Every issue found in one <code>range.yaml</code>, with rendering helpers.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L88">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L88">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ValidationReport(BaseModel)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section class="level4">
@@ -2552,7 +2562,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Render the report as aligned, human-readable text (warnings do not invalidate).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L110">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L110">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> render(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">str</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>
@@ -2563,7 +2573,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <dd>
 <p>Return the report as JSON-serializable data with stable field names.</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/42efd4f5aff3b89cae476c243342118262a1b9f7/src/inspect_ranges/_diagnostics.py#L144">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L144">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> to_json(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>[<span class="bu">str</span>, Any]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div>

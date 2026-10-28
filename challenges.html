@@ -256,6 +256,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="./examples/splunk_detection.html">
  <span class="dropdown-text">splunk_detection</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/defender_ops.html">
+ <span class="dropdown-text">defender_ops</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -464,6 +468,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">splunk_detection</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/defender_ops.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">defender_ops</span></a>
   </div>
 </li>
       </ul>
@@ -1487,7 +1497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td><code>answer</code></td>
 <td>submit a fact</td>
-<td>Matches exactly one declared source: a range <code>variable</code> (the sample’s drawn value under <code>draw: boot</code>, the declared default otherwise), a literal <code>value</code> (scenario content), or an oracle read from <code>host</code>+<code>path</code> (that source is guest-corroborated).</td>
+<td>Matches exactly one declared source: a range <code>variable</code> (the sample’s drawn value under <code>draw: boot</code>, the declared default otherwise), a literal <code>value</code> (scenario content), or a file at <code>host</code>+<code>path</code>, snapshotted at setup before agent entry. Host-anchored.</td>
 </tr>
 <tr class="odd">
 <td><code>exfiltrate</code></td>

@@ -256,6 +256,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="./examples/splunk_detection.html">
  <span class="dropdown-text">splunk_detection</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/defender_ops.html">
+ <span class="dropdown-text">defender_ops</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
@@ -464,6 +468,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./examples/splunk_detection.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">splunk_detection</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/defender_ops.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">defender_ops</span></a>
   </div>
 </li>
       </ul>
@@ -1439,7 +1449,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="assurance-labels" class="level2">
 <h2 class="anchored" data-anchor-id="assurance-labels">Assurance Labels</h2>
-<p>Every type carries an <code>assurance</code> label recorded in the log, naming where the trust sits: <code>host-anchored</code> (an external observer witnesses the proof), <code>introspected</code> (the proof is hypervisor-visible state such as a console stream, below an external witness but above a guest read), <code>guest-corroborated</code> (the proof is a guest read whose forgery costs the claimed access), or <code>model-graded</code>. Override <code>assurance_for(goal)</code> when a specific goal’s declared source moves the trust, as the built-in <code>answer</code> type does when a goal reads its expected value from a guest.</p>
+<p>Every type carries an <code>assurance</code> label recorded in the log, naming where the trust sits: <code>host-anchored</code> (an external observer witnesses the proof), <code>introspected</code> (the proof is hypervisor-visible state such as a console stream, below an external witness but above a guest read), <code>guest-corroborated</code> (the proof is a guest read whose forgery costs the claimed access), or <code>model-graded</code>. Override <code>assurance_for(goal)</code> when a specific goal’s declared source moves the trust.</p>
 <p>The label has scoring consequences, so choose it honestly rather than optimistically. Under <code>milestones</code> scoring, implied credit never crosses to a proof of lower assurance than the goal it would imply. Model-graded goals’ weight share is capped at 25% whenever any non-model-graded goal exists.</p>
 </section>
 <section id="writing-a-marker-type" class="level2">
