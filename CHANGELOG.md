@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.7 (31 October 2026)
 
 - `IR_PUSH` handles files of any size: payloads over 128 MiB stream to the guest in chunks and reassemble under a sha256 check before installing (both guest OS paths), so appliance-sized recipe payloads no longer need hand-rolled split helpers, and host memory stays bounded to one chunk regardless of file size. The daemon's inbound bulk cap is unchanged; the ergonomics moved into the tool.
 
