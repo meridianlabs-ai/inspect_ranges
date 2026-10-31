@@ -131,6 +131,14 @@ def down(
             ) from error
     if not keep_state:
         remove_project(state, project)
+    # a leased CID block dies with its project (CLI leases and provider leases
+    # share one registry; release is idempotent from any process). The absence
+    # guard keeps a never-leased state root free of registry files, so nothing
+    # that enumerates it mistakes them for projects
+    if (state / "cids.json").exists():
+        from .._provider.naming import CidAllocator
+
+        CidAllocator(state).release(project)
     return DownResult(
         project=project,
         containers=len(containers),

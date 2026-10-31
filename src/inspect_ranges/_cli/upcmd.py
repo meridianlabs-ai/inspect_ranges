@@ -46,9 +46,9 @@ from .specpath import resolve_spec_path
 @click.option(
     "--cid-base",
     type=click.IntRange(min=3),
-    default=3,
-    show_default=True,
-    help="First vsock CID when rendering `--from-spec` (plan-time input).",
+    default=None,
+    show_default="lease a host-unique block",
+    help="First vsock CID when rendering `--from-spec`; by default a block is leased from the host allocator so parallel ranges never collide (released by `down`).",
 )
 @click.option(
     "--readiness-timeout",
@@ -72,7 +72,7 @@ def up(
     from_spec: Path | None,
     project: str | None,
     image_cache: Path | None,
-    cid_base: int,
+    cid_base: int | None,
     readiness_timeout: float,
     keep: bool,
     uplink_network: str | None,
@@ -107,6 +107,29 @@ def up(
                 prefix="ir-bundle-", dir=staging_root
             ) as temp:
                 spec = load_range(resolve_spec_path(from_spec))
+                if cid_base is None:
+                    # host-unique CIDs from the registry the provider and the
+                    # build lease from; `down <project>` releases the block
+                    from .._compiler.plan import plan_totals, spec_sha256
+                    from .._provider.naming import CidAllocator
+                    from .._runtime.ownership import PROJECT_PREFIX
+
+                    lease_project = (
+                        project
+                        or f"{PROJECT_PREFIX}{spec.meta.name}-{spec_sha256(spec)[:12]}"
+                    )
+                    try:
+                        cid_base = (
+                            CidAllocator(default_state_dir())
+                            .lease(lease_project, plan_totals(spec).guests)
+                            .base
+                        )
+                    except ValueError as error:
+                        raise click.ClickException(
+                            f"{error}; that project is likely still up: "
+                            f"inspect-ranges down {lease_project} releases its "
+                            "CID block, or pass --cid-base"
+                        ) from error
                 spec, realized_sections, consumed = apply_build_manifest(
                     spec,
                     image_cache=image_cache,

@@ -1535,3 +1535,21 @@ def test_up_preflight_holds_the_host_to_the_nested_declaration(
     with pytest.raises(UpError) as excinfo:
         up(nested, UpOptions(image_cache=cache, state_dir=tmp_path / "s2"), docker)
     assert "[preflight]" not in str(excinfo.value)
+
+
+def test_down_releases_the_projects_cid_lease(tmp_path: Path) -> None:
+    """A leased CID block dies with its project: `down` releases it (idempotently), and a state root that never leased stays free of registry files."""
+    from inspect_ranges._provider.naming import CidAllocator
+
+    state = tmp_path / "state"
+    state.mkdir()
+    docker = FakeDocker()
+    down("ir-never-leased", state_dir=state, runner=docker)
+    assert not (state / "cids.json").exists()
+
+    allocator = CidAllocator(state)
+    allocator.lease("ir-leased-project", 4)
+    assert allocator.leased_projects() == ["ir-leased-project"]
+    down("ir-leased-project", state_dir=state, runner=docker)
+    assert allocator.leased_projects() == []
+    down("ir-leased-project", state_dir=state, runner=docker)  # idempotent
