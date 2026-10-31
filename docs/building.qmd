@@ -62,7 +62,7 @@ Range development is a loop: edit the definition and recipes, validate, plan, bu
 
   - `--reverify`: forces the full boot-and-verify pass on an unchanged range;
 
-  - `--cid-base`: picks a different host-global vsock CID block while a kept range still holds the default.
+  - `--cid-base`: overrides the leased host-global vsock CID block (by default each build leases a free block, so parallel builds and kept ranges never collide).
 
   When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
 
@@ -179,7 +179,7 @@ Until a range has a matching build, every command that consumes built content re
 
 Build success also garbage-collects the range's superseded realized generations: the new generation and the immediately-previous one stay, so reverting an edit rebuilds instantly; anything a running project references is excluded; the deletion is stage-logged with bytes reclaimed. `inspect-ranges images prune` reclaims the rest (generations stranded by refused manifests or crashes, capture temps, orphan sidecars); `images list` and `doctor` report reclaimable bytes.
 
-`--keep` preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its `--cid-base` vsock CIDs, which are host-global: tear it down before the next build, or rebuild with a different `--cid-base`. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.
+`--keep` preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its leased vsock CID block, which is host-global: the next build of the same spec refuses with the exact `down` command that frees it, while builds of other specs lease disjoint blocks and proceed. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.
 
 ## Reading Build Output {#reading-build-output}
 

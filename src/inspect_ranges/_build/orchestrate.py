@@ -31,11 +31,13 @@ from .._compiler.plan import (
     ImageRef,
     PlanOptions,
     ResolvedPlan,
+    plan_totals,
     resolve_image_reference,
     spec_sha256,
 )
 from .._compiler.render import render_bundle
 from .._diagnostics import issues_from_validation_error
+from .._provider.naming import CidAllocator
 from .._runtime.down import down
 from .._runtime.images import default_image_cache, sha256_file
 from .._runtime.ownership import (
@@ -333,8 +335,8 @@ class BuildOptions(BaseModel):
     state_dir: Path | None = None
     """Ownership/stage-log root; defaults to the user state dir."""
 
-    cid_base: int = 3
-    """First vsock CID for the build range (plan-time input, as everywhere)."""
+    cid_base: int | None = None
+    """First vsock CID for the build's guests; `None` (the default) leases a host-unique block from the shared allocator so concurrent builds and provider samples never collide, an explicit value is operator-managed."""
 
     keep: bool = False
     """Keep the built range running (success or failure) for diagnosis; the caller owns the eventual `down`."""
@@ -598,6 +600,13 @@ def resolve_provisioning(
     if issues:
         raise IssueError(issues)
     return steps
+
+
+def _resolved_cid_base(options: "BuildOptions") -> int:
+    """The CID base after `build_range` resolved the default lease; a `None` here is a sequencing bug, not an operator error."""
+    if options.cid_base is None:
+        raise AssertionError("cid_base unresolved: build_range leases before any boot")
+    return options.cid_base
 
 
 def build_range(
@@ -891,11 +900,33 @@ def build_range(
     staging_root = state_dir.parent / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(dir=staging_root, prefix=f"{project}-"))
+    allocator: CidAllocator | None = None
+    if options.cid_base is None:
+        # host-unique CIDs from the same registry the provider leases from, so
+        # parallel builds (and builds beside live samples) never collide. The
+        # lease spans the whole build INCLUDING the -bx proof boot (which
+        # reuses the block after the main range's keep_state teardown), and
+        # dies in the finally below, or with `down` for a kept range. The cli
+        # origin keeps provider sweeps (cli_cleanup) off operator builds.
+        allocator = CidAllocator(state_dir)
+        try:
+            leased = allocator.lease(
+                project, plan_totals(build_spec).guests, origin="cli"
+            )
+        except ValueError as error:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise BuildError(
+                "resolve",
+                f"{error}; a previous build of this spec still holds its CID "
+                f"block: tear it down first (inspect-ranges down {project}) "
+                "or pass --cid-base",
+            ) from error
+        options = options.model_copy(update={"cid_base": leased.base})
     kept = False
     try:
         plan_options = PlanOptions(
             image_cache=image_cache,
-            cid_base=options.cid_base,
+            cid_base=_resolved_cid_base(options),
             # the build realizes the recipe-realizable guest sections: recipes
             # implement them, behavioral checks prove them, and the challenge
             # plant layer owns declared secret data at sample time
@@ -1417,6 +1448,8 @@ def build_range(
     finally:
         if not kept:
             shutil.rmtree(staging, ignore_errors=True)
+            if allocator is not None:
+                allocator.release(project)
 
     if saved_manifest is not None and manifest is not None:
         # automatic realized-image GC at build success (parked-decisions item
@@ -1523,7 +1556,7 @@ def _run_behavioral_phase(
             staging,
             PlanOptions(
                 image_cache=image_cache,
-                cid_base=options.cid_base,
+                cid_base=_resolved_cid_base(options),
                 realized_sections=sections,
                 realized_backings=realized_backings(manifest),
                 evidence_capture=True,

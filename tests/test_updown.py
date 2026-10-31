@@ -1535,3 +1535,42 @@ def test_up_preflight_holds_the_host_to_the_nested_declaration(
     with pytest.raises(UpError) as excinfo:
         up(nested, UpOptions(image_cache=cache, state_dir=tmp_path / "s2"), docker)
     assert "[preflight]" not in str(excinfo.value)
+
+
+def test_down_releases_the_projects_cid_lease(tmp_path: Path) -> None:
+    """A leased CID block dies with its project on a FULL teardown only: `keep_state` teardowns (the build's -bx window, kept diagnostics) hold the block, `down` without it releases idempotently, and a state root that never leased stays free of registry files."""
+    from inspect_ranges._provider.naming import CidAllocator
+
+    state = tmp_path / "state"
+    state.mkdir()
+    docker = FakeDocker()
+    down("ir-never-leased", state_dir=state, runner=docker)
+    assert not (state / "cids.json").exists()
+
+    allocator = CidAllocator(state)
+    allocator.lease("ir-leased-project", 4, origin="cli")
+    down("ir-leased-project", state_dir=state, runner=docker, keep_state=True)
+    assert allocator.leased_projects() == ["ir-leased-project"]  # block held
+    down("ir-leased-project", state_dir=state, runner=docker)
+    assert allocator.leased_projects() == []
+    down("ir-leased-project", state_dir=state, runner=docker)  # idempotent
+
+
+def test_cli_leases_are_invisible_to_provider_sweeps(tmp_path: Path) -> None:
+    """`cli_cleanup` targets provider-origin leases only: an operator's CLI-leased build or range never enters a provider sweep, while legacy entries without the field read as provider (which they all were)."""
+    import json
+
+    from inspect_ranges._provider.naming import CidAllocator
+
+    state = tmp_path / "state"
+    state.mkdir()
+    allocator = CidAllocator(state)
+    allocator.lease("ir-operator-build", 4, origin="cli")
+    allocator.lease("ir-sample", 3, origin="provider")
+    assert allocator.leased_projects(origin="provider") == ["ir-sample"]
+    assert allocator.leased_projects() == ["ir-operator-build", "ir-sample"]
+    # a pre-origin entry (older version) reads as provider
+    raw = json.loads((state / "cids.json").read_text())
+    raw["ir-legacy"] = {"project": "ir-legacy", "base": 10100, "count": 2}
+    (state / "cids.json").write_text(json.dumps(raw))
+    assert "ir-legacy" in allocator.leased_projects(origin="provider")

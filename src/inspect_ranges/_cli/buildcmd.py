@@ -63,9 +63,9 @@ def _echo_stage(stage: str, status: str, fields: dict[str, Any]) -> None:
 @click.option(
     "--cid-base",
     type=click.IntRange(min=3),
-    default=3,
-    show_default=True,
-    help="First vsock CID (plan-time input; realizer batteries use 3000+).",
+    default=None,
+    show_default="lease a host-unique block",
+    help="First vsock CID; by default a block is leased from the host allocator so parallel builds never collide.",
 )
 @click.option(
     "--keep",
@@ -131,7 +131,7 @@ def build(
     path: Path | None,
     image_cache: Path | None,
     recipe_cache: Path | None,
-    cid_base: int,
+    cid_base: int | None,
     keep: bool,
     uplink_network: str,
     build_nameserver: str | None,

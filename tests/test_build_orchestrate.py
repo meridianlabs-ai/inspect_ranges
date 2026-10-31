@@ -185,6 +185,8 @@ class Fakes:
 def options_for(tmp_path: Path, cache: Path, **overrides: Any) -> BuildOptions:
     overrides.setdefault("settle_probe", None)
     overrides.setdefault("build_cache", tmp_path / "builds")
+    # hermetic tests pin the CID base; the default-lease path has its own test
+    overrides.setdefault("cid_base", 3)
     return BuildOptions(
         image_cache=cache, state_dir=tmp_path / "state" / "projects", **overrides
     )
@@ -2239,3 +2241,51 @@ def test_activity_failure_disposes_and_names_the_stage(
     assert excinfo.value.stage == "activity" and excinfo.value.guest == "web"
     assert "range torn down" in str(excinfo.value)
     assert len(fakes.down_calls) == 1
+
+
+def test_build_leases_cids_by_default_and_teardown_releases(
+    tmp_path: Path, cache: Path
+) -> None:
+    """With no --cid-base the build leases a host-unique block (held while kept, released by its own teardown), and a second build of the same spec refuses while the block is held, naming the down command."""
+    from inspect_ranges._provider.naming import CidAllocator
+
+    spec, range_dir = build_spec_fixture(tmp_path)
+    fakes = Fakes(["web", "db", "attacker"])
+    options = options_for(tmp_path, cache, cid_base=None, keep=True)
+    state_dir = options.state_dir
+    assert state_dir is not None
+    result = build_range(
+        spec,
+        range_dir,
+        options,
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    allocator = CidAllocator(state_dir)
+    assert allocator.leased_projects() == [result.project]
+    with pytest.raises(BuildError, match="tear it down first"):
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache, cid_base=None),
+            up_fn=fakes.up_fn,
+            down_fn=fakes.down_fn,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    allocator.release(result.project)
+    build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache, cid_base=None),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    assert allocator.leased_projects() == []  # non-kept build released its block
