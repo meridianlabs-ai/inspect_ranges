@@ -1383,7 +1383,7 @@ def check_br_netfilter(proc_sys: Path) -> CheckResult:
         NETWORKING,
         "br_netfilter",
         "warn",
-        "loaded with bridge-nf-call-iptables=1 (host iptables rules can filter bridged range traffic)",
+        "loaded with bridge-nf-call-iptables=1 (bridged range traffic traverses the range netns forward chain, which accepts same-segment frames; host rules never see it)",
         fix="sudo sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0",
         fix_command="sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0",
     )

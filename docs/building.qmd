@@ -26,7 +26,7 @@ Ranges build and run on any Linux x86_64 machine with KVM: bare metal with virtu
 
 - `qemu-utils` and `libguestfs-tools` for building images (libguestfs also requires that the host kernel be readable).
 
-- `br_netfilter` unloaded, or loaded with `bridge-nf-call-iptables=0`, so host iptables never filters bridged range traffic.
+- `br_netfilter` may be loaded (Docker hosts usually load it): frames bridged within a segment are then diverted through the range namespace's forward chain, which accepts them per bridge, so same-segment guests reach each other either way. `doctor` notes the module's state.
 
 - IPv6 enabled. This one is forward-looking only: IPv6 is not realized yet (every IPv6 construct in a definition refuses validation with `ipv6-not-realized`), so no current range needs it; `doctor` checks it ahead of future mitm6-style scenarios.
 

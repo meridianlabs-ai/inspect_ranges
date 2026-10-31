@@ -60,12 +60,23 @@ def render_egress_nftables(
             continue
         rules += _entry_rules(network.egress, f'iifname "{bridge}"', uplink)
 
+    # On a host with br_netfilter loaded, frames bridged within one segment are
+    # diverted through this chain too (every new netns starts with
+    # bridge-nf-call-iptables=1), where the drop policy would sever guests on
+    # the same bridge from each other while ARP still resolves. Such a frame
+    # enters and leaves through the same bridge; a routed one has at most one
+    # bridge side, so the egress policy below still governs it.
+    bridged = [
+        f'meta ibrname "{bridge}" meta obrname "{bridge}" accept'
+        for bridge in (bridge_name(network.name) for network in spec.networks)
+    ]
     lines = [
         "flush ruleset",
         "table inet rangehost {",
         "  chain forward {",
         "    type filter hook forward priority 0; policy drop;",
         "    ct state established,related accept",
+        *[f"    {rule}" for rule in bridged],
         *[f"    {rule}" for rule in rules],
         "  }",
         "}",

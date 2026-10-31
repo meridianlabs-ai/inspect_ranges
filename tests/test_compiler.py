@@ -4,6 +4,7 @@ from ipaddress import IPv4Address
 import pytest
 from inspect_ranges._compiler import (
     allocate,
+    bridge_name,
     elect_gateways,
     render_dnsmasq_conf,
     render_egress_nftables,
@@ -122,13 +123,15 @@ def test_egress_ruleset_scopes_exactly_the_allowlist() -> None:
     spec = nat_spec()
     ruleset = render_egress_nftables(spec, allocate(spec))
     lines = [line.strip() for line in ruleset.splitlines()]
+    # frames bridged within a segment pass first (br_netfilter hosts divert them here)
+    assert lines[5] == 'meta ibrname "br-corp" meta obrname "br-corp" accept'
     # attacker override (egress: none) precedes the network allowlist
-    assert lines[5] == 'ip saddr 10.90.10.2 oifname "eth0" drop'
+    assert lines[6] == 'ip saddr 10.90.10.2 oifname "eth0" drop'
     assert (
-        lines[6]
+        lines[7]
         == 'iifname "br-corp" oifname "eth0" ip daddr 198.51.100.7/32 tcp dport 443 accept'
     )
-    assert lines[7] == 'iifname "br-corp" oifname "eth0" udp dport 123 accept'
+    assert lines[8] == 'iifname "br-corp" oifname "eth0" udp dport 123 accept'
     assert 'oifname "eth0" masquerade' in ruleset
     assert "policy drop" in ruleset
 
@@ -635,3 +638,26 @@ def test_draw_variables_port_bounds_default_to_unprivileged() -> None:
 def test_draw_variables_nothing_to_draw_is_empty() -> None:
     assert draw_variables({}, "seed") == {}
     assert draw_variables({"undrawn": Variable(default=1)}, "seed") == {}
+
+
+def test_frames_bridged_within_a_segment_bypass_the_forward_drop() -> None:
+    """A host with br_netfilter loaded diverts frames bridged within one segment through the range netns forward chain (every new netns starts with bridge-nf-call-iptables=1): one accept per bridge, keyed on the frame entering and leaving through that same bridge, lets same-segment guests talk while routed traffic, which has at most one bridge side, still meets the egress policy. The bridge taps carry no IP, so no other path has both sides on one bridge."""
+    spec = two_segment_spec()
+    lines = [
+        line.strip()
+        for line in render_egress_nftables(spec, allocate(spec)).splitlines()
+    ]
+    bridged = [line for line in lines if line.startswith("meta ibrname")]
+    assert bridged == [
+        f'meta ibrname "{bridge_name(network.name)}" meta obrname "{bridge_name(network.name)}" accept'
+        for network in spec.networks
+    ]
+    assert (
+        lines.index(bridged[0]) == 5
+        and lines[4] == "ct state established,related accept"
+    )
+    assert all(
+        lines.index(line) > lines.index(bridged[-1])
+        for line in lines
+        if 'oifname "eth0"' in line
+    )
