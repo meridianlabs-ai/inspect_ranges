@@ -66,8 +66,14 @@ def render_egress_nftables(
     # the same bridge from each other while ARP still resolves. Such a frame
     # enters and leaves through the same bridge; a routed one has at most one
     # bridge side, so the egress policy below still governs it.
+    # at the IP-layer hook br_netfilter presents a bridged frame with the
+    # bridge device as BOTH interfaces (ports appear only to physdev-style
+    # matches), so a plain name pair expresses "entered and left through this
+    # bridge" in every family on every kernel; `meta ibrname` carried the same
+    # meaning but is bridge-family-only meta on common kernels, where it
+    # refused to load and failed every boot (the 0.2.5 regression)
     bridged = [
-        f'meta ibrname "{bridge}" meta obrname "{bridge}" accept'
+        f'iifname "{bridge}" oifname "{bridge}" accept'
         for bridge in (bridge_name(network.name) for network in spec.networks)
     ]
     lines = [

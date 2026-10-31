@@ -124,7 +124,7 @@ def test_egress_ruleset_scopes_exactly_the_allowlist() -> None:
     ruleset = render_egress_nftables(spec, allocate(spec))
     lines = [line.strip() for line in ruleset.splitlines()]
     # frames bridged within a segment pass first (br_netfilter hosts divert them here)
-    assert lines[5] == 'meta ibrname "br-corp" meta obrname "br-corp" accept'
+    assert lines[5] == 'iifname "br-corp" oifname "br-corp" accept'
     # attacker override (egress: none) precedes the network allowlist
     assert lines[6] == 'ip saddr 10.90.10.2 oifname "eth0" drop'
     assert (
@@ -647,9 +647,15 @@ def test_frames_bridged_within_a_segment_bypass_the_forward_drop() -> None:
         line.strip()
         for line in render_egress_nftables(spec, allocate(spec)).splitlines()
     ]
-    bridged = [line for line in lines if line.startswith("meta ibrname")]
+    bridged = [
+        line
+        for line in lines
+        if line.startswith("iifname ")
+        and ' oifname "' in line
+        and line.endswith("accept")
+    ]
     assert bridged == [
-        f'meta ibrname "{bridge_name(network.name)}" meta obrname "{bridge_name(network.name)}" accept'
+        f'iifname "{bridge_name(network.name)}" oifname "{bridge_name(network.name)}" accept'
         for network in spec.networks
     ]
     assert (
