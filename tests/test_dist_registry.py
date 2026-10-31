@@ -47,6 +47,8 @@ class FakeRegistryState:
         self.uploads = 0
         self.auth_seen: list[str | None] = []
         self.redirect_blobs_to: str | None = None
+        # blob GETs to cut short after half the body (a reset mid-transfer), decremented per failure
+        self.blob_stream_failures = 0
         self.put_401_budget = 0
         self.tokens_issued = 0
         self.token_redirect_to: str | None = None
@@ -118,6 +120,14 @@ class _Handler(BaseHTTPRequestHandler):
             blob = self.state.blobs.get(parts[-1])
             if blob is None:
                 self._send(404)
+            elif self.state.blob_stream_failures > 0 and self.command == "GET":
+                self.state.blob_stream_failures -= 1
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(blob)))
+                self.end_headers()
+                self.wfile.write(blob[: len(blob) // 2])
+                self.wfile.flush()
+                self.connection.close()  # the client sees a short read
             else:
                 self._send(200, blob)
             return
@@ -645,3 +655,34 @@ def test_tag_listing_follows_link_pagination(
     assert _next_link(base, f'<{base}?last=b>; rel="next"') == f"{base}?last=b"
     assert _next_link(base, None) is None
     assert _next_link(base, '</other>; rel="prev"') is None
+
+
+def test_blob_download_restarts_after_a_mid_stream_failure(
+    tmp_path: Path, fake_registry: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A blob stream cut mid-transfer (the registry closes after half the body) restarts from the beginning and lands intact; a stream that fails every time surfaces as a coded refusal after the attempt budget, never a raw socket error. Digest mismatches are not transfer faults and are not retried."""
+    from inspect_ranges._dist import registry as registry_module
+
+    monkeypatch.setattr(registry_module, "_BLOB_BACKOFF_S", 0.0)
+    url, state = fake_registry()
+    repo = RegistryRepo(url, "ranges/flaky")
+    payload = (
+        bytes(range(256)) * 4096
+    )  # 1 MiB, so the half-body cut is a real short read
+    digest = repo.put_blob_bytes(payload)
+    descriptor = Descriptor(
+        media_type="application/octet-stream", digest=digest, size=len(payload)
+    )
+    state.blob_stream_failures = 2
+    repo.copy_blob_to(descriptor, tmp_path / "landed")
+    assert (
+        tmp_path / "landed"
+    ).read_bytes() == payload and state.blob_stream_failures == 0
+    state.blob_stream_failures = 99
+    with pytest.raises(DistError, match="registry-unreachable.*failed 4 times"):
+        repo.copy_blob_to(descriptor, tmp_path / "never")
+    assert not (tmp_path / "never").exists() and not list(tmp_path.glob(".incoming-*"))
+    state.blob_stream_failures = 0
+    state.blobs[digest] = payload[::-1]
+    with pytest.raises(DistError, match="blob-digest-mismatch"):
+        repo.copy_blob_to(descriptor, tmp_path / "tampered")
