@@ -33,7 +33,8 @@ def _fake_cache(tmp_path: Path, spec: RangeSpec) -> Path:
     cache.mkdir()
     references = {DEFAULT_ATTACKER_IMAGE, DEFAULT_ROUTER_IMAGE}
     for guest in [*spec.hosts, *spec.routers]:
-        references.add(guest.image)
+        if guest.image is not None:  # routers may ride the default image
+            references.add(guest.image)
     if spec.attacker.image is not None:
         references.add(spec.attacker.image)
     for reference in references:
@@ -45,7 +46,15 @@ def _load_ruleset(ruleset: Path) -> "subprocess.CompletedProcess[str] | None":
     """Run `nft -f` inside a scratch netns: unprivileged user namespaces where the kernel allows them, passwordless-sudo `ip netns` otherwise (CI and dev boxes), else `None` and the caller skips (or fails under INSPECT_RANGES_REQUIRE_NETNS). The netns name is unique per call so parallel workers never collide, and the in-command timeout bounds a hang the parent could not signal through sudo."""
     if subprocess.run(["unshare", "-rn", "true"], capture_output=True).returncode == 0:
         return subprocess.run(
-            ["unshare", "-rn", "timeout", str(_LOAD_TIMEOUT_S), "nft", "-f", str(ruleset)],
+            [
+                "unshare",
+                "-rn",
+                "timeout",
+                str(_LOAD_TIMEOUT_S),
+                "nft",
+                "-f",
+                str(ruleset),
+            ],
             capture_output=True,
             text=True,
             timeout=_LOAD_TIMEOUT_S + 30,
@@ -59,8 +68,17 @@ def _load_ruleset(ruleset: Path) -> "subprocess.CompletedProcess[str] | None":
     try:
         return subprocess.run(
             [
-                "sudo", "-n", "ip", "netns", "exec", name,
-                "timeout", str(_LOAD_TIMEOUT_S), "nft", "-f", str(ruleset),
+                "sudo",
+                "-n",
+                "ip",
+                "netns",
+                "exec",
+                name,
+                "timeout",
+                str(_LOAD_TIMEOUT_S),
+                "nft",
+                "-f",
+                str(ruleset),
             ],
             capture_output=True,
             text=True,
