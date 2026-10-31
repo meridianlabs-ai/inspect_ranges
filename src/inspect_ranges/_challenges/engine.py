@@ -2,15 +2,24 @@
 
 A goal type binds a schema `Spec` (`schema.py`) to its proof mechanics: `setup` plants per-sample material, `check` gathers raw observations through the oracle, and `compare` turns observations into a verdict host-side. `compare` is pure and holds the secret; `check` never sends one guest-ward (`challenges-v1.md`).
 
-Registry: built-in types register on import (`goaltypes.py`); third-party packages register through the same mechanism inspect_ranges itself uses, an `inspect_ai` entry-point module that imports their types and calls `register_goal_type` (see `_registry.py`).
+Registry: goal types live in inspect-ai's shared registry under the `range_goal` kind (the scout/sentinel dependent-package pattern), registered by the `@range_goal` decorator at class definition. Built-ins register on import (`goaltypes.py`); a loose task file's type registers under its bare name when the file loads; an installed package's type registers as `pkg/name` and self-discovers from that name through the registry's entry-point loading, so referencing it needs no prior import. `control`/`privilege` alias one implementation through a local alias table (the shared registry stores one name per object).
 
 Latch store contract (shared with the slice-5 poller): submissions live under `inspect_ranges:submissions` (`submission.py`), latched results under `inspect_ranges:latches` as `{goal_id: record}` where a record carries `achieved`, `partial`, `corroborated`, `indeterminate`, `reason`, `wall` (first-pass latch time), `assurance`, `primitive`, and `elapsed_s`. First PASS wins: an achieved record is never downgraded or re-timestamped; a non-achieved record may be replaced by a pass or by an improved partial.
 """
 
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar, Literal
+from collections.abc import Callable
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeVar, cast, overload
 
+from inspect_ai._util.registry import (
+    RegistryInfo,
+    registry_add,
+    registry_find,
+    registry_info,
+    registry_lookup,
+    registry_name,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 from .schema import Challenge, GoalBase
@@ -154,42 +163,160 @@ class GoalType(ABC):
         """Pure, host-side verdict over the observations and the plant record."""
 
 
-_REGISTRY: dict[str, GoalType] = {}
+GOAL_REGISTRY_KIND: Literal["range_goal"] = "range_goal"
+"""The kind reserved for goal types in inspect-ai's shared registry."""
+
+OWN_PACKAGE = "inspect_ranges"
+"""The built-ins' registry namespace: bare built-in names resolve through an exact `inspect_ranges/{name}` fallback, so a third-party package sharing a suffix can never move or break them."""
+
+_ALIASES: dict[str, str] = {}
+"""Alias to primary name (`privilege` to `control`): the shared registry stores one name per object, so aliases resolve locally before lookup. Process-local by nature, so an installed package's ALIAS does not self-discover the way its primary `pkg/name` does; reference packaged types by primary or qualified name until their module has loaded."""
+
+_REGISTERED: dict[str, GoalType] = {}
+"""Qualified names this process has registered, for collision refusal only (never lookup). Every `range_goal` registration flows through `register_goal_type`, so this record is complete in-process; a registry lookup here instead would trigger the entry-point load of the registering package mid-import."""
+
+
+class AmbiguousGoalTypeName(KeyError):
+    """A bare goal-type name matches several packages' types; carries KeyError semantics so unknown-type degrade paths stay graceful while the message names the qualified candidates."""
+
+
+def _bare(name: str) -> str:
+    return name.split("/")[-1]
 
 
 def register_goal_type(
     goal_type: GoalType, *, names: tuple[str, ...] | None = None
 ) -> None:
-    """Register a goal type under its name(s); duplicate names refuse.
+    """Register a goal type under its name(s) in inspect-ai's shared registry; collisions refuse before anything mutates.
 
-    Registration opens both ends for the type: the engine dispatches scoring to it, and `challenges.yaml` parsing dispatches its YAML `type` name(s) to its `spec` class. Registration must therefore run before any challenges file naming the type parses: under inspect, register from an `inspect_ai` entry-point module (the mechanism `inspect_ranges` uses for its own built-ins, imported in every inspect process); a plain `load_challenges`/`validate_challenges` caller outside inspect must import the registering module first, or the type's name refuses as unknown.
+    Registration opens both ends for the type: the engine dispatches scoring to it, and `challenges.yaml` parsing dispatches its YAML `type` name(s) to its `spec` class. Registration runs at import of the defining module: a type beside its task registers when the task loads, and an installed package's type registers under `pkg/name` and self-discovers from that reference with no prior import (the registry loads the package's `inspect_ai` entry point on a lookup miss). Prefer the `range_goal` decorator; this function remains for pre-built instances and programmatic use.
+
+    Collision rules, all checked before any store mutates: a name already bound to a different instance refuses; a BARE registration (a loose, non-package module) refuses when it would shadow any existing type's bare form, since exact resolution would silently swap the implementation behind an existing YAML `type:`; aliases refuse when they collide with any registered name, bare form, or differently-bound alias. Two installed packages may share a bare suffix: that surfaces at resolution as an explicit ambiguity, never a silent pick.
 
     Args:
         goal_type: The stateless type instance.
-        names: Registry names; defaults to `(goal_type.name,)`. `control`/`privilege` share one implementation under two names.
+        names: Registry names; defaults to `(goal_type.name,)`. `control`/`privilege` share one implementation under two names (the first name is primary; the rest alias to it).
 
     Raises:
-        ValueError: A name is already registered to a different instance.
+        ValueError: A collision per the rules above; the message names the conflict and the remedy (define a shared type once and import it everywhere, or pick a distinct name).
     """
-    for name in names or (goal_type.name,):
-        existing = _REGISTRY.get(name)
-        if existing is not None and existing is not goal_type:
-            raise ValueError(f"goal type {name!r} is already registered")
-        _REGISTRY[name] = goal_type
+    primary, *aliases = names or (goal_type.name,)
+    qualified = registry_name(goal_type, primary)
+    existing = _REGISTERED.get(qualified)
+    if existing is not None and existing is not goal_type:
+        raise ValueError(
+            f"goal type {primary!r} is already registered by a different instance; "
+            "define a shared type once and import it (or package it so its "
+            "namespaced name self-discovers) rather than copying the class per range"
+        )
+    taken_bare = {_bare(name): name for name in _REGISTERED}
+    if existing is None:
+        shadowed = taken_bare.get(_bare(qualified))
+        if "/" not in qualified and shadowed is not None:
+            raise ValueError(
+                f"goal type name {primary!r} would shadow {shadowed!r}: a bare "
+                "registration resolves exactly, so it would silently swap the "
+                "implementation behind that YAML type name; pick a distinct name"
+            )
+    for alias in aliases:
+        bound = _ALIASES.get(alias)
+        if bound is not None and bound != primary:
+            raise ValueError(f"goal type alias {alias!r} is already bound to {bound!r}")
+        if alias in _REGISTERED or alias in taken_bare:
+            raise ValueError(
+                f"goal type alias {alias!r} collides with a registered type name; "
+                "aliases may not reroute an existing type"
+            )
+    if existing is None:
+        registry_add(goal_type, RegistryInfo(type=GOAL_REGISTRY_KIND, name=qualified))
+        _REGISTERED[qualified] = goal_type
+    for alias in aliases:
+        _ALIASES[alias] = primary
+
+
+def _suffix_matches(name: str) -> list[GoalType]:
+    found = registry_find(
+        lambda info: info.type == GOAL_REGISTRY_KIND and _bare(info.name) == name
+    )
+    return [o for o in found if isinstance(o, GoalType)]
 
 
 def goal_type(name: str) -> GoalType:
     """The registered goal type for a YAML `type` name.
 
+    Resolution order: alias table; exact registry name (a bare name as registered from a loose module, or a qualified `pkg/name`, which self-discovers by loading that package's `inspect_ai` entry point on a miss); the built-ins' `inspect_ranges/{name}` exact fallback (O(1) and immovable by third-party suffixes); then unique package-suffix match so an installed library's type can be referenced bare, with a collision refusing loudly rather than picking by load order.
+
     Raises:
-        KeyError: No type registered under `name`.
+        KeyError: No type resolves to `name`, or (as `AmbiguousGoalTypeName`) several packages match a bare name; the latter's message lists the qualified candidates.
     """
-    return _REGISTRY[name]
+    name = _ALIASES.get(name, name)
+    exact = registry_lookup(GOAL_REGISTRY_KIND, name)
+    if isinstance(exact, GoalType):
+        return exact
+    if "/" not in name:
+        own = registry_lookup(GOAL_REGISTRY_KIND, f"{OWN_PACKAGE}/{name}")
+        if isinstance(own, GoalType):
+            return own
+        matches = _suffix_matches(name)
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            qualified = sorted(registry_info(m).name for m in matches)
+            raise AmbiguousGoalTypeName(
+                f"goal type {name!r} is ambiguous across packages; "
+                f"qualify it as one of: {', '.join(qualified)}"
+            )
+    raise KeyError(name)
 
 
 def registered_goal_types() -> dict[str, GoalType]:
-    """A copy of the registry (name to instance)."""
-    return dict(_REGISTRY)
+    """Every registered goal type, keyed by each name that resolves to it: the bare suffix when unique, the qualified `pkg/name` always, and any alias."""
+    found = registry_find(lambda info: info.type == GOAL_REGISTRY_KIND)
+    types = [o for o in found if isinstance(o, GoalType)]
+    suffix_counts: dict[str, int] = {}
+    for instance in types:
+        suffix = _bare(registry_info(instance).name)
+        suffix_counts[suffix] = suffix_counts.get(suffix, 0) + 1
+    result: dict[str, GoalType] = {}
+    for instance in types:
+        qualified = registry_info(instance).name
+        result[qualified] = instance
+        suffix = _bare(qualified)
+        if suffix != qualified and suffix_counts[suffix] == 1:
+            result[suffix] = instance
+    for alias, primary in _ALIASES.items():
+        resolved = result.get(primary) or result.get(f"{OWN_PACKAGE}/{primary}")
+        if resolved is not None:
+            result[alias] = resolved
+    return result
+
+
+GT = TypeVar("GT", bound=type[GoalType])
+
+
+@overload
+def range_goal(cls: GT) -> GT: ...
+
+
+@overload
+def range_goal(*, names: tuple[str, ...]) -> Callable[[GT], GT]: ...
+
+
+def range_goal(
+    cls: GT | None = None, *, names: tuple[str, ...] | None = None
+) -> GT | Callable[[GT], GT]:
+    """Register a `GoalType` subclass in inspect-ai's shared registry (the `range_goal` kind) and return the class unchanged.
+
+    The decorator instantiates the class once (goal types are stateless) and registers it under its `name` class attribute, or under `names` when one implementation serves several YAML type names (the first is primary, the rest alias to it). Defined beside its task, a type registers when the task loads; defined in an installed package, it registers as `pkg/name` and a challenges file can reference that name with no prior import (the registry loads the package's `inspect_ai` entry point on the lookup miss).
+    """
+
+    def register(target: type[GoalType]) -> type[GoalType]:
+        register_goal_type(target(), names=names)
+        return target
+
+    if cls is not None:
+        return cast(GT, register(cls))
+    return cast(Callable[[GT], GT], register)
 
 
 def credit(record: LatchRecord) -> float:
