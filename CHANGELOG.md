@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.5 (31 October 2026)
 
 - The normalized spec hash excludes defaulted values: adding a schema field whose default reproduces prior behavior no longer moves any existing spec's hash, so build manifests, published builds, and default project names survive vocabulary-widening engine upgrades. The soundness rule ships with it: defaults are frozen contracts (a shipped default's meaning never changes; new behavior arrives behind a new field or an explicitly declared `schema_version`), pinned by a recorded snapshot of every shipped default and a golden hash of a canonical spec. One-time migration: this change itself moves every spec hash once (existing build manifests read `range-not-built` until their ranges rebuild, and the published examples republish with this release), after which schema additions stop paying that cost.
 
