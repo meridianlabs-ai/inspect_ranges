@@ -107,9 +107,21 @@ def up(
                 prefix="ir-bundle-", dir=staging_root
             ) as temp:
                 spec = load_range(resolve_spec_path(from_spec))
+                spec, realized_sections, consumed = apply_build_manifest(
+                    spec,
+                    image_cache=image_cache,
+                    build_cache=default_build_cache(),
+                )
+                allocator = None
+                lease_project = None
                 if cid_base is None:
                     # host-unique CIDs from the registry the provider and the
-                    # build lease from; `down <project>` releases the block
+                    # build lease from. The lease keys on the project run_up
+                    # will actually derive: the SWAPPED spec's hash (realized
+                    # images substituted), pinned into options so banner,
+                    # teardown, and lease can never name different projects.
+                    # `down <project>` releases the block; the cli origin
+                    # keeps provider sweeps off an operator's range.
                     from .._compiler.plan import plan_totals, spec_sha256
                     from .._provider.naming import CidAllocator
                     from .._runtime.ownership import PROJECT_PREFIX
@@ -118,36 +130,41 @@ def up(
                         project
                         or f"{PROJECT_PREFIX}{spec.meta.name}-{spec_sha256(spec)[:12]}"
                     )
+                    allocator = CidAllocator(default_state_dir())
                     try:
-                        cid_base = (
-                            CidAllocator(default_state_dir())
-                            .lease(lease_project, plan_totals(spec).guests)
-                            .base
-                        )
+                        cid_base = allocator.lease(
+                            lease_project, plan_totals(spec).guests, origin="cli"
+                        ).base
                     except ValueError as error:
                         raise click.ClickException(
                             f"{error}; that project is likely still up: "
                             f"inspect-ranges down {lease_project} releases its "
                             "CID block, or pass --cid-base"
                         ) from error
-                spec, realized_sections, consumed = apply_build_manifest(
-                    spec,
-                    image_cache=image_cache,
-                    build_cache=default_build_cache(),
-                )
-                render_bundle(
-                    spec,
-                    Path(temp) / "bundle",
-                    PlanOptions(
-                        image_cache=image_cache,
-                        cid_base=cid_base,
-                        realized_sections=realized_sections,
-                        realized_backings=(
-                            realized_backings(consumed) if consumed else {}
+                    options = options.model_copy(update={"project": lease_project})
+                try:
+                    render_bundle(
+                        spec,
+                        Path(temp) / "bundle",
+                        PlanOptions(
+                            image_cache=image_cache,
+                            cid_base=cid_base,
+                            realized_sections=realized_sections,
+                            realized_backings=(
+                                realized_backings(consumed) if consumed else {}
+                            ),
                         ),
-                    ),
-                )
-                result = run_up(Path(temp) / "bundle", options)
+                    )
+                    result = run_up(Path(temp) / "bundle", options)
+                except BaseException as error:
+                    # a failure that leaves no range running must not keep the
+                    # block reserved; only a KEPT boot failure (range alive
+                    # for diagnosis) holds it, released later by `down`
+                    kept_range = keep and isinstance(error, UpError)
+                    if allocator is not None and lease_project is not None:
+                        if not kept_range:
+                            allocator.release(lease_project)
+                    raise
         else:
             assert bundle is not None
             result = run_up(bundle, options)

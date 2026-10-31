@@ -337,7 +337,6 @@ class BuildOptions(BaseModel):
 
     cid_base: int | None = None
     """First vsock CID for the build's guests; `None` (the default) leases a host-unique block from the shared allocator so concurrent builds and provider samples never collide, an explicit value is operator-managed."""
-    """First vsock CID for the build range (plan-time input, as everywhere)."""
 
     keep: bool = False
     """Keep the built range running (success or failure) for diagnosis; the caller owns the eventual `down`."""
@@ -875,22 +874,6 @@ def build_range(
             # skip their recipes; verification still covers them in full
             guest.image = reusable[guest.name].realized_file
     project = f"{PROJECT_PREFIX}{spec.meta.name}-{spec_sha256(build_spec)[:12]}"
-    allocator: CidAllocator | None = None
-    if options.cid_base is None:
-        # host-unique CIDs from the same registry the provider leases from, so
-        # parallel builds (and builds beside live samples) never collide; the
-        # lease dies with the project (teardown below, or `down` for --keep)
-        allocator = CidAllocator(state_dir)
-        try:
-            leased = allocator.lease(project, plan_totals(build_spec).guests)
-        except ValueError as error:
-            raise BuildError(
-                "resolve",
-                f"{error}; a previous build of this spec still holds its CID "
-                f"block: tear it down first (inspect-ranges down {project}) "
-                "or pass --cid-base",
-            ) from error
-        options = options.model_copy(update={"cid_base": leased.base})
     tee = _BuildTee(StageLog(state_dir, project), on_stage)
     run_steps = [step for step in steps if step.guest not in reusable]
     for note in pin_warnings:
@@ -917,6 +900,28 @@ def build_range(
     staging_root = state_dir.parent / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(dir=staging_root, prefix=f"{project}-"))
+    allocator: CidAllocator | None = None
+    if options.cid_base is None:
+        # host-unique CIDs from the same registry the provider leases from, so
+        # parallel builds (and builds beside live samples) never collide. The
+        # lease spans the whole build INCLUDING the -bx proof boot (which
+        # reuses the block after the main range's keep_state teardown), and
+        # dies in the finally below, or with `down` for a kept range. The cli
+        # origin keeps provider sweeps (cli_cleanup) off operator builds.
+        allocator = CidAllocator(state_dir)
+        try:
+            leased = allocator.lease(
+                project, plan_totals(build_spec).guests, origin="cli"
+            )
+        except ValueError as error:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise BuildError(
+                "resolve",
+                f"{error}; a previous build of this spec still holds its CID "
+                f"block: tear it down first (inspect-ranges down {project}) "
+                "or pass --cid-base",
+            ) from error
+        options = options.model_copy(update={"cid_base": leased.base})
     kept = False
     try:
         plan_options = PlanOptions(

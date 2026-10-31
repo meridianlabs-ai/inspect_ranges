@@ -271,3 +271,70 @@ def test_applier_startup_refusal_is_a_clean_error(
     assert result.exit_code == 1
     assert "host not ready" in result.output
     assert "Traceback" not in result.output
+
+
+def test_up_from_spec_leases_the_derived_project_and_failure_releases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no --cid-base, `up --from-spec` leases under the project `run_up` will derive (pinned into options so banner, teardown, and lease agree), a boot failure without --keep releases the block, and --keep holds it for `down`."""
+    import inspect_ranges._cli.upcmd as upcmd_module
+    from inspect_ranges._provider.naming import CidAllocator
+    from inspect_ranges._runtime.up import UpError, UpResult
+
+    state = tmp_path / "xdg" / "inspect-ranges" / "projects"
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg"))
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "img.qcow2").write_bytes(b"golden")
+    spec_dir = tmp_path / "range"
+    spec_dir.mkdir()
+    (spec_dir / "range.yaml").write_text(
+        """
+range: { name: lease-check, schema_version: "0.3", description: cid lease test }
+networks: [{ name: lab, cidr: 10.9.0.0/24, mode: isolated }]
+hosts:
+  - name: box
+    os: { type: linux }
+    image: img
+    interfaces: [{ network: lab }]
+attacker: { host: box, entry: external }
+"""
+    )
+    seen: dict[str, object] = {}
+
+    def fake_up(bundle: Path, options: object, **_: object) -> UpResult:
+        seen["project"] = options.project
+        if seen.get("fail"):
+            raise UpError("guest-boot", "synthetic")
+        return UpResult(
+            project=str(options.project),
+            range_name="lease-check",
+            guests=[],
+            seconds=0.1,
+        )
+
+    monkeypatch.setattr(upcmd_module, "run_up", fake_up)
+    runner = CliRunner()
+    args = [
+        "up",
+        "--from-spec",
+        str(spec_dir / "range.yaml"),
+        "--image-cache",
+        str(cache),
+    ]
+
+    result = runner.invoke(ranges, args)
+    assert result.exit_code == 0, result.output
+    allocator = CidAllocator(state)
+    leased_name = str(seen["project"])
+    assert allocator.leased_projects(origin="cli") == [leased_name]
+    allocator.release(leased_name)
+
+    seen["fail"] = True
+    result = runner.invoke(ranges, args)
+    assert result.exit_code != 0
+    assert allocator.leased_projects() == []  # un-kept failure released
+
+    result = runner.invoke(ranges, [*args, "--keep"])
+    assert result.exit_code != 0
+    assert allocator.leased_projects(origin="cli") == [leased_name]  # kept range holds

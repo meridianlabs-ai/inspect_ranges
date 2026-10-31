@@ -758,7 +758,11 @@ class RangeSandboxEnvironment(SandboxEnvironment):
         Teardown routes by each host lease's recorded origin, the reaper's discipline (`_reap_one`): the origin re-resolves through the backend grammar and tears down through that backend's reclaimer (direct `down` seam for a co-resident backend). An origin this process cannot resolve reclaims NOTHING for that project: a direct `down` would "succeed" vacuously against a host that lives elsewhere, so both leases stay findable and the project lands in the failure report until the backend's package is installed where cleanup runs. Only a project with no host lease at all (the crash window before `acquire` writes one, a strictly local leftover) uses the ambient runtime's down seam.
         """
         runtime = provider_runtime()  # fresh process: the fallback runtime, real seams
-        leased = set(await asyncio.to_thread(runtime.allocator.leased_projects))
+        leased = set(
+            await asyncio.to_thread(
+                lambda: runtime.allocator.leased_projects(origin="provider")
+            )
+        )
         marked = {
             project
             for project in list_projects(runtime.state_dir)
