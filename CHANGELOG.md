@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.6 (31 October 2026)
 
 - Fixes a 0.2.5 regression that failed every range boot on common kernels: the bridged-frames accepts used `meta ibrname`/`obrname` in the `inet` family table, and bridge meta is bridge-family-only on most kernels, so `nft -f` refused the ruleset ("Operation not supported") and the range container exited before anything booted. The same semantics load everywhere as a plain interface-name pair: at the IP-layer hook br_netfilter presents a bridged frame with the segment bridge as both devices, so `iifname "br-x" oifname "br-x" accept` is exactly "entered and left through this bridge", per bridge as before, with routed frames still meeting the egress policy. Verified by loading the rendered ruleset and exchanging same-segment traffic on a host with `br_netfilter` active.
 
