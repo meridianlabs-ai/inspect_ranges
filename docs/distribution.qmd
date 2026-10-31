@@ -39,6 +39,8 @@ push OK   vulhub-zabbix@sha256:ab12e0...
 
 `push` reads the current directory's build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto (each realized image rebases onto a golden, which derives from a vendor base), the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed `name@digest` is the range's publishable identity. Each push also tags the root with a reference derived from the spec's normalized-form hash (the exact-spec reference); a later `pull` holding the same spec resolves that reference to this build.
 
+`push --respec` first re-records the cached manifest under the current normalized spec hash, verified against the spec the manifest embeds: the migration for builds recorded before 0.2.5, when the hash began excluding defaulted values, so they resolve by spec again without a rebuild.
+
 `push` has no default destination: pass `--to` or configure `INSPECT_RANGES_REGISTRY`. Pushing to the public org is the project publisher's job, never a user move, and user ranges must not aim anywhere public by accident.
 
 ### Images and the Catalog List {#the-catalog-list}

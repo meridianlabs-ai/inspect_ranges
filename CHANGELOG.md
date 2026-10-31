@@ -1,3 +1,7 @@
+## Unreleased
+
+- `push --respec` re-records a cached build under the current normalized spec hash and publishes it: the one-time migration for builds recorded before 0.2.5, when the hash began excluding defaulted values and every earlier build stopped matching the spec that produced it (pulls refused with `no-build-for-spec`, or with the re-pointed-reference check when only the ref was moved). It is proven, not asserted: the manifest embeds the spec it was built from, and that spec re-hashed under the current rule must equal the spec on disk; anything else refuses with `manifest-spec-mismatch`.
+
 ## 0.2.6 (31 October 2026)
 
 - Fixes a 0.2.5 regression that failed every range boot on common kernels: the bridged-frames accepts used `meta ibrname`/`obrname` in the `inet` family table, and bridge meta is bridge-family-only on most kernels, so `nft -f` refused the ruleset ("Operation not supported") and the range container exited before anything booted. The same semantics load everywhere as a plain interface-name pair: at the IP-layer hook br_netfilter presents a bridged frame with the segment bridge as both devices, so `iifname "br-x" oifname "br-x" accept` is exactly "entered and left through this bridge", per bridge as before, with routed frames still meeting the egress policy. Verified by loading the rendered ruleset and exchanging same-segment traffic on a host with `br_netfilter` active.

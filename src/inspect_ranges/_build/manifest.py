@@ -449,6 +449,47 @@ def load_manifest(build_cache: Path, range_name: str) -> BuildManifest | None:
         return None
 
 
+def respec_manifest(manifest: BuildManifest, spec: "RangeSpec") -> BuildManifest:
+    """The manifest re-recorded under the current normalized hash of `spec`: the one-time migration for builds recorded before the hash excluded defaulted values (0.2.5), which left every earlier build unmatched by the spec that produced it.
+
+    Sound without any operator assertion: the manifest embeds the spec it was built from, so that spec re-hashed under the current rule must equal the hash of the spec on disk. A manifest whose embedded spec hashes differently was built from something else and is refused; so is a manifest that embeds no spec at all.
+
+    Args:
+        manifest: The cached build manifest.
+        spec: The validated range the build is claimed for.
+
+    Returns:
+        The manifest with `spec_sha256` set to the current hash of `spec`; nothing else changes.
+
+    Raises:
+        IssueError: `manifest-spec-mismatch` when the embedded spec is absent or is not this spec.
+    """
+    from .._compiler.plan import spec_sha256 as _spec_sha256
+    from ..types import IssueError, RangeSpec
+
+    current = _spec_sha256(spec)
+    recorded = (
+        _spec_sha256(RangeSpec.model_validate(manifest.spec)) if manifest.spec else None
+    )
+    if manifest.range_name != spec.meta.name or recorded != current:
+        why = (
+            "embeds no spec to verify against"
+            if recorded is None
+            else f"was built from a different spec (its embedded spec hashes to {recorded[:12]}..., this one to {current[:12]}...)"
+        )
+        raise IssueError(
+            [
+                Issue(
+                    code="manifest-spec-mismatch",
+                    path=("range", "name"),
+                    message=f"the build manifest for {manifest.range_name!r} {why}",
+                    hint="rebuild with 'inspect-ranges build'; --respec only re-records a build of this exact spec",
+                )
+            ]
+        )
+    return manifest.model_copy(update={"spec_sha256": current})
+
+
 def manifest_matches_spec(manifest: BuildManifest, spec_sha256: str) -> bool:
     """Whether a manifest was built from exactly this (normalized) spec."""
     return manifest.spec_sha256 == spec_sha256
