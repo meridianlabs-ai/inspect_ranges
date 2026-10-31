@@ -142,6 +142,9 @@ class PlannedGuest(BaseModel):
     vmm: Vmm = "qemu"
     """Virtual machine monitor: `qemu` boots from the guest's domain XML via libvirt; `cloud-hypervisor` is started directly by the boot script."""
 
+    nested_virtualization: bool = False
+    """The guest declares KVM-inside-the-guest workloads; carried into `boot.json` so `up` can hold the host to it (hosts only: routers and dedicated attack boxes never declare it)."""
+
 
 class Requirements(BaseModel):
     """What a host must provide to realize this plan; mismatches refuse at admission, not mid-boot."""
@@ -157,6 +160,9 @@ class Requirements(BaseModel):
 
     probe_segments: tuple[str, ...] = ()
     """Networks carrying a declared probe endpoint and the zero-capability probe sidecar (sorted; empty means no prober)."""
+
+    nested_virtualization: bool = False
+    """Whether any guest declares nested KVM; `up` refuses at preflight on a host whose KVM does not expose nesting."""
 
 
 class Totals(BaseModel):
@@ -391,6 +397,18 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                             hint="declare ip: on every interface of a content-carrying Windows host; its captured disk bakes the addresses, so the build key must see them",
                         )
                     )
+        if host.nested_virtualization and options.cpu_model != "host-passthrough":
+            # a named CPU model (checkpointed fleets) does not carry the
+            # virtualization flag into the guest; the declaration would boot
+            # and fail only when the workload first touches /dev/kvm
+            issues.append(
+                Issue(
+                    code="nested-virt-requires-host-passthrough",
+                    path=("hosts", index, "nested_virtualization"),
+                    message=f"host {host.name!r} declares nested_virtualization, which needs the default host-passthrough CPU; this plan uses cpu_model {options.cpu_model!r}",
+                    hint="drop the named cpu_model for this range, or drop the declaration",
+                )
+            )
         if host.os.type == "windows" and host.vmm == "cloud-hypervisor":
             # the unattend seed rides a removable scsi cdrom and Windows'
             # implicit answer-file search only looks at removable media; Cloud
@@ -699,6 +717,9 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 readiness="daemon" if windows else "cloud-init",
                 profile="strict",
                 vmm=vmm,
+                nested_virtualization=bool(
+                    getattr(declared, "nested_virtualization", False)
+                ),
             )
         )
 
@@ -721,6 +742,9 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             egress_uplink=egress_uplink,
             evidence_capture=options.evidence_capture,
             probe_segments=tuple(sorted(options.probe_segments)),
+            nested_virtualization=any(
+                host.nested_virtualization for host in spec.hosts
+            ),
         ),
         totals=plan_totals(spec),
     )

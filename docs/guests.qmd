@@ -93,6 +93,36 @@ The in-guest hostname is the declared `hostname:` when one is present, else a ho
 
 `roles` tags a host's function, such as `roles: [domain-controller, dns]` or `[member-server]`. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles take effect through the host's provisioning recipes at build time; a host declaring roles but no recipe refuses at planning (`realized-section-unconsumed`).
 
+### Nested Virtualization {#nested-virtualization}
+
+A host that runs KVM virtual machines of its own (a kernel-under-test workload, an appliance emulated inside the guest) declares it:
+
+::: {.panel-tabset group="definition-language"}
+### YAML
+
+``` {.yaml .fragment}
+hosts:
+  - name: bench
+    image: ubuntu-noble
+    nested_virtualization: true
+    interfaces:
+      - { network: lab }
+```
+
+### Python
+
+``` {.python .fragment}
+Host(
+    name="bench",
+    image="ubuntu-noble",
+    nested_virtualization=True,
+    interfaces=[Interface(network="lab")],
+)
+```
+:::
+
+The declaration is held, never assumed: planning refuses it under a named `cpu_model` (`nested-virt-requires-host-passthrough`; only the default `host-passthrough` CPU carries the virtualization flag into guests), and `up` refuses at preflight unless the host's KVM module exposes nesting - true on bare metal and on hosts whose `kvm_intel`/`kvm_amd` loaded with `nested=1`, and reported by the `doctor` `nested kvm` row. The guest image still owns loading its own kvm modules. Without the declaration nothing changes: guests may still run software emulation (QEMU TCG) freely, which needs no host support.
+
 ## Images {#images}
 
 Every host names the `image` it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon (the in-guest service that runs commands, moves files, and answers readiness) plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest. How bare names resolve beyond the cache (pins, registries, the public catalog) is covered in [Images](images.qmd).

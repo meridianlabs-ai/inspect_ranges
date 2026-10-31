@@ -843,6 +843,9 @@ class Host(_StrictModel):
     vmm: Vmm = "qemu"
     """Virtual machine monitor that runs this guest: `qemu` (default, via libvirt) or `cloud-hypervisor` (smaller device model; started directly, reached over its hybrid-vsock Unix socket)."""
 
+    nested_virtualization: bool = False
+    """The guest runs KVM virtual machines of its own (kernel-under-test and appliance-emulation workloads). Needs two things the engine checks rather than assumes: the plan's `host-passthrough` CPU (a named CPU model does not carry the virtualization flag, refused at planning as `nested-virt-requires-host-passthrough`) and a host whose KVM module exposes nesting (`up` refuses at preflight otherwise, naming the host classes that work). The guest image still owns loading its own kvm modules."""
+
     interfaces: list[Interface] = Field(min_length=1)
     """Network attachments (explicit; v0.1 has no implicit attachment)."""
 
