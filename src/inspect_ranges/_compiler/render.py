@@ -529,6 +529,8 @@ def _boot_guest(
         "injector": guest.injector,
         "vmm": guest.vmm,
     }
+    if guest.nested_virtualization:
+        entry["nested_virtualization"] = True
     if guest.vmm == "cloud-hypervisor" or guest.kind == "attacker":
         interfaces: list[dict[str, Any]] = [
             {"bridge": networks[interface.network].bridge, "mac": interface.mac}

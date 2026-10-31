@@ -29,6 +29,7 @@
  "Host.fqdn": "None",
  "Host.hostname": "None",
  "Host.misconfigurations": "[]",
+ "Host.nested_virtualization": "False",
  "Host.provisioning": "[]",
  "Host.resources": "None",
  "Host.roles": "[]",

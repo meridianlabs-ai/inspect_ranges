@@ -285,6 +285,8 @@ class BootGuest(BaseModel):
     overlay_gb: int = Field(ge=1)
     readiness: Literal["cloud-init", "daemon"]
     injector: Literal["cloud-init", "unattend"] = "cloud-init"
+    nested_virtualization: bool = False
+    """The guest declares KVM-inside-the-guest workloads; preflight holds the host to it before anything boots."""
     vmm: Literal["qemu", "cloud-hypervisor"] = "qemu"
     cpus: int | None = Field(default=None, ge=1)
     memory_mb: int | None = Field(default=None, ge=64)
@@ -616,6 +618,18 @@ def _external_attack_box(
     return external, backend
 
 
+def nested_kvm_available(sys_module: Path = Path("/sys/module")) -> bool:
+    """Whether this host's KVM exposes nesting to guests (the `nested` module parameter), the capability a guest's `nested_virtualization` declaration needs; shared by `up` preflight and doctor."""
+    for module in ("kvm_intel", "kvm_amd"):
+        try:
+            value = (sys_module / module / "parameters" / "nested").read_text().strip()
+        except OSError:
+            continue
+        if value in ("Y", "y", "1"):
+            return True
+    return False
+
+
 def up(
     bundle: Path,
     options: UpOptions,
@@ -629,7 +643,7 @@ def up(
     `on_stage` mirrors every stage-log write (the applier's stage-translation hook); it never alters the log or the outcome.
 
     Raises:
-        UpError: Stage-named failure (`verify-bundle`, `prepare`, `verify-images`, `range-image`, `range-container`, `guest-boot`, `readiness`), with per-guest diagnostics on readiness failures. Unless `keep_on_failure`, a failed `up` tears its project down before raising (state and console logs are kept for diagnosis).
+        UpError: Stage-named failure (`verify-bundle`, `prepare`, `preflight`, `verify-images`, `range-image`, `range-container`, `guest-boot`, `readiness`), with per-guest diagnostics on readiness failures. Unless `keep_on_failure`, a failed `up` tears its project down before raising (state and console logs are kept for diagnosis).
     """
     run: Runner = runner or run_command
     started = time.monotonic()
@@ -650,6 +664,18 @@ def up(
             "prepare",
             f"project {project!r} is already running; refusing to supersede. "
             f"Tear it down first: inspect-ranges down {project}",
+        )
+
+    nested_guests = [g.name for g in boot.guests if g.nested_virtualization]
+    if nested_guests and not nested_kvm_available():
+        raise UpError(
+            "preflight",
+            f"guest(s) {', '.join(sorted(nested_guests))} declare "
+            "nested_virtualization, but this host's KVM does not expose "
+            "nesting (no kvm_intel/kvm_amd `nested` parameter reads Y). Use a "
+            "bare-metal host, or one whose kvm module was loaded with "
+            "nested=1; the declaration refuses here rather than failing when "
+            "the workload first touches /dev/kvm",
         )
 
     guests = boot.guests

@@ -34,7 +34,7 @@ from inspect_ranges._runtime.ownership import (
     read_owner,
     remove_project,
 )
-from inspect_ranges._runtime.up import boot_script
+from inspect_ranges._runtime.up import BootGuest, boot_script, nested_kvm_available
 from inspect_ranges.types import (
     Attacker,
     Host,
@@ -1451,3 +1451,87 @@ def test_boot_script_skip_leaves_other_guests_identical(bundle: Path) -> None:
     skipped = boot_script(boot, skip=frozenset({"attacker"}))
     assert "attacker" in full and "attacker" not in skipped
     assert boot_script(boot, skip=frozenset()) == full, "empty skip is byte-identical"
+
+
+def test_nested_kvm_probe_reads_the_module_parameter(tmp_path: Path) -> None:
+    """The probe answers from the kvm module's `nested` parameter alone: Y/y/1 from either vendor module is available, anything else (N, 0, absent module, absent file) is not."""
+
+    def with_value(value: str | None, module: str = "kvm_intel") -> Path:
+        root = tmp_path / f"sys-{module}-{value}"
+        if value is not None:
+            params = root / module / "parameters"
+            params.mkdir(parents=True)
+            (params / "nested").write_text(value + "\n")
+        else:
+            root.mkdir()
+        return root
+
+    assert nested_kvm_available(with_value("Y")) is True
+    assert nested_kvm_available(with_value("1", module="kvm_amd")) is True
+    assert nested_kvm_available(with_value("N")) is False
+    assert nested_kvm_available(with_value("0")) is False
+    assert nested_kvm_available(with_value(None)) is False
+
+
+def test_boot_guest_accepts_the_nested_declaration() -> None:
+    """`boot.json` entries round-trip the flag, and entries without it (every existing bundle) default false."""
+    entry = {
+        "name": "bench",
+        "cid": 3000,
+        "image_file": "img.qcow2",
+        "overlay_gb": 10,
+        "readiness": "daemon",
+    }
+    assert BootGuest.model_validate(entry).nested_virtualization is False
+    assert (
+        BootGuest.model_validate(
+            {**entry, "nested_virtualization": True}
+        ).nested_virtualization
+        is True
+    )
+
+
+def _nested_bundle(tmp_path: Path, cache: Path) -> Path:
+    spec = tiny_spec()
+    spec.hosts[0].nested_virtualization = True
+    out = tmp_path / "nested-bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    return out
+
+
+def test_boot_json_carries_the_nested_flag_only_when_declared(
+    tmp_path: Path, cache: Path, bundle: Path
+) -> None:
+    """Emission is conditional so undeclared new bundles stay readable by older engines: a declared guest's entry carries the flag, every other entry omits the key entirely."""
+    import json
+
+    plain = json.loads((bundle / "boot.json").read_text())
+    assert all("nested_virtualization" not in g for g in plain["guests"])
+    nested = json.loads((_nested_bundle(tmp_path, cache) / "boot.json").read_text())
+    by_name = {g["name"]: g for g in nested["guests"]}
+    declared = tiny_spec().hosts[0].name
+    assert by_name[declared]["nested_virtualization"] is True
+    assert all(
+        "nested_virtualization" not in g
+        for name, g in by_name.items()
+        if name != declared
+    )
+
+
+def test_up_preflight_holds_the_host_to_the_nested_declaration(
+    tmp_path: Path, cache: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A declared bundle on a host without nested KVM refuses at the preflight stage before any docker resource exists; with the capability present, up proceeds past preflight (and fails later in this dockerless harness, at a different stage)."""
+    import importlib
+
+    up_module = importlib.import_module("inspect_ranges._runtime.up")
+    nested = _nested_bundle(tmp_path, cache)
+    docker = FakeDocker()
+    monkeypatch.setattr(up_module, "nested_kvm_available", lambda: False)
+    with pytest.raises(UpError, match=r"\[preflight\].*nested_virtualization"):
+        up(nested, UpOptions(image_cache=cache, state_dir=tmp_path / "s1"), docker)
+    assert all(call[:2] == ["docker", "ps"] for call in docker.calls)
+    monkeypatch.setattr(up_module, "nested_kvm_available", lambda: True)
+    with pytest.raises(UpError) as excinfo:
+        up(nested, UpOptions(image_cache=cache, state_dir=tmp_path / "s2"), docker)
+    assert "[preflight]" not in str(excinfo.value)

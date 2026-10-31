@@ -1380,3 +1380,65 @@ def test_shipped_defaults_are_frozen_contracts() -> None:
                     )
     recorded = jsonlib.loads((Path(__file__).parent / "spec_defaults.json").read_text())
     assert snapshot == recorded
+
+
+def test_nested_virtualization_plans_through_and_folds_requirements(
+    cache: Path,
+) -> None:
+    """A declaring host carries the flag into its planned guest and the plan's requirements; non-declaring ranges stay all-false (boot.json emission is pinned in test_updown)."""
+    spec = RangeSpec(
+        meta=RangeMeta(name="nested", description="nested kvm declaration"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="bench",
+                os=Os(type="linux"),
+                image="img",
+                nested_virtualization=True,
+                interfaces=[Interface(network="lab")],
+            ),
+            Host(
+                name="plain",
+                os=Os(type="linux"),
+                image="img",
+                interfaces=[Interface(network="lab")],
+            ),
+        ],
+        attacker=Attacker(host="bench", entry="external"),
+    )
+    plan = resolve_plan(spec, PlanOptions(image_cache=cache))
+    flags = {g.name: g.nested_virtualization for g in plan.guests}
+    assert flags == {"bench": True, "plain": False}
+    assert plan.requirements.nested_virtualization is True
+    plain = spec.model_copy(deep=True)
+    plain.hosts[0].nested_virtualization = False
+    assert (
+        resolve_plan(
+            plain, PlanOptions(image_cache=cache)
+        ).requirements.nested_virtualization
+        is False
+    )
+
+
+def test_nested_virtualization_refuses_named_cpu_models(cache: Path) -> None:
+    """A named CPU model does not carry the virtualization flag into guests: the declaration refuses at planning with the gate's code, never mid-boot."""
+    spec = RangeSpec(
+        meta=RangeMeta(name="nested", description="nested kvm vs named cpu"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="bench",
+                os=Os(type="linux"),
+                image="img",
+                nested_virtualization=True,
+                interfaces=[Interface(network="lab")],
+            )
+        ],
+        attacker=Attacker(host="bench", entry="external"),
+    )
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(spec, PlanOptions(image_cache=cache, cpu_model="Skylake-Server"))
+    assert any(
+        issue.code == "nested-virt-requires-host-passthrough"
+        for issue in excinfo.value.issues
+    )
