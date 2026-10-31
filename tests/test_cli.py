@@ -279,7 +279,7 @@ def test_up_from_spec_leases_the_derived_project_and_failure_releases(
     """With no --cid-base, `up --from-spec` leases under the project `run_up` will derive (pinned into options so banner, teardown, and lease agree), a boot failure without --keep releases the block, and --keep holds it for `down`."""
     import inspect_ranges._cli.upcmd as upcmd_module
     from inspect_ranges._provider.naming import CidAllocator
-    from inspect_ranges._runtime.up import UpError, UpResult
+    from inspect_ranges._runtime.up import UpError, UpOptions, UpResult
 
     state = tmp_path / "xdg" / "inspect-ranges" / "projects"
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg"))
@@ -302,7 +302,7 @@ attacker: { host: box, entry: external }
     )
     seen: dict[str, object] = {}
 
-    def fake_up(bundle: Path, options: object, **_: object) -> UpResult:
+    def fake_up(bundle: Path, options: UpOptions, **_: object) -> UpResult:
         seen["project"] = options.project
         if seen.get("fail"):
             raise UpError("guest-boot", "synthetic")
