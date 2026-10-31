@@ -719,13 +719,28 @@ def test_prober_backed_trio_reads_valid(
 @pytest.fixture()
 def isolated_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run the test against a copy of the goal-type registry, like tests/test_challenges_custom_types.py."""
+    import inspect_ai._util.registry as registry_module
     import inspect_ranges._challenges.engine as engine_module
 
     monkeypatch.setattr(
-        engine_module,
-        "_REGISTRY",
-        dict(engine_module._REGISTRY),  # pyright: ignore[reportPrivateUsage]
+        registry_module,
+        "_registry",
+        dict(registry_module._registry),  # pyright: ignore[reportPrivateUsage]
     )
+    monkeypatch.setattr(
+        engine_module,
+        "_REGISTERED",
+        dict(engine_module._REGISTERED),  # pyright: ignore[reportPrivateUsage]
+    )
+    monkeypatch.setattr(
+        engine_module,
+        "_ALIASES",
+        dict(engine_module._ALIASES),  # pyright: ignore[reportPrivateUsage]
+    )
+    import inspect_ai._util.entrypoints as entrypoints_module
+
+    for flag in ("_inspect_ai_eps_loaded", "_inspect_ai_eps_loaded_all"):
+        monkeypatch.setattr(entrypoints_module, flag, getattr(entrypoints_module, flag))
 
 
 def _write_challenges(tmp_path: pathlib.Path, text: str) -> pathlib.Path:

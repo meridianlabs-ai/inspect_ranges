@@ -7,7 +7,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT License" }
 dependencies = [
-    "inspect-ai>=0.3.286",
+    "inspect-ai>=0.3.287",
     "boto3[crt]>=1.40",
     "click>=8.0",
     "pydantic>=2",
@@ -89,6 +89,7 @@ local_scheme = "no-local-version" # Important for PyPI compatibility
 managed = true
 # uv 0.12.22 is the first release that writes lock revision 5 (this uv.lock)
 required-version = ">=0.12.22"
+
 
 [tool.ruff]
 # explicit exclude list: ruff's DEFAULT excludes contain "_build", which

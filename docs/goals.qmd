@@ -1,7 +1,7 @@
 ---
 title: "Custom Goals"
 description: "Creating custom goal types with their own proof contracts. Covers the GoalType interface, the oracle, testing, and registration."
-llms-description: "How to implement a custom goal type for inspect_ranges challenges: the GoalType protocol and its proof-design rules (forgery cost, the residue rule, host-side compare), the RangeOracle and PlantStore surfaces, Observations and GoalResult semantics (partial, indeterminate, corroborated, latching), assurance labels and their scoring consequences, the GoalBase spec contract and ObserverKind exports, unit testing without VMs, the measure-first performance gate, register_goal_type and entry-point registration (which opens both scoring and YAML parsing), and the registration load-order requirement."
+llms-description: "How to implement a custom goal type for inspect_ranges challenges: the GoalType protocol and its proof-design rules (forgery cost, the residue rule, host-side compare), the RangeOracle and PlantStore surfaces, Observations and GoalResult semantics (partial, indeterminate, corroborated, latching), assurance labels and their scoring consequences, the GoalBase spec contract and ObserverKind exports, unit testing without VMs, the measure-first performance gate, the range_goal decorator and inspect-ai shared-registry registration (which opens both scoring and YAML parsing, with packaged types self-discovering from their namespaced names), and name-resolution rules including the ambiguity refusal."
 ---
 
 ## Overview
@@ -15,8 +15,9 @@ The engine treats third-party types exactly like built-ins: the same registry, t
 A goal type is a stateless object, registered once per process and shared across samples; everything per-sample lives in the plant store and the sample store. It binds four pieces:
 
 ``` {.python .fragment}
-from inspect_ranges import GoalResult, GoalType, Observations
+from inspect_ranges import GoalResult, GoalType, Observations, range_goal
 
+@range_goal
 class MarkerType(GoalType):
     name = "marker"            # the YAML `type:` name
     spec = MarkerGoal          # schema class its fields dispatch to
@@ -82,7 +83,7 @@ from inspect_ranges import (
     GoalResult,
     GoalType,
     Observations,
-    register_goal_type,
+    range_goal,
 )
 
 class MarkerGoal(GoalBase):
@@ -91,6 +92,7 @@ class MarkerGoal(GoalBase):
     path: str
     owner: str = "root"
 
+@range_goal
 class MarkerType(GoalType):
     name = "marker"
     spec = MarkerGoal
@@ -122,8 +124,6 @@ class MarkerType(GoalType):
             return GoalResult(achieved=False, reason="no submission")
         expected = store.get(f"marker:{goal.id}").strip()
         return GoalResult(achieved=submitted == expected)
-
-register_goal_type(MarkerType())
 ```
 
 Note what makes this sound: the value is per-sample entropy, planted 0600 under the declared owner (so reading it requires the claimed access), recorded before it exists anywhere on a guest, compared host-side, and never consulted guest-ward at scoring. The label is `guest-corroborated`, not `host-anchored`, because no external observer witnesses the read; pair the goal with a declared capture segment and corroboration if the scenario needs more.
@@ -172,23 +172,21 @@ Scoring wall-clock is recorded per goal in the sample store (`inspect_ranges:tim
 
 ## Registration
 
-Registration itself is one call per type instance. `register_goal_type` refuses a name already registered to a different instance, and `names=` registers one implementation under aliases (the built-in `control`/`privilege` pair shares one). Make it run in every process that scores by registering from an `inspect_ai` entry-point module, the same mechanism `inspect_ranges` uses for its own built-ins:
+The `@range_goal` decorator registers the type in inspect-ai's shared registry (the `range_goal` kind, the same registry `@task` and `@scorer` write to) when the defining module loads, and `@range_goal(names=(...))` registers one implementation under several YAML names (the first is primary, the rest alias to it; the built-in `control`/`privilege` pair shares one). Aliases are process-local: an installed package's alias resolves only after its module has loaded, so reference packaged types by their primary or qualified name. A name already registered to a different instance refuses: define a shared type once and import it wherever it is used, never a copy of the class per range. `register_goal_type(instance)` remains for pre-built instances and programmatic registration.
+
+Where the type lives determines how a `challenges.yaml` reaches it:
+
+- **Beside its task** (the common case for range-bound types): the decorator runs when inspect loads the `task.py`, before the dataset parses, so `type: marker` just works with no further ceremony.
+- **In an installed package** (a reusable goal-type library): the type registers as `my_package/marker`, and a challenges file can reference that name with no prior import anywhere; the registry loads the package's `inspect_ai` entry point on the lookup miss. The bare `marker` also resolves while no other installed package claims the same suffix; a collision refuses with the qualified candidates listed rather than picking by load order. The package declares the standard entry point, and the entry-point module does nothing but import:
 
 ``` {.toml .fragment}
 [project.entry-points.inspect_ai]
 my_package = "my_package._registry"
 ```
 
-The module itself does nothing but import and register:
-
-``` {.python filename="my_package/_registry.py"}
-"""Entry point: loaded by inspect_ai, registers our goal types."""
-
-from inspect_ranges import register_goal_type
-
-from .marker import MarkerType
-
-register_goal_type(MarkerType())
+``` {.python .fragment}
+# my_package/_registry.py: loaded by inspect_ai; importing registers
+from .marker import MarkerType  # noqa: F401
 ```
 
 ### Authoring the Type in YAML

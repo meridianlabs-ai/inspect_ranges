@@ -1,3 +1,7 @@
+## Unreleased
+
+- Goal types are now inspect-ai registry citizens: the new `range_goal` decorator registers a `GoalType` subclass in the shared registry (the `range_goal` kind) at class definition, replacing the bare `register_goal_type(...)` call sites (the function remains for programmatic use). A type defined beside its task registers when the task loads; a type in an installed package registers as `pkg/name` and self-discovers from that reference through the package's `inspect_ai` entry point, with bare-suffix resolution while unique and a loud refusal listing candidates on a cross-package collision. Requires inspect-ai 0.3.287 or newer (the release carrying the `range_goal` registry kind).
+
 ## 0.2.6 (31 October 2026)
 
 - Fixes a 0.2.5 regression that failed every range boot on common kernels: the bridged-frames accepts used `meta ibrname`/`obrname` in the `inet` family table, and bridge meta is bridge-family-only on most kernels, so `nft -f` refused the ruleset ("Operation not supported") and the range container exited before anything booted. The same semantics load everywhere as a plain interface-name pair: at the IP-layer hook br_netfilter presents a bridged frame with the segment bridge as both devices, so `iifname "br-x" oifname "br-x" accept` is exactly "entered and left through this bridge", per bridge as before, with routed frames still meeting the egress policy. Verified by loading the rendered ruleset and exchanging same-segment traffic on a host with `br_netfilter` active.

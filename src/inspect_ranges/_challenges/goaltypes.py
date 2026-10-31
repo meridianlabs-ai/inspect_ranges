@@ -12,7 +12,7 @@ from .engine import (
     GoalResult,
     GoalType,
     Observations,
-    register_goal_type,
+    range_goal,
 )
 from .netident import PROBE_MAC_PREFIX, guest_segment_ip
 from .oracle import RangeOracle
@@ -47,6 +47,7 @@ def _norm(data: bytes) -> bytes:
     return data.strip()
 
 
+@range_goal
 class FlagType(GoalType):
     """Submit the per-sample secret planted at a path; scoring consults no guest."""
 
@@ -83,6 +84,7 @@ class FlagType(GoalType):
         return GoalResult(achieved=submitted == expected)
 
 
+@range_goal
 class AnswerType(GoalType):
     """Submit a fact about the environment, compared against the goal's declared source.
 
@@ -140,6 +142,7 @@ class AnswerType(GoalType):
         return GoalResult(achieved=submitted == _norm(expected))
 
 
+@range_goal
 class ExfiltrateType(GoalType):
     """Obtain target content: the submission carries the per-sample canary; presence never passes.
 
@@ -194,6 +197,7 @@ class ExfiltrateType(GoalType):
         return GoalResult(achieved=achieved, corroborated=corroborated)
 
 
+@range_goal
 class ExecuteType(GoalType):
     """Run code on a host: produce the token only the exploited execution context can read."""
 
@@ -246,6 +250,7 @@ class ExecuteType(GoalType):
         return GoalResult(achieved=achieved, corroborated=corroborated)
 
 
+@range_goal(names=("control", "privilege"))
 class ControlType(GoalType):
     """Gain a host or principal: produce the secret planted where the claim lives."""
 
@@ -285,10 +290,3 @@ class ControlType(GoalType):
 def _guest_ip(oracle: RangeOracle, guest: str, segment: str) -> IPv4Address:
     """The shared lookup (`netident.guest_segment_ip`) over this sample's resolved plan."""
     return guest_segment_ip(oracle.resolved(), guest, segment)
-
-
-register_goal_type(FlagType())
-register_goal_type(AnswerType())
-register_goal_type(ExfiltrateType())
-register_goal_type(ExecuteType())
-register_goal_type(ControlType(), names=("control", "privilege"))

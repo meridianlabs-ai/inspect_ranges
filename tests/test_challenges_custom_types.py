@@ -106,9 +106,7 @@ class SnapshotGoal(GoalBase):
 @pytest.fixture()
 def marker_type(monkeypatch: pytest.MonkeyPatch) -> MarkerType:
     """Register `MarkerType` in an isolated copy of the goal-type registry."""
-    import inspect_ranges._challenges.engine as engine_module
-
-    monkeypatch.setattr(engine_module, "_REGISTRY", dict(engine_module._REGISTRY))
+    _isolate(monkeypatch)
     marker = MarkerType()
     register_goal_type(marker)
     return marker
@@ -212,9 +210,7 @@ def test_unregistered_custom_type_refuses_not_misparses(tmp_path: Path) -> None:
     issue = next(issue for issue in report.issues if issue.code == "unknown-goal-type")
     known = issue.message.partition("known types:")[2]
     assert "flag" in known and "marker" not in known
-    assert (
-        issue.hint is not None and "registration must run before parsing" in issue.hint
-    )
+    assert issue.hint is not None and "registers at import" in issue.hint
     with pytest.raises(ValidationError):
         load_challenges(path)
 
@@ -275,3 +271,155 @@ def test_registered_type_scores_end_to_end(
     assert metadata is not None
     assert metadata["validity"] == "valid"
     assert metadata["achieved_count"] == 1
+
+
+def _isolate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Copy the registration stores and the entry-point flags so a test's registrations, and any miss-driven entry-point sweep it triggers, die with it."""
+    import inspect_ai._util.entrypoints as entrypoints_module
+    import inspect_ai._util.registry as registry_module
+    import inspect_ranges._challenges.engine as engine_module
+
+    monkeypatch.setattr(
+        registry_module,
+        "_registry",
+        dict(registry_module._registry),  # pyright: ignore[reportPrivateUsage]
+    )
+    monkeypatch.setattr(
+        engine_module,
+        "_REGISTERED",
+        dict(engine_module._REGISTERED),  # pyright: ignore[reportPrivateUsage]
+    )
+    monkeypatch.setattr(
+        engine_module,
+        "_ALIASES",
+        dict(engine_module._ALIASES),  # pyright: ignore[reportPrivateUsage]
+    )
+    for flag in ("_inspect_ai_eps_loaded", "_inspect_ai_eps_loaded_all"):
+        monkeypatch.setattr(entrypoints_module, flag, getattr(entrypoints_module, flag))
+
+
+def test_range_goal_decorator_registers_and_returns_the_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bare decorator registers an instance under the class's own name and hands the class back; the names= form makes every later name an alias of the first."""
+    from inspect_ranges import range_goal
+    from inspect_ranges._challenges.engine import goal_type
+
+    _isolate(monkeypatch)
+
+    @range_goal
+    class DecoratedType(MarkerType):
+        name = "decorated-marker"
+
+    assert isinstance(DecoratedType, type)  # the class itself, not an instance
+    assert type(goal_type("decorated-marker")) is DecoratedType
+
+    @range_goal(names=("alias-primary", "alias-secondary"))
+    class AliasedType(MarkerType):
+        name = "alias-primary"
+
+    assert goal_type("alias-secondary") is goal_type("alias-primary")
+
+
+def test_duplicate_registration_refuses_with_the_teaching_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A second, distinct instance under a taken name refuses and the message teaches the shared-definition rule; re-registering the same instance is a no-op."""
+    _isolate(monkeypatch)
+    first = MarkerType()
+    register_goal_type(first)
+    register_goal_type(first)  # idempotent
+    with pytest.raises(ValueError, match="define a shared type once"):
+        register_goal_type(MarkerType())
+
+
+def test_qualified_names_and_suffix_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A type resolves by its full registry name and by its bare suffix while unique; two packages sharing a suffix make the bare form refuse, listing both qualified names."""
+    from inspect_ai._util.registry import RegistryInfo, registry_add, registry_info
+    from inspect_ranges._challenges.engine import goal_type
+
+    _isolate(monkeypatch)
+    marker = MarkerType()
+    register_goal_type(marker)
+    qualified = registry_info(marker).name
+    assert goal_type(qualified) is marker
+    assert goal_type("marker") is marker
+
+    # a bare registration wins exactly even when a package shares the suffix
+    class RivalType(MarkerType):
+        name = "marker"
+
+    registry_add(RivalType(), RegistryInfo(type="range_goal", name="rivalpkg/marker"))
+    assert goal_type("marker") is marker
+    assert goal_type(qualified) is marker
+
+    # true ambiguity: only qualified registrations share a suffix
+    class ClashA(MarkerType):
+        name = "clash"
+
+    class ClashB(MarkerType):
+        name = "clash"
+
+    registry_add(ClashA(), RegistryInfo(type="range_goal", name="pkga/clash"))
+    registry_add(ClashB(), RegistryInfo(type="range_goal", name="pkgb/clash"))
+    from inspect_ranges._challenges.engine import AmbiguousGoalTypeName
+
+    with pytest.raises(AmbiguousGoalTypeName, match="ambiguous across packages"):
+        goal_type("clash")
+    with pytest.raises(KeyError):  # degrade paths catching KeyError stay graceful
+        goal_type("clash")
+    assert type(goal_type("pkga/clash")) is ClashA  # qualified stays exact
+
+
+def test_registered_goal_types_lists_every_resolvable_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The listing carries the qualified name, the unique bare suffix, and aliases, all mapping to one instance — the names a challenges.yaml may actually write."""
+    from inspect_ai._util.registry import registry_info
+    from inspect_ranges._challenges.engine import registered_goal_types
+
+    _isolate(monkeypatch)
+    marker = MarkerType()
+    register_goal_type(marker, names=("marker", "marker-alias"))
+    listing = registered_goal_types()
+    qualified = registry_info(marker).name
+    assert listing["marker"] is marker
+    assert listing[qualified] is marker
+    assert listing["marker-alias"] is marker
+
+
+def test_bare_registration_cannot_shadow_an_existing_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A loose-module class reusing a built-in's name refuses instead of silently swapping the implementation behind that YAML type (exact resolution would prefer the bare impostor)."""
+    _isolate(monkeypatch)
+
+    class ImpostorType(MarkerType):
+        name = "flag"
+
+    with pytest.raises(ValueError, match="would shadow"):
+        register_goal_type(ImpostorType())
+    from inspect_ranges._challenges.engine import goal_type
+
+    assert type(goal_type("flag")).__name__ == "FlagType"
+
+
+def test_alias_cannot_reroute_a_registered_name_and_failure_mutates_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An alias colliding with a registered type refuses, and the refusal leaves no partial registration behind: neither the primary name nor earlier aliases land."""
+    _isolate(monkeypatch)
+    from inspect_ranges._challenges.engine import goal_type
+
+    rogue = MarkerType()
+    with pytest.raises(ValueError, match="may not reroute"):
+        register_goal_type(rogue, names=("marker", "answer"))
+    with pytest.raises(KeyError):
+        goal_type("marker")  # the primary never landed
+    assert type(goal_type("answer")).__name__ == "AnswerType"
+    with pytest.raises(ValueError, match="already bound"):
+        register_goal_type(rogue, names=("marker", "privilege"))
+    with pytest.raises(KeyError):
+        goal_type("marker")
