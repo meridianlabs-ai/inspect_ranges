@@ -13,6 +13,7 @@ from inspect_ranges._compiler import (
     render_bundle,
     resolve_plan,
 )
+from inspect_ranges._compiler.plan import spec_sha256
 from inspect_ranges._runtime.rangeimage import range_image_context
 from inspect_ranges.types import (
     Attacker,
@@ -1286,3 +1287,96 @@ def test_deployment_helpers_are_public() -> None:
 
     spec = load_range(EXAMPLES / "_dmz_pivot" / "range.yaml")
     assert catalog_image_references(spec) == ["ubuntu-noble", "attack"]
+
+
+def _hash_spec(
+    hostname: str | None = None, explicit_default: bool = False
+) -> RangeSpec:
+    host = Host(
+        name="box",
+        os=Os(type="linux"),
+        image="img",
+        interfaces=[Interface(network="lab")],
+    )
+    if explicit_default:
+        host.hostname = None  # the field default, written explicitly
+    if hostname is not None:
+        host.hostname = hostname
+    return RangeSpec(
+        meta=RangeMeta(
+            name="hashes", description="hash semantics", schema_version="0.3"
+        ),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[host],
+        attacker=Attacker(host="box", entry="external"),
+    )
+
+
+def test_spec_hash_is_default_insensitive() -> None:
+    """The normalized form excludes defaulted values: an explicitly-written default hashes identically to an omitted key (they are the same spec), a non-default value moves the hash, and an omitted schema_version hashes like the frozen "0.1" default while a declared version participates."""
+    base = spec_sha256(_hash_spec())
+    assert spec_sha256(_hash_spec(explicit_default=True)) == base
+    assert spec_sha256(_hash_spec(hostname="box-prime")) != base
+    explicit_v01 = _hash_spec()
+    explicit_v01.meta.schema_version = "0.1"
+    omitted = _hash_spec()
+    omitted.meta.schema_version = "0.1"  # the default; both forms elide it
+    assert spec_sha256(explicit_v01) == spec_sha256(omitted)
+    assert spec_sha256(explicit_v01) != base  # "0.3" participates
+
+
+# the hash is a published join contract (manifests carry spec-<sha256> refs),
+# so moving it is a deliberate act: this literal pins the algorithm, the
+# by_alias form, and the exclude-defaults normalization in one value
+_CANONICAL_SPEC_HASH = (
+    "391c87206092e3e38910fc86f1930677d36edfce1b5e143d6e053170cb86687f"
+)
+
+
+def test_spec_hash_golden_pin() -> None:
+    """A fixed canonical spec hashes to the recorded literal. If this fails, the normalized form moved: every published build and manifest join breaks, so the change must be deliberate, recorded in the CHANGELOG, and paired with a republish."""
+    canonical = RangeSpec(
+        meta=RangeMeta(
+            name="golden",
+            description="the pinned canonical spec",
+            schema_version="0.3",
+        ),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="box",
+                os=Os(type="linux"),
+                image="img",
+                interfaces=[Interface(network="lab", ip="10.0.0.10")],
+            )
+        ],
+        attacker=Attacker(host="box", entry="external"),
+    )
+    assert spec_sha256(canonical) == _CANONICAL_SPEC_HASH
+
+
+def test_shipped_defaults_are_frozen_contracts() -> None:
+    """Every schema default matches the recorded snapshot (tests/spec_defaults.json). Default-insensitive hashing is sound only while a shipped default's meaning never changes: changing an entry here means every elided spec silently reinterprets, so it requires a new field or a schema_version bump instead. Adding entries (new fields) is expected; edit an existing entry only with that understanding."""
+    import inspect as pyinspect
+    import json as jsonlib
+
+    import inspect_ranges.types as types_module
+    from pydantic import BaseModel
+    from pydantic_core import PydanticUndefined
+
+    snapshot: dict[str, str] = {}
+    for name, obj in sorted(vars(types_module).items()):
+        if (
+            pyinspect.isclass(obj)
+            and issubclass(obj, BaseModel)
+            and obj.__module__ == "inspect_ranges.types"
+        ):
+            for field_name, field in sorted(obj.model_fields.items()):
+                if field.default is not PydanticUndefined:
+                    snapshot[f"{name}.{field_name}"] = repr(field.default)
+                elif field.default_factory is not None:
+                    snapshot[f"{name}.{field_name}"] = (
+                        f"factory:{field.default_factory()!r}"  # type: ignore[call-arg]
+                    )
+    recorded = jsonlib.loads((Path(__file__).parent / "spec_defaults.json").read_text())
+    assert snapshot == recorded

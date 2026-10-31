@@ -215,8 +215,14 @@ class ResolvedPlan(BaseModel):
 
 
 def spec_sha256(spec: RangeSpec) -> str:
-    """The normalized spec hash: canonical JSON of the validated model, independent of YAML formatting."""
-    normalized = json.dumps(spec.model_dump(mode="json", by_alias=True), sort_keys=True)
+    """The normalized spec hash: canonical JSON of the validated model, independent of YAML formatting and of defaulted values.
+
+    Defaulted values are excluded (`exclude_defaults`) so adding a schema field whose default reproduces prior behavior never moves existing hashes: build manifests, published builds, and project names survive engine upgrades that only widen the vocabulary. The rule that keeps this sound is that DEFAULTS ARE FROZEN CONTRACTS: a default's meaning never changes once shipped (new behavior arrives behind a new field, or behind an explicitly declared `schema_version`, which participates in the hash whenever it is set to anything but the frozen `"0.1"` default). An explicitly-written default and an omitted key hash identically, which is correct: they are the same spec. `tests/spec_defaults.json` pins every shipped default, and the golden-hash test pins the normalized form itself.
+    """
+    normalized = json.dumps(
+        spec.model_dump(mode="json", by_alias=True, exclude_defaults=True),
+        sort_keys=True,
+    )
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
