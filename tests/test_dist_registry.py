@@ -660,10 +660,11 @@ def test_tag_listing_follows_link_pagination(
 def test_blob_download_restarts_after_a_mid_stream_failure(
     tmp_path: Path, fake_registry: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A blob stream cut mid-transfer (the registry closes after half the body) restarts from the beginning and lands intact; a stream that fails every time surfaces as a coded refusal after the attempt budget, never a raw socket error. Digest mismatches are not transfer faults and are not retried."""
+    """A blob stream cut mid-transfer (the registry closes after half the body) restarts from the beginning and lands intact; a stream that fails every time surfaces as a coded refusal after the attempt budget, never a raw socket error, with retry delays growing exponentially under a cap and jittered. Digest mismatches are not transfer faults and are not retried."""
     from inspect_ranges._dist import registry as registry_module
 
-    monkeypatch.setattr(registry_module, "_BLOB_BACKOFF_S", 0.0)
+    delays: list[float] = []
+    monkeypatch.setattr(registry_module, "_sleep", delays.append)
     url, state = fake_registry()
     repo = RegistryRepo(url, "ranges/flaky")
     payload = (
@@ -679,8 +680,14 @@ def test_blob_download_restarts_after_a_mid_stream_failure(
         tmp_path / "landed"
     ).read_bytes() == payload and state.blob_stream_failures == 0
     state.blob_stream_failures = 99
-    with pytest.raises(DistError, match="registry-unreachable.*failed 4 times"):
+    with pytest.raises(DistError, match="registry-unreachable.*failed 6 times"):
         repo.copy_blob_to(descriptor, tmp_path / "never")
+    # 2 + 5 retries slept: exponential from ~2 s, capped at 60 s, jittered within [base/2, base]
+    assert len(delays) == 2 + 5
+    bounds = [(1.0, 2.0), (2.0, 4.0), (4.0, 8.0), (8.0, 16.0), (16.0, 32.0)]
+    for delay, (low, high) in zip(delays[2:], bounds):
+        assert low <= delay <= high, delays
+    assert 30.0 <= registry_module._blob_backoff(9) <= 60.0
     assert not (tmp_path / "never").exists() and not list(tmp_path.glob(".incoming-*"))
     state.blob_stream_failures = 0
     state.blobs[digest] = payload[::-1]
