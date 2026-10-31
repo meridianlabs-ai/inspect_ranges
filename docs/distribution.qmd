@@ -6,7 +6,7 @@ llms-description: "The distribution layer: registry locations (public hub, priva
 
 ## Overview
 
-A range is built once and consumed everywhere: `inspect-ranges build` produces captured, verified images and a build manifest ([Building Ranges](building.qmd)), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec's normalized-form hash (a hash over the definition's semantic content, so comment and formatting edits do not change it), recorded in the build manifest and matched exactly at pull time.
+A range is built once and consumed everywhere: `inspect-ranges build` produces captured, verified images and a build manifest ([Building Ranges](building.qmd)), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec's normalized-form hash (a hash over the definition's semantic content: comment and formatting edits do not change it, and neither do engine upgrades that add schema fields with behavior-preserving defaults, since defaulted values are excluded from the normalized form), recorded in the build manifest and matched exactly at pull time.
 
 Every artifact is content-addressed: qcow2 images, provenance sidecars (each image's record of the digests it was built from), recipe bundles, and the build manifest itself publish as OCI artifacts whose blobs verify against their digests on every path (push, pull, mirror, and out of a directory archive). A pulled range is byte-identical to the built one, and nothing unverified ever lands under a consumable name.
 
