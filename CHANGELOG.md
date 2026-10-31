@@ -1,5 +1,6 @@
 ## Unreleased
 
+- `push --respec` re-records a cached build under the current normalized spec hash and publishes it: the one-time migration for builds recorded before 0.2.5, when the hash began excluding defaulted values and every earlier build stopped matching the spec that produced it (pulls refused with `no-build-for-spec`, or with the re-pointed-reference check when only the ref was moved). It is proven, not asserted: the manifest embeds the spec it was built from, and that spec re-hashed under the current rule must equal the spec on disk; anything else refuses with `manifest-spec-mismatch`.
 - Goal types are now inspect-ai registry citizens: the new `range_goal` decorator registers a `GoalType` subclass in the shared registry (the `range_goal` kind) at class definition, replacing the bare `register_goal_type(...)` call sites (the function remains for programmatic use). A type defined beside its task registers when the task loads; a type in an installed package registers as `pkg/name` and self-discovers from that reference through the package's `inspect_ai` entry point, with bare-suffix resolution while unique and a loud refusal listing candidates on a cross-package collision. Requires inspect-ai 0.3.287 or newer (the release carrying the `range_goal` registry kind).
 
 ## 0.2.6 (31 October 2026)

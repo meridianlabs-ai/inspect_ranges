@@ -501,6 +501,71 @@ def test_push_cli_refuses_without_destination(
     assert "no-push-location" in result.output
 
 
+def test_push_respec_republishes_a_pre_0_2_5_build_under_the_current_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A build recorded before the hash excluded defaults (its manifest embeds the spec it was built from) re-records and publishes under the current hash with `push --respec`, so spec-driven pull resolves it again; the cached manifest is migrated too. A manifest built from another spec is refused and nothing is published."""
+    from click.testing import CliRunner
+    from inspect_ranges._build.manifest import load_manifest, save_manifest
+    from inspect_ranges._cli.distcmd import push as push_cmd
+
+    fixture = Fixture(tmp_path)
+    spec_path = spec_file(
+        fixture.range_dir
+    )  # beside the fixture's recipes, as in a range checkout
+    spec = load_range(spec_path)
+    stale = fixture.manifest.model_copy(
+        update={
+            "spec_sha256": "77ab",
+            "spec": spec.model_dump(mode="json", by_alias=True),
+        }
+    )
+    save_manifest(stale, fixture.build_cache)
+    caches = [
+        "--image-cache",
+        str(fixture.image_cache),
+        "--build-cache",
+        str(fixture.build_cache),
+        "--recipe-cache",
+        str(tmp_path / "recipes"),
+    ]
+    runner = CliRunner()
+    destination = tmp_path / "published"
+    result = runner.invoke(
+        push_cmd, [str(spec_path), "--to", str(destination), "--respec", *caches]
+    )
+    assert result.exit_code == 0, result.output
+    assert (
+        f"respec    distfix: spec sha256:77ab... -> sha256:{spec_sha256(spec)[:6]}..."
+        in result.output
+    )
+    migrated = load_manifest(fixture.build_cache, "distfix")
+    assert migrated is not None and migrated.spec_sha256 == spec_sha256(spec)
+    images, builds, recipes = fresh_dirs(tmp_path)
+    report = pull_range(
+        spec,  # type: ignore[arg-type]
+        [parse_location(str(destination))],
+        image_cache=images,
+        build_cache=builds,
+        recipe_cache=recipes,
+    )
+    assert report.location == str(destination)
+    foreign = spec.model_copy(
+        update={"meta": spec.meta.model_copy(update={"description": "another range"})}
+    )
+    save_manifest(
+        stale.model_copy(
+            update={"spec": foreign.model_dump(mode="json", by_alias=True)}
+        ),
+        fixture.build_cache,
+    )
+    refused = runner.invoke(
+        push_cmd, [str(spec_path), "--to", str(tmp_path / "never"), "--respec", *caches]
+    )
+    assert refused.exit_code != 0 and "built from a different spec" in refused.output
+    assert not (tmp_path / "never").exists()
+
+
 def test_ensure_build_available_warm_cold_and_never_pull(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
