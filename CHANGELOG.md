@@ -1,5 +1,7 @@
 ## Unreleased
 
+- `IR_PUSH` handles files of any size: payloads over 128 MiB stream to the guest in chunks and reassemble under a sha256 check before installing (both guest OS paths), so appliance-sized recipe payloads no longer need hand-rolled split helpers, and host memory stays bounded to one chunk regardless of file size. The daemon's inbound bulk cap is unchanged; the ergonomics moved into the tool.
+
 - `build` and `up --from-spec` now lease their vsock CID blocks from the same host allocator the sandbox provider uses (released by teardown and `down`), so parallel builds, parallel ranges, and builds beside live samples never collide on CIDs. An explicit `--cid-base` remains operator-managed and skips the lease; a block still held by a crashed or kept range refuses with the exact `down` command that frees it.
 
 - `push --respec` re-records a cached build under the current normalized spec hash and publishes it: the one-time migration for builds recorded before 0.2.5, when the hash began excluding defaulted values and every earlier build stopped matching the spec that produced it (pulls refused with `no-build-for-spec`, or with the re-pointed-reference check when only the ref was moved). It is proven, not asserted: the manifest embeds the spec it was built from, and that spec re-hashed under the current rule must equal the spec on disk; anything else refuses with `manifest-spec-mismatch`.
