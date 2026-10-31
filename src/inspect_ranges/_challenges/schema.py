@@ -763,10 +763,11 @@ class Challenge(_StrictModel):
                         ),
                         hint=did_you_mean(str(name), known)
                         or (
-                            "a custom type's registration must run before "
-                            "parsing: import its registering module first "
-                            "(under inspect, the inspect_ai entry point does "
-                            "this)"
+                            "a custom type registers at import of its "
+                            "defining module: load the task that defines it, "
+                            "or reference an installed package's type as "
+                            "pkg/name, which self-discovers through the "
+                            "package's inspect_ai entry point"
                         ),
                     )
                 )

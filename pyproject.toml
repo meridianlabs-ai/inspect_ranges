@@ -7,6 +7,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT License" }
 dependencies = [
+    # range_goal registry kind: the uv source pins a git revision until the
+    # next inspect-ai release; bump this floor to that release before shipping
     "inspect-ai>=0.3.286",
     "boto3[crt]>=1.40",
     "click>=8.0",
@@ -89,6 +91,9 @@ local_scheme = "no-local-version" # Important for PyPI compatibility
 managed = true
 # uv 0.12.22 is the first release that writes lock revision 5 (this uv.lock)
 required-version = ">=0.12.22"
+
+[tool.uv.sources]
+inspect-ai = { git = "https://github.com/UKGovernmentBEIS/inspect_ai", rev = "3dcbf005c0763cd91ea5e2da87551e57c04c61c1" }
 
 [tool.ruff]
 # explicit exclude list: ruff's DEFAULT excludes contain "_build", which
