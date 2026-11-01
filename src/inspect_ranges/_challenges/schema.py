@@ -743,6 +743,7 @@ class Challenge(_StrictModel):
             return mapping
         issues: list[Issue] = []
         known: list[str] | None = None
+        listed: list[str] = []
         for index, raw in enumerate(cast(list[Any], goals)):
             if not isinstance(raw, dict):
                 continue
@@ -751,7 +752,17 @@ class Challenge(_StrictModel):
                 continue
             name = goal.get("type")
             if known is None:
-                known = sorted(set(GOAL_TYPES) | set(_registered_goal_specs()))
+                accepted = set(GOAL_TYPES) | set(_registered_goal_specs())
+                # the listing drops a qualified pkg/name whose bare suffix is
+                # also accepted (both resolve, so listing both is noise); a
+                # qualified name stays when its suffix is collision-suppressed
+                # and only the qualified form resolves
+                known = sorted(accepted)
+                listed = sorted(
+                    entry
+                    for entry in accepted
+                    if "/" not in entry or entry.split("/", 1)[1] not in accepted
+                )
             if name not in known:
                 issues.append(
                     Issue(
@@ -759,9 +770,9 @@ class Challenge(_StrictModel):
                         path=("goals", index, "type"),
                         message=(
                             f"unknown goal type {name!r}; known types: "
-                            f"{', '.join(known)}"
+                            f"{', '.join(listed)}"
                         ),
-                        hint=did_you_mean(str(name), known)
+                        hint=did_you_mean(str(name), listed)
                         or (
                             "a custom type registers at import of its "
                             "defining module: load the task that defines it, "
