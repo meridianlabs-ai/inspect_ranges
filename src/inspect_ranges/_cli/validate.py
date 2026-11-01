@@ -55,6 +55,19 @@ def validate(ctx: click.Context, paths: tuple[Path, ...], as_json: bool) -> None
         challenges_path = path.parent / "challenges.yaml"
         if challenges_path.is_file():
             reports.append(_challenges_report(challenges_path, path, report))
+        # conformance proofs are working exploits: a conformance directory
+        # under recipes/ would ride a bundle payload guest-ward
+        for stray in sorted((path.parent / "recipes").glob("**/conformance")):
+            if not stray.is_dir():
+                continue
+            message = (
+                f"{stray}: conformance directories hold proof artifacts "
+                "(working exploits) and must never sit inside a recipe, where "
+                "they ride the bundle guest-ward; move it beside range.yaml"
+            )
+            # stderr in both output modes: the JSON report list is a stable
+            # consumer contract, and the warning is operator guidance
+            click.echo(click.style("!", fg="yellow") + " " + message, err=True)
     if as_json:
         click.echo(
             json_module.dumps([report.to_json() for report in reports], indent=2)

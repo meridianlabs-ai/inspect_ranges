@@ -21,6 +21,7 @@ from .engine import (
     CANDIDATE_CAP,
     Assurance,
     GoalResult,
+    GoalType,
     LatchRecord,
     aggregate,
     goal_type,
@@ -29,7 +30,7 @@ from .engine import (
 )
 from .oracle import OracleSetupError, RangeOracle, range_oracle
 from .poller import stop_goal_poller
-from .schema import Challenge
+from .schema import Challenge, GoalBase
 from .submission import Submissions, submissions_from
 from .timings import add_timing
 from .verify import discard_verify_context
@@ -157,6 +158,54 @@ def _recorded_or_latched(
     return _latched_score(challenge, store)
 
 
+async def evaluate_goal(
+    engine: GoalType,
+    goal: GoalBase,
+    oracle: "RangeOracle",
+    submissions: Submissions,
+) -> tuple[GoalResult, int]:
+    """One goal's verdict exactly as scoring computes it: distinct submitted values oldest-first under the candidate cap, first achieved wins, best partial otherwise, all under one evidence memo. Returns the verdict and the dropped-candidate count. Shared by the scorer and conformance proofs so a proof can never pass under semantics scoring would not apply."""
+    dropped = 0
+    # Every distinct submitted value gets a chance, oldest first: a later
+    # wrong submission must not bury an earlier correct one, and the outcome
+    # must not depend on whether a poller tick happened to land between them.
+    # Types whose check never reads submissions get ONE view: junk submissions
+    # against a patch or prober goal must not multiply its scoring cost (the
+    # exploit re-run is the expensive case the candidate cap cannot see).
+    if engine.uses_submissions:
+        candidates = submissions.candidates(goal.id)
+        if len(candidates) > CANDIDATE_CAP:
+            dropped = len(candidates) - CANDIDATE_CAP
+            logger.warning(
+                "goal %s: %d submitted candidates exceed the cap of %d; "
+                "scoring the earliest %d (drop recorded in score metadata)",
+                goal.id,
+                len(candidates),
+                CANDIDATE_CAP,
+                CANDIDATE_CAP,
+            )
+            candidates = candidates[:CANDIDATE_CAP]
+        views = [Submissions([entry]) for entry in candidates] or [submissions]
+    else:
+        views = [submissions]
+    result = GoalResult(achieved=False, reason="no submission")
+    first_candidate = True
+    with oracle.evidence_memo():
+        for view in views:
+            observations = await engine.check(goal, oracle, view)
+            candidate = engine.compare(goal, observations, oracle.store)
+            if candidate.achieved:
+                result = candidate
+                break
+            # Best-partial across candidates (upgrade-not-regress, the latch
+            # rule applied here too): a later wrong submission must not bury
+            # an earlier better partial.
+            if first_candidate or (candidate.partial or 0.0) > (result.partial or 0.0):
+                result = candidate
+            first_candidate = False
+    return result, dropped
+
+
 async def score_challenge(
     oracle: RangeOracle,
     store: Store,
@@ -197,46 +246,9 @@ async def score_challenge(
         assurances[goal.id] = engine.assurance_for(goal)
         started = time.monotonic()
         try:
-            # Every distinct submitted value gets a chance, oldest first: a
-            # later wrong submission must not bury an earlier correct one,
-            # and the outcome must not depend on whether a poller tick
-            # happened to land between them. Types whose check never reads
-            # submissions get ONE view: junk submissions against a patch or
-            # prober goal must not multiply its scoring cost (the exploit
-            # re-run is the expensive case the candidate cap cannot see).
-            if engine.uses_submissions:
-                candidates = submissions.candidates(goal.id)
-                if len(candidates) > CANDIDATE_CAP:
-                    candidates_dropped[goal.id] = len(candidates) - CANDIDATE_CAP
-                    logger.warning(
-                        "goal %s: %d submitted candidates exceed the cap of %d; "
-                        "scoring the earliest %d (drop recorded in score metadata)",
-                        goal.id,
-                        len(candidates),
-                        CANDIDATE_CAP,
-                        CANDIDATE_CAP,
-                    )
-                    candidates = candidates[:CANDIDATE_CAP]
-                views = [Submissions([entry]) for entry in candidates] or [submissions]
-            else:
-                views = [submissions]
-            result = GoalResult(achieved=False, reason="no submission")
-            first_candidate = True
-            with oracle.evidence_memo():
-                for view in views:
-                    observations = await engine.check(goal, oracle, view)
-                    candidate = engine.compare(goal, observations, oracle.store)
-                    if candidate.achieved:
-                        result = candidate
-                        break
-                    # Best-partial across candidates (upgrade-not-regress, the
-                    # latch rule applied here too): a later wrong submission
-                    # must not bury an earlier better partial.
-                    if first_candidate or (candidate.partial or 0.0) > (
-                        result.partial or 0.0
-                    ):
-                        result = candidate
-                    first_candidate = False
+            result, dropped = await evaluate_goal(engine, goal, oracle, submissions)
+            if dropped:
+                candidates_dropped[goal.id] = dropped
         except Exception as error:
             # OracleSetupError messages are operator-actionable and carry no
             # secret material by construction (guest/path/principal only);

@@ -338,3 +338,54 @@ attacker: { host: box, entry: external }
     result = runner.invoke(ranges, [*args, "--keep"])
     assert result.exit_code != 0
     assert allocator.leased_projects(origin="cli") == [leased_name]  # kept range holds
+
+
+def test_prove_renders_runner_errors_and_the_assertion_summary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`prove` is registered, renders runner refusals as clean ClickExceptions, and summarizes every assertion individually, so asserting both directions on one goal stays visible."""
+    import inspect_ranges._cli.provecmd as provecmd_module
+    from inspect_ranges._build.manifest import GoalAssertion, ProvenRecord
+    from inspect_ranges._challenges.prove import ConformanceError
+
+    (tmp_path / "range.yaml").write_text(Path(EXAMPLE).read_text())
+
+    def refusing(range_dir: Path, **kwargs: object) -> ProvenRecord:
+        raise ConformanceError("no build manifest for 'x'")
+
+    monkeypatch.setattr(provecmd_module, "run_prove", refusing)
+    failed = CliRunner().invoke(ranges, ["prove", str(tmp_path)])
+    assert failed.exit_code != 0 and "no build manifest" in failed.output
+    assert "Traceback" not in failed.output
+
+    record = ProvenRecord(
+        proven_at="2026-11-01T00:00:00+00:00",
+        scripts=["demo/prove_flow.py"],
+        assertions=[
+            GoalAssertion(goal_id="token", expected_achieved=False),
+            GoalAssertion(goal_id="token", expected_achieved=True),
+        ],
+    )
+
+    def passing(range_dir: Path, **kwargs: object) -> ProvenRecord:
+        return record
+
+    monkeypatch.setattr(provecmd_module, "run_prove", passing)
+    ok = CliRunner().invoke(ranges, ["prove", str(tmp_path)])
+    assert ok.exit_code == 0, ok.output
+    assert "token=not-achieved, token=achieved" in ok.output
+
+
+def test_validate_warns_on_conformance_inside_recipes(tmp_path: Path) -> None:
+    """Proof artifacts are working exploits: a conformance directory under recipes/ warns on stderr in both output modes, and the JSON stdout contract stays untouched."""
+    (tmp_path / "range.yaml").write_text(Path(EXAMPLE).read_text())
+    stray = tmp_path / "recipes" / "acme.web" / "conformance"
+    stray.mkdir(parents=True)
+    runner = CliRunner()
+    plain = runner.invoke(ranges, ["validate", str(tmp_path)])
+    assert plain.exit_code == 0
+    assert "never sit inside a recipe" in plain.stderr
+    as_json = runner.invoke(ranges, ["validate", "--json", str(tmp_path)])
+    assert as_json.exit_code == 0
+    assert "never sit inside a recipe" in as_json.stderr
+    json.loads(as_json.stdout)  # the stdout contract still parses

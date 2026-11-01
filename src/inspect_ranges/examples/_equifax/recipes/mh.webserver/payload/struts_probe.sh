@@ -3,7 +3,7 @@
 # Content-Type OGNL injection (the canonical jakarta multipart payload).
 # Usage: struts_probe.sh <host> <command>; prints the command's output.
 # The OGNL payload also lives (as python re-implementations) in
-# ../../checks/exfiltrate-critical-data/{reference,insufficient}.sh — three
+# ../../conformance/exfiltrate-critical-data/{reference,insufficient}.sh — three
 # deliberate copies; change one, keep the others in step.
 set -eu
 HOST="$1"
