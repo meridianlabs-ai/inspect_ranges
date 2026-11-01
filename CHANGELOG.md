@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.9 (01 November 2026)
 
 - Distribution: an installed golden (a Windows golden, installed from an ISO rather than overlaid on a vendor disk image) now publishes as a chainless golden: `push` records the install media's name and digest on the golden's manifest as provenance and uploads the golden alone, and `pull` validates it as chainless. Previously `push` uploaded the install ISO itself as a vendor base (gigabytes of licensed media into the destination) and `pull` then refused the landed golden with `chain-invalid`, since an installed golden embeds no backing file for the chain check to match. `up` likewise no longer requires the install media in the cache for an installed golden (there is no runtime edge to verify), and `images list` compares a Windows golden's recipe version against the Windows recipe, not the Linux one.
 
