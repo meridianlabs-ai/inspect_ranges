@@ -826,9 +826,18 @@ def test_manifest_records_the_committed_inputs(tmp_path: Path, cache: Path) -> N
 
 
 def declare_checks(range_dir: Path) -> None:
-    """Make `checks_declared` true for the fixture range (contents never parsed; the seam is faked)."""
-    (range_dir / "challenges.yaml").write_text("challenges: []\n")
-    demo = range_dir / "checks" / "demo"
+    """Make `proofs_declared` true for the fixture range with a tree the hoisted pre-boot validation accepts (the proof phase itself runs through the faked seam)."""
+    (range_dir / "challenges.yaml").write_text(
+        "challenges:\n"
+        "  - id: demo\n"
+        "    prompt: p\n"
+        "    goals:\n"
+        "      - id: token\n"
+        "        type: flag\n"
+        "        host: web\n"
+        "        path: /root/flag\n"
+    )
+    demo = range_dir / "conformance" / "demo"
     demo.mkdir(parents=True, exist_ok=True)
     for name in ("reference", "insufficient", "forged"):
         (demo / f"{name}.sh").write_text("#!/bin/bash\necho SUBMIT g v\n")
@@ -1108,7 +1117,7 @@ def test_check_edit_invalidates_the_cached_fast_path(
     assert again.cached and len(calls) == 1
     # an edited check script moves the checks digest: not cached, guests
     # reused, the behavioral phase re-proves
-    (range_dir / "checks" / "demo" / "reference.sh").write_text(
+    (range_dir / "conformance" / "demo" / "reference.sh").write_text(
         "#!/bin/bash\necho SUBMIT g other\n"
     )
     edited = build_range(
@@ -1128,10 +1137,10 @@ def test_check_edit_invalidates_the_cached_fast_path(
 def test_incomplete_check_trio_refuses(tmp_path: Path) -> None:
     """Slice 6 review finding 3: proof that silently does not run must refuse instead."""
     import yaml as yaml_module
-    from inspect_ranges._build.behavioral import _validate_checks
+    from inspect_ranges._build.behavioral import validate_conformance
 
     range_dir = tmp_path / "range"
-    (range_dir / "checks" / "demo").mkdir(parents=True)
+    (range_dir / "conformance" / "demo").mkdir(parents=True)
     (range_dir / "challenges.yaml").write_text(
         yaml_module.safe_dump(
             {
@@ -1157,15 +1166,15 @@ def test_incomplete_check_trio_refuses(tmp_path: Path) -> None:
 
     challenges = load_challenges(range_dir)
     for name in ("reference", "insufficient"):
-        (range_dir / "checks" / "demo" / f"{name}.sh").write_text("#!/bin/bash\n")
+        (range_dir / "conformance" / "demo" / f"{name}.sh").write_text("#!/bin/bash\n")
     with pytest.raises(BuildError) as excinfo:
-        _validate_checks(challenges, range_dir)
+        validate_conformance(challenges, range_dir)
     assert "forged.sh" in str(excinfo.value)
-    (range_dir / "checks" / "demo" / "forged.sh").write_text("#!/bin/bash\n")
-    _validate_checks(challenges, range_dir)  # complete trio passes
-    (range_dir / "checks" / "typo-dir").mkdir()
+    (range_dir / "conformance" / "demo" / "forged.sh").write_text("#!/bin/bash\n")
+    validate_conformance(challenges, range_dir)  # complete trio passes
+    (range_dir / "conformance" / "typo-dir").mkdir()
     with pytest.raises(BuildError) as excinfo:
-        _validate_checks(challenges, range_dir)
+        validate_conformance(challenges, range_dir)
     assert "typo-dir" in str(excinfo.value)
 
 
@@ -1213,7 +1222,7 @@ def test_failing_reproof_replaces_the_prior_manifest_with_a_refused_one(
     assert first.manifest_path is not None
     # the check is edited (digest moves, spec hash does not): the rebuild
     # reuses every guest and the re-proof fails
-    (range_dir / "checks" / "demo" / "reference.sh").write_text(
+    (range_dir / "conformance" / "demo" / "reference.sh").write_text(
         "#!/bin/bash\necho SUBMIT g strengthened\n"
     )
     with pytest.raises(BuildError) as excinfo:
@@ -1340,7 +1349,7 @@ def test_checks_dir_without_challenges_yaml_refuses(
 ) -> None:
     """Round-1 blocking: the root-level silent-skip (a misnamed metadata file) must refuse, not mint a manifest whose proof never ran."""
     spec, range_dir = build_spec_fixture(tmp_path)
-    (range_dir / "checks" / "demo").mkdir(parents=True)
+    (range_dir / "conformance" / "demo").mkdir(parents=True)
     fakes = Fakes(["web", "db", "attacker"])
     with pytest.raises(BuildError) as excinfo:
         build_range(
@@ -1355,6 +1364,52 @@ def test_checks_dir_without_challenges_yaml_refuses(
         )
     assert excinfo.value.stage == "behavioral"
     assert "challenges.yaml is missing" in str(excinfo.value)
+
+
+def test_retired_checks_layout_refuses_the_build(tmp_path: Path, cache: Path) -> None:
+    """A range still carrying `checks/` refuses with the rename hint before anything builds: the retired layout must never produce an unproven-but-consumable manifest."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    declare_checks(range_dir)
+    (range_dir / "conformance").rename(range_dir / "checks")
+    fakes = Fakes(["web", "db", "attacker"])
+    with pytest.raises(BuildError) as excinfo:
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache),
+            up_fn=fakes.up_fn,
+            down_fn=fakes.down_fn,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    assert excinfo.value.stage == "behavioral"
+    assert "git mv checks conformance" in str(excinfo.value)
+    assert not fakes.up_calls  # refused before anything booted
+
+
+def test_malformed_conformance_tree_refuses_before_any_boot(
+    tmp_path: Path, cache: Path
+) -> None:
+    """The hoisted pre-boot validation: hours of recipe work must never precede a refusal validation can issue from the files alone."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    declare_checks(range_dir)
+    (range_dir / "conformance" / "demo" / "forged.sh").unlink()
+    fakes = Fakes(["web", "db", "attacker"])
+    with pytest.raises(BuildError) as excinfo:
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache),
+            up_fn=fakes.up_fn,
+            down_fn=fakes.down_fn,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    assert excinfo.value.stage == "behavioral"
+    assert "forged.sh" in str(excinfo.value)
+    assert not fakes.up_calls and not fakes.recipe_calls
 
 
 def test_keep_bypasses_the_cached_fast_path(tmp_path: Path, cache: Path) -> None:
@@ -1430,14 +1485,14 @@ def test_removing_checks_after_a_proven_build_refuses(
     full_build_spec(
         spec, range_dir, tmp_path, cache, fakes, behavioral_fn=behavioral_fn
     )
-    shutil_module.rmtree(range_dir / "checks")
+    shutil_module.rmtree(range_dir / "conformance")
     (range_dir / "challenges.yaml").unlink()
     with pytest.raises(BuildError) as excinfo:
         full_build_spec(
             spec, range_dir, tmp_path, cache, fakes, behavioral_fn=behavioral_fn
         )
     assert excinfo.value.stage == "behavioral"
-    assert "declares no checks" in str(excinfo.value)
+    assert "declares none" in str(excinfo.value)
 
 
 def test_base_exception_from_up_preserves_staging(tmp_path: Path, cache: Path) -> None:

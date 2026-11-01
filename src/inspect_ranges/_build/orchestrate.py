@@ -68,11 +68,12 @@ from .activities import (
     resolve_activities,
 )
 from .behavioral import (
-    CHECKS_DIR_NAME,
-    checks_declared,
+    CONFORMANCE_DIR_NAME,
     checks_digest,
     load_challenges,
     probe_segments_for_checks,
+    proofs_declared,
+    validate_conformance,
 )
 from .capture import (
     SHUTOFF_TIMEOUT_S,
@@ -751,26 +752,32 @@ def build_range(
     pin_warnings = _pin_divergences(spec, image_cache)
 
     spec_hash = spec_sha256(spec)
-    if (range_dir / CHECKS_DIR_NAME).is_dir() and not (
+    if (range_dir / CONFORMANCE_DIR_NAME).is_dir() and not (
         range_dir / "challenges.yaml"
     ).is_file():
-        # the root-level silent-skip guard (round-1 review): a checks tree
+        # the root-level silent-skip guard (round-1 review): a conformance tree
         # whose metadata file is missing or misnamed must refuse, not mint a
         # manifest whose proof never ran
         raise BuildError(
             "behavioral",
-            f"{CHECKS_DIR_NAME}/ exists but challenges.yaml is missing; "
-            "behavioral checks declare through both files, so a misnamed "
+            f"{CONFORMANCE_DIR_NAME}/ exists but challenges.yaml is missing; "
+            "conformance proofs declare through both files, so a misnamed "
             "metadata file would otherwise silently skip the proof",
         )
-    checks = checks_declared(range_dir)
+    checks = proofs_declared(range_dir)
     try:
         current_checks_sha = checks_digest(range_dir) if checks else ""
     except OSError as error:
-        # unreadable check inputs refuse in the house shape, never traceback
+        # unreadable proof inputs refuse in the house shape, never traceback
         raise BuildError(
-            "behavioral", f"behavioral-check inputs are unreadable: {error}"
+            "behavioral", f"conformance-proof inputs are unreadable: {error}"
         ) from error
+    if checks:
+        # a malformed tree refuses BEFORE any guest builds or boots: the
+        # proof phase re-validates as its own inner defense, but hours of
+        # recipe work must never precede a refusal validation can issue from
+        # the files alone
+        validate_conformance(load_challenges(range_dir), range_dir)
     prior = load_manifest(build_cache, spec.meta.name)
     if prior is not None and prior.checks_sha256 and not checks:
         # the inverse of the misnamed-metadata guard (round-2 review): the
@@ -779,9 +786,9 @@ def build_range(
         # consumable with zero signal
         raise BuildError(
             "behavioral",
-            "the recorded build carries behavioral proof but this range "
-            f"directory declares no checks ({CHECKS_DIR_NAME}/ with "
-            "challenges.yaml); restore the checks tree, or delete "
+            "the recorded build carries conformance proof but this range "
+            f"directory declares none ({CONFORMANCE_DIR_NAME}/ with "
+            "challenges.yaml); restore the conformance tree, or delete "
             f"{manifest_path(build_cache, spec.meta.name)} to accept the downgrade",
         )
     reusable: dict[str, GuestRecord] = {}
@@ -1566,7 +1573,7 @@ def _run_behavioral_phase(
                 # and run_setup refuses active-prober
                 probe_segments=(
                     probe_segments_for_checks(load_challenges(range_dir), spec)
-                    if checks_declared(range_dir)
+                    if proofs_declared(range_dir)
                     else ()
                 ),
                 draws=draws,
