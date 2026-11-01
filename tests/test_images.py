@@ -408,7 +408,7 @@ def test_import_image_lands_flattened_with_an_imported_sidecar(tmp_path: Path) -
         capture_output=True,
     )
     cache = tmp_path / "cache"
-    metadata = import_image(source, "router-6.49.20", cache, notes="prepped offline")
+    metadata = import_image(source, "acme-router-9.9", cache, notes="prepped offline")
     assert metadata.resolved_kind == "imported" and metadata.chainless
     assert metadata.daemon is None
     assert metadata.vendor_file == "appliance-prepped.qcow2"
@@ -429,7 +429,7 @@ def test_import_image_lands_flattened_with_an_imported_sidecar(tmp_path: Path) -
     )
     assert reloaded.resolved_kind == "imported"
     with pytest.raises(DeriveError, match="never overwrite"):
-        import_image(source, "router-6.49.20", cache)
+        import_image(source, "acme-router-9.9", cache)
 
 
 def test_sidecar_kind_resolution_and_daemon_rule(tmp_path: Path) -> None:
