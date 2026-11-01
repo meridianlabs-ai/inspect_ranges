@@ -162,6 +162,102 @@ Resources(cpus=2, memory_mb=4096, disk_gb=20)
 
 Omitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. The defaults suit an idle service host; a guest that compiles from source at build time ([Period Software](building.qmd#period-software)) or runs a database wants 2 vCPUs and 2048 MiB. `inspect-ranges plan` reports the range's totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.
 
+## Hardware {#hardware}
+
+Most images boot under the engine's standard machine shape (q35 chipset, SeaBIOS, virtio NICs and disks, no video device). Images built against particular virtual hardware, appliances above all, declare what they need in a `hardware` block whose every default reproduces the standard shape exactly, so an absent block changes nothing:
+
+::: {.panel-tabset group="definition-language"}
+### YAML
+
+``` {.yaml .fragment}
+hosts:
+  - name: fw
+    image: acme-fw
+    hardware:
+      firmware: uefi
+      machine: pc
+      nic_model: e1000
+      video: vga
+      disks:
+        - { source: acme-fw-data, bus: ide }
+        - { size_gb: 5 }
+    interfaces:
+      - { network: lab, ip: 10.0.0.10 }
+```
+
+### Python
+
+``` {.python .fragment}
+Host(
+    name="fw",
+    image="acme-fw",
+    hardware=Hardware(
+        firmware="uefi",
+        machine="pc",
+        nic_model="e1000",
+        video="vga",
+        disks=[
+            HardwareDisk(source="acme-fw-data", bus="ide"),
+            HardwareDisk(size_gb=5),
+        ],
+    ),
+    interfaces=[Interface(network="lab", ip="10.0.0.10")],
+)
+```
+:::
+
+- `firmware`: `bios` (default) or `uefi` (OVMF with a per-guest nvram copy). `uefi-secure` is declared vocabulary that refuses until Secure Boot lands with the Windows 11 hardware work, as does `tpm: true`.
+
+- `machine`: `q35` (default) or `pc` (i440fx), for images built against the older chipset.
+
+- `nic_model`: `virtio` (default) or `e1000`, for images without virtio drivers or whose configs key to emulated Intel NICs. Images that key behavior to a specific MAC address can declare one per interface (`mac: "52:54:00:ab:cd:ef"`, unique within the range).
+
+- `video`: a `vga` device, when the image needs one. Load-bearing beyond graphics: the VGA device occupies a PCI slot, and some images' network configs depend on the resulting NIC slot ordering.
+
+- `disks`: extra disks after the root, each a blank volume (`size_gb`) or a copy-on-write overlay of a cache image (`source`, which resolves like any image reference and must be in the cache at render). The guest sees virtio extras from `vdc` (`vda` is the root, `vdb` stays reserved for the seed slot so device names never shift) and ide extras from `hda`. The `ide` bus requires `machine: pc` (q35 has no IDE controller; refused `hardware-ide-requires-pc`).
+
+The block parameterizes the QEMU domain only: cloud-hypervisor guests refuse it (`hardware-vmm-not-supported`), and Windows guests keep their own measured device model until the Windows 11 hardware work (`hardware-windows-not-supported`).
+
+## Appliances {#appliances}
+
+A sealed appliance (a router OS, a firewall VM, anything consumed as a vendor artifact) cannot carry the control daemon, so the engine never reaches inside it. Such a guest boots an [imported image](images.qmd#imported-images) as-is and is declared `opaque`:
+
+::: {.panel-tabset group="definition-language"}
+### YAML
+
+``` {.yaml .fragment}
+hosts:
+  - name: fw
+    image: acme-fw
+    opaque: true
+    readiness: { tcp: 443 }
+    interfaces:
+      - { network: lab, ip: 10.0.0.10, mac: "52:54:00:ab:cd:ef" }
+```
+
+### Python
+
+``` {.python .fragment}
+Host(
+    name="fw",
+    image="acme-fw",
+    opaque=True,
+    readiness=TcpReadiness(tcp=443),
+    interfaces=[
+        Interface(network="lab", ip="10.0.0.10", mac="52:54:00:ab:cd:ef")
+    ],
+)
+```
+:::
+
+Opaque is a contract, enforced fail-closed on both sides:
+
+- **Nothing reaches inside.** An opaque guest carries no content sections (`provisioning`, `services`, `users`, `data`, `defense`, and the rest all refuse: nothing could realize or verify them), gets no seed disk, and is never the attacker's foothold. In-guest scoring verbs refuse with the tier named, and the exec witness records a declared capability drop rather than a silent gap. Score an appliance externally (network, liveness) or through a managed operator guest beside it.
+
+- **Addresses are declared facts, not instructions.** Every interface of an opaque guest must declare its `ip`: the address is baked into the image, and the engine cannot invent one (`opaque-ip-required`). On a [`dhcp: true` network](networks.qmd#addressing) the declared MAC and ip become the appliance's reservation, so a DHCP-client appliance leases its baked address deterministically.
+
+- **Readiness is observed, not reported.** With no daemon handshake, `readiness` says how `up` decides the guest is ready: `{tcp: <port>}` probes a TCP connect against the first declared address, and `process` (the default) means the VM process runs, the weakest honest signal. `readiness` on a non-opaque guest refuses: managed guests keep the daemon handshake.
+
 ## Routers {#routers-are-guests-too}
 
 A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. `os` and `image` are optional; when omitted, the backend's default router appliance is used. A router can also be a target in its own right: it takes [`users`](#users) and `provisioning` like a host (the CyRIS firewall shape, a gateway with its own weak account), built and captured on the same path as host content ([Building Ranges](building.qmd)). A router declaring content must declare `image` as well (`router-image-required`), since the appliance default is a backend resolution its build key cannot pin. For example:
