@@ -492,3 +492,127 @@ def test_sidecarless_image_with_embedded_backing_refuses_at_push(
             build_cache=fixture.build_cache,
             range_dir=fixture.range_dir,
         )
+
+
+def test_installed_golden_publishes_without_its_install_media(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An installed golden (Windows: an unattended install from an ISO) publishes as a chainless golden: the media is provenance on the manifest, never a closure member, and the golden lands on pull with its sidecar and without the media. A file that embeds a backing while claiming install media refuses at push; one whose landed bytes embed a backing refuses at pull."""
+    from inspect_ranges._build.manifest import BaseImageRecord as Base
+    from inspect_ranges._dist.encode import (
+        ANN_INSTALL_MEDIA_DIGEST,
+        ANN_INSTALL_MEDIA_FILE,
+        ANN_KIND,
+        ANN_NAME,
+    )
+    from inspect_ranges._dist.oci import OciIndex, OciManifest
+
+    fixture = Fixture(tmp_path)
+    media, win = b"install-media-iso-bytes", b"installed-golden-bytes"
+    (fixture.image_cache / "server.iso").write_bytes(media)
+    (fixture.image_cache / "win.qcow2").write_bytes(win)
+    (fixture.image_cache / "win.json").write_text(
+        ImageMetadata(
+            name="win",
+            file="win.qcow2",
+            recipe_version="3",
+            derivation_key="w" * 64,
+            vendor_file="server.iso",
+            vendor_sha256=_hex(media),
+            daemon=DaemonPin(name="vsockd", version="3.3.0", sha256="d" * 64),
+            golden_sha256=_hex(win),
+            created=now_iso(),
+            admin_password="scenario-only",
+        ).model_dump_json()
+    )
+    manifest = fixture.manifest.model_copy(
+        update={
+            "base_images": (
+                *fixture.manifest.base_images,
+                Base(
+                    guest="dc",
+                    kind="host",
+                    reference="win",
+                    file="win.qcow2",
+                    digest=f"sha256:{_hex(win)}",
+                ),
+            )
+        }
+    )
+
+    # synthetic blobs are not qcow2s: the push-side header probe is faked chainless
+    def chainless(path: Path) -> str | None:
+        return None
+
+    monkeypatch.setattr("inspect_ranges._dist.encode.qcow2_backing_name", chainless)
+    layout = OciLayout(tmp_path / "layout").ensure()
+    root = push_build(
+        manifest,
+        layout,
+        image_cache=fixture.image_cache,
+        build_cache=fixture.build_cache,
+        range_dir=fixture.range_dir,
+    )
+    index = OciIndex.model_validate_json(layout.read_blob(root))
+    members = [
+        OciManifest.model_validate_json(layout.read_blob(d)) for d in index.manifests
+    ]
+    by_name = {(m.annotations or {}).get(ANN_NAME): m for m in members}
+    assert "server.iso" not in by_name, "install media must not be a closure member"
+    golden = by_name["win.qcow2"]
+    assert (golden.annotations or {})[ANN_KIND] == "golden"
+    assert (golden.annotations or {})[ANN_INSTALL_MEDIA_FILE] == "server.iso"
+    assert (golden.annotations or {})[
+        ANN_INSTALL_MEDIA_DIGEST
+    ] == f"sha256:{_hex(media)}"
+    assert "org.inspect-ranges.backing.file" not in (golden.annotations or {})
+    # the overlay golden beside it still publishes its vendor chain
+    assert "noble.img" in by_name
+
+    images, builds, recipes = fresh_dirs(tmp_path)
+    materialize_closure(
+        layout, root, image_cache=images, build_cache=builds, recipe_cache=recipes
+    )
+    assert (images / "win.qcow2").read_bytes() == win
+    assert ImageMetadata.model_validate_json(
+        (images / "win.json").read_text()
+    ).installed
+    assert not (images / "server.iso").exists()
+
+    # landed bytes that embed a backing cannot be the chainless golden the manifest declares
+    def embedded_backing(path: Path) -> str | None:
+        # the fixture probe's answers for the overlay chain, plus a backing on the installed golden
+        if path.name == "win.qcow2":
+            return "server.iso"
+        if path.name.startswith("distfix-web-"):
+            return "focal-guest.qcow2"
+        return {"focal-guest.qcow2": "noble.img"}.get(path.name)
+
+    monkeypatch.setattr(
+        "inspect_ranges._dist.materialize._qcow2_backing_name", embedded_backing
+    )
+    (tmp_path / "second").mkdir()
+    images2, builds2, recipes2 = fresh_dirs(tmp_path / "second")
+    with pytest.raises(DistError, match="chain-invalid.*installed golden is chainless"):
+        materialize_closure(
+            layout,
+            root,
+            image_cache=images2,
+            build_cache=builds2,
+            recipe_cache=recipes2,
+        )
+
+    # and at push, a backing-embedding file claiming install media refuses before anything uploads
+    monkeypatch.setattr(
+        "inspect_ranges._dist.encode.qcow2_backing_name", embedded_backing
+    )
+    with pytest.raises(
+        DistError, match="chain-invalid.*installed golden.*embeds a backing"
+    ):
+        push_build(
+            manifest,
+            OciLayout(tmp_path / "layout2").ensure(),
+            image_cache=fixture.image_cache,
+            build_cache=fixture.build_cache,
+            range_dir=fixture.range_dir,
+        )

@@ -15,7 +15,7 @@ from pathlib import Path
 from .._build.manifest import BuildManifest, manifest_path
 from .._build.recipes import ResolvedRecipe, resolve_recipe
 from .._compiler.plan import image_file_name
-from .._runtime.images import ImageMetadata
+from .._runtime.images import ImageMetadata, installed_golden
 from .errors import DistError
 from .oci import ContentStore, Descriptor, OciIndex, OciManifest, ProgressFn
 
@@ -72,6 +72,9 @@ ANN_NAME = "org.inspect-ranges.name"
 ANN_GUEST = "org.inspect-ranges.guest"
 ANN_BACKING_FILE = "org.inspect-ranges.backing.file"
 ANN_BACKING_DIGEST = "org.inspect-ranges.backing.digest"
+ANN_INSTALL_MEDIA_FILE = "org.inspect-ranges.install-media.file"
+ANN_INSTALL_MEDIA_DIGEST = "org.inspect-ranges.install-media.digest"
+"""An installed golden's provenance (the install media it was installed from), recorded on the golden manifest in place of a backing edge: the media is never a closure member."""
 ANN_RECIPE_VERSION = "org.inspect-ranges.recipe.version"
 ANN_RECIPE_DIGEST = "org.inspect-ranges.recipe.digest"
 """The recipe-references identity (`recipe-digest-1`, over relative paths, content, and exec bits), distinct from the tar layer's blob digest; materialization recomputes it after extraction and refuses a mismatch."""
@@ -217,6 +220,40 @@ def encode_image_chain(
             f"{metadata_path} is not a valid golden sidecar: {error}",
         ) from error
     validated_cache_name(metadata.vendor_file)
+    if installed_golden(metadata.vendor_file):
+        # an installed golden (Windows: unattended install from install media)
+        # embeds no backing file and never publishes its media: the sidecar
+        # carries the media's digest as provenance, the manifest annotates it,
+        # and the chain is the golden alone
+        if qcow2_backing_name(image_cache / file):
+            raise DistError(
+                "chain-invalid",
+                f"{file} is an installed golden (media {metadata.vendor_file}) but embeds a backing file",
+            )
+        golden_blob = qcow2_descriptor(
+            store,
+            image_cache / file,
+            expected=prefixed_digest(digest or metadata.golden_sha256),
+            progress=progress,
+        )
+        members.append(
+            store.put_manifest(
+                OciManifest(
+                    artifact_type=ARTIFACT_GOLDEN,
+                    config=config,
+                    layers=[golden_blob, _sidecar_descriptor(store, metadata_path)],
+                    annotations={
+                        ANN_KIND: "golden",
+                        ANN_NAME: file,
+                        ANN_INSTALL_MEDIA_FILE: metadata.vendor_file,
+                        ANN_INSTALL_MEDIA_DIGEST: prefixed_digest(
+                            metadata.vendor_sha256
+                        ),
+                    },
+                )
+            )
+        )
+        return members
     vendor_path = image_cache / metadata.vendor_file
     vendor_blob = qcow2_descriptor(
         store,
