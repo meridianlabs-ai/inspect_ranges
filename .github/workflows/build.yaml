@@ -57,8 +57,8 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --group dev
-      - name: Install qemu-utils (the overlay clamp test reads a real qcow2's virtual size)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-utils
+      - name: Install qemu-utils (the overlay clamp test reads a real qcow2's virtual size) and nftables (the ruleset kernel-load test)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-utils nftables
       - name: Install the pinned Go toolchain (the cross-codec drift guard)
         run: |
           curl -fsSL -o /tmp/go.tgz https://go.dev/dl/go1.23.6.linux-amd64.tar.gz
@@ -83,6 +83,9 @@ jobs:
           # same contract for the C# codec drift guard: the third codec's
           # parity is enforced here, never silently skipped
           INSPECT_RANGES_REQUIRE_DOTNET: "1"
+          # rendered rulesets must LOAD into a kernel here, never silently
+          # skip: the 0.2.5 regression shipped exactly through that gap
+          INSPECT_RANGES_REQUIRE_NETNS: "1"
 
   py-build:
     runs-on: ubuntu-latest
