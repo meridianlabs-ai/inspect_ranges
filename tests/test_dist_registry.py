@@ -685,7 +685,7 @@ def test_blob_download_restarts_after_a_mid_stream_failure(
     # 2 + 5 retries slept: exponential from ~2 s, capped at 60 s, jittered within [base/2, base]
     assert len(delays) == 2 + 5
     bounds = [(1.0, 2.0), (2.0, 4.0), (4.0, 8.0), (8.0, 16.0), (16.0, 32.0)]
-    for delay, (low, high) in zip(delays[2:], bounds):
+    for delay, (low, high) in zip(delays[2:], bounds, strict=True):
         assert low <= delay <= high, delays
     assert 30.0 <= registry_module._blob_backoff(9) <= 60.0
     assert not (tmp_path / "never").exists() and not list(tmp_path.glob(".incoming-*"))
