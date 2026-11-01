@@ -2,13 +2,18 @@
 
 Each challenge becomes one `Sample`: the prompt as input, the challenge id as the sample id, and the serialized challenge in metadata, where `challenge_scorer()` reads it back. Per-sample secrets never appear here: plants are generated at instantiation by the goal engine, so a dataset carries no proof material.
 
+The multi-range form (a sequence of `(entry_name, range_dir)` pairs) builds one dataset spanning several ranges, each sample carrying its own `("range", ...)` sandbox: one task over many topologies, for runners that parallelize samples rather than tasks. The task declares no `sandbox=`; inspect resolves each sample's own.
+
 Every challenge gets a standard verification paragraph appended to the prompt, naming the `verify_goal` tool and the goal id(s) (the 2026-10-20 convention in `challenges-v1.md`): authored prompts stay verbatim in their YAML, and the convention stays uniform without each author restating it. The paragraph instructs the agent to verify each proof as soon as it is obtained and to finish its run normally once the tool's checklist reports every verifiable goal achieved (and any deferred-type goals recorded), or it is out of ideas. The tool is the only submission channel, and the task author always passes `verify_goal()` to their agent (`react(tools=[terminal(), verify_goal()])`, or inspect_swe's `bridged_tools=[verify_goal()]`); nothing injects it.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
+from typing import overload
 
 import yaml
 from inspect_ai.dataset import Dataset, MemoryDataset, Sample
+from inspect_ai.util import SandboxEnvironmentSpec
 
 from .._metadata import (
     ESCAPE_FACTS_METADATA_KEY,
@@ -65,25 +70,57 @@ def _sample_input(challenge: Challenge) -> str:
     )
 
 
+@overload
 def challenge_dataset(
     challenges: str | Path | Challenges,
     range_spec: RangeSpec | str | Path | None = None,
+) -> Dataset: ...
+
+
+@overload
+def challenge_dataset(
+    challenges: "Sequence[tuple[str, str | Path]]",
+    *,
+    prefix_ids: bool = False,
+    name: str | None = None,
+) -> Dataset: ...
+
+
+def challenge_dataset(
+    challenges: "str | Path | Challenges | Sequence[tuple[str, str | Path]]",
+    range_spec: RangeSpec | str | Path | None = None,
+    *,
+    prefix_ids: bool = False,
+    name: str | None = None,
 ) -> Dataset:
-    """Build an Inspect dataset from a challenges file.
+    """Build an Inspect dataset from a challenges file, or from several ranges at once.
+
+    The single-range form takes a `challenges.yaml` (or validated `Challenges`) and builds one sample per challenge; the task declares the range itself (`sandbox=("range", ...)`). The multi-range form takes `(entry_name, range_dir)` pairs, builds each range's challenges with that range as its spec, and stamps every sample's own `sandbox=("range", <that range.yaml>)`, resolved absolute; pair it with a `Task` that declares NO `sandbox=` (inspect resolves each sample's sandbox when the task declares none). Multi-range datasets serve runners that parallelize samples rather than tasks: one task spans many ranges, and each sample boots its own.
+
+    Sample ids must stay unique for `--sample-id` addressing: the multi-range form refuses duplicates, and `prefix_ids=True` rewrites each id to `"<entry_name>:<id>"` for collections whose challenge ids repeat across ranges.
 
     Args:
-        challenges: Path to a `challenges.yaml`, or an already validated `Challenges`.
-        range_spec: The range the challenges run against, for early cross-reference validation and for the sample's escape-guard facts (`escape_sentinel_facts` in its metadata: the declared targets, topology, and egress the sandbox-escape sentinel judges tradecraft against): a validated `RangeSpec` or a `range.yaml` path. Omitted means structural validation only and no facts; sample-time setup still refuses unavailable observers, unsupplied collector specs, and `answer` variables the range does not declare, while other cross-references (goal hosts, segments) surface only when their plant or probe fails against the live range.
+        challenges: Path to a `challenges.yaml`, an already validated `Challenges`, or a sequence of `(entry_name, range_dir)` pairs where each `range_dir` holds a `range.yaml` and `challenges.yaml`.
+        range_spec: Single-range form only. The range the challenges run against, for early cross-reference validation and for the sample's escape-guard facts (`escape_sentinel_facts` in its metadata: the declared targets, topology, and egress the sandbox-escape sentinel judges tradecraft against): a validated `RangeSpec` or a `range.yaml` path. Omitted means structural validation only and no facts; sample-time setup still refuses unavailable observers, unsupplied collector specs, and `answer` variables the range does not declare, while other cross-references (goal hosts, segments) surface only when their plant or probe fails against the live range.
+        prefix_ids: Multi-range form only. Rewrite each sample id to `"<entry_name>:<id>"`.
+        name: Multi-range form only. The dataset name (default `"challenges"`).
 
     Returns:
-        A dataset with one sample per challenge.
+        A dataset with one sample per challenge (across every entry, in entry order, for the multi-range form).
 
     Raises:
-        IssueError: Cross-reference validation against `range_spec` found errors.
-        ValueError: A path input is not a YAML mapping.
+        IssueError: Cross-reference validation against a range spec found errors.
+        ValueError: A path input is not a YAML mapping, an entry's range directory is missing its `range.yaml` or `challenges.yaml`, or two samples share an id in the multi-range form.
         yaml.YAMLError: A path input is not parseable YAML.
         pydantic.ValidationError: A path input does not satisfy its schema.
     """
+    if not isinstance(challenges, (str, Path, Challenges)):
+        if range_spec is not None:
+            raise ValueError(
+                "range_spec does not combine with the multi-range form: each "
+                "entry's range.yaml is its spec"
+            )
+        return _multi_range_dataset(challenges, prefix_ids=prefix_ids, name=name)
     location: str | None = None
     if not isinstance(challenges, Challenges):
         location = str(challenges)
@@ -125,3 +162,38 @@ def challenge_dataset(
             )
         )
     return MemoryDataset(samples, name="challenges", location=location)
+
+
+def _multi_range_dataset(
+    entries: "Sequence[tuple[str, str | Path]]",
+    *,
+    prefix_ids: bool,
+    name: str | None,
+) -> Dataset:
+    """The multi-range form's body: one single-range dataset per entry, each sample stamped with its own absolute range sandbox (absolute because `task_init` runs under the task's run dir, not the entry's)."""
+    samples: list[Sample] = []
+    seen: set[str] = set()
+    for entry_name, range_dir in entries:
+        directory = Path(range_dir).resolve()
+        range_yaml = directory / "range.yaml"
+        challenges_yaml = directory / "challenges.yaml"
+        for file in (range_yaml, challenges_yaml):
+            if not file.is_file():
+                raise ValueError(
+                    f"entry {entry_name!r}: {file} does not exist (each entry "
+                    "is a range directory holding range.yaml and challenges.yaml)"
+                )
+        for sample in challenge_dataset(challenges_yaml, range_spec=range_yaml):
+            if prefix_ids:
+                sample.id = f"{entry_name}:{sample.id}"
+            sample_id = str(sample.id)
+            if sample_id in seen:
+                raise ValueError(
+                    f"duplicate sample id {sample_id!r} across ranges; "
+                    "distinct challenge ids (or prefix_ids=True) keep a "
+                    "multi-range dataset addressable by --sample-id"
+                )
+            seen.add(sample_id)
+            sample.sandbox = SandboxEnvironmentSpec("range", str(range_yaml))
+            samples.append(sample)
+    return MemoryDataset(samples, name=name or "challenges")

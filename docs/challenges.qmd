@@ -37,6 +37,25 @@ The bare `"challenges.yaml"` and `"range.yaml"` strings resolve against the proc
 
 `challenge_dataset()` turns each challenge into a sample and validates the file against the range: goal hosts exist, segments are declared, required observers are deliverable, and problems refuse with positioned errors before anything boots. `challenge_setup()` runs every goal's setup before the agent acts and starts the sample's observers; a plant failure or a missing observer refuses up front, and plants already written are unwound, so a failed setup leaves no half-planted range behind. `challenge_scorer()` verifies each goal and aggregates. The [range_apparatus](reference/scanners.qmd#range_apparatus) scanner rides in the scorer list beside it, reporting range-apparatus anomalies per sample as a second score (zero findings is healthy); it takes no arguments, reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes.
 
+## Multi-Range Datasets {#multi-range-datasets}
+
+One task can span several ranges: `challenge_dataset()` also accepts a sequence of `(entry_name, range_dir)` pairs, builds each range's challenges with that range as its spec, and stamps every sample's own `sandbox=("range", ...)`. The task then declares no `sandbox=` at all, and inspect resolves each sample's. This serves runners that parallelize samples rather than tasks: scenarios become samples of one task, scheduled under ordinary sample concurrency.
+
+``` python
+@task
+def family(scenarios: str = "all") -> Task:
+    entries = [(name, DIR / name) for name in select(scenarios)]
+    return Task(
+        dataset=challenge_dataset(entries),
+        setup=challenge_setup(),
+        solver=react(tools=[terminal(), verify_goal()]),
+        scorer=challenge_scorer(),
+        # no sandbox=: each sample boots its own range
+    )
+```
+
+Sample ids must stay unique for `--sample-id` addressing: duplicates across ranges refuse, and `prefix_ids=True` rewrites each to `entry:id` when a collection's challenge ids repeat. Everything downstream is already per-sample (`challenge_setup()` and `challenge_scorer()` read the sample's challenge and sandbox, never the task's), so no other part of the recipe changes. Each distinct range costs one `task_init` (its warm image pull and manifest check) before samples start, serially; setup, scoring, and admission then run per sample as usual.
+
 ## Authoring Challenges
 
 ``` {.yaml filename="challenges.yaml"}
