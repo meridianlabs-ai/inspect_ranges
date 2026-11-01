@@ -17,12 +17,14 @@ from pydantic import BaseModel, Field
 from ..types import (
     AnyIPNetwork,
     Attacker,
+    Hardware,
     Host,
     Issue,
     IssueError,
     RangeSpec,
     Route,
     Router,
+    TcpReadiness,
     Vmm,
     has_guest_content,
 )
@@ -117,6 +119,15 @@ class PlannedNetwork(BaseModel):
     """The declared probe endpoint (clamped veth), when a challenge's `active-prober` observer requested this segment."""
 
 
+class PlannedDisk(BaseModel):
+    """One extra disk, resolved: a blank volume by size, or an overlay of a resolved cache image."""
+
+    bus: Literal["virtio", "ide"]
+    size_gb: int | None = None
+    image: ImageRef | None = None
+    """The resolved overlay base (`HardwareDisk.source`), when this disk is an overlay."""
+
+
 class PlannedGuest(BaseModel):
     """One guest, fully resolved for realization."""
 
@@ -128,15 +139,25 @@ class PlannedGuest(BaseModel):
     cpus: int
     memory_mb: int
     disk_gb: int
+    firmware: Literal["bios", "uefi"] = "bios"
+    """Boot firmware (uefi carries a per-guest nvram copy; uefi-secure refused upstream until realized)."""
+    machine: Literal["q35", "pc"] = "q35"
+    nic_model: Literal["virtio", "e1000"] = "virtio"
+    video: Literal["vga"] | None = None
+    extra_disks: list[PlannedDisk] = []
+    opaque: bool = False
+    """A sealed appliance guest: no daemon, no content, readiness from `readiness`/`readiness_port`."""
+    readiness_port: int | None = None
+    """The TCP readiness port, when `readiness` is `tcp`."""
     interfaces: list[InterfaceAllocation]
     hostname: str
     """The rendered in-guest hostname: the declared `hostname:` when a host carries one (realized as of windows-ad-v1 slice 4), else derived from the guest name; sanitized, and NetBIOS-truncated for Windows. Plan-resolved so render, the collision gate, and the Windows build key all consume one value."""
     routes: list[Route]
     """Static routes (routers only)."""
-    injector: Literal["cloud-init", "unattend"]
-    """How configuration reaches the guest (render v1: cloud-init only)."""
-    readiness: Literal["cloud-init", "daemon"]
-    """What the applier waits on before the range is ready."""
+    injector: Literal["cloud-init", "unattend", "none"]
+    """How configuration reaches the guest (`none` for opaque guests: the imported image boots as-is)."""
+    readiness: Literal["cloud-init", "daemon", "tcp", "process"]
+    """What the applier waits on before the range is ready (`tcp`/`process` are the opaque tier's daemon-free contracts)."""
     profile: Literal["strict"]
     """Device-model profile (min-devices strict; richer profiles arrive with a schema field)."""
     vmm: Vmm = "qemu"
@@ -328,6 +349,33 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                         hint="run this guest on qemu, or drop its content sections",
                     )
                 )
+            declared_hardware = getattr(guest_decl, "hardware", None)
+            if declared_hardware is not None:
+                if guest_decl.vmm == "cloud-hypervisor":
+                    # the hardware block parameterizes the QEMU domain XML;
+                    # CH's fixed device model takes none of it
+                    issues.append(
+                        Issue(
+                            code="hardware-vmm-not-supported",
+                            path=(section, index, "hardware"),
+                            message=f"guest {guest_decl.name!r} declares hardware but runs on cloud-hypervisor, whose device model is fixed",
+                            hint="run this guest on qemu, or drop the hardware block",
+                        )
+                    )
+                if getattr(guest_decl, "os", None) is not None and (
+                    guest_decl.os.type == "windows"  # type: ignore[union-attr]
+                ):
+                    # the Windows tier carries its own measured device model
+                    # (virtio-scsi seed, VNC+VGA); mixing declared hardware
+                    # into it is unvalidated until the Windows 11 work
+                    issues.append(
+                        Issue(
+                            code="hardware-windows-not-supported",
+                            path=(section, index, "hardware"),
+                            message=f"Windows guest {guest_decl.name!r} declares hardware, which the Windows tier does not take yet",
+                            hint="the Windows hardware work (Secure Boot, TPM) lands in its own phase",
+                        )
+                    )
     if options.cpu_model != "host-passthrough":
         # Cloud Hypervisor takes no CPU model: its guests always see the host
         # CPU, so a pinned model would silently not apply to them
@@ -696,6 +744,21 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             guest.kind == "host" and specs_by_name[guest.name].os.type == "windows"
         )
         declared_hostname = getattr(declared, "hostname", None) or guest.name
+        hardware: Hardware | None = getattr(declared, "hardware", None)
+        opaque = bool(getattr(declared, "opaque", False))
+        declared_readiness = getattr(declared, "readiness", None)
+        readiness: Literal["cloud-init", "daemon", "tcp", "process"]
+        readiness_port: int | None = None
+        if opaque:
+            # the opaque tier's daemon-free contracts; an undeclared readiness
+            # means "the VM process runs", the weakest honest signal
+            if isinstance(declared_readiness, TcpReadiness):
+                readiness = "tcp"
+                readiness_port = declared_readiness.tcp
+            else:
+                readiness = "process"
+        else:
+            readiness = "daemon" if windows else "cloud-init"
         guests.append(
             PlannedGuest(
                 name=guest.name,
@@ -706,6 +769,28 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 cpus=resources.cpus if resources else DEFAULT_GUEST_CPUS,
                 memory_mb=resources.memory_mb if resources else DEFAULT_GUEST_MEMORY_MB,
                 disk_gb=(resources.disk_gb if resources and resources.disk_gb else 10),
+                firmware=(
+                    "uefi"
+                    if hardware is not None and hardware.firmware == "uefi"
+                    else "bios"
+                ),
+                machine=hardware.machine if hardware is not None else "q35",
+                nic_model=hardware.nic_model if hardware is not None else "virtio",
+                video=hardware.video if hardware is not None else None,
+                extra_disks=[
+                    PlannedDisk(
+                        bus=disk.bus,
+                        size_gb=disk.size_gb,
+                        image=(
+                            _resolve_image(disk.source, options.image_cache)
+                            if disk.source is not None
+                            else None
+                        ),
+                    )
+                    for disk in (hardware.disks if hardware is not None else [])
+                ],
+                opaque=opaque,
+                readiness_port=readiness_port,
                 interfaces=guest.interfaces,
                 hostname=(
                     windows_hostname(declared_hostname)
@@ -713,8 +798,10 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                     else guest_hostname(declared_hostname)
                 ),
                 routes=list(getattr(declared, "routes", [])),
-                injector="unattend" if windows else "cloud-init",
-                readiness="daemon" if windows else "cloud-init",
+                injector=(
+                    "none" if opaque else ("unattend" if windows else "cloud-init")
+                ),
+                readiness=readiness,
                 profile="strict",
                 vmm=vmm,
                 nested_virtualization=bool(

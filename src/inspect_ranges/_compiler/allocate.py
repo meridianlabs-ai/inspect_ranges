@@ -233,7 +233,13 @@ def allocate(
                 InterfaceAllocation(
                     network=interface.network,
                     ip=ip,
-                    mac=_mac(spec.meta.name, name, interface.network),
+                    # a declared MAC (images that key behavior to one) wins;
+                    # semantic validation already checked form and uniqueness
+                    mac=(
+                        interface.mac.lower()
+                        if interface.mac is not None
+                        else _mac(spec.meta.name, name, interface.network)
+                    ),
                 )
             )
         guests.append(
