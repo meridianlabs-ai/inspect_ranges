@@ -270,6 +270,17 @@ class BootInterface(BaseModel):
     gateway: IPv4Address | None = None
 
 
+class BootDisk(BaseModel):
+    """One extra disk in a guest's `boot.json` entry: a blank volume by size, or an overlay of a cache image."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    bus: Literal["virtio", "ide"]
+    size_gb: int | None = Field(default=None, ge=1)
+    image_file: str | None = Field(default=None, pattern=_SAFE_NAME)
+    image_digest: str | None = None
+
+
 class BootGuest(BaseModel):
     """One guest in `boot.json`, shape-validated before anything interpolates it anywhere."""
 
@@ -284,8 +295,12 @@ class BootGuest(BaseModel):
     """A realized overlay's backing golden in the cache; verified at boot like the overlay itself (round-2 review: the overlay digest cannot see its backing, and goldens re-derive in place under the same name)."""
     backing_digest: str | None = None
     overlay_gb: int = Field(ge=1)
-    readiness: Literal["cloud-init", "daemon"]
-    injector: Literal["cloud-init", "unattend"] = "cloud-init"
+    readiness: Literal["cloud-init", "daemon", "tcp", "process"]
+    readiness_port: int | None = Field(default=None, ge=1, le=65535)
+    injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
+    firmware: Literal["bios", "uefi"] = "bios"
+    opaque: bool = False
+    extra_disks: list[BootDisk] = []
     nested_virtualization: bool = False
     """The guest declares KVM-inside-the-guest workloads; preflight holds the host to it before anything boots."""
     vmm: Literal["qemu", "cloud-hypervisor"] = "qemu"
@@ -358,6 +373,22 @@ def boot_script(boot: BootPlan, skip: frozenset[str] = frozenset()) -> str:
             f"qemu-img create -f qcow2 -F qcow2 -b /images/{image} "
             f"/scratch/{name}.qcow2 {guest.overlay_gb}G >/dev/null"
         )
+        guest_files = [f"/scratch/{name}.qcow2"]
+        for index, disk in enumerate(guest.extra_disks):
+            data_path = f"/scratch/{name}-data{index}.qcow2"
+            if disk.image_file is not None:
+                data_image = shlex.quote(disk.image_file)
+                # a per-boot CoW overlay of the prepared volume: the cache
+                # base stays pristine, exactly like the root disk
+                lines.append(
+                    f"qemu-img create -f qcow2 -F qcow2 -b /images/{data_image} "
+                    f"{data_path} >/dev/null"
+                )
+            else:
+                lines.append(
+                    f"qemu-img create -f qcow2 {data_path} {disk.size_gb}G >/dev/null"
+                )
+            guest_files.append(data_path)
         if guest.injector == "unattend":
             # a windows guest's seed is a plain ISO with the per-boot answer
             # file at its root (the implicit specialize search reads it from
@@ -366,19 +397,29 @@ def boot_script(boot: BootPlan, skip: frozenset[str] = frozenset()) -> str:
                 f"genisoimage -quiet -o /scratch/{name}-seed.iso -J -R "
                 f"/render/guests/{name}/seed/unattend.xml"
             )
-        else:
+            guest_files.append(f"/scratch/{name}-seed.iso")
+        elif guest.injector == "cloud-init":
             lines.append(
                 f"cloud-localds -N /render/guests/{name}/seed/network-config "
                 f"/scratch/{name}-seed.iso "
                 f"/render/guests/{name}/seed/user-data /render/guests/{name}/seed/meta-data"
             )
+            guest_files.append(f"/scratch/{name}-seed.iso")
+        # injector "none" (opaque guests): the imported image boots as-is
         if guest.vmm == "qemu":
             # the DAC seclabel runs this QEMU as its own uid with relabel off
             # (issue #5): root pre-owns the files the unprivileged VMM opens
             uid = guest_uid(guest.cid)
-            lines.append(
-                f"chown {uid}:kvm /scratch/{name}.qcow2 /scratch/{name}-seed.iso"
-            )
+            if guest.firmware == "uefi":
+                # OVMF code is read-only and shared; the nvram copy is this
+                # guest's own, owned before the domain starts
+                lines.append("install -d -m 0755 /scratch/nvram")
+                lines.append(
+                    f"install -o {uid} -g kvm -m 0640 "
+                    "/usr/share/OVMF/OVMF_VARS_4M.fd "
+                    f"/scratch/nvram/{name}_VARS.fd"
+                )
+            lines.append(f"chown {uid}:kvm {' '.join(guest_files)}")
             lines.append(
                 f"install -o {uid} -g kvm -m 0640 /dev/null /scratch/console/{name}.log"
             )
