@@ -190,7 +190,7 @@ class BuildManifest(BaseModel):
 
     built_at: str
     checks_sha256: str = ""
-    """Content digest over the range's behavioral-check inputs (`challenges.yaml` plus everything under `checks/`), or empty when the range declares none. Check scripts are proof tools, not guest content, so they participate in the build's cached-path decision through this digest rather than in any guest build key (slice 6 review)."""
+    """Content digest over the range's conformance-proof inputs (`challenges.yaml`, `collectors.yaml` when present, plus everything under `conformance/`; paths hash root-relative, so the digest survived the rename from `checks/`), or empty when the range declares none. Proof inputs are proof tools, not guest content, so they participate in the build's cached-path decision through this digest rather than in any guest build key (slice 6 review); the field name predates the rename and stays for manifest compatibility."""
 
     build_egress: bool = True
     """Whether build-time egress was granted (it always is today; recorded per the build-v1 decision)."""

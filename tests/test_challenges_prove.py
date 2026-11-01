@@ -1,4 +1,4 @@
-"""The conformance prove surface: context assertions over real check/compare and script execution semantics — all against fakes (no VMs)."""
+"""The conformance prove surface: context assertions over real check/compare and script execution semantics, all against fakes (no VMs)."""
 
 import asyncio
 from pathlib import Path

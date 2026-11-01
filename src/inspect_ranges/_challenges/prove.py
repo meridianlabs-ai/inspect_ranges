@@ -1,6 +1,6 @@
 """The python conformance-proof surface: `prove(ctx)` scripts asserting goal verdicts through the scorer's own evaluation.
 
-Scripts live at `conformance/<challenge-id>/*.py`, each defining `prove(ctx)` (sync or async). The build's proof phase executes them inside the proof boot — after the challenge's own setup, under the same oracle, evidence, draws, and prober vantage a sample sees — and `inspect-ranges prove` re-runs them post hoc against a built artifact. The context exposes the scoring oracle, a submission channel, and `assert_goal`, whose verdict comes from the same `evaluate_goal` the scorer runs, so a proof can never pass under semantics scoring would not apply.
+Scripts live at `conformance/<challenge-id>/*.py`, each defining `async def prove(ctx)`. The build's proof phase executes them inside the proof boot (after the challenge's own setup, under the same oracle, evidence, draws, and prober vantage a sample sees), and `inspect-ranges prove` re-runs them post hoc against a built artifact. The context exposes the scoring oracle, a submission channel, and `assert_goal`, whose verdict comes from the same `evaluate_goal` the scorer runs, so a proof can never pass under semantics scoring would not apply.
 
 This module lives in `_challenges`, not `_build`: the context is scoring-surface code, and `_build` imports `_challenges` lazily (the provider imports `_build`, so the reverse edge must stay runtime-only); the manifest's `GoalAssertion` is imported inside the method for the same reason.
 
@@ -162,7 +162,7 @@ def load_prove_module(path: Path, label: str, *, content_keyed: bool = False) ->
 
 
 def register_range_goal_types(range_dir: Path) -> None:
-    """Import the range's loose `task.py`, when one exists, so its `@range_goal` types register before challenges parse — the same rule inspect itself applies (task import registers); package-referenced tasks register through entry points instead.
+    """Import the range's loose `task.py`, when one exists, so its `@range_goal` types register before challenges parse, the same rule inspect itself applies (task import registers); package-referenced tasks register through entry points instead.
 
     The module cache keeps a second build or proof in one process from re-executing the module and re-registering a fresh instance under the same name.
 

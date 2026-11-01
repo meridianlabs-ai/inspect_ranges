@@ -95,6 +95,7 @@ from .manifest import (
     BaseImageRecord,
     BehavioralCheckRecord,
     BuildManifest,
+    GoalAssertion,
     GuestRecord,
     RecipeRecord,
     VerificationRecord,
@@ -1530,9 +1531,43 @@ def _run_behavioral_phase(
     up_fn: UpFn,
     down_fn: DownFn,
 ) -> tuple[BehavioralCheckRecord, ...]:
-    """Boot the just-captured realized artifacts (the exact things samples boot) and run the checks against them; exploit debris dirties only this boot's overlays.
+    """The `BehavioralFn` adapter over `run_proof_boot`: the build's options unpacked to the seam's scalars (the standalone prove runner calls the seam directly, with its own lease and manifest-from-disk)."""
+    return run_proof_boot(
+        spec,
+        range_dir,
+        manifest=manifest,
+        image_cache=image_cache,
+        state_dir=state_dir,
+        project=project,
+        stage_log=stage_log,
+        up_fn=up_fn,
+        down_fn=down_fn,
+        cid_base=_resolved_cid_base(options),
+        readiness_timeout=options.readiness_timeout,
+        uplink_network=options.uplink_network,
+    )
 
-    The manifest arrives in memory, not from disk: it is saved only after this phase passes, so an unproven build is never consumable (slice 6 review).
+
+def run_proof_boot(
+    spec: RangeSpec,
+    range_dir: Path,
+    *,
+    manifest: BuildManifest,
+    image_cache: Path,
+    state_dir: Path,
+    project: str,
+    stage_log: StageSink,
+    up_fn: UpFn,
+    down_fn: DownFn,
+    cid_base: int,
+    readiness_timeout: float,
+    uplink_network: str | None,
+    keep_on_failure: bool = False,
+    assertion_sink: "list[GoalAssertion] | None" = None,
+) -> tuple[BehavioralCheckRecord, ...]:
+    """Boot the captured realized artifacts (the exact things samples boot) as `<project>-bx` and run every declared conformance proof against them; exploit debris dirties only this boot's overlays.
+
+    This is the ONE proof boot: the build's behavioral phase runs it with the manifest still in memory (saved only after the phase passes, so an unproven build is never consumable, slice 6 review), and the standalone `inspect-ranges prove` runs it against the manifest from disk. `keep_on_failure` keeps a FAILED boot for diagnosis (the standalone `--keep`); `assertion_sink` collects passing prove scripts' goal assertions for the `proven` record.
     """
     from .manifest import realized_backings, swap_realized_spec
 
@@ -1563,7 +1598,7 @@ def _run_behavioral_phase(
             staging,
             PlanOptions(
                 image_cache=image_cache,
-                cid_base=_resolved_cid_base(options),
+                cid_base=cid_base,
                 realized_sections=sections,
                 realized_backings=realized_backings(manifest),
                 evidence_capture=True,
@@ -1585,8 +1620,8 @@ def _run_behavioral_phase(
                 project=bx_project,
                 image_cache=image_cache,
                 state_dir=state_dir,
-                readiness_timeout=options.readiness_timeout,
-                keep_on_failure=False,
+                readiness_timeout=readiness_timeout,
+                keep_on_failure=keep_on_failure,
                 # a runtime spec that itself declares egress (nat networks or
                 # an attacker EgressPolicy) renders a compose that demands the
                 # deployment-supplied uplink; the build host's uplink network
@@ -1595,7 +1630,7 @@ def _run_behavioral_phase(
                 # before (found authoring defender_ops, the first egress-
                 # declaring runtime spec, 2026-10-28).
                 uplink_network=(
-                    options.uplink_network if plan.requirements.egress_uplink else None
+                    uplink_network if plan.requirements.egress_uplink else None
                 ),
             ),
             on_stage=None,
@@ -1619,11 +1654,12 @@ def _run_behavioral_phase(
                 bx_project=bx_project,
                 staging=staging,
                 state_dir=state_dir,
-                options=options,
+                readiness_timeout=readiness_timeout,
                 stage_log=stage_log,
                 settle_spec=_drawn_spec(range_dir, draws) if draws else spec,
                 draws=draws,
                 draw_seed=draw_seed,
+                assertion_sink=assertion_sink,
             )
         finally:
             try:
@@ -1676,11 +1712,12 @@ def _prove_realized_boot(
     bx_project: str,
     staging: Path,
     state_dir: Path,
-    options: "BuildOptions",
+    readiness_timeout: float,
     stage_log: StageSink,
     settle_spec: RangeSpec,
     draws: dict[str, int | str],
     draw_seed: str | None,
+    assertion_sink: "list[GoalAssertion] | None" = None,
 ) -> tuple[BehavioralCheckRecord, ...]:
     """Convergence, conformance, and the behavioral checks against the booted bx range (the caller owns the teardown finally).
 
@@ -1696,7 +1733,7 @@ def _prove_realized_boot(
     # finding: zabbix-server listens only once mysqld accepts)
     settle_dir = project_dir(state_dir, bx_project) / "settle"
     settle_started = time.monotonic()
-    deadline = settle_started + options.readiness_timeout
+    deadline = settle_started + readiness_timeout
     while True:
         failing = [
             result_
@@ -1712,7 +1749,7 @@ def _prove_realized_boot(
             raise BuildError(
                 "behavioral",
                 f"the realized boot did not converge within "
-                f"{options.readiness_timeout:.0f} s: {first.kind} "
+                f"{readiness_timeout:.0f} s: {first.kind} "
                 f"{first.guest}/{first.name} ({first.observed})",
             )
         time.sleep(5.0)
@@ -1743,6 +1780,7 @@ def _prove_realized_boot(
             hybrid_sockets=bx_hybrid,
             draws=draws,
             draw_seed=draw_seed,
+            assertion_sink=assertion_sink,
         )
     )
 
