@@ -11,6 +11,7 @@ from .._build.manifest import (
 )
 from .._runtime import DeriveError, derive_golden, list_images
 from .._runtime.images import RECIPE_VERSION, default_image_cache
+from .._runtime.winimage import WIN_RECIPE_VERSION
 
 
 @click.group()
@@ -212,21 +213,23 @@ def list_cmd(image_cache: Path | None) -> None:
         flags = ""
         if not (image_cache / metadata.file).is_file():
             flags += "  MISSING GOLDEN (interrupted derive; re-run derive)"
-        if metadata.recipe_version != RECIPE_VERSION:
+        # an installed (Windows) golden follows the Windows recipe's versioning
+        tool_version = WIN_RECIPE_VERSION if metadata.installed else RECIPE_VERSION
+        if metadata.recipe_version != tool_version:
             # mirror doctor's three-way split: an unparseable version must not
             # be labeled with an ordering that could not be computed
             try:
                 cache_newer: bool | None = int(metadata.recipe_version) > int(
-                    RECIPE_VERSION
+                    tool_version
                 )
             except ValueError:
                 cache_newer = None
             if cache_newer:
-                flags += f"  RECIPE MISMATCH (cache v{metadata.recipe_version} vs tool v{RECIPE_VERSION}; upgrade the tool or re-derive)"
+                flags += f"  RECIPE MISMATCH (cache v{metadata.recipe_version} vs tool v{tool_version}; upgrade the tool or re-derive)"
             elif cache_newer is None:
-                flags += f"  RECIPE UNPARSEABLE (v{metadata.recipe_version}, not v{RECIPE_VERSION}; re-derive)"
+                flags += f"  RECIPE UNPARSEABLE (v{metadata.recipe_version}, not v{tool_version}; re-derive)"
             else:
-                flags += f"  STALE RECIPE (v{metadata.recipe_version} < v{RECIPE_VERSION}; re-derive)"
+                flags += f"  STALE RECIPE (v{metadata.recipe_version} < v{tool_version}; re-derive)"
         click.echo(
             f"{metadata.file}  sha256:{metadata.golden_sha256[:12]}  "
             f"vendor={metadata.vendor_file}  daemon={metadata.daemon.name} v{metadata.daemon.version}  "
