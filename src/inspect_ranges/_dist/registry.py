@@ -9,6 +9,7 @@ import hashlib
 import http.client
 import json
 import os
+import random
 import re
 import tempfile
 import time
@@ -40,9 +41,20 @@ __all__ = [
 ]
 
 _CHUNK = 1 << 20
-_BLOB_ATTEMPTS = 4
+_BLOB_ATTEMPTS = 6
 """Download attempts per blob: a multi-gigabyte stream through an inspecting proxy fails mid-transfer often enough that giving up on the first fault lost whole pulls."""
 _BLOB_BACKOFF_S = 2.0
+"""First retry delay; each later delay doubles, capped at `_BLOB_BACKOFF_CAP_S`, with equal jitter (half fixed, half random) so concurrent pullers of one blob do not retry in lockstep. Worst-case patience across the budget is about two minutes, which outlasts a proxy's bad minute."""
+_BLOB_BACKOFF_CAP_S = 60.0
+
+
+def _blob_backoff(attempt: int) -> float:
+    """Delay before retry number `attempt` (1-based): exponential with equal jitter."""
+    base = min(_BLOB_BACKOFF_CAP_S, _BLOB_BACKOFF_S * 2 ** (attempt - 1))
+    return base / 2 + random.uniform(0, base / 2)
+
+
+_sleep = time.sleep
 _MANIFEST_CAP = 16 * 1024 * 1024
 _ERROR_BODY_CAP = 300
 _ACCEPT_MANIFESTS = f"{MEDIA_TYPE_INDEX}, {MEDIA_TYPE_MANIFEST}"
@@ -655,7 +667,7 @@ class RegistryRepo:
                         "registry-unreachable",
                         f"blob {digest} from {self._host} failed {attempt} times; last: {error}",
                     ) from error
-                time.sleep(_BLOB_BACKOFF_S * attempt)
+                _sleep(_blob_backoff(attempt))
 
     def _copy_blob_once(
         self,

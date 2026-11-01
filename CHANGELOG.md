@@ -1,3 +1,7 @@
+## Unreleased
+
+- Distribution: blob download retries wait longer and not in step. The budget is six attempts (was four) and the delay doubles from about two seconds to a cap of one minute, jittered so several pullers of the same blob behind one proxy do not retry at the same instant; worst-case patience is about two minutes instead of twelve seconds, which outlasts an egress proxy's bad minute rather than exhausting the budget inside it. Observed in deployment: a shard's 970 MB stream was cut at 885 MB and restarted cleanly, while the previous twelve-second budget would have lost a correlated burst.
+
 ## 0.2.7 (31 October 2026)
 
 - `IR_PUSH` handles files of any size: payloads over 128 MiB stream to the guest in chunks and reassemble under a sha256 check before installing (both guest OS paths), so appliance-sized recipe payloads no longer need hand-rolled split helpers, and host memory stays bounded to one chunk regardless of file size. The daemon's inbound bulk cap is unchanged; the ergonomics moved into the tool.
