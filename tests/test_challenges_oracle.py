@@ -852,3 +852,17 @@ def test_opaque_guest_refuses_every_in_guest_verb(tmp_path: Path) -> None:
         assert endpoint.requests == []  # nothing ever reached the wire
 
     asyncio.run(run())
+
+
+def test_opaque_refusal_survives_a_plan_less_attach(tmp_path: Path) -> None:
+    """Review round 1 finding 3: an attached oracle has no resolved plan; the recorded boot's opaque set on the handle must still refuse in-guest verbs rather than letting them die on the wire."""
+    oracle, endpoint, handle = make_oracle(tmp_path)
+    handle.plan = None
+    handle.opaque_guests = frozenset({"box"})
+
+    async def run() -> None:
+        with pytest.raises(OracleSetupError, match="opaque"):
+            await oracle.exec("box", ["id"])
+        assert endpoint.requests == []
+
+    asyncio.run(run())

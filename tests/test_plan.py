@@ -1549,6 +1549,34 @@ def test_hardware_refuses_on_cloud_hypervisor_and_windows(cache: Path) -> None:
         issue.code == "hardware-windows-not-supported" for issue in excinfo.value.issues
     )
 
+    opaque_ch = _appliance_spec()
+    opaque_ch.hosts[1].hardware = None
+    opaque_ch.hosts[1].vmm = "cloud-hypervisor"
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(opaque_ch, PlanOptions(image_cache=cache))
+    assert any(
+        issue.code == "opaque-vmm-not-supported" for issue in excinfo.value.issues
+    )
+
+
+def test_generated_mac_resalts_past_a_declared_collision(cache: Path) -> None:
+    """Review round 1 nit 12: a declared MAC equal to another guest's would-be generated MAC must not collide; the generator re-salts deterministically."""
+    from inspect_ranges._compiler.allocate import _mac
+
+    spec = _appliance_spec()
+    colliding = _mac(spec.meta.name, "workbench", "lan")
+    spec.hosts[1].interfaces[0].mac = colliding
+    plan = resolve_plan(spec, PlanOptions(image_cache=cache))
+    guests = {guest.name: guest for guest in plan.guests}
+    bench_mac = guests["workbench"].interfaces[0].mac
+    assert guests["router"].interfaces[0].mac == colliding
+    assert bench_mac != colliding
+    assert bench_mac == _mac(spec.meta.name, "workbench", "lan", salt=1)
+    # and absent any collision the historical MACs are byte-identical
+    plain = resolve_plan(_appliance_spec(), PlanOptions(image_cache=cache))
+    bench = next(g for g in plain.guests if g.name == "workbench")
+    assert bench.interfaces[0].mac == colliding
+
 
 def test_hardware_rekeys_the_projection_only_when_declared(cache: Path) -> None:
     """spec_projection: an absent and an all-defaults hardware block hash identically (no existing guest re-keys), and any declared knob moves the projection."""

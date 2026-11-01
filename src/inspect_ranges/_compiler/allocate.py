@@ -215,6 +215,14 @@ def allocate(
     cids = {name: cid_base + index for index, name in enumerate(cid_order)}
 
     guests: list[GuestAllocation] = []
+    # declared MACs claim their addresses up front so a generated MAC can
+    # never collide with one (semantic validation covers declared-vs-declared)
+    used_macs: set[str] = {
+        interface.mac.lower()
+        for _, _, interfaces in ordered
+        for interface in interfaces
+        if interface.mac is not None
+    }
     for kind, name, interfaces in ordered:
         allocations: list[InterfaceAllocation] = []
         for interface in interfaces:
@@ -238,7 +246,9 @@ def allocate(
                     mac=(
                         interface.mac.lower()
                         if interface.mac is not None
-                        else _mac(spec.meta.name, name, interface.network)
+                        else _free_mac(
+                            spec.meta.name, name, interface.network, used_macs
+                        )
                     ),
                 )
             )
@@ -280,6 +290,21 @@ def _next_free_descending(subnet: IPv4Network, used: set[IPv4Address]) -> IPv4Ad
     raise SubnetExhaustedError(subnet)
 
 
-def _mac(range_name: str, guest: str, network: str) -> str:
-    digest = hashlib.sha256(f"{range_name}:{guest}:{network}".encode()).digest()
+def _mac(range_name: str, guest: str, network: str, salt: int = 0) -> str:
+    seed = f"{range_name}:{guest}:{network}"
+    if salt:
+        # salt 0 keeps the historical seed so collision-free ranges render
+        # byte-identical MACs
+        seed = f"{seed}:{salt}"
+    digest = hashlib.sha256(seed.encode()).digest()
     return "52:54:00:" + ":".join(f"{byte:02x}" for byte in digest[:3])
+
+
+def _free_mac(range_name: str, guest: str, network: str, used: set[str]) -> str:
+    """The generated MAC, deterministically re-salted past any declared (or earlier-generated) MAC it would collide with."""
+    for salt in range(256):
+        candidate = _mac(range_name, guest, network, salt)
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+    raise AssertionError("256 salted MAC candidates all collided")

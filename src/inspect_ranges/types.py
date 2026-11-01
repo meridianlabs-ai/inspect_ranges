@@ -404,7 +404,7 @@ class Hardware(_StrictModel):
 
 
 class TcpReadiness(_StrictModel):
-    """Readiness probed as a TCP connect to the guest's first declared address."""
+    """Readiness probed as a TCP connect to the guest's first declared address (which, on an opaque guest, is the address baked into the image, declared as fact)."""
 
     tcp: int = Field(ge=1, le=65535)
     """The port that answers once the guest is ready."""
@@ -909,7 +909,7 @@ class Host(_StrictModel):
     """Machine shape for images built against particular virtual hardware; omitted means the engine's standard shape (see `Hardware`). QEMU guests only (planning refuses `hardware-vmm-not-supported` on cloud-hypervisor)."""
 
     opaque: bool = False
-    """A sealed appliance image: no control daemon, so the engine never reaches inside it. Opaque guests carry no provisioning, services, vulnerabilities, misconfigurations, data, defense, roles, or scheduled activity (all refused: nothing could realize or verify them); they boot an imported image as-is, readiness comes from `readiness`, and goals scored against them carry the externally-observed assurance posture."""
+    """A sealed appliance image: no control daemon, so the engine never reaches inside it. Opaque guests carry no provisioning, services, vulnerabilities, misconfigurations, data, defense, roles, or scheduled activity (all refused: nothing could realize or verify them); they boot an imported image as-is, readiness comes from `readiness`, and goals scored against them carry the externally-observed assurance posture. Every interface of an opaque guest must declare its `ip`, and the declaration is a statement of fact about the image (the address it carries on that network), not an instruction: nothing configures addresses inside a sealed image (refused `opaque-ip-required` otherwise)."""
 
     readiness: Readiness | None = None
     """How an opaque guest reports ready: `{tcp: <port>}` (a connect probe against the first declared address) or `process` (the VM process runs). Opaque guests only (one meaning per field; daemon guests keep the daemon handshake); omitted on an opaque guest means `process`."""
@@ -1249,6 +1249,12 @@ def derive_device(prefix: str, network_name: str) -> str:
 
 
 _MAC = re.compile(r"(?i)^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
+
+_MAX_VIRTIO_EXTRA_DISKS = 14
+"""The render's virtio target letters run `vdc`..`vdp` (`vda` root, `vdb` seed slot)."""
+
+_MAX_IDE_DISKS = 4
+"""The pc machine's two IDE buses address `hda`..`hdd`."""
 """Declared MAC form: six colon-separated hex octets."""
 
 _OPAQUE_CONTENT_FIELDS = (
@@ -1333,6 +1339,41 @@ def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
                         hint="the emulated TPM lands with the Windows 11 hardware work",
                     )
                 )
+            if host.hardware.machine != "pc" and any(
+                disk.bus == "ide" for disk in host.hardware.disks
+            ):
+                # q35 has no IDE controller (and the engine's q35 profile
+                # additionally disables SATA): an ide target would die as a
+                # raw libvirt error at guest-boot
+                issues.append(
+                    Issue(
+                        code="hardware-ide-requires-pc",
+                        path=("hosts", index, "hardware", "disks"),
+                        message=(
+                            f"guest {host.name!r} declares an ide disk on "
+                            f"machine {host.hardware.machine!r}, which has no "
+                            "IDE controller"
+                        ),
+                        hint="set machine: pc, or use the virtio bus",
+                    )
+                )
+            virtio_extras = sum(
+                1 for disk in host.hardware.disks if disk.bus == "virtio"
+            )
+            ide_extras = sum(1 for disk in host.hardware.disks if disk.bus == "ide")
+            if virtio_extras > _MAX_VIRTIO_EXTRA_DISKS or ide_extras > _MAX_IDE_DISKS:
+                issues.append(
+                    Issue(
+                        code="hardware-disks-exceeded",
+                        path=("hosts", index, "hardware", "disks"),
+                        message=(
+                            f"guest {host.name!r} declares more extra disks "
+                            "than the machine addresses "
+                            f"(at most {_MAX_VIRTIO_EXTRA_DISKS} virtio, "
+                            f"{_MAX_IDE_DISKS} ide)"
+                        ),
+                    )
+                )
         if host.opaque:
             for field in _OPAQUE_CONTENT_FIELDS:
                 if getattr(host, field):
@@ -1360,6 +1401,26 @@ def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
                         ),
                     )
                 )
+            for if_index, interface in enumerate(host.interfaces):
+                if interface.ip is None:
+                    # the appliance's addresses are baked into the image; an
+                    # allocator-invented address would be probed and recorded
+                    # as fact while the real one could be handed to another
+                    # guest
+                    issues.append(
+                        Issue(
+                            code="opaque-ip-required",
+                            path=("hosts", index, "interfaces", if_index, "ip"),
+                            message=(
+                                f"opaque guest {host.name!r} leaves an "
+                                f"interface on {interface.network!r} without "
+                                "a declared ip; nothing configures addresses "
+                                "inside a sealed image, so the engine cannot "
+                                "invent one"
+                            ),
+                            hint="declare the address the image actually carries on that network",
+                        )
+                    )
             if host.os.type == "windows":
                 issues.append(
                     Issue(

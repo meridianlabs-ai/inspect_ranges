@@ -406,6 +406,27 @@ def test_conformance_plan_resolves_the_section6_targets() -> None:
     assert all(candidate not in assigned for candidate in silent)
 
 
+def test_conformance_plan_skips_an_opaque_defender() -> None:
+    """Review round 1 finding 6: the containment sweep execs bash through the defender's daemon, which an opaque appliance does not have; the pick must pass over it even when it is first on the shared segment."""
+    from inspect_ranges._build.behavioral import conformance_plan
+    from inspect_ranges._compiler import resolve_plan
+    from inspect_ranges.types import Host, Interface, Os
+
+    spec = _section6_spec()
+    spec.hosts.insert(
+        0,
+        Host(
+            name="appliance",
+            os=Os(type="linux"),
+            image="tiny-golden",
+            opaque=True,
+            interfaces=[Interface(network="lab", ip="10.44.0.5")],
+        ),
+    )
+    defender, _, _, _ = conformance_plan(spec, resolve_plan(spec))
+    assert defender == "web"
+
+
 def test_conformance_plan_is_empty_for_foothold_ranges() -> None:
     """N1 (round-3): a foothold range has no dedicated attack box; the plan must be empty rather than StopIteration, and the executor must skip cleanly."""
     from inspect_ranges._build.behavioral import (

@@ -349,6 +349,20 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                         hint="run this guest on qemu, or drop its content sections",
                     )
                 )
+            if (
+                getattr(guest_decl, "opaque", False)
+                and guest_decl.vmm == "cloud-hypervisor"
+            ):
+                # the CH boot path hands every guest a seed disk that the
+                # opaque tier (injector none) never creates
+                issues.append(
+                    Issue(
+                        code="opaque-vmm-not-supported",
+                        path=(section, index, "opaque"),
+                        message=f"guest {guest_decl.name!r} is opaque but runs on cloud-hypervisor; the opaque tier boots through qemu",
+                        hint="run this guest on qemu",
+                    )
+                )
             declared_hardware = getattr(guest_decl, "hardware", None)
             if declared_hardware is not None:
                 if guest_decl.vmm == "cloud-hypervisor":

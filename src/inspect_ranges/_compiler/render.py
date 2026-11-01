@@ -669,6 +669,17 @@ def _require_cached_images(spec: RangeSpec, plan: ResolvedPlan) -> None:
         for guest in plan.guests
         if guest.image.digest is None
     ]
+    issues += [
+        Issue(
+            code="image-not-in-cache",
+            path=(*paths[guest.name][:-1], "hardware", "disks"),
+            message=f"extra-disk source {disk.image.reference!r} for guest {guest.name!r} is not in the image cache, so the bundle cannot be self-sufficient",
+            hint="pull or build the image into the cache (pass --image-cache / PlanOptions.image_cache)",
+        )
+        for guest in plan.guests
+        for disk in guest.extra_disks
+        if disk.image is not None and disk.image.digest is None
+    ]
     if issues:
         raise IssueError(issues)
 

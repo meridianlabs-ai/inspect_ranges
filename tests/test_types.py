@@ -1,3 +1,5 @@
+from ipaddress import IPv4Address
+
 import pytest
 from inspect_ranges import revalidate_range
 from inspect_ranges.types import (
@@ -191,13 +193,14 @@ def test_hardware_vocabulary_accepts_the_appliance_shape() -> None:
     spec.hosts[0].interfaces[0].mac = "52:54:00:aa:bb:cc"
     spec.hosts[1].opaque = True
     spec.hosts[1].readiness = TcpReadiness(tcp=22)
+    spec.hosts[1].interfaces[0].ip = IPv4Address("10.80.20.9")
     revalidate_range(spec)
     assert Hardware().model_dump(exclude_defaults=True) == {}
 
 
 def test_hardware_vocabulary_gates_refuse() -> None:
     """Malformed/duplicate MACs, not-realized firmware/tpm, misscoped readiness, opaque content, opaque Windows, and an opaque foothold each refuse with their code in the message."""
-    from inspect_ranges.types import Attacker, Hardware, TcpReadiness
+    from inspect_ranges.types import Attacker, Hardware, HardwareDisk, TcpReadiness
 
     bad_mac = dmz_pivot()
     bad_mac.hosts[0].interfaces[0].mac = "not-a-mac"
@@ -224,7 +227,27 @@ def test_hardware_vocabulary_gates_refuse() -> None:
 
     plain_opaque = dmz_pivot()
     plain_opaque.hosts[1].opaque = True
+    plain_opaque.hosts[1].interfaces[0].ip = IPv4Address("10.80.20.9")
     revalidate_range(plain_opaque)  # opaque with no content is the valid shape
+
+    unaddressed = dmz_pivot()
+    unaddressed.hosts[1].opaque = True
+    _refuses(unaddressed, "cannot invent one")
+
+    ide_on_q35 = dmz_pivot()
+    ide_on_q35.hosts[0].hardware = Hardware(disks=[HardwareDisk(size_gb=5, bus="ide")])
+    _refuses(ide_on_q35, "no\\s+IDE controller")
+    ide_on_pc = dmz_pivot()
+    ide_on_pc.hosts[0].hardware = Hardware(
+        machine="pc", disks=[HardwareDisk(size_gb=5, bus="ide")]
+    )
+    revalidate_range(ide_on_pc)
+
+    too_many = dmz_pivot()
+    too_many.hosts[0].hardware = Hardware(
+        disks=[HardwareDisk(size_gb=1) for _ in range(15)]
+    )
+    _refuses(too_many, "more extra disks")
 
     content = dmz_pivot()
     content.hosts[0].opaque = True

@@ -712,11 +712,35 @@ def test_hardware_renders_the_appliance_domain(tmp_path: Path) -> None:
     router = entries["router"]
     assert router["firmware"] == "uefi" and router["opaque"] is True
     assert router["readiness"] == "tcp" and router["readiness_port"] == 22
+    assert router["readiness_ip"] == "10.9.0.10"  # the declared appliance address
     assert router["injector"] == "none"
     assert [disk["bus"] for disk in router["extra_disks"]] == ["ide", "virtio"]
     assert router["extra_disks"][1]["size_gb"] == 5
+    assert router["extra_disks"][0]["image_file"] == "data-img.qcow2"
     assert "firmware" not in entries["workbench"]
+    assert "readiness_ip" not in entries["workbench"]
     assert "extra_disks" not in entries["workbench"]
+
+
+def test_render_refuses_an_uncached_extra_disk_source(tmp_path: Path) -> None:
+    """Review round 1 finding 5: an extra-disk overlay base missing from the cache refuses `image-not-in-cache` at render, like the root disk, instead of dying as a qemu-img backing-file error at boot."""
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges.types import IssueError
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2"):  # no data-img
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    with pytest.raises(IssueError) as excinfo:
+        render_bundle(
+            _appliance_spec(), tmp_path / "bundle", PlanOptions(image_cache=cache)
+        )
+    assert any(
+        issue.code == "image-not-in-cache" and "data-img" in issue.message
+        for issue in excinfo.value.issues
+    )
 
 
 def test_boot_script_prepares_appliance_volumes(tmp_path: Path) -> None:

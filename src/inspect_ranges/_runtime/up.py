@@ -280,6 +280,12 @@ class BootDisk(BaseModel):
     image_file: str | None = Field(default=None, pattern=_SAFE_NAME)
     image_digest: str | None = None
 
+    @model_validator(mode="after")
+    def _exactly_one_source(self) -> "BootDisk":
+        if (self.size_gb is None) == (self.image_file is None):
+            raise ValueError("an extra disk takes exactly one of size_gb or image_file")
+        return self
+
 
 class BootGuest(BaseModel):
     """One guest in `boot.json`, shape-validated before anything interpolates it anywhere."""
@@ -297,8 +303,8 @@ class BootGuest(BaseModel):
     overlay_gb: int = Field(ge=1)
     readiness: Literal["cloud-init", "daemon", "tcp", "process"]
     readiness_port: int | None = Field(default=None, ge=1, le=65535)
-    readiness_ip: str | None = None
-    """The address the tcp readiness probe connects to (the guest's first declared interface)."""
+    readiness_ip: IPv4Address | None = None
+    """The address the tcp readiness probe connects to (the opaque guest's first interface, declared as the address the image carries)."""
     injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
     firmware: Literal["bios", "uefi"] = "bios"
     opaque: bool = False
@@ -316,6 +322,13 @@ class BootGuest(BaseModel):
         if self.vmm == "cloud-hypervisor" and not sized:
             raise ValueError(
                 f"cloud-hypervisor guest {self.name!r} needs cpus and memory_mb"
+            )
+        if self.readiness == "tcp" and (
+            self.readiness_port is None or self.readiness_ip is None
+        ):
+            raise ValueError(
+                f"tcp readiness for guest {self.name!r} needs readiness_port "
+                "and readiness_ip"
             )
         return self
 
@@ -814,6 +827,25 @@ def up(
                     "re-render the bundle",
                     guest=guest.name,
                 )
+        for disk in guest.extra_disks:
+            if disk.image_file is None:
+                continue
+            base = options.image_cache / disk.image_file
+            if not base.is_file():
+                raise UpError(
+                    "verify-images",
+                    f"extra-disk base {disk.image_file} is not in the cache {options.image_cache}",
+                    guest=guest.name,
+                )
+            if disk.image_digest is not None:
+                actual = f"sha256:{_sha256(base)}"
+                if actual != disk.image_digest:
+                    raise UpError(
+                        "verify-images",
+                        f"extra-disk base {disk.image_file} digest {actual} does not match the bundle's {disk.image_digest}: "
+                        "the cache's copy changed since this bundle was rendered; re-render the bundle",
+                        guest=guest.name,
+                    )
         if guest.backing_file is not None:
             backing = options.image_cache / guest.backing_file
             if not backing.is_file():

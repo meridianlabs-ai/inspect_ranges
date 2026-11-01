@@ -3,6 +3,7 @@
 import os
 import subprocess
 from collections.abc import Callable
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -1633,7 +1634,7 @@ def test_await_tcp_ready_probes_from_the_range_container(bundle: Path) -> None:
         overlay_gb=10,
         readiness="tcp",
         readiness_port=22,
-        readiness_ip="10.9.0.10",
+        readiness_ip=IPv4Address("10.9.0.10"),
         injector="none",
         opaque=True,
     )
@@ -1663,3 +1664,33 @@ def test_await_tcp_ready_probes_from_the_range_container(bundle: Path) -> None:
     )
     assert not ready
     assert cause is not None and "10.9.0.10:22" in cause
+
+
+def test_boot_guest_shape_validates_readiness_and_disks() -> None:
+    """`boot.json` is shape-validated before anything interpolates it: tcp readiness demands a validated address and port, and an extra disk takes exactly one of size_gb or image_file (a hand-shaped entry refuses instead of probing `/dev/tcp/None/None` or rendering `qemu-img create ... NoneG`)."""
+    from inspect_ranges._runtime.up import BootDisk, BootGuest
+    from pydantic import ValidationError
+
+    base: dict[str, Any] = {
+        "name": "router",
+        "cid": 3001,
+        "image_file": "appliance-img.qcow2",
+        "overlay_gb": 10,
+        "injector": "none",
+        "opaque": True,
+    }
+    with pytest.raises(ValidationError, match="readiness_port"):
+        BootGuest(**base, readiness="tcp", readiness_port=22)
+    with pytest.raises(ValidationError, match="valid IPv4 address"):
+        BootGuest.model_validate(
+            {
+                **base,
+                "readiness": "tcp",
+                "readiness_port": 22,
+                "readiness_ip": "10.9.0.10; rm",
+            }
+        )
+    with pytest.raises(ValidationError, match="exactly one"):
+        BootDisk(bus="virtio")
+    with pytest.raises(ValidationError, match="exactly one"):
+        BootDisk(bus="virtio", size_gb=5, image_file="data-img.qcow2")

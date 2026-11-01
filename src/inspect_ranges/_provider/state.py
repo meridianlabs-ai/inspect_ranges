@@ -116,6 +116,8 @@ class SampleHandle:
     """The sample's drawn variable values (variable-draws-v0), set before render so the bundle's draws file and scoring read the same values; empty when the range declares no `draw: boot` variables."""
     draw_seed: str | None = None
     """The seed the sample's draws derive from, recorded with the values on the `draws` evidence stream; `None` when nothing draws."""
+    opaque_guests: frozenset[str] = frozenset()
+    """Opaque guest names for plan-less handles (oracle attach reads them from the recorded `boot.json`); when `plan` is set it is the authority and this is ignored."""
 
 
 def ensure_pulled(spec: "RangeSpec", *, image_cache: Path) -> None:

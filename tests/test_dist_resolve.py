@@ -773,6 +773,13 @@ def test_catalog_image_references_applies_defaults() -> None:
         }
     )
     assert catalog_image_references(foothold) == ["ubuntu-noble"]
+    # extra-disk overlay bases ride the catalog sweep even on a BUILT guest:
+    # the build closure never carries them (review round 1, finding 5)
+    from inspect_ranges.types import Hardware, HardwareDisk
+
+    disked = spec.model_copy(deep=True)
+    disked.hosts[1].hardware = Hardware(disks=[HardwareDisk(source="data-golden")])
+    assert catalog_image_references(disked) == ["ubuntu-noble", "data-golden", "attack"]
 
 
 def test_ensure_images_available_warm_cold_and_never_pull(

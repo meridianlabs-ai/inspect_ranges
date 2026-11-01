@@ -197,12 +197,16 @@ class RangeOracle:
         return any(g.name == guest and g.os == "windows" for g in plan.guests)
 
     def _refuse_opaque(self, guest: str, verb: str) -> None:
-        """Opaque guests carry no daemon: every in-guest verb refuses with the tier named, so a goal type reaching into a sealed appliance fails as authoring, never as a mysterious transport error."""
+        """Opaque guests carry no daemon: every in-guest verb refuses with the tier named, so a goal type reaching into a sealed appliance fails as authoring, never as a mysterious transport error. A plan-less handle (oracle attach) carries the recorded boot's opaque set instead."""
         plan = self._handle.plan
-        if plan is not None and any(
-            planned.name == guest and getattr(planned, "opaque", False)
-            for planned in plan.guests
-        ):
+        if plan is not None:
+            opaque = any(
+                planned.name == guest and getattr(planned, "opaque", False)
+                for planned in plan.guests
+            )
+        else:
+            opaque = guest in self._handle.opaque_guests
+        if opaque:
             raise OracleSetupError(
                 f"guest {guest!r} is opaque (no control daemon); {verb} cannot "
                 "reach inside it; score it externally (network, console, "
