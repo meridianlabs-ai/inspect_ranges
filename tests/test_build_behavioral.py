@@ -780,6 +780,7 @@ def test_prober_backed_trio_reads_valid(
                 SimpleNamespace(
                     name="box",
                     os="linux",
+                    opaque=False,
                     interfaces=[SimpleNamespace(network="lab", ip="10.0.0.5")],
                 )
             ],

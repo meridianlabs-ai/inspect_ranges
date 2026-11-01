@@ -787,3 +787,26 @@ def test_boot_script_prepares_appliance_volumes(tmp_path: Path) -> None:
     assert "/scratch/router-data1.qcow2" in router_chown
     assert "router-seed.iso" not in script  # opaque: nothing seeds
     assert "cloud-localds" in script  # the workbench still seeds
+
+
+def test_tcp_readiness_reserves_the_probe_source_address(tmp_path: Path) -> None:
+    """An opaque guest's tcp readiness probes from the range netns, so its first interface's network reserves the hypervisor address and the bridge gets it; without one the connect has no route and readiness can never latch (found live by the first appliance conversion)."""
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._compiler.allocate import allocate
+
+    from tests.test_plan import _appliance_spec
+
+    spec = _appliance_spec()
+    allocation = allocate(spec)
+    assert str(allocation.hypervisor_addresses["lan"]) == "10.9.0.1"
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    assert "br-lan 10.9.0.1/24" in (out / "netns/addresses.txt").read_text()
+    # process readiness reserves nothing: the shape stays byte-identical
+    quiet = _appliance_spec()
+    quiet.hosts[1].readiness = "process"
+    assert allocate(quiet).hypervisor_addresses == {}

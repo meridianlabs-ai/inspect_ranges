@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from .._diagnostics import Issue, IssueError
-from ..types import Interface, RangeSpec, derive_device
+from ..types import Interface, RangeSpec, TcpReadiness, derive_device
 
 
 class SubnetExhaustedError(ValueError):
@@ -165,10 +165,18 @@ def allocate(
 
     # some networks need the hypervisor present on the bridge, with an address
     # reserved ahead of guest allocation: routerless nat/routed networks (the
-    # bridge is the gateway) and dhcp or range-served-dns networks (the bridge
-    # hosts the dnsmasq service)
+    # bridge is the gateway), dhcp or range-served-dns networks (the bridge
+    # hosts the dnsmasq service), and networks carrying an opaque guest's tcp
+    # readiness probe (the connect sources from the bridge; without an address
+    # the probe has no route and readiness can never latch)
     router_attached = {
         interface.network for router in spec.routers for interface in router.interfaces
+    }
+    probed = {
+        host.interfaces[0].network
+        for host in spec.hosts
+        if getattr(host, "opaque", False)
+        and isinstance(getattr(host, "readiness", None), TcpReadiness)
     }
     hypervisor_addresses: dict[str, IPv4Address] = {}
     for network in spec.networks:
@@ -178,7 +186,7 @@ def allocate(
         needs_service = network.dhcp or (
             network.dns is not None and network.dns.records is not None
         )
-        if needs_gateway or needs_service:
+        if needs_gateway or needs_service or network.name in probed:
             try:
                 address = _next_free(subnets[network.name], 1, claimed[network.name])
             except SubnetExhaustedError:
