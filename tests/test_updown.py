@@ -1614,3 +1614,52 @@ def test_cli_leases_are_invisible_to_provider_sweeps(tmp_path: Path) -> None:
     raw["ir-legacy"] = {"project": "ir-legacy", "base": 10100, "count": 2}
     (state / "cids.json").write_text(json.dumps(raw))
     assert "ir-legacy" in allocator.leased_projects(origin="provider")
+
+
+def test_await_tcp_ready_probes_from_the_range_container(bundle: Path) -> None:
+    """The opaque tcp readiness probe: a bounded /dev/tcp connect execed inside the range container (the only vantage that reaches guest segments), retried until the deadline, then an honest cause."""
+    import subprocess
+    import time as time_module
+
+    from inspect_ranges._runtime.up import (
+        BootGuest,
+        _await_tcp_ready,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    guest = BootGuest(
+        name="router",
+        cid=3001,
+        image_file="appliance-img.qcow2",
+        overlay_gb=10,
+        readiness="tcp",
+        readiness_port=22,
+        readiness_ip="10.9.0.10",
+        injector="none",
+        opaque=True,
+    )
+    attempts: list[list[str]] = []
+    outcomes = [1, 1, 0]
+
+    def fake_run(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
+        attempts.append(argv)
+        return subprocess.CompletedProcess(argv, outcomes[min(len(attempts) - 1, 2)])
+
+    ready, cause = _await_tcp_ready(
+        fake_run, "proj", bundle, {}, guest, time_module.monotonic() + 60
+    )
+    assert ready and cause is None
+    assert len(attempts) == 3
+    assert "exec" in attempts[0] and "range" in attempts[0]
+    assert "/dev/tcp/10.9.0.10/22" in attempts[0][-1]
+
+    attempts.clear()
+
+    def never_up(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
+        attempts.append(argv)
+        return subprocess.CompletedProcess(argv, 1)
+
+    ready, cause = _await_tcp_ready(
+        never_up, "proj", bundle, {}, guest, time_module.monotonic() - 1
+    )
+    assert not ready
+    assert cause is not None and "10.9.0.10:22" in cause

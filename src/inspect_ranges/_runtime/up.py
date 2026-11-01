@@ -297,6 +297,8 @@ class BootGuest(BaseModel):
     overlay_gb: int = Field(ge=1)
     readiness: Literal["cloud-init", "daemon", "tcp", "process"]
     readiness_port: int | None = Field(default=None, ge=1, le=65535)
+    readiness_ip: str | None = None
+    """The address the tcp readiness probe connects to (the guest's first declared interface)."""
     injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
     firmware: Literal["bios", "uefi"] = "bios"
     opaque: bool = False
@@ -572,6 +574,33 @@ async def _await_ready(
         except Exception as error:
             return False, f"readiness exec failed: {error!r}"
     return True, None
+
+
+def _await_tcp_ready(
+    run: Runner,
+    project: str,
+    bundle: Path,
+    env: dict[str, str],
+    guest: BootGuest,
+    deadline: float,
+) -> tuple[bool, str | None]:
+    """TCP readiness for an opaque guest: a bounded connect to its declared address and port, probed from inside the range container's netns (the only vantage that reaches guest segments). The daemon never participates; the guest has none."""
+    target = f"{guest.readiness_ip}:{guest.readiness_port}"
+    probe = (
+        f"timeout 3 bash -c 'exec 3<>/dev/tcp/{guest.readiness_ip}/"
+        f"{guest.readiness_port}' 2>/dev/null"
+    )
+    while True:
+        result = run(
+            _compose_argv(project, bundle, "exec", "-T", "range", "bash", "-c", probe),
+            env=env,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return True, None
+        if time.monotonic() > deadline:
+            return False, f"tcp {target} never answered"
+        time.sleep(5.0)
 
 
 def project_containers(
@@ -1086,13 +1115,22 @@ def up(
                 if external is not None and guest.name == external.name
                 else guest.readiness
             )
-            ready, cause = await _await_ready(
-                channel,
-                guest.name,
-                readiness,
-                guest_deadline,
-                min_window=options.readiness_min_window,
-            )
+            if readiness == "process":
+                # the opaque tier's weakest honest contract: the VM process
+                # started (guest-boot already failed otherwise); no probe
+                ready, cause = True, None
+            elif readiness == "tcp":
+                ready, cause = await asyncio.to_thread(
+                    _await_tcp_ready, run, project, bundle, env, guest, guest_deadline
+                )
+            else:
+                ready, cause = await _await_ready(
+                    channel,
+                    guest.name,
+                    readiness,
+                    guest_deadline,
+                    min_window=options.readiness_min_window,
+                )
             collected.append(
                 GuestState(
                     name=guest.name,

@@ -69,6 +69,7 @@ def make_poller(
     *,
     linux: list[str] | None = None,
     windows: list[str] | None = None,
+    opaque: list[str] | None = None,
 ) -> tuple[ExecWitnessPoller, EvidenceWriter, LocalDirStore]:
     writer = EvidenceWriter(
         LocalDirSink(tmp_path),
@@ -81,6 +82,7 @@ def make_poller(
         writer,
         linux if linux is not None else ["web"],
         windows or [],
+        opaque_guests=opaque or [],
         meta_flush_s=0,
     )
     return poller, writer, LocalDirStore(tmp_path)
@@ -306,5 +308,27 @@ def test_stop_never_raises_on_a_wedged_channel(tmp_path: Path) -> None:
         await asyncio.sleep(0.05)
         await poller.stop(stop_timeout_s=0.3)  # must cancel, never raise
         await writer.seal()
+
+    asyncio.run(run())
+
+
+def test_opaque_guest_is_never_polled_and_declares_its_drop(tmp_path: Path) -> None:
+    """An opaque guest has no daemon to witness through: one declared drop (reason guest-opaque) and no poll traffic, the os-windows shape."""
+
+    async def run() -> None:
+        channel = WitnessFakeChannel()
+        channel.script = [reply([], 0)]
+        poller, writer, store = make_poller(
+            tmp_path, channel, linux=["web"], opaque=["router"]
+        )
+        await poller.start()
+        await poller.stop()
+        await writer.seal()
+        assert (await verify_location(store)).ok
+        assert all(guest == "web" for guest, _ in channel.calls)
+        meta = b"".join(await stream_chunks(store, "driver", "exec-meta/router"))
+        (record,) = [json.loads(line) for line in meta.decode().splitlines()]
+        assert record["outcome"] == "unsupported"
+        assert record["reason"] == "guest-opaque"
 
     asyncio.run(run())

@@ -611,8 +611,9 @@ async def run_behavioral_checks(
                 witness = ExecWitnessPoller(
                     channel,
                     witness_writer,
-                    [g.name for g in plan.guests if g.os == "linux"],
+                    [g.name for g in plan.guests if g.os == "linux" and not g.opaque],
                     [g.name for g in plan.guests if g.os == "windows"],
+                    opaque_guests=[g.name for g in plan.guests if g.opaque],
                 )
                 await witness.start()
                 session.register_producer(witness.stop)

@@ -834,3 +834,21 @@ class TestWindowsPlantShape:
             assert unplant.user is None
 
         asyncio.run(scenario())
+
+
+def test_opaque_guest_refuses_every_in_guest_verb(tmp_path: Path) -> None:
+    """An opaque guest has no daemon: exec/read_file/write_file refuse with the tier named, so a goal type reaching into a sealed appliance fails as authoring, never as a transport mystery."""
+    oracle, endpoint, handle = make_oracle(tmp_path)
+    assert handle.plan is not None
+    object.__setattr__(handle.plan.guests[0], "opaque", True)
+
+    async def run() -> None:
+        with pytest.raises(OracleSetupError, match="opaque"):
+            await oracle.exec("box", ["id"])
+        with pytest.raises(OracleSetupError, match="opaque"):
+            await oracle.read_file("box", "/etc/hostname")
+        with pytest.raises(OracleSetupError, match="opaque"):
+            await oracle.write_file("box", "/tmp/x", b"v")
+        assert endpoint.requests == []  # nothing ever reached the wire
+
+    asyncio.run(run())

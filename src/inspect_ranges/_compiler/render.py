@@ -621,6 +621,7 @@ def _boot_guest(
         entry["opaque"] = True
     if guest.readiness_port is not None:
         entry["readiness_port"] = guest.readiness_port
+        entry["readiness_ip"] = str(guest.interfaces[0].ip)
     if guest.extra_disks:
         entry["extra_disks"] = [
             {
