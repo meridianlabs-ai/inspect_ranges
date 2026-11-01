@@ -472,8 +472,7 @@ def stamp_proven(
                     + "; rebuild and prove again"
                 )
             if any(
-                item.status != "pass"
-                for item in current.verification.behavioral_checks
+                item.status != "pass" for item in current.verification.behavioral_checks
             ):
                 raise RuntimeError(
                     f"the proven stamp for {range_name!r} did not land: the "

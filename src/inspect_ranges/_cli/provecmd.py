@@ -1,7 +1,6 @@
 """`inspect-ranges prove`: re-run a range's conformance proofs against its built artifacts."""
 
 from pathlib import Path
-from typing import Any
 
 import click
 

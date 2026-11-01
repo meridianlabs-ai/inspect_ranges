@@ -303,7 +303,11 @@ def test_stamp_proven_is_revision_locked_and_additive(tmp_path: Path) -> None:
     # a concurrent SAME-SPEC rebuild (new built_at) must not inherit the stamp
     with pytest.raises(RuntimeError, match="different build of the same revision"):
         stamp_proven(
-            build_cache, "proof-range", "a" * 64, record, built_at="2026-11-01T02:00:00+00:00"
+            build_cache,
+            "proof-range",
+            "a" * 64,
+            record,
+            built_at="2026-11-01T02:00:00+00:00",
         )
     stamp_proven(build_cache, "proof-range", "a" * 64, record, built_at=built_at)
     reloaded = load_manifest(build_cache, "proof-range")
