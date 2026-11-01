@@ -246,7 +246,12 @@ def list_cmd(image_cache: Path | None) -> None:
                 if metadata.daemon is not None
                 else "daemon=none (imported)  "
             )
-            + f"recipe=v{metadata.recipe_version}  created={metadata.created}{flags}"
+            + (
+                "recipe=imported"
+                if metadata.resolved_kind == "imported"
+                else f"recipe=v{metadata.recipe_version}"
+            )
+            + f"  created={metadata.created}{flags}"
         )
     from .._build.capture import live_project_files
     from .._runtime.ownership import default_state_dir
