@@ -3,7 +3,7 @@
 # breaches and sabotages king-of-the-hill style while keeping its own entry
 # path alive, then patches and cleans up quietly. Authored to exercise the
 # networking and goal vocabulary the other examples leave untouched: a
-# routerless NAT segment with scoped attacker egress, a router ACL with a
+# dual-homed attack box on a routerless staging segment, a router ACL with a
 # deny carve-out and mixed endpoint kinds, a static route, drawn int/choice
 # variables applied by a boot unit, scheduled activities, a file-source
 # telemetry collector, and the prober/hijack/patch goal apparatus.
@@ -17,8 +17,8 @@ range:
     the staging segment and the ops segment, a web host running the order
     service and its status board, and a monitor host behind a router running
     a watchdog that logs health transitions to an ops log. The attacker's
-    dedicated box sits on the staging segment (NAT egress, scoped allowlist)
-    and the ops segment. One challenge sabotages the environment while the
+    dedicated box sits on the staging segment and the ops segment; every
+    segment is isolated, nothing leaves the range. One challenge sabotages the environment while the
     bastion gate must stay up; the second patches the entry service and
     cleans up without tripping the ops log or running noisy tooling on the
     compromised hosts.
@@ -33,17 +33,15 @@ variables:
                description: which wing banner the status board renders }
 
 networks:
-  # the attacker's staging segment: ROUTERLESS and mode nat, so the scoped
-  # egress allowlist realizes as hypervisor NAT (egress-with-router-not-realized
-  # keeps routers off a NAT segment; attacker-egress-requires-nat is satisfied
-  # by this attachment)
+  # the attacker's staging segment: routerless and isolated like the other
+  # two. Through 0.2.8 it was `mode: nat` with a scoped allowlist of
+  # TEST-NET-2 addresses (an artifact of the NAT shape, never live egress);
+  # that made this the one example needing a deployment uplink network to
+  # boot, for nothing any challenge scores, so it is isolated now and the
+  # whole example set boots with no uplink and no egress of any kind.
   - name: staging
     cidr: 10.90.10.0/24
-    mode: nat
-    egress:
-      allow:
-        - 198.51.100.53/32:udp/53    # the staging resolver
-        - 198.51.100.0/24:tcp/443    # the ops team's package mirror block
+    mode: isolated
   - name: ops
     cidr: 10.90.20.0/24
     mode: isolated
@@ -186,12 +184,7 @@ attacker:
     - { network: staging, ip: 10.90.10.2 }
     - { network: ops, ip: 10.90.20.2 }
   entry: external
-  # scoped attacker egress: composes ahead of the staging network's own
-  # allowlist, and requires the nat attachment above (attacker-egress-requires-nat)
-  egress:
-    allow:
-      - 198.51.100.53/32:udp/53
-      - 198.51.100.0/24:tcp/443
+  egress: none                   # default: nothing leaves the range (see the staging note above)
   # no image declared: boots the catalog's standard kali-class attack box
 
 defense:

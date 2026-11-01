@@ -1,3 +1,7 @@
+## Unreleased
+
+- `defender_ops` no longer declares egress: its staging segment is `mode: isolated` and the attack box `egress: none`, like every other example. The segment's scoped allowlist named TEST-NET-2 addresses, so it realized the NAT and allowlist shape without live egress and no challenge scored anything through it, yet an egress-declaring range refuses to boot without a deployment uplink network (`INSPECT_RANGES_UPLINK_NETWORK`), which made this the one example a deployer could not run under the hypervisor-isolated posture the rest share. The whole example set now boots with no uplink and no egress of any kind; the egress vocabulary stays covered by the networks reference and the compiler tests. The spec hash moves, so the catalog's `defender-ops` build republishes with this release.
+
 ## 0.2.8 (01 November 2026)
 
 - Distribution: blob download retries wait longer and not in step. The budget is six attempts (was four) and the delay doubles from about two seconds to a cap of one minute, jittered so several pullers of the same blob behind one proxy do not retry at the same instant; worst-case patience is about two minutes instead of twelve seconds, which outlasts an egress proxy's bad minute rather than exhausting the budget inside it. Observed in deployment: a shard's 970 MB stream was cut at 885 MB and restarted cleanly, while the previous twelve-second budget would have lost a correlated burst.
