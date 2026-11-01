@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from .errors import BuildError
-from .manifest import BehavioralCheckRecord, GoalAssertion
+from .manifest import BehavioralCheckRecord
 from .recipes import StageSink
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from .._compiler.plan import ResolvedPlan
     from .._provider.state import SampleHandle
     from ..types import RangeSpec
+    from .manifest import GoalAssertion
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +391,17 @@ def validate_conformance(challenges: "Challenges", range_dir: Path) -> None:
                 "behavioral",
                 f"conformance directory {entry.name!r} matches no declared "
                 f"challenge (declared: {sorted(declared)})",
+            )
+        if not entry.is_dir():
+            # a file at the root never runs (proofs are challenge-scoped) but
+            # WOULD enter the digest: green-but-silently-skipped, the exact
+            # class this validation closes; refuse like a misnamed directory
+            raise BuildError(
+                "behavioral",
+                f"{CONFORMANCE_DIR_NAME}/{entry.name} is not a challenge "
+                "directory; proofs are challenge-scoped "
+                f"({CONFORMANCE_DIR_NAME}/<challenge-id>/), and a stray file "
+                "here would digest without ever running",
             )
     for challenge in challenges.challenges:
         if challenge.goals and all(_model_graded(goal) for goal in challenge.goals):

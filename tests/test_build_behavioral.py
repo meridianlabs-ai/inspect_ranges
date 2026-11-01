@@ -299,6 +299,12 @@ def test_validate_conformance_trio_or_prove_scripts(tmp_path: pathlib.Path) -> N
     (demo / "broken.py").write_text("def prove(:\n")
     with pytest.raises(BuildError, match="does not parse"):
         validate_conformance(challenges, tmp_path)
+    # a stray file at the root would digest without ever running: refuse
+    (tmp_path / "conformance" / "exfil_prove.py").write_text(
+        "async def prove(ctx):\n    pass\n"
+    )
+    with pytest.raises(BuildError, match="not a challenge directory"):
+        validate_conformance(challenges, tmp_path)
 
 
 def test_reference_requires_corroborated_beacon_goals(
@@ -1015,3 +1021,132 @@ def test_prove_script_outcomes_map_to_check_records(
     assert record.status == "fail"
     assert "expected achieved=True" in record.detail
     assert len(unwound) == 2
+
+
+def test_runner_orders_trio_then_scripts_and_early_returns(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """run_behavioral_checks executes a challenge's trio before its prove scripts, scripts in name order, challenges in declaration order; the first failing record ends the run (the caller records the refusal)."""
+    import inspect_ranges._build.behavioral as behavioral_module
+    import inspect_ranges._channel.channel as channel_module
+    import inspect_ranges._channel.vsock as vsock_module
+    import inspect_ranges._provider.evidence as evidence_module
+    import inspect_ranges._provider.state as state_module
+    from inspect_ranges._build.behavioral import run_behavioral_checks
+    from inspect_ranges._build.manifest import BehavioralCheckRecord
+
+    monkeypatch.setenv("INSPECT_RANGES_EXEC_WITNESS", "0")
+    (tmp_path / "challenges.yaml").write_text(
+        "challenges:\n"
+        "  - id: c1\n"
+        "    prompt: p\n"
+        "    goals: [{id: g1, type: flag, host: atk, path: /f}]\n"
+        "  - id: c2\n"
+        "    prompt: p\n"
+        "    goals: [{id: g2, type: flag, host: atk, path: /f}]\n"
+    )
+    chain_dir = tmp_path / "conformance" / "c1"
+    chain_dir.mkdir(parents=True)
+    for name in ("reference", "insufficient", "forged"):
+        (chain_dir / f"{name}.sh").write_text("true\n")
+    script_dir = tmp_path / "conformance" / "c2"
+    script_dir.mkdir()
+    for script in ("a_first.py", "b_second.py"):
+        (script_dir / script).write_text("async def prove(ctx):\n    pass\n")
+
+    class FakeSession:
+        driver_writer = None
+        enabled = True
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        async def open(self, **kwargs: Any) -> None:
+            pass
+
+        async def finalize(self) -> None:
+            pass
+
+        def register_producer(self, stop: Any) -> None:
+            pass
+
+    def fake_handle(**kwargs: Any) -> Any:
+        return SimpleNamespace(**kwargs)
+
+    def fake_channel(*args: Any, **kwargs: Any) -> Any:
+        return object()
+
+    def fake_transport(*args: Any, **kwargs: Any) -> Any:
+        return object()
+
+    def fake_attacker(spec: Any, plan: Any) -> tuple[str, str]:
+        return ("atk", "10.0.0.2")
+
+    def fake_oracle_class() -> Any:
+        def construct(handle: Any) -> Any:
+            return object()
+
+        return construct
+
+    monkeypatch.setattr(evidence_module, "EvidenceSession", FakeSession)
+    monkeypatch.setattr(state_module, "SampleHandle", fake_handle)
+    monkeypatch.setattr(channel_module, "MessageChannel", fake_channel)
+    monkeypatch.setattr(vsock_module, "VsockTransport", fake_transport)
+    monkeypatch.setattr(behavioral_module, "_attacker_guest", fake_attacker)
+    monkeypatch.setattr(behavioral_module, "_scoped_oracle_class", fake_oracle_class)
+
+    ran: list[str] = []
+    outcomes: dict[str, str] = {}
+
+    async def fake_run_one(
+        oracle: Any, challenge: Any, name: str, script: str, *args: Any, **kwargs: Any
+    ) -> BehavioralCheckRecord:
+        ran.append(f"{challenge.id}:{name}")
+        return BehavioralCheckRecord(
+            challenge=challenge.id, check=name, status="pass", detail=""
+        )
+
+    async def fake_prove(
+        oracle: Any, challenge: Any, script: pathlib.Path, **kwargs: Any
+    ) -> BehavioralCheckRecord:
+        ran.append(f"{challenge.id}:{script.name}")
+        return BehavioralCheckRecord(
+            challenge=challenge.id,
+            check=script.name,
+            status=outcomes.get(script.name, "pass"),
+            detail="",
+        )
+
+    monkeypatch.setattr(behavioral_module, "_run_one", fake_run_one)
+    monkeypatch.setattr(behavioral_module, "_run_prove_script", fake_prove)
+
+    def run() -> tuple[BehavioralCheckRecord, ...]:
+        spec = SimpleNamespace(meta=SimpleNamespace(name="r"))
+        plan = SimpleNamespace(totals=None, guests=[])
+        return asyncio.run(
+            run_behavioral_checks(
+                cast(Any, spec),
+                cast(Any, plan),
+                tmp_path,
+                project="p",
+                bundle=tmp_path,
+                cids={"atk": 3},
+                evidence_dir=tmp_path / "ev",
+            )
+        )
+
+    records = run()
+    assert ran == [
+        "c1:reference",
+        "c1:insufficient",
+        "c1:forged",
+        "c2:a_first.py",
+        "c2:b_second.py",
+    ]
+    assert all(record.status == "pass" for record in records)
+
+    ran.clear()
+    outcomes["a_first.py"] = "fail"
+    records = run()
+    assert ran[-1] == "c2:a_first.py" and "c2:b_second.py" not in ran
+    assert records[-1].status == "fail" and records[-1].check == "a_first.py"

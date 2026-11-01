@@ -10,6 +10,7 @@ Proof artifacts are working exploits. They run from the operator side through th
 import hashlib
 import importlib.util
 import inspect as pyinspect
+import math
 import sys
 import time
 from collections.abc import Awaitable, Callable
@@ -97,7 +98,11 @@ class ProveContext:
                 f"goal {goal_id!r}: expected achieved={achieved}, got "
                 f"achieved={result.achieved} ({result.reason or 'no reason recorded'})"
             )
-        if partial is not None and (result.partial or 0.0) != partial:
+        if partial is not None and not math.isclose(
+            result.partial or 0.0, partial, rel_tol=0.0, abs_tol=1e-9
+        ):
+            # tolerant equality: a goal type computing partial as 1/3 must be
+            # assertable with a literal
             raise ConformanceError(
                 f"goal {goal_id!r}: expected partial={partial}, got {result.partial}"
             )
@@ -108,16 +113,24 @@ class ProveContext:
         )
 
 
-def load_prove_module(path: Path, label: str) -> object:
-    """Import a loose module by path, cached by resolved location so repeated proofs in one process never re-execute registrations.
+def load_prove_module(path: Path, label: str, *, content_keyed: bool = False) -> object:
+    """Import a loose module by path, cached in `sys.modules` so repeated proofs in one process never re-execute registrations.
+
+    The cache key is the resolved location; with `content_keyed` it also hashes the file's bytes, so an edited proof script re-imports (the digest invalidated the cached build, and the re-proof must run the edited code, not a stale module). `task.py` stays path-keyed on purpose: re-executing it would re-register its goal types under the same names.
+
+    Sibling imports a script makes during its own import are scoped to it: modules newly landed in `sys.modules` whose file lives beside the script are evicted afterward, so two challenges each shipping a `helpers.py` never read each other's.
 
     Raises:
-        ConformanceError: The module cannot be loaded.
+        ConformanceError: The module cannot be read or imported.
     """
-    key = (
-        f"ir_prove_{label}_"
-        f"{hashlib.sha256(str(path.resolve()).encode()).hexdigest()[:12]}"
-    )
+    try:
+        content = path.read_bytes()
+    except OSError as error:
+        raise ConformanceError(f"{path} cannot be read: {error}") from error
+    hasher = hashlib.sha256(str(path.resolve()).encode())
+    if content_keyed:
+        hasher.update(b"\0" + content)
+    key = f"ir_prove_{label}_{hasher.hexdigest()[:12]}"
     cached = sys.modules.get(key)
     if cached is not None:
         return cached
@@ -125,16 +138,25 @@ def load_prove_module(path: Path, label: str) -> object:
     if module_spec is None or module_spec.loader is None:
         raise ConformanceError(f"{path} cannot be imported")
     module = importlib.util.module_from_spec(module_spec)
-    sys.path.insert(0, str(path.parent))
+    parent = str(path.parent)
+    before = set(sys.modules)
+    sys.path.insert(0, parent)
     try:
         try:
-            module_spec.loader.exec_module(module)
+            # the exact bytes the cache key (and the build digest) saw run,
+            # never the loader's __pycache__ view: an edit within one mtime
+            # second at equal size would otherwise execute stale bytecode
+            exec(compile(content, str(path), "exec"), module.__dict__)  # noqa: S102
         except Exception as error:
             raise ConformanceError(
                 f"{path.name} failed to import: {type(error).__name__}: {error}"
             ) from error
     finally:
-        sys.path.remove(str(path.parent))
+        sys.path.remove(parent)
+        for name in set(sys.modules) - before:
+            file = getattr(sys.modules[name], "__file__", None)
+            if file is not None and Path(file).parent == path.parent:
+                del sys.modules[name]
     sys.modules[key] = module
     return module
 
@@ -160,7 +182,9 @@ async def execute_prove(script: Path, context: ProveContext) -> None:
     Raises:
         ConformanceError: The script defines no async `prove`, raises (any exception becomes the proof's failure, named), or finishes without asserting a goal verdict.
     """
-    module = load_prove_module(script, "script")
+    # content-keyed: an edited script re-imports (the digest already
+    # invalidated the cached build; the re-proof must run the edited code)
+    module = load_prove_module(script, "script", content_keyed=True)
     prove_fn = getattr(module, "prove", None)
     if not callable(prove_fn):
         raise ConformanceError(f"{script.name} defines no prove(ctx)")

@@ -204,3 +204,40 @@ def test_load_prove_module_caches_by_path(tmp_path: Path) -> None:
     second = load_prove_module(script, "script")
     assert first is second
     assert cast(Any, first).ticks == [1]
+
+
+def test_load_prove_module_content_keyed_reimports(tmp_path: Path) -> None:
+    """An edited proof script re-imports under its content key: the digest already invalidated the cached build, and the re-proof must run the edited code, never a stale module."""
+    from inspect_ranges._challenges.prove import load_prove_module
+
+    script = tmp_path / "p.py"
+    script.write_text("value = 1\n")
+    first = load_prove_module(script, "script", content_keyed=True)
+    assert cast(Any, first).value == 1
+    script.write_text("value = 2\n")
+    second = load_prove_module(script, "script", content_keyed=True)
+    assert cast(Any, second).value == 2 and first is not second
+
+
+def test_sibling_imports_scope_to_their_script(tmp_path: Path) -> None:
+    """Two challenges each shipping a `helpers.py` must never read each other's: sibling modules a script imports are evicted from sys.modules after its own import."""
+    import sys
+
+    from inspect_ranges._challenges.prove import load_prove_module
+
+    sys.modules.pop("helpers", None)
+    for name, flavor in (("a", "alpha"), ("b", "bravo")):
+        directory = tmp_path / name
+        directory.mkdir()
+        (directory / "helpers.py").write_text(f"flavor = '{flavor}'\n")
+        (directory / "prove_x.py").write_text(
+            "import helpers\nflavor = helpers.flavor\n"
+        )
+    first = load_prove_module(
+        tmp_path / "a" / "prove_x.py", "script", content_keyed=True
+    )
+    second = load_prove_module(
+        tmp_path / "b" / "prove_x.py", "script", content_keyed=True
+    )
+    assert (cast(Any, first).flavor, cast(Any, second).flavor) == ("alpha", "bravo")
+    assert "helpers" not in sys.modules
