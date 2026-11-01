@@ -433,14 +433,19 @@ def stamp_bundle_sha256(
 
 
 def stamp_proven(
-    build_cache: Path, range_name: str, spec_sha256: str, record: ProvenRecord
+    build_cache: Path,
+    range_name: str,
+    spec_sha256: str,
+    record: ProvenRecord,
+    *,
+    built_at: str,
 ) -> None:
     """Record a passing conformance run on the manifest its proofs booted, atomically.
 
-    The load-compare-save runs under the same per-range lock as `save_manifest`, and the stamp lands only when the on-disk manifest is still the spec revision the proofs consumed (`stamp_bundle_sha256`'s discipline): a concurrent rebuild must never inherit a proven marker it did not earn, and a stamp that cannot land refuses loudly rather than printing a success the manifest does not carry.
+    The load-compare-save runs under the same per-range lock as `save_manifest`, and the stamp lands only when the on-disk manifest is still the exact BUILD the proofs consumed, by spec revision AND `built_at` (`save_refused_manifest`'s discipline; a concurrent same-spec rebuild produced different captured images and must earn its own proof), and carries no failing records (a concurrent refused re-proof must never read proven). A stamp that cannot land refuses loudly rather than printing a success the manifest does not carry.
 
     Raises:
-        RuntimeError: No manifest exists for the range, or the on-disk manifest is a different spec revision than the proofs booted.
+        RuntimeError: No manifest exists for the range, the on-disk manifest is a different spec revision or build than the proofs booted, or it is refused.
     """
     path = manifest_path(build_cache, range_name)
     lock_path = path.parent / ".manifest.lock"
@@ -449,12 +454,30 @@ def stamp_proven(
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
             current = load_manifest(build_cache, range_name)
-            if current is None or current.spec_sha256 != spec_sha256:
+            if (
+                current is None
+                or current.spec_sha256 != spec_sha256
+                or current.built_at != built_at
+            ):
                 raise RuntimeError(
                     f"the proven stamp for {range_name!r} did not land: the "
                     "on-disk manifest is "
-                    + ("absent" if current is None else "a different spec revision")
+                    + (
+                        "absent"
+                        if current is None
+                        else "a different spec revision"
+                        if current.spec_sha256 != spec_sha256
+                        else "a different build of the same revision"
+                    )
                     + "; rebuild and prove again"
+                )
+            if any(
+                item.status != "pass"
+                for item in current.verification.behavioral_checks
+            ):
+                raise RuntimeError(
+                    f"the proven stamp for {range_name!r} did not land: the "
+                    "on-disk manifest is REFUSED; rebuild and prove again"
                 )
             temp = path.with_suffix(".json.writing")
             temp.write_text(

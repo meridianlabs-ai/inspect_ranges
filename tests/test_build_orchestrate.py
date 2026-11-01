@@ -2344,3 +2344,41 @@ def test_build_leases_cids_by_default_and_teardown_releases(
         capture_fn=fakes.capture_fn,
     )
     assert allocator.leased_projects() == []  # non-kept build released its block
+
+
+def test_behavioral_phase_adapter_forwards_the_seam_scalars(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, cache: Path
+) -> None:
+    """The BehavioralFn adapter unpacks BuildOptions into run_proof_boot's scalars and passes neither keep_on_failure nor an assertion sink: the build path stays fail-closed with its own lease."""
+    import inspect_ranges._build.orchestrate as orchestrate_module
+    from inspect_ranges._build.orchestrate import (
+        _run_behavioral_phase,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    seen: dict[str, Any] = {}
+
+    def fake_seam(spec: Any, range_dir: Any, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return ()
+
+    monkeypatch.setattr(orchestrate_module, "run_proof_boot", fake_seam)
+    options = options_for(
+        tmp_path, cache, cid_base=7, readiness_timeout=42.0, uplink_network="uplink0"
+    )
+    _run_behavioral_phase(
+        cast(Any, object()),
+        tmp_path,
+        manifest=cast(Any, object()),
+        image_cache=cache,
+        build_cache=tmp_path / "builds",
+        state_dir=tmp_path / "state",
+        options=options,
+        project="ir-demo",
+        stage_log=cast(Any, object()),
+        up_fn=cast(Any, object()),
+        down_fn=cast(Any, object()),
+    )
+    assert seen["cid_base"] == 7
+    assert seen["readiness_timeout"] == 42.0
+    assert seen["uplink_network"] == "uplink0"
+    assert "keep_on_failure" not in seen and "assertion_sink" not in seen

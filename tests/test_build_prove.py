@@ -86,9 +86,9 @@ def _wire(
         return SimpleNamespace(guests=2)
 
     def fake_stamp(
-        build_cache: Path, name: str, sha: str, record: ProvenRecord
+        build_cache: Path, name: str, sha: str, record: ProvenRecord, *, built_at: str
     ) -> None:
-        seen["stamped"] = (sha, record)
+        seen["stamped"] = (sha, record, built_at)
 
     monkeypatch.setattr(prove_module, "load_range", fake_load_range)
     monkeypatch.setattr(prove_module, "spec_sha256", fake_sha)
@@ -135,8 +135,9 @@ def test_run_prove_boots_through_the_seam_and_stamps(
     monkeypatch.setattr(prove_module, "run_proof_boot", fake_seam)
     record = run_prove(_range_dir(tmp_path), state_dir=state)
     assert seen["validated"] and seen["keep"] is False
-    stamped_sha, stamped = seen["stamped"]
+    stamped_sha, stamped, stamped_built_at = seen["stamped"]
     assert stamped_sha == sha and stamped is record
+    assert stamped_built_at == "2026-11-01T00:00:00+00:00"  # the loaded build's
     assert record.scripts == ["demo/reference", "demo/prove_flow.py"]
     assert [a.goal_id for a in record.assertions] == ["token"]
     # the seam's keep_state teardown never releases leases (down releases on
@@ -201,6 +202,13 @@ def test_run_prove_failure_shapes(
     with pytest.raises(ConformanceError, match="left unmarked"):
         run_prove(range_dir, state_dir=state)
     assert "stamped" not in seen
+    # an un-kept failing verdict released its lease (the seam tore down)
+    assert allocator.leased_projects() == []
+    # a KEPT failing verdict retains it (the seam left the boot up) and the
+    # error names the down command
+    with pytest.raises(ConformanceError, match=f"down {lease_project}"):
+        run_prove(range_dir, state_dir=state, keep=True)
+    assert allocator.leased_projects() == [lease_project]
     allocator.release(lease_project)
 
     def raising_seam(spec: Any, range_dir: Path, **kwargs: Any) -> Any:
@@ -289,13 +297,31 @@ def test_stamp_proven_is_revision_locked_and_additive(tmp_path: Path) -> None:
         scripts=["demo/prove_flow.py"],
         assertions=[GoalAssertion(goal_id="token", expected_achieved=True)],
     )
+    built_at = manifest.built_at
     with pytest.raises(RuntimeError, match="different spec revision"):
-        stamp_proven(build_cache, "proof-range", "b" * 64, record)
-    stamp_proven(build_cache, "proof-range", "a" * 64, record)
+        stamp_proven(build_cache, "proof-range", "b" * 64, record, built_at=built_at)
+    # a concurrent SAME-SPEC rebuild (new built_at) must not inherit the stamp
+    with pytest.raises(RuntimeError, match="different build of the same revision"):
+        stamp_proven(
+            build_cache, "proof-range", "a" * 64, record, built_at="2026-11-01T02:00:00+00:00"
+        )
+    stamp_proven(build_cache, "proof-range", "a" * 64, record, built_at=built_at)
     reloaded = load_manifest(build_cache, "proof-range")
     assert reloaded is not None and reloaded.proven is not None
     assert reloaded.proven.scripts == ["demo/prove_flow.py"]
     assert reloaded.verification.behavioral_checks == behavioral  # untouched
     assert reloaded.checks_sha256 == "c" * 64
     with pytest.raises(RuntimeError, match="absent"):
-        stamp_proven(build_cache, "other-range", "a" * 64, record)
+        stamp_proven(build_cache, "other-range", "a" * 64, record, built_at=built_at)
+    # a concurrent refused re-proof of the same build must never read proven
+    refused = _manifest(
+        "a" * 64,
+        behavioral=(
+            BehavioralCheckRecord(
+                challenge="demo", check="forged", status="fail", detail="scored 1.0"
+            ),
+        ),
+    )
+    save_manifest(refused, build_cache)
+    with pytest.raises(RuntimeError, match="REFUSED"):
+        stamp_proven(build_cache, "proof-range", "a" * 64, record, built_at=built_at)

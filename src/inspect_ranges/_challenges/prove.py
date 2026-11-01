@@ -118,7 +118,7 @@ def load_prove_module(path: Path, label: str, *, content_keyed: bool = False) ->
 
     The cache key is the resolved location; with `content_keyed` it also hashes the file's bytes, so an edited proof script re-imports (the digest invalidated the cached build, and the re-proof must run the edited code, not a stale module). `task.py` stays path-keyed on purpose: re-executing it would re-register its goal types under the same names.
 
-    Sibling imports a script makes during its own import are scoped to it: modules newly landed in `sys.modules` whose file lives beside the script are evicted afterward, so two challenges each shipping a `helpers.py` never read each other's.
+    Sibling imports a script makes during its own import are scoped to it: modules newly landed in `sys.modules` whose file or package path lives anywhere under the script's directory (an `_helpers.py` sibling, an `assets/` namespace package) are evicted afterward, so two challenges' same-named helpers never read each other's.
 
     Raises:
         ConformanceError: The module cannot be read or imported.
@@ -153,10 +153,19 @@ def load_prove_module(path: Path, label: str, *, content_keyed: bool = False) ->
             ) from error
     finally:
         sys.path.remove(parent)
+        root = path.parent.resolve()
         for name in set(sys.modules) - before:
-            file = getattr(sys.modules[name], "__file__", None)
-            if file is not None and Path(file).parent == path.parent:
-                del sys.modules[name]
+            module_obj = sys.modules[name]
+            file = getattr(module_obj, "__file__", None)
+            # namespace packages (an assets/ subdir) carry __path__, no file
+            locations = (
+                [file] if file else list(getattr(module_obj, "__path__", None) or [])
+            )
+            for location in locations:
+                resolved = Path(location).resolve()
+                if resolved == root or root in resolved.parents:
+                    del sys.modules[name]
+                    break
     sys.modules[key] = module
     return module
 

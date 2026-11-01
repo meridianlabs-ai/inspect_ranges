@@ -220,18 +220,23 @@ def test_load_prove_module_content_keyed_reimports(tmp_path: Path) -> None:
 
 
 def test_sibling_imports_scope_to_their_script(tmp_path: Path) -> None:
-    """Two challenges each shipping a `helpers.py` must never read each other's: sibling modules a script imports are evicted from sys.modules after its own import."""
+    """Two challenges' same-named helpers must never read each other's: modules a script imports from inside its own challenge directory (an `_helpers.py` sibling, an `assets/` namespace package) are evicted from sys.modules after its import."""
     import sys
 
     from inspect_ranges._challenges.prove import load_prove_module
 
-    sys.modules.pop("helpers", None)
+    for name in ("_helpers", "assets", "assets.deep"):
+        sys.modules.pop(name, None)
     for name, flavor in (("a", "alpha"), ("b", "bravo")):
         directory = tmp_path / name
-        directory.mkdir()
-        (directory / "helpers.py").write_text(f"flavor = '{flavor}'\n")
+        (directory / "assets").mkdir(parents=True)
+        (directory / "_helpers.py").write_text(f"flavor = '{flavor}'\n")
+        (directory / "assets" / "deep.py").write_text(f"nested = '{flavor}'\n")
         (directory / "prove_x.py").write_text(
-            "import helpers\nflavor = helpers.flavor\n"
+            "import _helpers\n"
+            "from assets import deep\n"
+            "flavor = _helpers.flavor\n"
+            "nested = deep.nested\n"
         )
     first = load_prove_module(
         tmp_path / "a" / "prove_x.py", "script", content_keyed=True
@@ -240,4 +245,6 @@ def test_sibling_imports_scope_to_their_script(tmp_path: Path) -> None:
         tmp_path / "b" / "prove_x.py", "script", content_keyed=True
     )
     assert (cast(Any, first).flavor, cast(Any, second).flavor) == ("alpha", "bravo")
-    assert "helpers" not in sys.modules
+    assert (cast(Any, first).nested, cast(Any, second).nested) == ("alpha", "bravo")
+    for name in ("_helpers", "assets", "assets.deep"):
+        assert name not in sys.modules

@@ -1644,8 +1644,9 @@ def run_proof_boot(
         # from here the bx range is RUNNING: every exit, including the
         # conformance stage's designed refusal and a convergence timeout,
         # must pass through the teardown finally (round-3 review B1)
+        outcome: tuple[BehavioralCheckRecord, ...] | None = None
         try:
-            return _prove_realized_boot(
+            outcome = _prove_realized_boot(
                 spec,
                 plan,
                 range_dir,
@@ -1661,18 +1662,39 @@ def run_proof_boot(
                 draw_seed=draw_seed,
                 assertion_sink=assertion_sink,
             )
+            return outcome
         finally:
-            try:
-                down_fn(bx_project, state_dir=state_dir, keep_state=True)
-                bx_down = True
-            except Exception as error:  # the primary diagnosis stays primary
-                bx_down = False
+            # a FAILED proof is either a propagating exception (outcome never
+            # assigned) or a failing record; keep_on_failure keeps that boot
+            # up for diagnosis (the standalone --keep; the build passes False
+            # and always tears down)
+            proof_failed = outcome is None or any(
+                record.status != "pass" for record in outcome
+            )
+            if keep_on_failure and proof_failed:
+                bx_down = False  # the surviving range keeps its bundle
                 stage_log.log(
                     "teardown",
-                    "fail",
-                    error=f"{error}; retry with: inspect-ranges down {bx_project}",
+                    "ok",
+                    kept=True,
                     project=bx_project,
+                    detail=(
+                        "failed proof boot kept for diagnosis: "
+                        f"inspect-ranges down {bx_project}"
+                    ),
                 )
+            else:
+                try:
+                    down_fn(bx_project, state_dir=state_dir, keep_state=True)
+                    bx_down = True
+                except Exception as error:  # the primary diagnosis stays primary
+                    bx_down = False
+                    stage_log.log(
+                        "teardown",
+                        "fail",
+                        error=f"{error}; retry with: inspect-ranges down {bx_project}",
+                        project=bx_project,
+                    )
     finally:
         if chunk_override is None:
             os.environ.pop("CAPTURE_CHUNK_MB", None)

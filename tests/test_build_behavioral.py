@@ -296,6 +296,12 @@ def test_validate_conformance_trio_or_prove_scripts(tmp_path: pathlib.Path) -> N
     for script in ("insufficient", "forged"):
         (demo / f"{script}.sh").write_text("true\n")
     validate_conformance(challenges, tmp_path)  # trio and scripts coexist
+    # an underscore sibling is a helper, not a proof: no prove() required
+    (demo / "_helper.py").write_text("flavor = 'alpha'\n")
+    validate_conformance(challenges, tmp_path)
+    from inspect_ranges._build.behavioral import prove_scripts
+
+    assert [p.name for p in prove_scripts(demo)] == ["prove_flow.py"]
     (demo / "broken.py").write_text("def prove(:\n")
     with pytest.raises(BuildError, match="does not parse"):
         validate_conformance(challenges, tmp_path)

@@ -1,6 +1,6 @@
 """Build phase: recipe bundles, the build orchestration, verification, and the build manifest (build-v1).
 
-Import boundaries: `_build` may import `_compiler`, `_runtime`, and `_channel`; nothing imports `_build` at module top except `_cli` and `_provider` (the build-aware gate's manifest consumption; `_challenges.prove` reaches `_build.manifest` lazily inside a method for its assertion record). The build is a consumer of `up`/`down`, never a reimplementation.
+Import boundaries: `_build` may import `_compiler`, `_runtime`, `_channel`, and `_provider.naming` (the CID allocator); nothing imports `_build` at module top except `_cli` and `_provider` (the build-aware gate's manifest consumption; `_challenges.prove` reaches `_build.manifest` lazily inside a method for its assertion record). The build is a consumer of `up`/`down`, never a reimplementation.
 """
 
 from .activities import (

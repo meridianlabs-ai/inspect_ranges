@@ -63,12 +63,11 @@ def prove(
         )
     except (ConformanceError, BuildError, UpError, IssueError, RuntimeError) as error:
         raise click.ClickException(str(error)) from error
-    goals: dict[str, Any] = {}
-    for entry in record.assertions:
-        goals[entry.goal_id] = entry.expected_achieved
+    # one entry per assertion, in order: a proof may assert BOTH directions on
+    # one goal (the falsifiability pattern), and the summary must show both
     asserted = ", ".join(
-        f"{goal_id}={'achieved' if expected else 'not-achieved'}"
-        for goal_id, expected in goals.items()
+        f"{entry.goal_id}={'achieved' if entry.expected_achieved else 'not-achieved'}"
+        for entry in record.assertions
     )
     click.echo(
         f"proven: {len(record.scripts)} check(s)"

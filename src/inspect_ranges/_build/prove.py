@@ -67,10 +67,6 @@ def run_prove(
             f"{range_dir} declares no conformance proofs (conformance/ with "
             "challenges.yaml)"
         )
-    # fail fast on what the files alone can refuse, before any boot; this also
-    # registers a loose task.py's goal types for the scripts' assertions
-    validate_conformance(load_challenges(range_dir), range_dir)
-
     spec = load_range(range_dir / "range.yaml")
     spec_hash = spec_sha256(spec)
     manifest = load_manifest(build_cache, spec.meta.name)
@@ -79,12 +75,14 @@ def run_prove(
             f"no build manifest for {spec.meta.name!r}; build (or pull) the "
             "range before proving it"
         )
-    _refuse_unprovable(manifest, spec_hash, range_dir, ConformanceError)
+    _refuse_unprovable(manifest, spec_hash, range_dir)
+    # tree validation runs AFTER the manifest gates: it imports the range's
+    # loose task.py (arbitrary code, needed to register goal types for the
+    # scripts' assertions), and a cheap manifest refusal must come first
+    validate_conformance(load_challenges(range_dir), range_dir)
 
     project = f"{PROJECT_PREFIX}{spec.meta.name}-{spec_hash[:12]}-prove"
-    # the seam boots `<project>-bx`; the lease keys that exact name so the
-    # real `down` inside the seam's teardown releases it (down.py releases
-    # its project's lease)
+    # the lease keys the exact project the seam boots (`<project>-bx`)
     bx_project = f"{project}-bx"
     allocator = CidAllocator(state_dir)
     try:
@@ -130,40 +128,52 @@ def run_prove(
             assertion_sink=assertions,
         )
     except BaseException:
-        # pre-up and settle failures: the seam's own teardown (or `up`'s
-        # keep_on_failure=False disposal) handled the range; a KEPT failed
-        # boot keeps its lease until the operator's down
+        # pre-up and settle failures: with keep the seam left the failed boot
+        # up (its lease must survive until the operator's down); otherwise the
+        # seam's teardown ran, unless it FAILED (never free a block under a
+        # possibly-live range)
         if not keep and not teardown_failed:
             allocator.release(bx_project)
         raise
-    if not teardown_failed:
-        allocator.release(bx_project)
     failed = [record for record in records if record.status != "pass"]
+    kept_range = keep and bool(failed)
+    if not teardown_failed and not kept_range:
+        allocator.release(bx_project)
     if failed:
         verdict = failed[0]
+        hint = (
+            f"; the failed proof boot is kept: inspect-ranges down {bx_project}"
+            if kept_range
+            else ""
+        )
         raise ConformanceError(
             f"challenge {verdict.challenge!r} check {verdict.check!r} failed: "
             f"{verdict.detail} (the manifest is left unmarked; the build is "
-            "where refusals are earned)"
+            f"where refusals are earned{hint})"
         )
     record = ProvenRecord(
         proven_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         scripts=[f"{item.challenge}/{item.check}" for item in records],
         assertions=assertions,
     )
-    stamp_proven(build_cache, spec.meta.name, spec_hash, record)
+    stamp_proven(
+        build_cache, spec.meta.name, spec_hash, record, built_at=manifest.built_at
+    )
     return record
 
 
 def _refuse_unprovable(
-    manifest: BuildManifest,
-    spec_hash: str,
-    range_dir: Path,
-    error_type: type[Exception],
+    manifest: BuildManifest, spec_hash: str, range_dir: Path
 ) -> None:
-    """The standalone gate: the stamp must describe exactly the recorded build, so a revision drift or a recorded refusal refuses before any boot."""
+    """The standalone gate: the stamp must describe exactly the recorded build, so a revision drift or a recorded refusal refuses before any boot.
+
+    Raises:
+        ConformanceError: Spec revision drift, a recorded refusal, or a conformance tree the recorded build did not prove (including a build that predates the tree, whose recorded digest is empty).
+    """
+    from .._challenges.prove import ConformanceError
+
     if not manifest_matches_spec(manifest, spec_hash):
-        raise error_type(
+        raise ConformanceError(
             "the recorded build is a different spec revision than this range "
             "directory; rebuild before proving"
         )
@@ -173,13 +183,14 @@ def _refuse_unprovable(
         if record.status != "pass"
     ]
     if failing:
-        raise error_type(
+        raise ConformanceError(
             f"the recorded build is REFUSED (challenge "
             f"{failing[0].challenge!r} check {failing[0].check!r}: "
             f"{failing[0].detail}); fix the range and rebuild before proving"
         )
-    if manifest.checks_sha256 and manifest.checks_sha256 != checks_digest(range_dir):
-        raise error_type(
-            "the conformance tree differs from the one the recorded build "
-            "proved (checks_sha256 mismatch); rebuild to re-prove"
+    if manifest.checks_sha256 != checks_digest(range_dir):
+        raise ConformanceError(
+            "the conformance tree is not the one the recorded build proved "
+            "(checks_sha256 mismatch; an empty recorded digest means the "
+            "build predates the tree); rebuild to re-prove"
         )
