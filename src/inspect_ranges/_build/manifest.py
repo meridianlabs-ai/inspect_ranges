@@ -278,6 +278,14 @@ def spec_projection(
         projected["roles"] = list(host.roles)
     if host.defense is not None:
         projected["defense"] = host.defense.model_dump(mode="json")
+    if host.hardware is not None:
+        # the machine shape bakes into what the recipe boot captured (device
+        # names, buses, slots), so declared hardware re-keys the guest; the
+        # exclude_defaults dump keeps an all-defaults block key-identical to
+        # an absent one
+        declared_hardware = host.hardware.model_dump(mode="json", exclude_defaults=True)
+        if declared_hardware:
+            projected["hardware"] = declared_hardware
     if host.scheduled_activity:
         projected["scheduled_activity"] = [
             activity.model_dump(mode="json") for activity in host.scheduled_activity

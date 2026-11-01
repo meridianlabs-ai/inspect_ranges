@@ -82,6 +82,7 @@ def test_derive_writes_golden_and_provenance(
     assert (cache / metadata.file).is_file()
     assert metadata.golden_sha256 == sha256_file(cache / metadata.file)
     assert metadata.vendor_sha256 == digest
+    assert metadata.daemon is not None
     assert metadata.daemon.name == "vsockd"
     assert metadata.daemon.version == "3.0.0-test"
     sidecar_info = DaemonBundleInfo.model_validate_json(
@@ -371,3 +372,118 @@ def test_prune_reporters_apply_the_live_exclusion(
     write_owner(state, owner_record("ir-live-x", "live", "0" * 64, bundle))
     live = recorded_realized_files(tmp_path / "no-builds") | live_project_files(state)
     assert "live-web-abc.qcow2" in live
+
+
+def test_import_image_lands_flattened_with_an_imported_sidecar(tmp_path: Path) -> None:
+    """An import flattens any backing chain into one self-contained cache file and records a kind=imported sidecar: no daemon pin, the source's own name and digest as provenance, the operator's notes; a second import of the name refuses."""
+    import subprocess
+
+    from inspect_ranges._runtime.images import (
+        DeriveError,
+        ImageMetadata,
+        import_image,
+        sha256_file,
+    )
+
+    base = tmp_path / "appliance-base.qcow2"
+    subprocess.run(
+        ["qemu-img", "create", "-f", "qcow2", str(base), "4M"],
+        check=True,
+        capture_output=True,
+    )
+    source = tmp_path / "appliance-prepped.qcow2"
+    subprocess.run(
+        [
+            "qemu-img",
+            "create",
+            "-f",
+            "qcow2",
+            "-F",
+            "qcow2",
+            "-b",
+            str(base),
+            str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    cache = tmp_path / "cache"
+    metadata = import_image(source, "acme-router-9.9", cache, notes="prepped offline")
+    assert metadata.resolved_kind == "imported" and metadata.chainless
+    assert metadata.daemon is None
+    assert metadata.vendor_file == "appliance-prepped.qcow2"
+    assert metadata.vendor_sha256 == sha256_file(source)
+    assert metadata.notes == "prepped offline"
+    landed = cache / metadata.file
+    assert landed.is_file()
+    assert metadata.golden_sha256 == sha256_file(landed)
+    info = subprocess.run(
+        ["qemu-img", "info", "--output=json", str(landed)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "backing-filename" not in info  # the chain flattened on the way in
+    reloaded = ImageMetadata.model_validate_json(
+        (cache / (metadata.file.removesuffix(".qcow2") + ".json")).read_text()
+    )
+    assert reloaded.resolved_kind == "imported"
+    with pytest.raises(DeriveError, match="never overwrite"):
+        import_image(source, "acme-router-9.9", cache)
+
+
+def test_sidecar_kind_resolution_and_daemon_rule(tmp_path: Path) -> None:
+    """Legacy sidecars (no kind) resolve by the .iso suffix; a daemonless sidecar refuses unless imported."""
+    import pydantic
+    from inspect_ranges._runtime.images import DaemonPin, ImageMetadata
+
+    def sidecar(**overrides: object) -> ImageMetadata:
+        base: dict[str, object] = {
+            "name": "x",
+            "file": "x.qcow2",
+            "recipe_version": "5",
+            "derivation_key": "k" * 64,
+            "vendor_file": "noble.img",
+            "vendor_sha256": "a" * 64,
+            "daemon": DaemonPin(name="vsockd", version="3.3.0", sha256="d" * 64),
+            "golden_sha256": "b" * 64,
+            "created": "2026-11-01T00:00:00+00:00",
+        }
+        base.update(overrides)
+        return ImageMetadata.model_validate(base)
+
+    assert sidecar().resolved_kind == "golden" and not sidecar().chainless
+    assert sidecar(vendor_file="server.iso").resolved_kind == "installed"
+    assert sidecar(vendor_file="server.iso").chainless
+    assert sidecar(kind="imported", daemon=None).chainless
+    with pytest.raises(pydantic.ValidationError, match="only imported"):
+        sidecar(daemon=None)
+
+
+def test_interrupted_import_heals_and_bad_names_refuse(tmp_path: Path) -> None:
+    """Round-2 appliance review I1/N3: a sidecar without its image is an interrupted import (the sidecar lands first) and re-importing the name heals it; healing never clobbers a non-imported sidecar, and an unpublishable `--as` name refuses up front."""
+    import subprocess
+
+    from inspect_ranges._runtime.images import DeriveError, import_image
+
+    source = tmp_path / "fw-disk.qcow2"
+    subprocess.run(
+        ["qemu-img", "create", "-f", "qcow2", str(source), "4M"],
+        check=True,
+        capture_output=True,
+    )
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    # the interrupted-import shape: an imported sidecar whose image never landed
+    first = import_image(source, "fw", cache)
+    (cache / first.file).unlink()
+    healed = import_image(source, "fw", cache)
+    assert (cache / healed.file).is_file()
+    # a sidecar of any other kind is a mid-landing chain: never clobbered
+    (cache / healed.file).unlink()
+    (cache / "fw.json").write_text('{"kind": "golden"}')
+    with pytest.raises(DeriveError, match="does not record an imported image"):
+        import_image(source, "fw", cache)
+    # the user-facing entry refuses an unpublishable name before any work
+    with pytest.raises(DeriveError, match="not a legal image name"):
+        import_image(source, "my fw", cache)

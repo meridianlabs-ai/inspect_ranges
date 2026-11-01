@@ -922,3 +922,35 @@ def test_mirror_into_a_single_repository_location_and_pull_from_it(
         recipe_cache=recipes,
     )
     assert report.location == flat.describe() and report.root == result.root
+
+
+def test_chain_scan_never_claims_an_imported_images_source(tmp_path: Path) -> None:
+    """Round-2 appliance review B1: an imported (or installed) sidecar's `vendor_file` is provenance only; the chain tier must not attribute it as a vendor, or prune would evict an unrelated cache file that merely shares the source's name."""
+    fixture = Fixture(tmp_path)
+    cache = fixture.image_cache
+    # an unmanaged cache file whose name equals the import's recorded source
+    (cache / "acme-fw.qcow2").write_bytes(b"an unrelated file")
+    (cache / "fw.qcow2").write_bytes(b"imported appliance")
+    (cache / "fw.json").write_text(
+        json.dumps(
+            {
+                "name": "fw",
+                "file": "fw.qcow2",
+                "recipe_version": "imported",
+                "derivation_key": "s" * 64,
+                "vendor_file": "acme-fw.qcow2",
+                "vendor_sha256": "s" * 64,
+                "daemon": None,
+                "golden_sha256": "0" * 64,
+                "created": "2026-10-18T00:00:00Z",
+                "kind": "imported",
+            }
+        )
+    )
+    victims, frozen = unreferenced_chain_files(cache, fixture.build_cache, set())
+    names = {path.name for path, _ in victims}
+    # the orphan imported image leaves with its sidecar; the name-sharing
+    # unmanaged file is never a victim (it freezes the tier instead, loudly)
+    assert "fw.qcow2" in names and "fw.json" in names
+    assert "acme-fw.qcow2" not in names
+    assert any("acme-fw" in reason for reason in frozen)

@@ -1,3 +1,5 @@
+from ipaddress import IPv4Address
+
 import pytest
 from inspect_ranges import revalidate_range
 from inspect_ranges.types import (
@@ -169,3 +171,106 @@ def test_range_spec_hash_tracks_content() -> None:
     assert hash(a) == hash(b)
     b.hosts[0].hostname = "renamed"
     assert hash(a) != hash(b)
+
+
+def _refuses(spec: RangeSpec, match: str) -> None:
+    with pytest.raises(ValidationError, match=match):
+        revalidate_range(spec)
+
+
+def test_hardware_vocabulary_accepts_the_appliance_shape() -> None:
+    """Well-formed hardware blocks, declared MACs, and opaque+readiness validate; an all-defaults block elides to nothing under default-insensitive dumping."""
+    from inspect_ranges.types import Hardware, HardwareDisk, TcpReadiness
+
+    spec = dmz_pivot()
+    spec.hosts[0].hardware = Hardware(
+        firmware="uefi",
+        machine="pc",
+        nic_model="e1000",
+        video="vga",
+        disks=[HardwareDisk(source="acme/data-golden", bus="ide")],
+    )
+    spec.hosts[0].interfaces[0].mac = "52:54:00:aa:bb:cc"
+    spec.hosts[1].opaque = True
+    spec.hosts[1].readiness = TcpReadiness(tcp=22)
+    spec.hosts[1].interfaces[0].ip = IPv4Address("10.80.20.9")
+    revalidate_range(spec)
+    assert Hardware().model_dump(exclude_defaults=True) == {}
+
+
+def test_hardware_vocabulary_gates_refuse() -> None:
+    """Malformed/duplicate MACs, not-realized firmware/tpm, misscoped readiness, opaque content, opaque Windows, and an opaque foothold each refuse with their code in the message."""
+    from inspect_ranges.types import Attacker, Hardware, HardwareDisk, TcpReadiness
+
+    bad_mac = dmz_pivot()
+    bad_mac.hosts[0].interfaces[0].mac = "not-a-mac"
+    _refuses(bad_mac, "not six colon-separated hex octets")
+
+    dupe = dmz_pivot()
+    dupe.hosts[0].interfaces[0].mac = "52:54:00:aa:bb:cc"
+    dupe.hosts[1].interfaces[0].mac = "52:54:00:AA:BB:CC"  # case-insensitive
+    _refuses(dupe, "already declared")
+
+    secure = dmz_pivot()
+    secure.hosts[0].hardware = Hardware(firmware="uefi-secure")
+    _refuses(secure, "not yet realized")
+
+    tpm = dmz_pivot()
+    tpm.hosts[0].hardware = Hardware(tpm=True)
+    _refuses(tpm, "not yet realized")
+
+    scoped = dmz_pivot()
+    scoped.hosts[0].readiness = TcpReadiness(tcp=22)
+    _refuses(scoped, "not\\s+opaque")
+
+    from inspect_ranges.types import ProvisioningStep
+
+    plain_opaque = dmz_pivot()
+    plain_opaque.hosts[1].opaque = True
+    plain_opaque.hosts[1].interfaces[0].ip = IPv4Address("10.80.20.9")
+    revalidate_range(plain_opaque)  # opaque with no content is the valid shape
+
+    unaddressed = dmz_pivot()
+    unaddressed.hosts[1].opaque = True
+    _refuses(unaddressed, "cannot invent one")
+
+    ide_on_q35 = dmz_pivot()
+    ide_on_q35.hosts[0].hardware = Hardware(disks=[HardwareDisk(size_gb=5, bus="ide")])
+    _refuses(ide_on_q35, "no\\s+IDE controller")
+    ide_on_pc = dmz_pivot()
+    ide_on_pc.hosts[0].hardware = Hardware(
+        machine="pc", disks=[HardwareDisk(size_gb=5, bus="ide")]
+    )
+    revalidate_range(ide_on_pc)
+
+    too_many = dmz_pivot()
+    too_many.hosts[0].hardware = Hardware(
+        disks=[HardwareDisk(size_gb=1) for _ in range(15)]
+    )
+    _refuses(too_many, "more extra disks")
+
+    content = dmz_pivot()
+    content.hosts[0].opaque = True
+    content.hosts[0].provisioning = [ProvisioningStep(recipe="acme.web")]
+    _refuses(content, "nothing could realize")
+
+    windows = dmz_pivot()
+    windows.hosts[1].os = Os(type="windows", version="server-2022")
+    windows.hosts[1].opaque = True
+    _refuses(windows, "opaque Windows")
+
+    foothold = dmz_pivot()
+    foothold.hosts[0].opaque = True
+    foothold.attacker = Attacker(host="web", entry="assumed-breach")
+    _refuses(foothold, "foothold")
+
+
+def test_hardware_disk_takes_exactly_one_source() -> None:
+    from inspect_ranges.types import HardwareDisk
+
+    HardwareDisk(size_gb=100)
+    HardwareDisk(source="acme/data")
+    with pytest.raises(ValidationError, match="exactly one"):
+        HardwareDisk(size_gb=100, source="acme/data")
+    with pytest.raises(ValidationError, match="exactly one"):
+        HardwareDisk()

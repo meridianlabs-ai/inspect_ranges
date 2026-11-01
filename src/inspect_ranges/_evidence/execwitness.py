@@ -53,17 +53,19 @@ class ExecWitnessPoller:
         linux_guests: list[str],
         windows_guests: list[str],
         *,
+        opaque_guests: list[str] | None = None,
         poll_s: float = EXEC_WITNESS_POLL_S,
         meta_flush_s: float = EXEC_META_FLUSH_S,
         clock: Callable[[], ClockStamp] = clock_now,
     ) -> None:
-        names = [*linux_guests, *windows_guests]
+        names = [*linux_guests, *windows_guests, *(opaque_guests or [])]
         if len(set(names)) != len(names):
             raise ValueError("guest names must be unique")
         self._channel = channel
         self._writer = writer
         self._linux = list(linux_guests)
         self._windows = list(windows_guests)
+        self._opaque = list(opaque_guests or [])
         self._poll_s = poll_s
         self._meta_flush_s = meta_flush_s
         self._clock = clock
@@ -81,6 +83,10 @@ class ExecWitnessPoller:
             raise RuntimeError("ExecWitnessPoller cannot restart after stop()")
         for name in self._windows:
             await self._declare_drop(name, errno=None, reason="os-windows", detail="")
+        for name in self._opaque:
+            # an opaque guest has no daemon to witness through; the drop is
+            # declared so coverage reads honestly as absent, never as silent
+            await self._declare_drop(name, errno=None, reason="guest-opaque", detail="")
         for name in self._linux:
             if name not in self._tasks:
                 self._tasks[name] = asyncio.create_task(

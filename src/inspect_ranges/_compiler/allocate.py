@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from .._diagnostics import Issue, IssueError
-from ..types import Interface, RangeSpec, derive_device
+from ..types import Interface, RangeSpec, TcpReadiness, derive_device
 
 
 class SubnetExhaustedError(ValueError):
@@ -165,10 +165,18 @@ def allocate(
 
     # some networks need the hypervisor present on the bridge, with an address
     # reserved ahead of guest allocation: routerless nat/routed networks (the
-    # bridge is the gateway) and dhcp or range-served-dns networks (the bridge
-    # hosts the dnsmasq service)
+    # bridge is the gateway), dhcp or range-served-dns networks (the bridge
+    # hosts the dnsmasq service), and networks carrying an opaque guest's tcp
+    # readiness probe (the connect sources from the bridge; without an address
+    # the probe has no route and readiness can never latch)
     router_attached = {
         interface.network for router in spec.routers for interface in router.interfaces
+    }
+    probed = {
+        host.interfaces[0].network
+        for host in spec.hosts
+        if getattr(host, "opaque", False)
+        and isinstance(getattr(host, "readiness", None), TcpReadiness)
     }
     hypervisor_addresses: dict[str, IPv4Address] = {}
     for network in spec.networks:
@@ -178,7 +186,7 @@ def allocate(
         needs_service = network.dhcp or (
             network.dns is not None and network.dns.records is not None
         )
-        if needs_gateway or needs_service:
+        if needs_gateway or needs_service or network.name in probed:
             try:
                 address = _next_free(subnets[network.name], 1, claimed[network.name])
             except SubnetExhaustedError:
@@ -215,6 +223,22 @@ def allocate(
     cids = {name: cid_base + index for index, name in enumerate(cid_order)}
 
     guests: list[GuestAllocation] = []
+    # declared and probe-reserved MACs claim their addresses up front so a
+    # generated MAC can never collide with either (semantic validation covers
+    # declared-vs-declared; probe MACs sit in their own 02:50:00 OUI, which
+    # generated 52:54:00 MACs never enter, but a declared MAC could squat on)
+    probe_macs = {endpoint.mac for endpoint in probe_endpoints.values()}
+    used_macs: set[str] = set(probe_macs)
+    for _, guest_name, interfaces in ordered:
+        for interface in interfaces:
+            if interface.mac is None:
+                continue
+            if interface.mac.lower() in probe_macs:
+                raise ValueError(
+                    f"declared MAC {interface.mac} on guest {guest_name!r} is "
+                    "reserved for a probe endpoint; declare a different MAC"
+                )
+            used_macs.add(interface.mac.lower())
     for kind, name, interfaces in ordered:
         allocations: list[InterfaceAllocation] = []
         for interface in interfaces:
@@ -233,7 +257,15 @@ def allocate(
                 InterfaceAllocation(
                     network=interface.network,
                     ip=ip,
-                    mac=_mac(spec.meta.name, name, interface.network),
+                    # a declared MAC (images that key behavior to one) wins;
+                    # semantic validation already checked form and uniqueness
+                    mac=(
+                        interface.mac.lower()
+                        if interface.mac is not None
+                        else _free_mac(
+                            spec.meta.name, name, interface.network, used_macs
+                        )
+                    ),
                 )
             )
         guests.append(
@@ -274,6 +306,21 @@ def _next_free_descending(subnet: IPv4Network, used: set[IPv4Address]) -> IPv4Ad
     raise SubnetExhaustedError(subnet)
 
 
-def _mac(range_name: str, guest: str, network: str) -> str:
-    digest = hashlib.sha256(f"{range_name}:{guest}:{network}".encode()).digest()
+def _mac(range_name: str, guest: str, network: str, salt: int = 0) -> str:
+    seed = f"{range_name}:{guest}:{network}"
+    if salt:
+        # salt 0 keeps the historical seed so collision-free ranges render
+        # byte-identical MACs
+        seed = f"{seed}:{salt}"
+    digest = hashlib.sha256(seed.encode()).digest()
     return "52:54:00:" + ":".join(f"{byte:02x}" for byte in digest[:3])
+
+
+def _free_mac(range_name: str, guest: str, network: str, used: set[str]) -> str:
+    """The generated MAC, deterministically re-salted past any declared (or earlier-generated) MAC it would collide with."""
+    for salt in range(256):
+        candidate = _mac(range_name, guest, network, salt)
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+    raise AssertionError("256 salted MAC candidates all collided")

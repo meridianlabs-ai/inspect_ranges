@@ -616,3 +616,100 @@ def test_installed_golden_publishes_without_its_install_media(
             build_cache=fixture.build_cache,
             range_dir=fixture.range_dir,
         )
+
+
+def test_imported_image_publishes_chainless_and_lands_with_its_kind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An imported image (kind on the sidecar, no daemon) publishes alone like an installed golden: the source file is annotation-only provenance, never a closure member, and the landed sidecar preserves the kind so every consumer-side gate (vendor-edge skip, staleness skip, daemon rule) keys correctly. Landed bytes that embed a backing refuse with the imported label."""
+    from inspect_ranges._build.manifest import BaseImageRecord as Base
+    from inspect_ranges._dist.encode import (
+        ANN_INSTALL_MEDIA_FILE,
+        ANN_NAME,
+    )
+    from inspect_ranges._dist.oci import OciIndex, OciManifest
+
+    fixture = Fixture(tmp_path)
+    fw = b"imported-appliance-bytes"
+    (fixture.image_cache / "fw.qcow2").write_bytes(fw)
+    (fixture.image_cache / "fw.json").write_text(
+        ImageMetadata(
+            name="fw",
+            file="fw.qcow2",
+            recipe_version="imported",
+            derivation_key="s" * 64,
+            vendor_file="acme-fw-7.2.ova.qcow2",
+            vendor_sha256="s" * 64,
+            daemon=None,
+            golden_sha256=_hex(fw),
+            created=now_iso(),
+            kind="imported",
+            notes="review-2 pin",
+        ).model_dump_json()
+    )
+    manifest = fixture.manifest.model_copy(
+        update={
+            "base_images": (
+                *fixture.manifest.base_images,
+                Base(
+                    guest="appliance",
+                    kind="host",
+                    reference="fw",
+                    file="fw.qcow2",
+                    digest=f"sha256:{_hex(fw)}",
+                ),
+            )
+        }
+    )
+
+    def chainless(path: Path) -> str | None:
+        return None
+
+    monkeypatch.setattr("inspect_ranges._dist.encode.qcow2_backing_name", chainless)
+    layout = OciLayout(tmp_path / "layout").ensure()
+    root = push_build(
+        manifest,
+        layout,
+        image_cache=fixture.image_cache,
+        build_cache=fixture.build_cache,
+        range_dir=fixture.range_dir,
+    )
+    index = OciIndex.model_validate_json(layout.read_blob(root))
+    members = [
+        OciManifest.model_validate_json(layout.read_blob(d)) for d in index.manifests
+    ]
+    by_name = {(m.annotations or {}).get(ANN_NAME): m for m in members}
+    assert "acme-fw-7.2.ova.qcow2" not in by_name, "the source is provenance only"
+    assert (by_name["fw.qcow2"].annotations or {})[
+        ANN_INSTALL_MEDIA_FILE
+    ] == "acme-fw-7.2.ova.qcow2"
+
+    images, builds, recipes = fresh_dirs(tmp_path)
+    materialize_closure(
+        layout, root, image_cache=images, build_cache=builds, recipe_cache=recipes
+    )
+    assert (images / "fw.qcow2").read_bytes() == fw
+    landed = ImageMetadata.model_validate_json((images / "fw.json").read_text())
+    assert landed.resolved_kind == "imported" and landed.daemon is None
+    assert not (images / "acme-fw-7.2.ova.qcow2").exists()
+
+    def embedded_backing(path: Path) -> str | None:
+        if path.name == "fw.qcow2":
+            return "acme-fw-7.2.ova.qcow2"
+        if path.name.startswith("distfix-web-"):
+            return "focal-guest.qcow2"
+        return {"focal-guest.qcow2": "noble.img"}.get(path.name)
+
+    monkeypatch.setattr(
+        "inspect_ranges._dist.encode.qcow2_backing_name", embedded_backing
+    )
+    with pytest.raises(
+        DistError, match="chain-invalid.*imported image.*embeds a backing"
+    ):
+        push_build(
+            manifest,
+            OciLayout(tmp_path / "layout2").ensure(),
+            image_cache=fixture.image_cache,
+            build_cache=fixture.build_cache,
+            range_dir=fixture.range_dir,
+        )

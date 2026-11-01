@@ -254,7 +254,16 @@ class RangeSandboxEnvironment(SandboxEnvironment):
 
         try:
             assert handle.channel is not None
+            opaque_guests: set[str] = (
+                {g.name for g in handle.plan.guests if g.opaque}
+                if handle.plan is not None
+                else set()
+            )
             for guest in handle.guest_cids:
+                if guest in opaque_guests:
+                    # no daemon to ping or session to pin; readiness already
+                    # held the opaque guest to its declared contract at up
+                    continue
                 # liveness confirmation and the layer-2b session pin in one
                 # probe: later ops compare against this to detect a daemon
                 # restart (which silently empties the dedupe store)
@@ -618,8 +627,9 @@ class RangeSandboxEnvironment(SandboxEnvironment):
             poller = ExecWitnessPoller(
                 handle.channel,
                 writer,
-                [g.name for g in plan.guests if g.os == "linux"],
+                [g.name for g in plan.guests if g.os == "linux" and not g.opaque],
                 [g.name for g in plan.guests if g.os == "windows"],
+                opaque_guests=[g.name for g in plan.guests if g.opaque],
             )
             await poller.start()
             session.register_producer(poller.stop)

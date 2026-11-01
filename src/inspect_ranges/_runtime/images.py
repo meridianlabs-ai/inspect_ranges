@@ -9,6 +9,7 @@ import fcntl
 import hashlib
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -17,8 +18,9 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from .._brand import GUEST_BRAND, GUEST_OPT_LINUX
 from .._channel.bundle import (
@@ -66,27 +68,57 @@ DEFAULT_ARTIFACT_DIR = Path.home() / ".cache" / "inspect-ranges" / "artifacts"
 
 
 def installed_golden(vendor_file: str) -> bool:
-    """Whether a golden was INSTALLED from install media (an `.iso` vendor: the Windows path) rather than overlaid on a vendor disk image. An installed golden embeds no backing file, so its media is provenance only: never a runtime edge, and never published beside the golden."""
+    """Whether a golden was INSTALLED from install media (an `.iso` vendor: the Windows path) rather than overlaid on a vendor disk image. An installed golden embeds no backing file, so its media is provenance only: never a runtime edge, and never published beside the golden. The suffix test is the LEGACY fallback for sidecars that predate the explicit `kind` field; new sidecars carry `kind`."""
     return vendor_file.lower().endswith(".iso")
 
 
+ImageKind = Literal["golden", "installed", "imported"]
+"""What a cache image's sidecar records it as: a derived golden over a vendor base, a golden installed from media, or a foreign image landed by `images import` (chainless, daemonless, provenance only)."""
+
+
 class ImageMetadata(BaseModel):
-    """Provenance sidecar (`<name>.json`) for a derived golden in the image cache."""
+    """Provenance sidecar (`<name>.json`) for a managed image in the image cache."""
 
     name: str
     file: str
     recipe_version: str
     derivation_key: str
     vendor_file: str
+    """The vendor base (goldens), the install media (installed goldens), or the import source file name (imported images); always provenance, a runtime edge only for plain goldens."""
     vendor_sha256: str
-    daemon: DaemonPin
+    daemon: DaemonPin | None = None
+    """The baked control daemon; `None` only for imported images, which carry none by definition."""
     golden_sha256: str
     created: str
+    kind: ImageKind | None = None
+    """Explicit image kind; `None` means a pre-kind sidecar, resolved by the legacy `.iso`-suffix fallback."""
+    notes: str | None = None
+    """Free-text provenance an import records (where the image came from, how it was prepared)."""
+
+    @model_validator(mode="after")
+    def _daemon_matches_kind(self) -> "ImageMetadata":
+        if self.daemon is None and self.resolved_kind != "imported":
+            raise ValueError(
+                f"sidecar for {self.file!r}: only imported images may omit the daemon pin"
+            )
+        return self
+
+    @property
+    def resolved_kind(self) -> ImageKind:
+        """The explicit `kind`, else the legacy suffix fallback."""
+        if self.kind is not None:
+            return self.kind
+        return "installed" if installed_golden(self.vendor_file) else "golden"
 
     @property
     def installed(self) -> bool:
         """See `installed_golden`."""
-        return installed_golden(self.vendor_file)
+        return self.resolved_kind == "installed"
+
+    @property
+    def chainless(self) -> bool:
+        """Whether the image embeds no backing edge (installed goldens and imported images): its provenance file is never a runtime dependency and never publishes beside it."""
+        return self.resolved_kind in ("installed", "imported")
 
     admin_password: str | None = None
     """Windows goldens only: the built-in Administrator password baked at install (deliberate, LOCAL-ONLY scenario content; the control plane is the vsock daemon as SYSTEM). Render reads it to answer the per-boot OOBE pass."""
@@ -534,7 +566,131 @@ def list_images(
             # same lesson for a hard-killed pull's `.{name}.pulling-*` temp
             # (the next pull of that name sweeps it, but listing must see it)
             or ".pulling-" in path.name
+            # and for a hard-killed import's flattened `.{name}.importing`
+            # temp (a retry of the same name overwrites it; another name never
+            # does)
+            or path.name.endswith(".importing")
         )
         and path.name not in managed_files
     )
     return managed, realized, unmanaged
+
+
+_IMPORT_SOURCE_NAME = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+"""Provenance file names recorded by an import must satisfy the publish-side cache-name grammar, or the sidecar could never encode."""
+
+
+def _read_kind(sidecar: Path) -> str | None:
+    """The recorded `kind` of a sidecar, `None` when unreadable or absent (a pre-kind golden)."""
+    import json
+
+    try:
+        value = json.loads(sidecar.read_text()).get("kind")
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, str) else None
+
+
+def import_image(
+    source: Path,
+    name: str,
+    cache: Path,
+    *,
+    notes: str | None = None,
+    runner: Runner | None = None,
+) -> ImageMetadata:
+    """Land a foreign qcow2 in the cache as an IMPORTED image: the opaque tier's image source (prepared appliance disks the engine cannot derive).
+
+    The image is flattened on the way in (`qemu-img convert` collapses any backing chain, so the cache holds one self-contained file) and recorded under a `kind: imported` provenance sidecar: no daemon pin (the image carries none by definition), the source file's own name and digest as provenance, and the operator's `notes`. Imported images publish chainless (the installed-golden shape) and boot without a vendor edge.
+
+    Raises:
+        DeriveError: The source is missing or not readable, the target name is already a managed or unmanaged cache file, a host tool is missing, or the conversion failed (nothing is left behind in the cache).
+    """
+    from .._dist.gc import chains_lock
+
+    run = runner or _run
+    if not source.is_file():
+        raise DeriveError("import", f"source {source} does not exist")
+    file = image_file_name(name)
+    if not _IMPORT_SOURCE_NAME.fullmatch(file) or ".pulling-" in file:
+        # import is the user-facing entry: refuse an unpublishable name here
+        # rather than at a much later publish
+        raise DeriveError(
+            "import",
+            f"name {name!r} is not a legal image name (letters, digits, "
+            "'_.-', starting alphanumeric)",
+        )
+    image_path = cache / file
+    metadata_path = cache / image_sidecar_file_name(file)
+    cache.mkdir(parents=True, exist_ok=True)
+    with chains_lock(cache, exclusive=False), _name_lock(cache, file):
+        if image_path.is_file():
+            raise DeriveError(
+                "import",
+                f"{image_path} already exists; imports never overwrite (prune "
+                "the name first, or import under another name)",
+            )
+        if metadata_path.is_file():
+            # a sidecar without its image is an interrupted import (the
+            # sidecar lands first); healing is confined to kind=imported so a
+            # mid-landing golden chain is never clobbered
+            existing = _read_kind(metadata_path)
+            if existing != "imported":
+                raise DeriveError(
+                    "import",
+                    f"{metadata_path} already exists and does not record an "
+                    "imported image; imports never overwrite",
+                )
+        source_name = (
+            source.name
+            if _IMPORT_SOURCE_NAME.fullmatch(source.name)
+            and ".pulling-" not in source.name
+            else f"{file}.source"
+        )
+        temp = cache / f".{file}.importing"
+        metadata_temp = cache / f".{image_sidecar_file_name(file)}.importing"
+        try:
+            try:
+                run(
+                    [
+                        "qemu-img",
+                        "convert",
+                        "-O",
+                        "qcow2",
+                        str(source),
+                        str(temp),
+                    ],
+                    cache,
+                )
+            except FileNotFoundError as error:
+                raise DeriveError("import", f"missing host tool: {error}") from error
+            except subprocess.CalledProcessError as error:
+                raise DeriveError(
+                    "import",
+                    f"conversion failed (rc {error.returncode}): "
+                    f"{(error.stderr or '')[-300:]}",
+                ) from error
+            source_sha = sha256_file(source)
+            metadata = ImageMetadata(
+                name=name,
+                file=file,
+                recipe_version="imported",
+                derivation_key=source_sha,
+                vendor_file=source_name,
+                vendor_sha256=source_sha,
+                daemon=None,
+                golden_sha256=sha256_file(temp),
+                created=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                kind="imported",
+                notes=notes,
+            )
+            # sidecar lands first, the derive discipline: a crash between the
+            # renames leaves metadata pointing at a missing image, which the
+            # next import attempt reports, never a provenance-less image
+            metadata_temp.write_text(metadata.model_dump_json(indent=2) + "\n")
+            metadata_temp.replace(metadata_path)
+            temp.replace(image_path)
+            return metadata
+        finally:
+            temp.unlink(missing_ok=True)
+            metadata_temp.unlink(missing_ok=True)

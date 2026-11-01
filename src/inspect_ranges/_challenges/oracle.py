@@ -196,6 +196,22 @@ class RangeOracle:
             return False
         return any(g.name == guest and g.os == "windows" for g in plan.guests)
 
+    def _refuse_opaque(self, guest: str, verb: str) -> None:
+        """Opaque guests carry no daemon: every in-guest verb refuses with the tier named, so a goal type reaching into a sealed appliance fails as authoring, never as a mysterious transport error. A plan-less handle (oracle attach) carries the recorded boot's opaque set instead."""
+        plan = self._handle.plan
+        if plan is not None:
+            opaque = any(
+                planned.name == guest and planned.opaque for planned in plan.guests
+            )
+        else:
+            opaque = guest in self._handle.opaque_guests
+        if opaque:
+            raise OracleSetupError(
+                f"guest {guest!r} is opaque (no control daemon); {verb} cannot "
+                "reach inside it; score it externally (network, console, "
+                "liveness) or through a managed operator guest"
+            )
+
     async def exec(
         self,
         guest: str,
@@ -214,6 +230,7 @@ class RangeOracle:
             if timeout_s is not None
             else Budget()
         )
+        self._refuse_opaque(guest, "exec")
         request = ExecRequest(
             id=request_id(), cmd=cmd, user=user, env=env or {}, budget=budget
         )
@@ -234,6 +251,7 @@ class RangeOracle:
         Raises:
             OracleSetupError: The privileged read failed or was truncated at the reply cap.
         """
+        self._refuse_opaque(guest, "read_file")
         if user is None:
             return await self._channel.read_file(guest, path, cap=cap)
         outcome = await self.exec(guest, ["cat", "--", path], user=user)
@@ -268,6 +286,7 @@ class RangeOracle:
         Raises:
             OracleSetupError: The owner-flow script failed (nothing is left at `path`).
         """
+        self._refuse_opaque(guest, "write_file")
         if owner is None:
             try:
                 await self._channel.write_file(guest, path, data, mode=mode)

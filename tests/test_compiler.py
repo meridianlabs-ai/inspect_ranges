@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from ipaddress import IPv4Address
+from pathlib import Path
 
 import pytest
 from inspect_ranges._compiler import (
@@ -286,6 +287,17 @@ def test_dnsmasq_conf_renders_reservations_and_records() -> None:
     assert not any(line.startswith("dhcp-option=option:router") for line in lines)
     # networks with neither dhcp nor records need no service
     assert render_dnsmasq_conf(spec, allocation, "net2") is None
+
+
+def test_dhcp_reservation_carries_the_declared_appliance_mac() -> None:
+    """The appliance pattern over segment DHCP: an opaque guest's declared MAC and ip land verbatim in the reservation, so a DHCP-client appliance leases its baked address deterministically (no engine config ever reaches inside the image)."""
+    from tests.test_plan import _appliance_spec
+
+    spec = _appliance_spec()
+    spec.networks[0].dhcp = True
+    conf = render_dnsmasq_conf(spec, allocate(spec), "lan")
+    assert conf is not None
+    assert "dhcp-host=52:54:00:e8:3c:19,10.9.0.10,router" in conf.splitlines()
 
 
 def test_resolvers_for_orders_authoritative_then_service_then_external() -> None:
@@ -667,3 +679,134 @@ def test_frames_bridged_within_a_segment_bypass_the_forward_drop() -> None:
         for line in lines
         if 'oifname "eth0"' in line
     )
+
+
+def test_hardware_renders_the_appliance_domain(tmp_path: Path) -> None:
+    """The hardware knobs land in the domain XML exactly once each: pc machine with its reduced quirks, uefi loader+nvram, e1000 NICs, VGA+VNC, extra disks (ide from hda, virtio from vdc), and NO seed for an opaque guest; an undeclared guest keeps today's shape byte-for-byte semantics (q35, strip flags, virtio, seed at vdb)."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(_appliance_spec(), out, PlanOptions(image_cache=cache, cid_base=3000))
+    appliance = (out / "guests/router/domain.xml").read_text()
+    assert "machine='pc'" in appliance
+    assert "sata=off" not in appliance  # q35-only strip flags stay off pc
+    assert "kvm-apic.vapic=false" in appliance
+    assert appliance.count("<loader readonly='yes' type='pflash'>") == 1
+    assert "/scratch/nvram/router_VARS.fd" in appliance
+    assert appliance.count("<model type='e1000'/>") == 1
+    assert "<video><model type='vga'/></video>" in appliance
+    assert "graphics type='vnc' listen='127.0.0.1'" in appliance
+    assert "router-seed.iso" not in appliance  # opaque: no seed
+    assert "/scratch/router-data0.qcow2" in appliance
+    assert "target dev='hda' bus='ide'" in appliance
+    assert "/scratch/router-data1.qcow2" in appliance
+    assert "target dev='vdc' bus='virtio'" in appliance
+    assert not (out / "guests/router/seed").exists()
+
+    bench = (out / "guests/workbench/domain.xml").read_text()
+    assert "machine='q35'" in bench and "sata=off,smbus=off,i8042=off" in bench
+    assert "<loader" not in bench and "nvram" not in bench
+    assert bench.count("<model type='virtio'/>") == 1
+    assert "video" not in bench and "graphics" not in bench
+    assert "workbench-seed.iso" in bench and "dev='vdb'" in bench
+
+    boot = json.loads((out / "boot.json").read_text())
+    entries = {entry["name"]: entry for entry in boot["guests"]}
+    router = entries["router"]
+    assert router["firmware"] == "uefi" and router["opaque"] is True
+    assert router["readiness"] == "tcp" and router["readiness_port"] == 22
+    assert router["readiness_ip"] == "10.9.0.10"  # the declared appliance address
+    assert router["injector"] == "none"
+    assert [disk["bus"] for disk in router["extra_disks"]] == ["ide", "virtio"]
+    assert router["extra_disks"][1]["size_gb"] == 5
+    assert router["extra_disks"][0]["image_file"] == "data-img.qcow2"
+    assert "firmware" not in entries["workbench"]
+    assert "readiness_ip" not in entries["workbench"]
+    assert "extra_disks" not in entries["workbench"]
+
+
+def test_render_refuses_an_uncached_extra_disk_source(tmp_path: Path) -> None:
+    """Review round 1 finding 5: an extra-disk overlay base missing from the cache refuses `image-not-in-cache` at render, like the root disk, instead of dying as a qemu-img backing-file error at boot."""
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges.types import IssueError
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2"):  # no data-img
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    with pytest.raises(IssueError) as excinfo:
+        render_bundle(
+            _appliance_spec(), tmp_path / "bundle", PlanOptions(image_cache=cache)
+        )
+    assert any(
+        issue.code == "image-not-in-cache" and "data-img" in issue.message
+        for issue in excinfo.value.issues
+    )
+
+
+def test_boot_script_prepares_appliance_volumes(tmp_path: Path) -> None:
+    """The boot script creates the nvram copy and the extra-disk volumes (overlay and blank), owns them to the guest uid, and skips seed creation for the opaque guest."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._runtime.up import BootPlan, boot_script
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(_appliance_spec(), out, PlanOptions(image_cache=cache, cid_base=3000))
+    plan = BootPlan.model_validate(json.loads((out / "boot.json").read_text()))
+    script = boot_script(plan)
+    assert "install -d -m 0755 /scratch/nvram" in script
+    assert "/usr/share/OVMF/OVMF_VARS_4M.fd /scratch/nvram/router_VARS.fd" in script
+    assert (
+        "qemu-img create -f qcow2 -F qcow2 -b /images/data-img.qcow2 "
+        "/scratch/router-data0.qcow2" in script
+    )
+    assert "qemu-img create -f qcow2 /scratch/router-data1.qcow2 5G" in script
+    router_chown = next(
+        line
+        for line in script.splitlines()
+        if line.startswith("chown") and "router" in line
+    )
+    assert "/scratch/router-data0.qcow2" in router_chown
+    assert "/scratch/router-data1.qcow2" in router_chown
+    assert "router-seed.iso" not in script  # opaque: nothing seeds
+    assert "cloud-localds" in script  # the workbench still seeds
+
+
+def test_tcp_readiness_reserves_the_probe_source_address(tmp_path: Path) -> None:
+    """An opaque guest's tcp readiness probes from the range netns, so its first interface's network reserves the hypervisor address and the bridge gets it; without one the connect has no route and readiness can never latch (found live by the first appliance conversion)."""
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._compiler.allocate import allocate
+
+    from tests.test_plan import _appliance_spec
+
+    spec = _appliance_spec()
+    allocation = allocate(spec)
+    assert str(allocation.hypervisor_addresses["lan"]) == "10.9.0.1"
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    assert "br-lan 10.9.0.1/24" in (out / "netns/addresses.txt").read_text()
+    # process readiness reserves nothing: the shape stays byte-identical
+    quiet = _appliance_spec()
+    quiet.hosts[1].readiness = "process"
+    assert allocate(quiet).hypervisor_addresses == {}

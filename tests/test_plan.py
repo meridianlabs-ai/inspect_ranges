@@ -1442,3 +1442,152 @@ def test_nested_virtualization_refuses_named_cpu_models(cache: Path) -> None:
         issue.code == "nested-virt-requires-host-passthrough"
         for issue in excinfo.value.issues
     )
+
+
+def _appliance_spec() -> RangeSpec:
+    """A workbench plus a sealed appliance with the full hardware vocabulary."""
+    from inspect_ranges.types import Hardware, HardwareDisk, TcpReadiness
+
+    return RangeSpec(
+        meta=RangeMeta(name="appl", description="appliance vocabulary"),
+        networks=[Network(name="lan", cidr="10.9.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="workbench",
+                os=Os(type="linux"),
+                image="bench-img",
+                interfaces=[Interface(network="lan", ip="10.9.0.20")],
+            ),
+            Host(
+                name="router",
+                os=Os(type="linux"),
+                image="appliance-img",
+                opaque=True,
+                readiness=TcpReadiness(tcp=22),
+                hardware=Hardware(
+                    firmware="uefi",
+                    machine="pc",
+                    nic_model="e1000",
+                    video="vga",
+                    disks=[
+                        HardwareDisk(source="data-img", bus="ide"),
+                        HardwareDisk(size_gb=5),
+                    ],
+                ),
+                interfaces=[
+                    Interface(network="lan", ip="10.9.0.10", mac="52:54:00:e8:3c:19")
+                ],
+            ),
+        ],
+        attacker=Attacker(host="workbench", entry="assumed-breach"),
+    )
+
+
+def test_hardware_threads_into_the_plan(cache: Path) -> None:
+    """Declared hardware, opaque, readiness, and MAC all land on the planned guest; undeclared guests keep today's shape exactly."""
+    plan = resolve_plan(_appliance_spec(), PlanOptions(image_cache=cache))
+    guests = {guest.name: guest for guest in plan.guests}
+    appliance = guests["router"]
+    assert appliance.firmware == "uefi"
+    assert appliance.machine == "pc"
+    assert appliance.nic_model == "e1000"
+    assert appliance.video == "vga"
+    assert [disk.bus for disk in appliance.extra_disks] == ["ide", "virtio"]
+    assert appliance.extra_disks[0].image is not None
+    assert appliance.extra_disks[0].image.reference == "data-img"
+    assert appliance.extra_disks[1].size_gb == 5
+    assert appliance.opaque is True
+    assert appliance.readiness == "tcp" and appliance.readiness_port == 22
+    assert appliance.injector == "none"
+    assert appliance.interfaces[0].mac == "52:54:00:e8:3c:19"
+    bench = guests["workbench"]
+    assert bench.firmware == "bios" and bench.machine == "q35"
+    assert bench.nic_model == "virtio" and bench.video is None
+    assert bench.extra_disks == [] and bench.opaque is False
+    assert bench.readiness == "cloud-init" and bench.injector == "cloud-init"
+
+
+def test_opaque_without_readiness_defaults_to_process(cache: Path) -> None:
+    spec = _appliance_spec()
+    spec.hosts[1].readiness = None
+    plan = resolve_plan(spec, PlanOptions(image_cache=cache))
+    appliance = next(guest for guest in plan.guests if guest.name == "router")
+    assert appliance.readiness == "process" and appliance.readiness_port is None
+
+
+def test_hardware_refuses_on_cloud_hypervisor_and_windows(cache: Path) -> None:
+    """The hardware block parameterizes the QEMU domain XML only, and the Windows tier keeps its own measured device model."""
+    from inspect_ranges.types import IssueError
+
+    on_ch = _appliance_spec()
+    on_ch.hosts[1].vmm = "cloud-hypervisor"
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(on_ch, PlanOptions(image_cache=cache))
+    assert any(
+        issue.code == "hardware-vmm-not-supported" for issue in excinfo.value.issues
+    )
+
+    from inspect_ranges.types import Hardware
+
+    windows = RangeSpec(
+        meta=RangeMeta(name="hw-win", description="windows hardware gate"),
+        networks=[Network(name="lan", cidr="10.9.1.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="win",
+                os=Os(type="windows", version="server-2022"),
+                image="win-img",
+                hardware=Hardware(machine="pc"),
+                interfaces=[Interface(network="lan", ip="10.9.1.10")],
+            )
+        ],
+        attacker=Attacker(interfaces=[Interface(network="lan")], entry="external"),
+    )
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(windows, PlanOptions(image_cache=cache))
+    assert any(
+        issue.code == "hardware-windows-not-supported" for issue in excinfo.value.issues
+    )
+
+    opaque_ch = _appliance_spec()
+    opaque_ch.hosts[1].hardware = None
+    opaque_ch.hosts[1].vmm = "cloud-hypervisor"
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(opaque_ch, PlanOptions(image_cache=cache))
+    assert any(
+        issue.code == "opaque-vmm-not-supported" for issue in excinfo.value.issues
+    )
+
+
+def test_generated_mac_resalts_past_a_declared_collision(cache: Path) -> None:
+    """Review round 1 nit 12: a declared MAC equal to another guest's would-be generated MAC must not collide; the generator re-salts deterministically."""
+    from inspect_ranges._compiler.allocate import _mac
+
+    spec = _appliance_spec()
+    colliding = _mac(spec.meta.name, "workbench", "lan")
+    spec.hosts[1].interfaces[0].mac = colliding
+    plan = resolve_plan(spec, PlanOptions(image_cache=cache))
+    guests = {guest.name: guest for guest in plan.guests}
+    bench_mac = guests["workbench"].interfaces[0].mac
+    assert guests["router"].interfaces[0].mac == colliding
+    assert bench_mac != colliding
+    assert bench_mac == _mac(spec.meta.name, "workbench", "lan", salt=1)
+    # and absent any collision the historical MACs are byte-identical
+    plain = resolve_plan(_appliance_spec(), PlanOptions(image_cache=cache))
+    bench = next(g for g in plain.guests if g.name == "workbench")
+    assert bench.interfaces[0].mac == colliding
+
+
+def test_hardware_rekeys_the_projection_only_when_declared(cache: Path) -> None:
+    """spec_projection: an absent and an all-defaults hardware block hash identically (no existing guest re-keys), and any declared knob moves the projection."""
+    from inspect_ranges._build.manifest import spec_projection
+    from inspect_ranges.types import Hardware
+
+    base = _appliance_spec().hosts[0]
+    bare = spec_projection(base)
+    defaults = base.model_copy(deep=True)
+    defaults.hardware = Hardware()
+    assert spec_projection(defaults) == bare
+    declared = base.model_copy(deep=True)
+    declared.hardware = Hardware(machine="pc")
+    assert spec_projection(declared) != bare

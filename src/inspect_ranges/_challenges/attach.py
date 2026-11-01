@@ -187,6 +187,9 @@ def attach_oracle(
         guest_cids=cids,
         guest_sockets=hybrid,
         channel=MessageChannel(transport, label=f"oracle-attach-{project}"),
+        # an attach has no resolved plan; the recorded boot entries carry the
+        # opaque tier so in-guest verbs still refuse instead of timing out
+        opaque_guests=frozenset(g.name for g in boot.guests if g.opaque),
     )
     logger.warning(
         "out-of-band oracle attached to project %s (%d guests): privileged "

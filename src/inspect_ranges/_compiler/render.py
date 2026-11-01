@@ -53,8 +53,8 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
   <memory unit='MiB'>{memory_mb}</memory>
   <vcpu>{cpus}</vcpu>
   <os>
-    <type arch='x86_64' machine='q35'>hvm</type>
-    <boot dev='hd'/>
+    <type arch='x86_64' machine='{machine}'>hvm</type>
+{loader}    <boot dev='hd'/>
   </os>
   <features><acpi/><apic/><vmport state='off'/></features>
   {cpu}
@@ -79,7 +79,7 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
       <source file='/scratch/{name}.qcow2'/>
       <target dev='vda' bus='virtio'/>
     </disk>
-{seed_stanza}{interfaces}    <vsock model='virtio'>
+{seed_stanza}{extra_disks}{interfaces}{video}    <vsock model='virtio'>
       <cid auto='no' address='{cid}'/>
     </vsock>
     <serial type='file'>
@@ -92,22 +92,58 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
     <memballoon model='none'/>
     <controller type='usb' model='none'/>
   </devices>
-  <!-- q35 legacy devices no guest uses and libvirt 10.0 has no element for
-       (the AHCI controller, the SMBus and its SPD EEPROMs, the i8042 keyboard
-       controller, the kvmvapic option ROM); the PIT and PIC stay on -->
+{machine_quirks}</domain>
+"""
+
+# q35 legacy devices no guest uses and libvirt 10.0 has no element for (the
+# AHCI controller, the SMBus and its SPD EEPROMs, the i8042 keyboard
+# controller); the PIT and PIC stay on. The i440fx (`pc`) machine takes none
+# of the q35 strip flags, and appliance images built for it may genuinely use
+# the legacy devices (PS/2 input under VNC), so pc keeps its machine-inherent
+# device set and only the kvmvapic option ROM is stripped on both.
+_MACHINE_QUIRKS_Q35 = """\
   <qemu:commandline>
     <qemu:arg value='-machine'/>
     <qemu:arg value='sata=off,smbus=off,i8042=off'/>
     <qemu:arg value='-global'/>
     <qemu:arg value='kvm-apic.vapic=false'/>
   </qemu:commandline>
-</domain>
+"""
+
+_MACHINE_QUIRKS_PC = """\
+  <qemu:commandline>
+    <qemu:arg value='-global'/>
+    <qemu:arg value='kvm-apic.vapic=false'/>
+  </qemu:commandline>
+"""
+
+# OVMF code stays pristine and shared; each uefi guest gets its own nvram
+# copy, prepared and owned by the boot script before the domain starts
+_LOADER_UEFI = """\
+    <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.fd</loader>
+    <nvram>/scratch/nvram/{name}_VARS.fd</nvram>
+"""
+
+# the VNC listener binds the range container's loopback, which no guest
+# segment can reach; the VGA device itself is the point (PCI slot layout and
+# images that refuse to boot headless), not remote graphics
+_VIDEO_VGA = """\
+    <graphics type='vnc' listen='127.0.0.1' autoport='yes'/>
+    <video><model type='vga'/></video>
+"""
+
+_EXTRA_DISK_XML = """\
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/scratch/{name}-data{index}.qcow2'/>
+      <target dev='{dev}' bus='{bus}'/>
+    </disk>
 """
 
 _INTERFACE_XML = """    <interface type='bridge'>
       <source bridge='{bridge}'/>
       <mac address='{mac}'/>
-      <model type='virtio'/>
+      <model type='{nic_model}'/>
     </interface>
 """
 
@@ -373,11 +409,29 @@ def render_bundle(
         )
         interfaces = "".join(
             _INTERFACE_XML.format(
-                bridge=networks[interface.network].bridge, mac=interface.mac
+                bridge=networks[interface.network].bridge,
+                mac=interface.mac,
+                nic_model=guest.nic_model,
             )
             for interface in guest.interfaces
         )
         if guest.vmm == "qemu":
+            if guest.injector == "none":
+                seed_stanza = ""  # an opaque guest's imported image boots as-is
+            else:
+                seed_stanza = (
+                    _SEED_STANZA_WINDOWS
+                    if guest.os == "windows"
+                    else _SEED_STANZA_LINUX
+                ).format(name=guest.name)
+            extra_disks = "".join(
+                _EXTRA_DISK_XML.format(
+                    name=guest.name, index=index, dev=dev, bus=disk.bus
+                )
+                for index, (disk, dev) in enumerate(
+                    zip(guest.extra_disks, _extra_disk_targets(guest), strict=True)
+                )
+            )
             write(
                 f"guests/{guest.name}/domain.xml",
                 _DOMAIN_XML.format(
@@ -387,12 +441,27 @@ def render_bundle(
                     cpu=cpu,
                     cid=guest.cid,
                     uid=guest_uid(guest.cid),
+                    machine=guest.machine,
+                    loader=(
+                        _LOADER_UEFI.format(name=guest.name)
+                        if guest.firmware == "uefi"
+                        else ""
+                    ),
+                    machine_quirks=(
+                        _MACHINE_QUIRKS_Q35
+                        if guest.machine == "q35"
+                        else _MACHINE_QUIRKS_PC
+                    ),
+                    # the Windows seed stanza already carries its measured
+                    # VGA+VNC; declared video serves linux appliance guests
+                    video=(
+                        _VIDEO_VGA
+                        if guest.video == "vga" and guest.os != "windows"
+                        else ""
+                    ),
+                    extra_disks=extra_disks,
                     interfaces=interfaces,
-                    seed_stanza=(
-                        _SEED_STANZA_WINDOWS
-                        if guest.os == "windows"
-                        else _SEED_STANZA_LINUX
-                    ).format(name=guest.name),
+                    seed_stanza=seed_stanza,
                 ),
             )
         if guest.injector == "unattend":
@@ -412,7 +481,7 @@ def render_bundle(
                 f"guests/{guest.name}/seed/unattend.xml",
                 _windows_unattend(plan, guest, options),
             )
-        else:
+        elif guest.injector == "cloud-init":
             write(
                 f"guests/{guest.name}/seed/meta-data",
                 # the image file keys the instance-id (parked-decisions item 2):
@@ -506,6 +575,21 @@ def _qcow2_virtual_gb(path: Path) -> int | None:
     return max(1, -(-size // (1 << 30)))
 
 
+def _extra_disk_targets(guest: PlannedGuest) -> list[str]:
+    """Target device names for the guest's extra disks: virtio extras start at `vdc` (`vda` is the root, `vdb` the seed slot even when no seed renders, so in-guest device names never depend on the injector); ide extras start at `hda` (ide exists only on `pc`, which has no ide cdrom in this profile)."""
+    targets: list[str] = []
+    virtio_index = 0
+    ide_index = 0
+    for disk in guest.extra_disks:
+        if disk.bus == "virtio":
+            targets.append("vd" + "cdefghijklmnop"[virtio_index])
+            virtio_index += 1
+        else:
+            targets.append("hd" + "abcdefgh"[ide_index])
+            ide_index += 1
+    return targets
+
+
 def _boot_guest(
     guest: PlannedGuest,
     networks: dict[str, PlannedNetwork],
@@ -531,6 +615,23 @@ def _boot_guest(
     }
     if guest.nested_virtualization:
         entry["nested_virtualization"] = True
+    if guest.firmware != "bios":
+        entry["firmware"] = guest.firmware
+    if guest.opaque:
+        entry["opaque"] = True
+    if guest.readiness_port is not None:
+        entry["readiness_port"] = guest.readiness_port
+        entry["readiness_ip"] = str(guest.interfaces[0].ip)
+    if guest.extra_disks:
+        entry["extra_disks"] = [
+            {
+                "bus": disk.bus,
+                "size_gb": disk.size_gb,
+                "image_file": disk.image.file if disk.image is not None else None,
+                "image_digest": disk.image.digest if disk.image is not None else None,
+            }
+            for disk in guest.extra_disks
+        ]
     if guest.vmm == "cloud-hypervisor" or guest.kind == "attacker":
         interfaces: list[dict[str, Any]] = [
             {"bridge": networks[interface.network].bridge, "mac": interface.mac}
@@ -567,6 +668,17 @@ def _require_cached_images(spec: RangeSpec, plan: ResolvedPlan) -> None:
         )
         for guest in plan.guests
         if guest.image.digest is None
+    ]
+    issues += [
+        Issue(
+            code="image-not-in-cache",
+            path=(*paths[guest.name][:-1], "hardware", "disks"),
+            message=f"extra-disk source {disk.image.reference!r} for guest {guest.name!r} is not in the image cache, so the bundle cannot be self-sufficient",
+            hint="pull or build the image into the cache (pass --image-cache / PlanOptions.image_cache)",
+        )
+        for guest in plan.guests
+        for disk in guest.extra_disks
+        if disk.image is not None and disk.image.digest is None
     ]
     if issues:
         raise IssueError(issues)
