@@ -285,8 +285,8 @@ def test_validate_conformance_trio_or_prove_scripts(tmp_path: pathlib.Path) -> N
     demo.mkdir(parents=True)
     with pytest.raises(BuildError, match="neither the behavioral trio nor"):
         validate_conformance(challenges, tmp_path)
-    (demo / "prove_flow.py").write_text("x = 1\n")
-    with pytest.raises(BuildError, match="no top-level `prove`"):
+    (demo / "prove_flow.py").write_text("def prove(ctx):\n    pass\n")
+    with pytest.raises(BuildError, match="no top-level `async def prove`"):
         validate_conformance(challenges, tmp_path)
     (demo / "prove_flow.py").write_text("async def prove(ctx):\n    pass\n")
     validate_conformance(challenges, tmp_path)  # a prove script alone is complete
@@ -929,3 +929,89 @@ def test_detection_only_negatives_pass_without_submissions(
         ).status
         == "fail"
     )
+
+
+def test_prove_script_outcomes_map_to_check_records(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """A failed assertion returns a fail record (the build's refusal verdict), a passing script a pass record with its assertions in the sink, and plants unwind either way (the per-check lifecycle)."""
+    import inspect_ranges._challenges.prove as prove_module
+    import inspect_ranges._challenges.setup as setup_module
+    from inspect_ranges._build.behavioral import (
+        _run_prove_script,  # pyright: ignore[reportPrivateUsage]
+    )
+    from inspect_ranges._challenges.engine import GoalResult
+
+    unwound: list[list[str]] = []
+
+    async def fake_run_setup(
+        oracle: Any,
+        challenge: Any,
+        store: Any = None,
+        *,
+        extra_observers: Any = frozenset(),
+    ) -> list[str]:
+        return ["planted-key"]
+
+    async def fake_unwind(oracle: Any, planted: list[str]) -> None:
+        unwound.append(planted)
+
+    monkeypatch.setattr(setup_module, "run_setup", fake_run_setup)
+    monkeypatch.setattr(setup_module, "_unwind", fake_unwind)
+
+    def fake_targets(oracle: Any, challenge: Any) -> list[Any]:
+        return []
+
+    monkeypatch.setattr(setup_module, "_probe_targets", fake_targets)
+
+    class FakeEngine:
+        uses_submissions = True
+
+        def assurance_for(self, goal: Any) -> str:
+            return "guest-corroborated"
+
+    async def fake_eval(
+        engine: Any, goal: Any, oracle: Any, submissions: Any
+    ) -> tuple[GoalResult, int]:
+        achieved = submissions.value(goal.id) == "expected"
+        return GoalResult(achieved=achieved, reason="fake verdict"), 0
+
+    def fake_goal_type(name: str) -> Any:
+        return FakeEngine()
+
+    monkeypatch.setattr(prove_module, "goal_type", fake_goal_type)
+    monkeypatch.setattr(prove_module, "evaluate_goal", fake_eval)
+
+    class ProveOracle:
+        async def flush_capture(self) -> int:
+            return 0
+
+    challenge = _schema_challenge([_FLAG_GOAL])
+    script = tmp_path / "prove_flow.py"
+    script.write_text(
+        "async def prove(ctx):\n"
+        "    ctx.submit('token', 'expected')\n"
+        "    await ctx.assert_goal('token', achieved=True)\n"
+    )
+    sink: list[Any] = []
+    record = asyncio.run(
+        _run_prove_script(
+            cast(Any, ProveOracle()), challenge, script, assertion_sink=sink
+        )
+    )
+    assert record.status == "pass" and record.check == "prove_flow.py"
+    assert "goals=token" in record.detail
+    assert [a.goal_id for a in sink] == ["token"]
+
+    failing = tmp_path / "prove_fail.py"
+    failing.write_text(
+        "async def prove(ctx):\n"
+        "    ctx.submit('token', 'wrong')\n"
+        "    await ctx.assert_goal('token', achieved=True)\n"
+    )
+    record = asyncio.run(
+        _run_prove_script(cast(Any, ProveOracle()), challenge, failing)
+    )
+    assert record.status == "fail"
+    assert "expected achieved=True" in record.detail
+    assert len(unwound) == 2

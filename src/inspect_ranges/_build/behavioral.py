@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from .errors import BuildError
-from .manifest import BehavioralCheckRecord
+from .manifest import BehavioralCheckRecord, GoalAssertion
 from .recipes import StageSink
 
 if TYPE_CHECKING:
@@ -361,14 +361,15 @@ def _validate_prove_script(script: Path) -> None:
             f"parse: {error}",
         ) from error
     if not any(
-        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and node.name == "prove"
+        isinstance(node, ast.AsyncFunctionDef) and node.name == "prove"
         for node in tree.body
     ):
+        # async only: assert_goal is async, so a sync prove could never
+        # assert and would only fail as vacuous later; refuse it here instead
         raise BuildError(
             "behavioral",
             f"conformance script {script.parent.name}/{script.name} defines no "
-            "top-level `prove` function (the conformance contract: "
+            "top-level `async def prove` (the conformance contract: "
             "`async def prove(ctx: ProveContext) -> None`)",
         )
 
@@ -432,11 +433,20 @@ def validate_conformance(challenges: "Challenges", range_dir: Path) -> None:
 
 
 def load_challenges(range_dir: Path) -> "Challenges":
-    """The range's `challenges.yaml`, validated, with goal-type registrations loaded first (`ensure_goal_type_registrations`): the build parses custom-typed challenges exactly like the eval path does."""
+    """The range's `challenges.yaml`, validated, with goal-type registrations loaded first (entry points via `ensure_goal_type_registrations`, plus the range's loose `task.py`): the build parses custom-typed challenges exactly like the eval path does, where task import registers.
+
+    Raises:
+        BuildError: stage `behavioral`, when the range's `task.py` cannot be imported.
+    """
+    from .._challenges.prove import ConformanceError, register_range_goal_types
     from .._challenges.registration import ensure_goal_type_registrations
     from .._challenges.schema import load_challenges as load_challenges_file
 
     ensure_goal_type_registrations()
+    try:
+        register_range_goal_types(range_dir)
+    except ConformanceError as error:
+        raise BuildError("behavioral", str(error)) from error
     return load_challenges_file(range_dir / "challenges.yaml")
 
 
@@ -493,8 +503,11 @@ async def run_behavioral_checks(
     hybrid_sockets: "Mapping[str, HybridEndpoint] | None" = None,
     draws: "dict[str, int | str] | None" = None,
     draw_seed: str | None = None,
+    assertion_sink: "list[GoalAssertion] | None" = None,
 ) -> tuple[BehavioralCheckRecord, ...]:
-    """Run every declared check against the live (realized-image) range; a failing check ENDS the run and is returned as its record (the caller saves a refused manifest), while infra and authoring failures raise.
+    """Run every declared proof (behavioral trio chains, then prove scripts, per challenge) against the live (realized-image) range; a failing check ENDS the run and is returned as its record (the caller saves a refused manifest), while infra and authoring failures raise.
+
+    `assertion_sink`, when given, collects every passing prove script's goal assertions in run order (the standalone prove path records them in the manifest's `proven` slot).
 
     `draws` carries the proof boot's drawn variable values (variable-draws-v0), so each check's oracle scores `answer` goals against the values the rendered seeds delivered; they are recorded with `draw_seed` on the proof boot's evidence record like a sample's.
 
@@ -585,7 +598,10 @@ async def run_behavioral_checks(
         proofs_root = conformance_root(range_dir)
         for challenge in challenges.challenges:
             check_dir = proofs_root / challenge.id
-            for name in CHECK_NAMES:
+            # the trio is all-or-nothing (validate_conformance): one present
+            # script means all three run; a script-only challenge runs none
+            trio = CHECK_NAMES if (check_dir / f"{CHECK_NAMES[0]}.sh").is_file() else ()
+            for name in trio:
                 script = check_dir / f"{name}.sh"
                 # plant keys are write-once per store and the pcap/evidence
                 # memo must not leak across checks: fresh store and oracle
@@ -603,25 +619,7 @@ async def run_behavioral_checks(
                     attacker_ip,
                     telemetry=bool(collectors),
                 )
-                if stage_log is not None:
-                    # stages.jsonl grammar is start|ok|fail; a failing check's
-                    # detail rides the `error` field the CLI fail branch prints
-                    if record.status == "pass":
-                        stage_log.log(
-                            "behavioral",
-                            "ok",
-                            challenge=challenge.id,
-                            check=name,
-                            detail=record.detail,
-                        )
-                    else:
-                        stage_log.log(
-                            "behavioral",
-                            "fail",
-                            challenge=challenge.id,
-                            check=name,
-                            error=record.detail,
-                        )
+                _log_check(stage_log, record)
                 records.append(record)
                 if record.status != "pass":
                     # a failing check is a VERDICT, not an error: the caller
@@ -629,11 +627,128 @@ async def run_behavioral_checks(
                     # 4), so the next build reuses guests and re-runs only the
                     # proof; infra failures still raise
                     return tuple(records)
+            for script_path in prove_scripts(check_dir):
+                # prove scripts run AFTER the trio, in name order, each under
+                # the same per-check lifecycle (fresh plants, scoped oracle)
+                handle.plants = None
+                oracle = _scoped_oracle_class()(handle)
+                record = await _run_prove_script(
+                    oracle,
+                    challenge,
+                    script_path,
+                    telemetry=bool(collectors),
+                    assertion_sink=assertion_sink,
+                )
+                _log_check(stage_log, record)
+                records.append(record)
+                if record.status != "pass":
+                    return tuple(records)
     finally:
         # the provider's teardown verb: stops the capture streamer (final
         # harvest) and seals the record; bounded, idempotent, never raises
         await session.finalize()
     return tuple(records)
+
+
+def _log_check(stage_log: StageSink | None, record: BehavioralCheckRecord) -> None:
+    """One check's stage line: stages.jsonl grammar is start|ok|fail, and a failing check's detail rides the `error` field the CLI fail branch prints."""
+    if stage_log is None:
+        return
+    if record.status == "pass":
+        stage_log.log(
+            "behavioral",
+            "ok",
+            challenge=record.challenge,
+            check=record.check,
+            detail=record.detail,
+        )
+    else:
+        stage_log.log(
+            "behavioral",
+            "fail",
+            challenge=record.challenge,
+            check=record.check,
+            error=record.detail,
+        )
+
+
+async def _run_prove_script(
+    oracle: "RangeOracle",
+    challenge: "Challenge",
+    script: Path,
+    *,
+    telemetry: bool = False,
+    assertion_sink: "list[GoalAssertion] | None" = None,
+) -> BehavioralCheckRecord:
+    """One prove script under the per-check lifecycle: fresh plants via `run_setup`, a per-check prober over this challenge's own targets, `prove(ctx)` against the scoped oracle, unwind.
+
+    A `ConformanceError` out of the script (a failed assertion, a raising script, a vacuous no-assertion run) is this check's VERDICT and returns a fail record; lifecycle failures raise as infra.
+    """
+    from inspect_ai.util._store import Store
+
+    from .._challenges.prober import Prober
+    from .._challenges.prove import ConformanceError, ProveContext, execute_prove
+    from .._challenges.setup import (
+        _probe_targets,  # pyright: ignore[reportPrivateUsage]
+        _unwind,  # pyright: ignore[reportPrivateUsage]
+        run_setup,
+    )
+
+    store = Store()
+    planted = await run_setup(
+        oracle,
+        challenge,
+        store,
+        extra_observers=(
+            frozenset({"telemetry-collector"}) if telemetry else frozenset()
+        ),
+    )
+    prober: "Prober | None" = None
+    try:
+        # per-check prober over THIS challenge's derived targets, the _run_one
+        # shape; the proof's assert_goal takes the flush as its read barrier
+        targets = _probe_targets(oracle, challenge)
+        if targets:
+            session = oracle.evidence_session()
+            if session is None or not session.enabled:
+                raise RuntimeError("prober-backed checks need a live evidence session")
+            prober = Prober(session, oracle.project, targets)
+            prober.start()
+        context = ProveContext(
+            oracle,
+            challenge,
+            pre_assert=prober.flush if prober is not None else None,
+        )
+        try:
+            await execute_prove(script, context)
+        except ConformanceError as error:
+            return BehavioralCheckRecord(
+                challenge=challenge.id,
+                check=script.name,
+                status="fail",
+                detail=str(error),
+            )
+        if assertion_sink is not None:
+            assertion_sink.extend(context.assertions)
+        asserted = ",".join(dict.fromkeys(a.goal_id for a in context.assertions))
+        return BehavioralCheckRecord(
+            challenge=challenge.id,
+            check=script.name,
+            status="pass",
+            detail=f"assertions={len(context.assertions)} goals={asserted}",
+        )
+    finally:
+        if prober is not None:
+            # stop() is idempotent; this also force-flushes for the autopsy
+            # streams on the failure paths
+            await prober.stop()
+        # same removal rule as the trio (_run_one): each check's plants are
+        # removed so the next run_setup starts fresh; removal failures are
+        # logged and never mask the primary diagnosis
+        try:
+            await _unwind(oracle, planted)
+        except Exception:
+            logger.warning("check plant unwind failed for %r", script.name)
 
 
 async def _run_one(

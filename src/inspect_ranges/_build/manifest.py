@@ -148,8 +148,27 @@ class VerificationRecord(BaseModel):
     """Challenge behavioral-check results (reference solution passes, insufficient attempt fails, oracle shortcuts fail); populated by slice 6."""
 
 
+class GoalAssertion(BaseModel):
+    """One proven expectation: the goal, what was expected, and the verdict's reason."""
+
+    goal_id: str
+    expected_achieved: bool
+    reason: str | None = None
+
+
+class ProvenRecord(BaseModel):
+    """What a passing conformance run demonstrated, recorded in the build manifest."""
+
+    proven_at: str
+    scripts: list[str]
+    assertions: list[GoalAssertion]
+
+
 class BuildManifest(BaseModel):
     """A built range version: resolved inputs, captured outputs, verification results; never secrets."""
+
+    proven: ProvenRecord | None = None
+    """A passing conformance run's record (`inspect-ranges prove`): what scripts ran and which goal verdicts were demonstrated against the booted build. Absent means unproven, which every manifest was before proofs existed; an older engine reading a proven manifest ignores the field."""
 
     format_version: str = MANIFEST_FORMAT_VERSION
     range_name: str
@@ -409,6 +428,40 @@ def stamp_bundle_sha256(
             )
             temp.replace(path)
             return True
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def stamp_proven(
+    build_cache: Path, range_name: str, spec_sha256: str, record: ProvenRecord
+) -> None:
+    """Record a passing conformance run on the manifest its proofs booted, atomically.
+
+    The load-compare-save runs under the same per-range lock as `save_manifest`, and the stamp lands only when the on-disk manifest is still the spec revision the proofs consumed (`stamp_bundle_sha256`'s discipline): a concurrent rebuild must never inherit a proven marker it did not earn, and a stamp that cannot land refuses loudly rather than printing a success the manifest does not carry.
+
+    Raises:
+        RuntimeError: No manifest exists for the range, or the on-disk manifest is a different spec revision than the proofs booted.
+    """
+    path = manifest_path(build_cache, range_name)
+    lock_path = path.parent / ".manifest.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            current = load_manifest(build_cache, range_name)
+            if current is None or current.spec_sha256 != spec_sha256:
+                raise RuntimeError(
+                    f"the proven stamp for {range_name!r} did not land: the "
+                    "on-disk manifest is "
+                    + ("absent" if current is None else "a different spec revision")
+                    + "; rebuild and prove again"
+                )
+            temp = path.with_suffix(".json.writing")
+            temp.write_text(
+                current.model_copy(update={"proven": record}).model_dump_json(indent=2)
+                + "\n"
+            )
+            temp.replace(path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
 
