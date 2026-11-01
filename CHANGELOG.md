@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.10 (01 November 2026)
 
 - `challenge_dataset` gains a multi-range form: a sequence of `(entry_name, range_dir)` pairs builds one dataset spanning several ranges, each sample stamped with its own absolute `("range", ...)` sandbox (the task declares none; inspect resolves per sample). This serves runners that parallelize samples rather than tasks: scenarios become samples of one task under ordinary sample concurrency. Duplicate sample ids across ranges refuse, with `prefix_ids=True` rewriting to `entry:id`; the `examples_smoke` task now rides the new form.
 
