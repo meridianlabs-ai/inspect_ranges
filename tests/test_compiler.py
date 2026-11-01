@@ -289,6 +289,17 @@ def test_dnsmasq_conf_renders_reservations_and_records() -> None:
     assert render_dnsmasq_conf(spec, allocation, "net2") is None
 
 
+def test_dhcp_reservation_carries_the_declared_appliance_mac() -> None:
+    """The appliance pattern over segment DHCP: an opaque guest's declared MAC and ip land verbatim in the reservation, so a DHCP-client appliance leases its baked address deterministically (no engine config ever reaches inside the image)."""
+    from tests.test_plan import _appliance_spec
+
+    spec = _appliance_spec()
+    spec.networks[0].dhcp = True
+    conf = render_dnsmasq_conf(spec, allocate(spec), "lan")
+    assert conf is not None
+    assert "dhcp-host=52:54:00:e8:3c:19,10.9.0.10,router" in conf.splitlines()
+
+
 def test_resolvers_for_orders_authoritative_then_service_then_external() -> None:
     spec = netsvc_spec()
     allocation = allocate(spec)
