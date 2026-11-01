@@ -12,7 +12,7 @@
 # foothold-to-first-credential step has no proof contract and is dropped.
 # Realized (windows-ad-v1 slice 4): Windows rides the provider end to end, the
 # three goals plant on Windows hosts through the oracle's NTFS plant shape, and
-# the checks/ trio proves the ladder at build. The defender_on/defender_off
+# the conformance/ trio proves the ladder at build. The defender_on/defender_off
 # variant pair still arrives with the dataset work.
 # Environment note carried from the legacy seed: the prompt's subnet is
 # adapted from upstream's 192.168.122.0/24 (cochise ran on libvirt default

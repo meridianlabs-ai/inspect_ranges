@@ -70,7 +70,7 @@ artifacts = [
     # digest pin is set, and a wheel without the Dockerfile left that path broken for pip installs
     "src/**/Dockerfile",
     "src/**/py.typed",
-    # the examples ship their full data trees (recipes/, checks/, yaml, docs);
+    # the examples ship their full data trees (recipes/, conformance/, yaml, docs);
     # artifacts bypass `exclude`, so upstream/ needs the negated pattern too
     "src/inspect_ranges/examples/_*/**",
     "!src/inspect_ranges/examples/_*/upstream/**",
