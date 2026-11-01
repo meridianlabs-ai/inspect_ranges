@@ -139,13 +139,40 @@ def test_run_prove_boots_through_the_seam_and_stamps(
     assert stamped_sha == sha and stamped is record
     assert record.scripts == ["demo/reference", "demo/prove_flow.py"]
     assert [a.goal_id for a in record.assertions] == ["token"]
-    allocator = CidAllocator(state)
-    lease_project = f"ir-proof-range-{'a' * 12}-prove-bx"
-    assert allocator.leased_projects() == [lease_project]
+    # the seam's keep_state teardown never releases leases (down releases on
+    # FULL teardown only), so the runner releases its own block on success
+    assert CidAllocator(state).leased_projects() == []
     assert seen["cid_base"] >= 3
-    # the REAL down inside the seam releases the lease; the fake does not,
-    # so sweep it here
-    allocator.release(lease_project)
+
+
+def test_run_prove_holds_the_lease_when_teardown_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A seam-logged teardown failure means the range may still be up: the block must never free under live VMs, so the runner retains the lease (the operator's full down releases it); the stamp still lands, since the proof itself passed."""
+    import inspect_ranges._build.prove as prove_module
+    from inspect_ranges._build.prove import run_prove
+
+    sha = "a" * 64
+    seen = _wire(monkeypatch, spec_sha=sha, manifest=_manifest(sha))
+    state = tmp_path / "state"
+    state.mkdir()
+
+    def seam_with_failed_teardown(spec: Any, range_dir: Path, **kwargs: Any) -> Any:
+        kwargs["stage_log"].log(
+            "teardown", "fail", error="synthetic", project="ir-x-bx"
+        )
+        return (
+            BehavioralCheckRecord(
+                challenge="demo", check="reference", status="pass", detail=""
+            ),
+        )
+
+    monkeypatch.setattr(prove_module, "run_proof_boot", seam_with_failed_teardown)
+    run_prove(_range_dir(tmp_path), state_dir=state)
+    assert "stamped" in seen
+    lease_project = f"ir-proof-range-{'a' * 12}-prove-bx"
+    assert CidAllocator(state).leased_projects() == [lease_project]
+    CidAllocator(state).release(lease_project)
 
 
 def test_run_prove_failure_shapes(

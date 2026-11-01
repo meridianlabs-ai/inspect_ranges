@@ -5,6 +5,7 @@ The build already runs every declared proof fail-closed (a failure lands a REFUS
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from .._compiler.plan import plan_totals, spec_sha256
 from .._provider.naming import CidAllocator
@@ -94,7 +95,22 @@ def run_prove(
             f"inspect-ranges down {bx_project} releases the block"
         ) from error
 
-    tee = _BuildTee(StageLog(state_dir, project), on_stage)
+    # the seam's teardown keeps project state (the evidence record is the
+    # proof's audit trail), and `down` releases a lease on FULL teardown only,
+    # so this runner must release its own block; a teardown failure logged by
+    # the seam means the range may still be up, and a block must never free
+    # under live VMs, so the watch holds the lease in that case (the stage
+    # log carries the retry hint, and the operator's full `down` releases)
+    teardown_failed = False
+
+    def watch(stage: str, status: str, fields: dict[str, Any]) -> None:
+        nonlocal teardown_failed
+        if stage == "teardown" and status == "fail":
+            teardown_failed = True
+        if on_stage is not None:
+            on_stage(stage, status, fields)
+
+    tee = _BuildTee(StageLog(state_dir, project), watch)
     assertions: list[GoalAssertion] = []
     try:
         records = run_proof_boot(
@@ -115,12 +131,13 @@ def run_prove(
         )
     except BaseException:
         # pre-up and settle failures: the seam's own teardown (or `up`'s
-        # keep_on_failure=False disposal) handled the range, but only a real
-        # `down` releases the lease; a KEPT failed boot keeps its lease until
-        # the operator's down
-        if not keep:
+        # keep_on_failure=False disposal) handled the range; a KEPT failed
+        # boot keeps its lease until the operator's down
+        if not keep and not teardown_failed:
             allocator.release(bx_project)
         raise
+    if not teardown_failed:
+        allocator.release(bx_project)
     failed = [record for record in records if record.status != "pass"]
     if failed:
         verdict = failed[0]
