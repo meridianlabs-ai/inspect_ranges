@@ -252,7 +252,7 @@ Host(
 
 Opaque is a contract, enforced fail-closed on both sides:
 
-- **Nothing reaches inside.** An opaque guest carries no content sections (`provisioning`, `services`, `users`, `data`, `defense`, and the rest all refuse: nothing could realize or verify them), gets no seed disk, and is never the attacker's foothold. In-guest scoring verbs refuse with the tier named, and the exec witness records a declared capability drop rather than a silent gap. Score an appliance externally (network, liveness) or through a managed operator guest beside it.
+- **Nothing reaches inside.** An opaque guest carries no content sections (`provisioning`, `services`, `data`, `defense`, and the rest all refuse: nothing could realize or verify them; `users` stays legal as documentation of accounts baked into the image), gets no seed disk, and is never the attacker's foothold. In-guest scoring verbs refuse with the tier named, and the exec witness records a declared capability drop rather than a silent gap. Score an appliance externally (network, liveness) or through a managed operator guest beside it.
 
 - **Addresses are declared facts, not instructions.** Every interface of an opaque guest must declare its `ip`: the address is baked into the image, and the engine cannot invent one (`opaque-ip-required`). On a [`dhcp: true` network](networks.qmd#addressing) the declared MAC and ip become the appliance's reservation, so a DHCP-client appliance leases its baked address deterministically.
 

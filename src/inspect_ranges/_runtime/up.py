@@ -846,6 +846,10 @@ def up(
                         "the cache's copy changed since this bundle was rendered; re-render the bundle",
                         guest=guest.name,
                     )
+            # a derived-golden base is itself an overlay: its vendor edge
+            # needs the same check the root disk gets, or the data disk
+            # silently boots a mixed chain (round-2 appliance review B2)
+            verify_vendor_edge(disk.image_file, guest.name)
         if guest.backing_file is not None:
             backing = options.image_cache / guest.backing_file
             if not backing.is_file():

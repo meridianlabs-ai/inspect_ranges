@@ -1694,3 +1694,58 @@ def test_boot_guest_shape_validates_readiness_and_disks() -> None:
         BootDisk(bus="virtio")
     with pytest.raises(ValidationError, match="exactly one"):
         BootDisk(bus="virtio", size_gb=5, image_file="data-img.qcow2")
+
+
+def test_up_verifies_extra_disk_bases_and_their_vendor_edges(
+    tmp_path: Path, cache: Path
+) -> None:
+    """Round-2 appliance review B2 and I4: an extra-disk overlay base gets the root disk's full gate at verify-images: presence, digest, and (for a derived-golden base) the vendor edge, so a drifted or mixed data chain refuses instead of booting silently."""
+    import hashlib as hashlib_module
+    import json as json_module
+
+    from inspect_ranges.types import Hardware, HardwareDisk
+
+    (cache / "data-golden.qcow2").write_bytes(b"data-base")
+    (cache / "data-vendor.img").write_bytes(b"data-vendor-bytes")
+    (cache / "data-golden.json").write_text(
+        json_module.dumps(
+            {
+                "name": "data-golden",
+                "file": "data-golden.qcow2",
+                "recipe_version": "4",
+                "derivation_key": "k" * 64,
+                "vendor_file": "data-vendor.img",
+                "vendor_sha256": hashlib_module.sha256(
+                    b"data-vendor-bytes"
+                ).hexdigest(),
+                "daemon": {"name": "vsockd", "version": "3.1.0", "sha256": "d" * 64},
+                "golden_sha256": hashlib_module.sha256(b"data-base").hexdigest(),
+                "created": "2026-10-18T00:00:00Z",
+            }
+        )
+    )
+    spec = tiny_spec()
+    spec.hosts[0].hardware = Hardware(disks=[HardwareDisk(source="data-golden")])
+    out = tmp_path / "disk-bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    # the agreeing chain passes verify-images (failing later, at readiness)
+    with pytest.raises(UpError, match=r"\[readiness\]"):
+        up(out, options(cache, tmp_path / "ok"), runner=FakeDocker())
+    # the base's vendor moves: the data disk's mixed chain refuses
+    (cache / "data-vendor.img").write_bytes(b"data-vendor-v2")
+    with pytest.raises(UpError, match=r"\[verify-images\].*chain is mixed"):
+        up(out, options(cache, tmp_path / "mixed"), runner=FakeDocker())
+    (cache / "data-vendor.img").write_bytes(b"data-vendor-bytes")
+    # the base itself drifts: digest refusal naming the re-render remedy
+    (cache / "data-golden.qcow2").write_bytes(b"data-base-v2")
+    with pytest.raises(
+        UpError, match=r"\[verify-images\] guest 'web'.*extra-disk base.*does not match"
+    ):
+        up(out, options(cache, tmp_path / "drift"), runner=FakeDocker())
+    # the base goes missing: presence refusal
+    (cache / "data-golden.qcow2").unlink()
+    with pytest.raises(
+        UpError,
+        match=r"\[verify-images\] guest 'web'.*extra-disk base.*not in the cache",
+    ):
+        up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())

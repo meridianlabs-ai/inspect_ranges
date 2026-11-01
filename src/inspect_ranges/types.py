@@ -1253,13 +1253,13 @@ def derive_device(prefix: str, network_name: str) -> str:
 
 
 _MAC = re.compile(r"(?i)^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
+"""Declared MAC form: six colon-separated hex octets."""
 
 _MAX_VIRTIO_EXTRA_DISKS = 14
 """The render's virtio target letters run `vdc`..`vdp` (`vda` root, `vdb` seed slot)."""
 
 _MAX_IDE_DISKS = 4
 """The pc machine's two IDE buses address `hda`..`hdd`."""
-"""Declared MAC form: six colon-separated hex octets."""
 
 _OPAQUE_CONTENT_FIELDS = (
     "provisioning",

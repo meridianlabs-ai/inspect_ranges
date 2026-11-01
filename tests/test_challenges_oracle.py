@@ -170,7 +170,11 @@ def make_oracle(
         ResolvedPlan,
         SimpleNamespace(
             requirements=SimpleNamespace(evidence_capture=capture, probe_segments=()),
-            guests=[SimpleNamespace(name="box", os="windows" if windows else "linux")],
+            guests=[
+                SimpleNamespace(
+                    name="box", os="windows" if windows else "linux", opaque=False
+                )
+            ],
         ),
     )
     handle = SampleHandle(

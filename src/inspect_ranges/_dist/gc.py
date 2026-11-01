@@ -96,16 +96,27 @@ def unreferenced_chain_files(
         if file is None or vendor is None:
             continue  # not a golden provenance sidecar
         attributed_images.add(file)
-        named_vendors.add(vendor)
+        # a chainless image (installed golden, imported) records its media or
+        # source NAME as provenance only: attributing it as a vendor would let
+        # the chain tier claim (and evict) an unrelated cache file that merely
+        # shares the name (round-2 appliance review B1); mirror up's edge skip
+        chainless = _sidecar_field(sidecar, "kind") in (
+            "installed",
+            "imported",
+        ) or vendor.endswith(".iso")
+        if not chainless:
+            named_vendors.add(vendor)
         if file in referenced_goldens or not (image_cache / file).is_file():
             # surviving (or mid-landing: sidecar before image) goldens pin
             # their vendors; a sidecar whose image never lands is base-tier
             # debris, not a chain victim (round-5 B2 half b)
-            vendors_of_survivors.add(vendor)
+            if not chainless:
+                vendors_of_survivors.add(vendor)
             continue
         victims.append((image_cache / file, "unreferenced golden"))
         victims.append((sidecar, "its provenance sidecar"))
-        vendors_of_victims.setdefault(vendor, []).append(file)
+        if not chainless:
+            vendors_of_victims.setdefault(vendor, []).append(file)
 
     # a golden-shaped qcow2 with NO readable provenance freezes the vendor
     # tier: its vendor cannot be attributed, so nothing vendor-shaped leaves

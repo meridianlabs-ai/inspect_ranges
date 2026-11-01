@@ -201,8 +201,7 @@ class RangeOracle:
         plan = self._handle.plan
         if plan is not None:
             opaque = any(
-                planned.name == guest and getattr(planned, "opaque", False)
-                for planned in plan.guests
+                planned.name == guest and planned.opaque for planned in plan.guests
             )
         else:
             opaque = guest in self._handle.opaque_guests

@@ -566,6 +566,10 @@ def list_images(
             # same lesson for a hard-killed pull's `.{name}.pulling-*` temp
             # (the next pull of that name sweeps it, but listing must see it)
             or ".pulling-" in path.name
+            # and for a hard-killed import's flattened `.{name}.importing`
+            # temp (a retry of the same name overwrites it; another name never
+            # does)
+            or path.name.endswith(".importing")
         )
         and path.name not in managed_files
     )
@@ -574,6 +578,17 @@ def list_images(
 
 _IMPORT_SOURCE_NAME = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
 """Provenance file names recorded by an import must satisfy the publish-side cache-name grammar, or the sidecar could never encode."""
+
+
+def _read_kind(sidecar: Path) -> str | None:
+    """The recorded `kind` of a sidecar, `None` when unreadable or absent (a pre-kind golden)."""
+    import json
+
+    try:
+        value = json.loads(sidecar.read_text()).get("kind")
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, str) else None
 
 
 def import_image(
@@ -591,20 +606,41 @@ def import_image(
     Raises:
         DeriveError: The source is missing or not readable, the target name is already a managed or unmanaged cache file, a host tool is missing, or the conversion failed (nothing is left behind in the cache).
     """
+    from .._dist.gc import chains_lock
+
     run = runner or _run
     if not source.is_file():
         raise DeriveError("import", f"source {source} does not exist")
     file = image_file_name(name)
+    if not _IMPORT_SOURCE_NAME.fullmatch(file) or ".pulling-" in file:
+        # import is the user-facing entry: refuse an unpublishable name here
+        # rather than at a much later publish
+        raise DeriveError(
+            "import",
+            f"name {name!r} is not a legal image name (letters, digits, "
+            "'_.-', starting alphanumeric)",
+        )
     image_path = cache / file
     metadata_path = cache / image_sidecar_file_name(file)
     cache.mkdir(parents=True, exist_ok=True)
-    with _name_lock(cache, file):
-        if metadata_path.is_file() or image_path.is_file():
+    with chains_lock(cache, exclusive=False), _name_lock(cache, file):
+        if image_path.is_file():
             raise DeriveError(
                 "import",
                 f"{image_path} already exists; imports never overwrite (prune "
                 "the name first, or import under another name)",
             )
+        if metadata_path.is_file():
+            # a sidecar without its image is an interrupted import (the
+            # sidecar lands first); healing is confined to kind=imported so a
+            # mid-landing golden chain is never clobbered
+            existing = _read_kind(metadata_path)
+            if existing != "imported":
+                raise DeriveError(
+                    "import",
+                    f"{metadata_path} already exists and does not record an "
+                    "imported image; imports never overwrite",
+                )
         source_name = (
             source.name
             if _IMPORT_SOURCE_NAME.fullmatch(source.name)

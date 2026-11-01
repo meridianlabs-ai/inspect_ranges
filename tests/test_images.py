@@ -458,3 +458,32 @@ def test_sidecar_kind_resolution_and_daemon_rule(tmp_path: Path) -> None:
     assert sidecar(kind="imported", daemon=None).chainless
     with pytest.raises(pydantic.ValidationError, match="only imported"):
         sidecar(daemon=None)
+
+
+def test_interrupted_import_heals_and_bad_names_refuse(tmp_path: Path) -> None:
+    """Round-2 appliance review I1/N3: a sidecar without its image is an interrupted import (the sidecar lands first) and re-importing the name heals it; healing never clobbers a non-imported sidecar, and an unpublishable `--as` name refuses up front."""
+    import subprocess
+
+    from inspect_ranges._runtime.images import DeriveError, import_image
+
+    source = tmp_path / "fw-disk.qcow2"
+    subprocess.run(
+        ["qemu-img", "create", "-f", "qcow2", str(source), "4M"],
+        check=True,
+        capture_output=True,
+    )
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    # the interrupted-import shape: an imported sidecar whose image never landed
+    first = import_image(source, "fw", cache)
+    (cache / first.file).unlink()
+    healed = import_image(source, "fw", cache)
+    assert (cache / healed.file).is_file()
+    # a sidecar of any other kind is a mid-landing chain: never clobbered
+    (cache / healed.file).unlink()
+    (cache / "fw.json").write_text('{"kind": "golden"}')
+    with pytest.raises(DeriveError, match="does not record an imported image"):
+        import_image(source, "fw", cache)
+    # the user-facing entry refuses an unpublishable name before any work
+    with pytest.raises(DeriveError, match="not a legal image name"):
+        import_image(source, "my fw", cache)

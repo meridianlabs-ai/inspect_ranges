@@ -214,7 +214,11 @@ def list_cmd(image_cache: Path | None) -> None:
     for metadata in managed:
         flags = ""
         if not (image_cache / metadata.file).is_file():
-            flags += "  MISSING GOLDEN (interrupted derive; re-run derive)"
+            flags += (
+                "  MISSING IMAGE (interrupted import; re-run images import)"
+                if metadata.resolved_kind == "imported"
+                else "  MISSING GOLDEN (interrupted derive; re-run derive)"
+            )
         # an installed (Windows) golden follows the Windows recipe's
         # versioning; an imported image has no recipe to compare against
         if metadata.resolved_kind == "imported":
@@ -578,6 +582,11 @@ def prune(
         # (phase round-2 N13); blobs land atomically, so aged ones are debris
         if temp.is_file() and aged(temp):
             victims.append((temp, temp.stat().st_size, "stranded write temp"))
+    for temp in sorted(image_cache.glob("*.importing")):
+        # a hard-killed import strands its flattened temp; a retry of the same
+        # name overwrites it, but an import under another name never would
+        if temp.is_file() and aged(temp):
+            victims.append((temp, temp.stat().st_size, "stranded import temp"))
     recipe_dir = recipe_cache if recipe_cache is not None else default_recipe_cache()
     stale_recipe_dirs: list[Path] = []
     if recipe_dir.is_dir():

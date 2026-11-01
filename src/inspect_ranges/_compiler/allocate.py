@@ -215,14 +215,22 @@ def allocate(
     cids = {name: cid_base + index for index, name in enumerate(cid_order)}
 
     guests: list[GuestAllocation] = []
-    # declared MACs claim their addresses up front so a generated MAC can
-    # never collide with one (semantic validation covers declared-vs-declared)
-    used_macs: set[str] = {
-        interface.mac.lower()
-        for _, _, interfaces in ordered
-        for interface in interfaces
-        if interface.mac is not None
-    }
+    # declared and probe-reserved MACs claim their addresses up front so a
+    # generated MAC can never collide with either (semantic validation covers
+    # declared-vs-declared; probe MACs sit in their own 02:50:00 OUI, which
+    # generated 52:54:00 MACs never enter, but a declared MAC could squat on)
+    probe_macs = {endpoint.mac for endpoint in probe_endpoints.values()}
+    used_macs: set[str] = set(probe_macs)
+    for _, guest_name, interfaces in ordered:
+        for interface in interfaces:
+            if interface.mac is None:
+                continue
+            if interface.mac.lower() in probe_macs:
+                raise ValueError(
+                    f"declared MAC {interface.mac} on guest {guest_name!r} is "
+                    "reserved for a probe endpoint; declare a different MAC"
+                )
+            used_macs.add(interface.mac.lower())
     for kind, name, interfaces in ordered:
         allocations: list[InterfaceAllocation] = []
         for interface in interfaces:
