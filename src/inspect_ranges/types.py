@@ -315,10 +315,17 @@ class Interface(_StrictModel):
     ip: AnyIPAddress | None = None
     """Static address within the network's subnet; omitted means IPAM-allocated."""
 
+    mac: str | None = None
+    """Declared MAC address, for images that key behavior to a specific MAC (appliance first-boot config, DHCP reservations); omitted means the deterministic generated MAC. Form-checked and range-unique (`semantic_issues`)."""
+
     if TYPE_CHECKING:
         # static signature only: address fields also accept strings (runtime-coerced by pydantic)
         def __init__(
-            self, *, network: str, ip: AnyIPAddress | str | None = None
+            self,
+            *,
+            network: str,
+            ip: AnyIPAddress | str | None = None,
+            mac: str | None = None,
         ) -> None: ...
 
 
@@ -350,6 +357,61 @@ class Resources(_StrictModel):
 
     disk_gb: int | None = Field(default=None, ge=1)
     """Disk size in GiB, when the image default is not enough."""
+
+
+class HardwareDisk(_StrictModel):
+    """An extra disk after the root disk (which always comes from `image`)."""
+
+    size_gb: int | None = Field(default=None, ge=1)
+    """A blank volume of this size."""
+
+    source: str | None = None
+    """Cache image name the disk starts from, as a copy-on-write overlay (the base stays pristine; the appliance pattern for prepared data volumes)."""
+
+    bus: Literal["virtio", "ide"] = "virtio"
+    """The disk bus the guest sees (`ide` for images whose boot config names legacy device paths)."""
+
+    @model_validator(mode="after")
+    def _exactly_one_source(self) -> "HardwareDisk":
+        if (self.size_gb is None) == (self.source is None):
+            raise ValueError(
+                "an extra disk takes exactly one of size_gb (blank volume) or "
+                "source (overlay of a cache image)"
+            )
+        return self
+
+
+class Hardware(_StrictModel):
+    """The guest's machine shape, for images built against particular virtual hardware (appliances). Every default reproduces the engine's standard shape exactly, so an absent block changes nothing."""
+
+    firmware: Literal["bios", "uefi", "uefi-secure"] = "bios"
+    """Boot firmware. `bios` is today's SeaBIOS behavior; `uefi` boots OVMF with a per-guest nvram copy; `uefi-secure` (Secure Boot + SMM + TPM groundwork) is declared vocabulary that refuses `hardware-not-realized` until the Windows 11 work lands."""
+
+    machine: Literal["q35", "pc"] = "q35"
+    """Virtual chipset generation. `pc` (i440fx) serves appliance images built for the older machine type."""
+
+    nic_model: Literal["virtio", "e1000"] = "virtio"
+    """The NIC device model every interface of this guest presents. `e1000` serves images without virtio drivers or with configs keyed to emulated Intel NICs."""
+
+    video: Literal["vga"] | None = None
+    """A video device, when the image needs one; omitted means none. Load-bearing beyond graphics: a VGA device occupies a PCI slot, and some images' network configs depend on the resulting NIC slot ordering."""
+
+    tpm: bool = False
+    """An emulated TPM 2.0. Declared vocabulary that refuses `hardware-not-realized` until the Windows 11 work lands."""
+
+    disks: list[HardwareDisk] = []
+    """Extra disks after the root, in order."""
+
+
+class TcpReadiness(_StrictModel):
+    """Readiness probed as a TCP connect to the guest's first declared address."""
+
+    tcp: int = Field(ge=1, le=65535)
+    """The port that answers once the guest is ready."""
+
+
+Readiness = TcpReadiness | Literal["process"]
+"""An opaque guest's readiness contract: a TCP port that answers (`{tcp: 22}`), or `process` (the VM process runs; the weakest honest signal)."""
 
 
 class User(_StrictModel):
@@ -843,6 +905,15 @@ class Host(_StrictModel):
     vmm: Vmm = "qemu"
     """Virtual machine monitor that runs this guest: `qemu` (default, via libvirt) or `cloud-hypervisor` (smaller device model; started directly, reached over its hybrid-vsock Unix socket)."""
 
+    hardware: Hardware | None = None
+    """Machine shape for images built against particular virtual hardware; omitted means the engine's standard shape (see `Hardware`). QEMU guests only (planning refuses `hardware-vmm-not-supported` on cloud-hypervisor)."""
+
+    opaque: bool = False
+    """A sealed appliance image: no control daemon, so the engine never reaches inside it. Opaque guests carry no provisioning, services, vulnerabilities, misconfigurations, data, defense, roles, or scheduled activity (all refused: nothing could realize or verify them); they boot an imported image as-is, readiness comes from `readiness`, and goals scored against them carry the externally-observed assurance posture."""
+
+    readiness: Readiness | None = None
+    """How an opaque guest reports ready: `{tcp: <port>}` (a connect probe against the first declared address) or `process` (the VM process runs). Opaque guests only (one meaning per field; daemon guests keep the daemon handshake); omitted on an opaque guest means `process`."""
+
     nested_virtualization: bool = False
     """The guest runs KVM virtual machines of its own (kernel-under-test and appliance-emulation workloads). Needs two things the engine checks rather than assumes: the plan's `host-passthrough` CPU (a named CPU model does not carry the virtualization flag, refused at planning as `nested-virt-requires-host-passthrough`) and a host whose KVM module exposes nesting (`up` refuses at preflight otherwise, naming the host classes that work). The guest image still owns loading its own kvm modules."""
 
@@ -1177,6 +1248,163 @@ def derive_device(prefix: str, network_name: str) -> str:
     return f"{prefix}{network_name}"[:15]
 
 
+_MAC = re.compile(r"(?i)^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
+"""Declared MAC form: six colon-separated hex octets."""
+
+_OPAQUE_CONTENT_FIELDS = (
+    "provisioning",
+    "services",
+    "vulnerabilities",
+    "misconfigurations",
+    "data",
+    "roles",
+    "scheduled_activity",
+)
+"""Host fields an opaque guest cannot carry: each is realized by recipes or verified through the daemon, and an opaque guest has neither. `users` stays legal as documentation of baked accounts."""
+
+
+def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
+    """The appliance-vocabulary checks: declared MAC form and uniqueness, opaque-guest content refusals, readiness scoping, and the not-yet-realized hardware gates."""
+    issues: list[Issue] = []
+    seen_macs: dict[str, str] = {}
+    sections: list[tuple[str, list[Any]]] = [
+        ("hosts", list(spec.hosts)),
+        ("routers", list(spec.routers)),
+    ]
+    if spec.attacker.interfaces is not None:
+        sections.append(("attacker", [spec.attacker]))
+    for section, guests in sections:
+        for index, guest in enumerate(guests):
+            path_base: tuple[PathElement, ...] = (
+                (section,) if section == "attacker" else (section, index)
+            )
+            for if_index, interface in enumerate(guest.interfaces or []):
+                if interface.mac is None:
+                    continue
+                mac_path = (*path_base, "interfaces", if_index, "mac")
+                if not _MAC.match(interface.mac):
+                    issues.append(
+                        Issue(
+                            code="mac-malformed",
+                            path=mac_path,
+                            message=(
+                                f"declared MAC {interface.mac!r} is not six "
+                                "colon-separated hex octets"
+                            ),
+                        )
+                    )
+                    continue
+                canonical_mac = interface.mac.lower()
+                owner = seen_macs.get(canonical_mac)
+                if owner is not None:
+                    issues.append(
+                        Issue(
+                            code="duplicate-mac",
+                            path=mac_path,
+                            message=(
+                                f"declared MAC {interface.mac} is already "
+                                f"declared on {owner}; MACs must be unique "
+                                "within the range"
+                            ),
+                        )
+                    )
+                else:
+                    seen_macs[canonical_mac] = f"{section}[{guest.name}]"
+    for index, host in enumerate(spec.hosts):
+        if host.hardware is not None:
+            if host.hardware.firmware == "uefi-secure":
+                issues.append(
+                    Issue(
+                        code="hardware-not-realized",
+                        path=("hosts", index, "hardware", "firmware"),
+                        message=(
+                            "firmware uefi-secure is declared vocabulary that "
+                            "is not yet realized"
+                        ),
+                        hint="Secure Boot lands with the Windows 11 hardware work; use bios or uefi for now",
+                    )
+                )
+            if host.hardware.tpm:
+                issues.append(
+                    Issue(
+                        code="hardware-not-realized",
+                        path=("hosts", index, "hardware", "tpm"),
+                        message="tpm is declared vocabulary that is not yet realized",
+                        hint="the emulated TPM lands with the Windows 11 hardware work",
+                    )
+                )
+        if host.opaque:
+            for field in _OPAQUE_CONTENT_FIELDS:
+                if getattr(host, field):
+                    issues.append(
+                        Issue(
+                            code="opaque-content-not-supported",
+                            path=("hosts", index, field),
+                            message=(
+                                f"opaque guest {host.name!r} declares "
+                                f"{field}; an opaque guest has no daemon and "
+                                "no recipes, so nothing could realize or "
+                                "verify it"
+                            ),
+                            hint="bake the content into the imported image at prep time, or make the guest a managed one",
+                        )
+                    )
+            if host.defense is not None:
+                issues.append(
+                    Issue(
+                        code="opaque-content-not-supported",
+                        path=("hosts", index, "defense"),
+                        message=(
+                            f"opaque guest {host.name!r} declares defense "
+                            "toggles, which recipes realize"
+                        ),
+                    )
+                )
+            if host.os.type == "windows":
+                issues.append(
+                    Issue(
+                        code="opaque-windows-not-supported",
+                        path=("hosts", index, "opaque"),
+                        message=(
+                            "opaque Windows guests are not supported (the "
+                            "Windows tier is daemon-managed by construction)"
+                        ),
+                    )
+                )
+        elif host.readiness is not None:
+            issues.append(
+                Issue(
+                    code="readiness-requires-opaque",
+                    path=("hosts", index, "readiness"),
+                    message=(
+                        f"guest {host.name!r} declares readiness but is not "
+                        "opaque; managed guests keep the daemon handshake"
+                    ),
+                )
+            )
+    if spec.attacker.host is not None:
+        foothold = next(
+            (
+                (index, host)
+                for index, host in enumerate(spec.hosts)
+                if host.name == spec.attacker.host
+            ),
+            None,
+        )
+        if foothold is not None and foothold[1].opaque:
+            issues.append(
+                Issue(
+                    code="opaque-foothold-not-supported",
+                    path=("hosts", foothold[0], "opaque"),
+                    message=(
+                        f"foothold host {spec.attacker.host!r} is opaque; the "
+                        "agent's seat needs the daemon (exec, tools, witness)"
+                    ),
+                )
+            )
+    return issues
+
+
 def _name_issues(spec: "RangeSpec") -> list[Issue]:
     """Grammar, length, and derived-device-name collision checks for every authored name."""
     issues: list[Issue] = []
@@ -1246,6 +1474,7 @@ def semantic_issues(spec: RangeSpec) -> list[Issue]:
     """
     issues: list[Issue] = []
     issues += _name_issues(spec)
+    issues += _hardware_issues(spec)
     networks: dict[str, Network] = {}
     network_names = [network.name for network in spec.networks]
     for index, network in enumerate(spec.networks):
