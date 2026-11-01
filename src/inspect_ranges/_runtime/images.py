@@ -65,6 +65,11 @@ DEFAULT_ARTIFACT_DIR = Path.home() / ".cache" / "inspect-ranges" / "artifacts"
 """Where `inspect-ranges daemon-bundle -o` conventionally publishes, and where derive looks by default."""
 
 
+def installed_golden(vendor_file: str) -> bool:
+    """Whether a golden was INSTALLED from install media (an `.iso` vendor: the Windows path) rather than overlaid on a vendor disk image. An installed golden embeds no backing file, so its media is provenance only: never a runtime edge, and never published beside the golden."""
+    return vendor_file.lower().endswith(".iso")
+
+
 class ImageMetadata(BaseModel):
     """Provenance sidecar (`<name>.json`) for a derived golden in the image cache."""
 
@@ -77,6 +82,12 @@ class ImageMetadata(BaseModel):
     daemon: DaemonPin
     golden_sha256: str
     created: str
+
+    @property
+    def installed(self) -> bool:
+        """See `installed_golden`."""
+        return installed_golden(self.vendor_file)
+
     admin_password: str | None = None
     """Windows goldens only: the built-in Administrator password baked at install (deliberate, LOCAL-ONLY scenario content; the control plane is the vsock daemon as SYSTEM). Render reads it to answer the per-boot OOBE pass."""
 

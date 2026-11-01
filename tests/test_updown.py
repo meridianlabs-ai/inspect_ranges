@@ -980,6 +980,46 @@ def test_up_verifies_the_golden_to_vendor_edge(tmp_path: Path, cache: Path) -> N
         up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())
 
 
+def test_up_treats_an_installed_golden_as_chainless(
+    tmp_path: Path, cache: Path
+) -> None:
+    """An installed golden (Windows: unattended install from an ISO) has no runtime backing edge: its sidecar names the install media as provenance, and verify-images neither requires the media in the cache nor hashes it. The boot proceeds to readiness."""
+    import hashlib as hashlib_module
+    import json as json_module
+
+    (cache / "win-backing.qcow2").write_bytes(b"installed")
+    backing_digest = f"sha256:{hashlib_module.sha256(b'installed').hexdigest()}"
+    (cache / "win-backing.json").write_text(
+        json_module.dumps(
+            {
+                "name": "win-backing",
+                "file": "win-backing.qcow2",
+                "recipe_version": "3",
+                "derivation_key": "k" * 64,
+                "vendor_file": "SERVER_EVAL_x64FRE_en-us.iso",
+                "vendor_sha256": "a" * 64,
+                "daemon": {"name": "vsockd", "version": "3.3.0", "sha256": "d" * 64},
+                "golden_sha256": hashlib_module.sha256(b"installed").hexdigest(),
+                "created": "2026-11-01T00:00:00Z",
+                "admin_password": "scenario-only",
+            }
+        )
+    )
+    assert not (cache / "SERVER_EVAL_x64FRE_en-us.iso").exists()
+    out = tmp_path / "installed-bundle"
+    render_bundle(
+        tiny_spec(),
+        out,
+        PlanOptions(
+            image_cache=cache,
+            cid_base=3000,
+            realized_backings={"web": ("win-backing.qcow2", backing_digest)},
+        ),
+    )
+    with pytest.raises(UpError, match=r"\[readiness\]"):
+        up(out, options(cache, tmp_path / "ok"), runner=FakeDocker())
+
+
 def _sweep_remove_project(state: Path) -> None:
     remove_project(state, "ir-tiny-raced")
 

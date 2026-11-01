@@ -42,6 +42,7 @@ from .._channel.channel import MessageChannel, request_id
 from .._channel.protocol import Budget, ExecRequest
 from .._channel.vsock import HybridEndpoint, VsockTransport
 from .._compiler.plan import GUEST_UID_BASE, guest_uid
+from .images import installed_golden
 from .ownership import (
     PROJECT_PREFIX,
     StageLog,
@@ -699,6 +700,8 @@ def up(
             return  # a corrupt sidecar is the derive path's concern, not boot's
         if not isinstance(vendor_file, str) or not isinstance(vendor_sha, str):
             return
+        if installed_golden(vendor_file):
+            return  # installed from media: no backing edge to verify, the media is provenance
         vendor = options.image_cache / vendor_file
         if not vendor.is_file():
             raise UpError(
