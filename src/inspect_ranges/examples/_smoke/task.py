@@ -12,7 +12,6 @@ from typing import Literal
 from inspect_ai import Task, task
 from inspect_ai.agent import react
 from inspect_ai.dataset import MemoryDataset, Sample
-from inspect_ai.util import SandboxEnvironmentSpec
 
 from inspect_ranges import (
     challenge_dataset,
@@ -33,16 +32,10 @@ def examples_smoke(per_example: int | Literal["all"] = 1) -> Task:
     """The Linux example ranges in one eval: `per_example` challenges of each (the first by default, every one with `"all"`), each sample booting its own example's range."""
     samples: list[Sample] = []
     for name in LINUX_EXAMPLES:
-        directory = EXAMPLES / f"_{name}"
-        range_spec = directory / "range.yaml"
-        dataset = challenge_dataset(
-            directory / "challenges.yaml", range_spec=range_spec
-        )
-        chosen = list(dataset)[: None if per_example == "all" else per_example]
-        for sample in chosen:
-            sample.id = f"{name}:{sample.id}"
-            sample.sandbox = SandboxEnvironmentSpec("range", str(range_spec))
-            samples.append(sample)
+        # one multi-range entry per example so `per_example` truncates per
+        # example, not across the combined dataset
+        dataset = challenge_dataset([(name, EXAMPLES / f"_{name}")], prefix_ids=True)
+        samples.extend(list(dataset)[: None if per_example == "all" else per_example])
     return Task(
         dataset=MemoryDataset(samples, name="examples_smoke"),
         setup=challenge_setup(),
