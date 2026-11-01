@@ -200,6 +200,9 @@ def test_unknown_type_lists_builtin_and_registered_names(
     assert "known types:" in issue.message
     for name in ("flag", "marker", "patch"):
         assert name in issue.message
+    # bare-when-unique: a qualified pkg/name whose bare suffix also resolves
+    # adds only noise, so the listing names the builtins once
+    assert "inspect_ranges/flag" not in issue.message
 
 
 def test_unregistered_custom_type_refuses_not_misparses(tmp_path: Path) -> None:
