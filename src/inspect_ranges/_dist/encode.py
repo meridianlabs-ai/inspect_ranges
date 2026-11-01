@@ -15,7 +15,7 @@ from pathlib import Path
 from .._build.manifest import BuildManifest, manifest_path
 from .._build.recipes import ResolvedRecipe, resolve_recipe
 from .._compiler.plan import image_file_name
-from .._runtime.images import ImageMetadata, installed_golden
+from .._runtime.images import ImageMetadata
 from .errors import DistError
 from .oci import ContentStore, Descriptor, OciIndex, OciManifest, ProgressFn
 
@@ -196,7 +196,11 @@ def encode_image_chain(
         if file.endswith(".qcow2") and qcow2_backing_name(image_cache / file):
             raise DistError(
                 "chain-invalid",
-                f"{file} embeds a backing file but has no provenance sidecar; it cannot publish as a vendor base",
+                f"{file} embeds a backing file but has no provenance sidecar; "
+                "the publisher models realized-over-golden-over-vendor chains "
+                "only, so an image whose base is itself a realized or "
+                "unmanaged file cannot publish as-is (a foreign appliance "
+                "image lands with `images import`, which flattens the chain)",
             )
         blob = qcow2_descriptor(
             store, image_cache / file, expected=digest, progress=progress
@@ -220,15 +224,20 @@ def encode_image_chain(
             f"{metadata_path} is not a valid golden sidecar: {error}",
         ) from error
     validated_cache_name(metadata.vendor_file)
-    if installed_golden(metadata.vendor_file):
-        # an installed golden (Windows: unattended install from install media)
-        # embeds no backing file and never publishes its media: the sidecar
-        # carries the media's digest as provenance, the manifest annotates it,
-        # and the chain is the golden alone
+    if metadata.chainless:
+        # a chainless image (an installed golden, or an imported appliance
+        # image) embeds no backing file and never publishes its provenance
+        # file: the sidecar carries that file's digest, the manifest
+        # annotates it, and the chain is the image alone
         if qcow2_backing_name(image_cache / file):
+            label = (
+                "an installed golden"
+                if metadata.resolved_kind == "installed"
+                else "an imported image"
+            )
             raise DistError(
                 "chain-invalid",
-                f"{file} is an installed golden (media {metadata.vendor_file}) but embeds a backing file",
+                f"{file} is {label} (provenance {metadata.vendor_file}) but embeds a backing file",
             )
         golden_blob = qcow2_descriptor(
             store,

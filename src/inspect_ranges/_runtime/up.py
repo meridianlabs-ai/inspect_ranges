@@ -770,8 +770,10 @@ def up(
             return  # a corrupt sidecar is the derive path's concern, not boot's
         if not isinstance(vendor_file, str) or not isinstance(vendor_sha, str):
             return
-        if installed_golden(vendor_file):
-            return  # installed from media: no backing edge to verify, the media is provenance
+        if meta.get("kind") in ("installed", "imported") or installed_golden(
+            vendor_file
+        ):
+            return  # chainless: no backing edge to verify, the recorded file is provenance
         vendor = options.image_cache / vendor_file
         if not vendor.is_file():
             raise UpError(

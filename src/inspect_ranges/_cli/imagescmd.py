@@ -84,6 +84,7 @@ def derive(
         )
     verb = "cache hit" if hit else "derived"
     click.echo(f"{verb}: {metadata.file}  sha256:{metadata.golden_sha256}")
+    assert metadata.daemon is not None  # derive always bakes a daemon
     click.echo(
         f"  vendor {metadata.vendor_file} sha256:{metadata.vendor_sha256}"
         f"  daemon {metadata.daemon.name} v{metadata.daemon.version}"
@@ -184,6 +185,7 @@ def derive_windows(
         )
     verb = "cache hit" if hit else "installed"
     click.echo(f"{verb}: {metadata.file}  sha256:{metadata.golden_sha256}")
+    assert metadata.daemon is not None  # derive always bakes a daemon
     click.echo(
         f"  media {metadata.vendor_file} sha256:{metadata.vendor_sha256}"
         f"  daemon {metadata.daemon.name} v{metadata.daemon.version}"
@@ -213,8 +215,14 @@ def list_cmd(image_cache: Path | None) -> None:
         flags = ""
         if not (image_cache / metadata.file).is_file():
             flags += "  MISSING GOLDEN (interrupted derive; re-run derive)"
-        # an installed (Windows) golden follows the Windows recipe's versioning
-        tool_version = WIN_RECIPE_VERSION if metadata.installed else RECIPE_VERSION
+        # an installed (Windows) golden follows the Windows recipe's
+        # versioning; an imported image has no recipe to compare against
+        if metadata.resolved_kind == "imported":
+            tool_version = metadata.recipe_version
+        elif metadata.installed:
+            tool_version = WIN_RECIPE_VERSION
+        else:
+            tool_version = RECIPE_VERSION
         if metadata.recipe_version != tool_version:
             # mirror doctor's three-way split: an unparseable version must not
             # be labeled with an ordering that could not be computed
@@ -232,8 +240,13 @@ def list_cmd(image_cache: Path | None) -> None:
                 flags += f"  STALE RECIPE (v{metadata.recipe_version} < v{tool_version}; re-derive)"
         click.echo(
             f"{metadata.file}  sha256:{metadata.golden_sha256[:12]}  "
-            f"vendor={metadata.vendor_file}  daemon={metadata.daemon.name} v{metadata.daemon.version}  "
-            f"recipe=v{metadata.recipe_version}  created={metadata.created}{flags}"
+            f"vendor={metadata.vendor_file}  "
+            + (
+                f"daemon={metadata.daemon.name} v{metadata.daemon.version}  "
+                if metadata.daemon is not None
+                else "daemon=none (imported)  "
+            )
+            + f"recipe=v{metadata.recipe_version}  created={metadata.created}{flags}"
         )
     from .._build.capture import live_project_files
     from .._runtime.ownership import default_state_dir
@@ -313,6 +326,47 @@ def prune_delete_pass(
             continue  # directories (recipe stagings) are removed by the caller
         path.unlink(missing_ok=True)
     return seen
+
+
+@images.command("import")
+@click.argument("source", type=click.Path(path_type=Path, exists=True))
+@click.option(
+    "--as",
+    "name",
+    required=True,
+    help="Cache name the image lands under (a Host.image reference).",
+)
+@click.option(
+    "--notes",
+    default=None,
+    help="Free-text provenance recorded in the sidecar (where the image came from, how it was prepared).",
+)
+@click.option(
+    "--image-cache",
+    type=click.Path(path_type=Path),
+    default=None,
+    show_default="~/.cache/inspect-ranges/images (or INSPECT_RANGES_IMAGE_CACHE)",
+    help="Image cache the import lands in.",
+)
+def images_import(
+    source: Path, name: str, notes: str | None, image_cache: Path | None
+) -> None:
+    """Land a foreign qcow2 as an IMPORTED image: the opaque tier's image source (prepared appliance disks the engine cannot derive).
+
+    The image is flattened on the way in (any backing chain collapses into one self-contained file) and recorded under a kind=imported provenance sidecar: no daemon pin, the source file's name and digest as provenance, plus --notes. Imported images publish chainless and boot without a vendor edge; guests booting them are typically declared `opaque`.
+    """
+    from .._runtime.images import DeriveError, import_image
+
+    cache = image_cache or default_image_cache()
+    try:
+        metadata = import_image(source, name, cache, notes=notes)
+    except DeriveError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"imported: {metadata.file}  sha256:{metadata.golden_sha256}")
+    click.echo(
+        f"  source {metadata.vendor_file} sha256:{metadata.vendor_sha256}"
+        + (f"  notes: {metadata.notes}" if metadata.notes else "")
+    )
 
 
 @images.command("pull")
