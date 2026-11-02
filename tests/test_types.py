@@ -192,9 +192,11 @@ def test_hardware_vocabulary_accepts_the_appliance_shape() -> None:
     )
     spec.hosts[0].interfaces[0].mac = "52:54:00:aa:bb:cc"
     spec.hosts[1].opaque = True
-    spec.hosts[1].readiness = TcpReadiness(tcp=22)
+    spec.hosts[1].readiness = TcpReadiness(tcp=22, timeout=1500)
     spec.hosts[1].interfaces[0].ip = IPv4Address("10.80.20.9")
     revalidate_range(spec)
+    with pytest.raises(ValidationError):
+        TcpReadiness(tcp=22, timeout=10)  # below the 30s floor
     assert Hardware().model_dump(exclude_defaults=True) == {}
 
 

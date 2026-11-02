@@ -810,3 +810,36 @@ def test_tcp_readiness_reserves_the_probe_source_address(tmp_path: Path) -> None
     quiet = _appliance_spec()
     quiet.hosts[1].readiness = "process"
     assert allocate(quiet).hypervisor_addresses == {}
+
+
+def test_declared_readiness_budget_rides_boot_json(tmp_path: Path) -> None:
+    """A declared `TcpReadiness.timeout` lands on the guest's boot entry (and only then): slow appliances carry their boot budget as a bundle fact."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges.types import TcpReadiness
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+
+    spec = _appliance_spec()
+    spec.hosts[1].readiness = TcpReadiness(tcp=22, timeout=1500)
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    entries = {
+        e["name"]: e for e in json.loads((out / "boot.json").read_text())["guests"]
+    }
+    assert entries["router"]["readiness_timeout"] == 1500
+    assert "readiness_timeout" not in entries["workbench"]
+
+    plain = _appliance_spec()
+    out2 = tmp_path / "bundle2"
+    render_bundle(plain, out2, PlanOptions(image_cache=cache, cid_base=3000))
+    entries2 = {
+        e["name"]: e for e in json.loads((out2 / "boot.json").read_text())["guests"]
+    }
+    assert "readiness_timeout" not in entries2["router"]

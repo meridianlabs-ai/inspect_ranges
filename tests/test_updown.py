@@ -1681,6 +1681,10 @@ def test_boot_guest_shape_validates_readiness_and_disks() -> None:
     }
     with pytest.raises(ValidationError, match="readiness_port"):
         BootGuest(**base, readiness="tcp", readiness_port=22)
+    with pytest.raises(ValidationError, match="readiness_timeout"):
+        BootGuest.model_validate(
+            {**base, "readiness": "process", "readiness_timeout": 10}
+        )  # below the declared-budget floor
     with pytest.raises(ValidationError, match="valid IPv4 address"):
         BootGuest.model_validate(
             {

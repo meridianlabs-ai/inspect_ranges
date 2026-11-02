@@ -413,6 +413,9 @@ class TcpReadiness(_StrictModel):
     tcp: int = Field(ge=1, le=65535)
     """The port that answers once the guest is ready."""
 
+    timeout: int | None = Field(default=None, ge=30, le=7200)
+    """The guest's declared boot budget in seconds, for appliances whose stacks take longer than the deployment's per-guest readiness window (a management plane that boots in fifteen minutes is a fact of the image, like its addresses). Omitted means the deployment's window applies; declared, the probe waits at least this long for this guest."""
+
 
 Readiness = TcpReadiness | Literal["process"]
 """An opaque guest's readiness contract: a TCP port that answers (`{tcp: 22}`), or `process` (the VM process runs; the weakest honest signal)."""

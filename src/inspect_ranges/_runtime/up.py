@@ -305,6 +305,8 @@ class BootGuest(BaseModel):
     readiness_port: int | None = Field(default=None, ge=1, le=65535)
     readiness_ip: IPv4Address | None = None
     """The address the tcp readiness probe connects to (the opaque guest's first interface, declared as the address the image carries)."""
+    readiness_timeout: int | None = Field(default=None, ge=30, le=7200)
+    """The guest's declared boot budget in seconds (`TcpReadiness.timeout`): the probe waits at least this long for this guest, extending the deployment's shared window (never shrinking it)."""
     injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
     firmware: Literal["bios", "uefi"] = "bios"
     opaque: bool = False
@@ -1146,6 +1148,12 @@ def up(
             guest_deadline = max(
                 deadline, time.monotonic() + options.readiness_min_window
             )
+            if guest.readiness_timeout is not None:
+                # a declared boot budget (slow appliances) extends the shared
+                # window for ITS guest only, and never shrinks it
+                guest_deadline = max(
+                    guest_deadline, time.monotonic() + guest.readiness_timeout
+                )
             # an external box's bar here is daemon liveness only (ping over its
             # exec surface); the conformance battery holds the deeper bar
             readiness = (
@@ -1190,7 +1198,8 @@ def up(
     if failed:
         raise fail(
             "readiness",
-            f"guests not ready within {options.readiness_timeout:.0f}s: {', '.join(failed)} "
+            "guests not ready within their windows "
+            f"(shared {options.readiness_timeout:.0f}s): {', '.join(failed)} "
             f"(console logs under {project_dir(options.state_dir, project) / 'consoles'})",
             guest=failed[0],
             consoles=[
