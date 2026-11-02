@@ -87,6 +87,37 @@ def test_image_cache_miss_is_loud(cache: Path, tmp_path: Path) -> None:
     assert excinfo.value.issues[0].path == ("hosts", 0, "image")
 
 
+def test_external_attack_box_exempts_the_attacker_image_from_the_cache_check(
+    cache: Path, tmp_path: Path
+) -> None:
+    """A once-realized bundle whose provider boots the attack box (`external_attack_box=True`) never pulls the attacker's image, so a cache miss on that one guest does not refuse; a bundle `render` writes keeps the check."""
+    spec = two_segment_spec()
+    spec = spec.model_copy(
+        update={"attacker": spec.attacker.model_copy(update={"image": "ghost-attack"})}
+    )
+    # default (a self-sufficient bundle): the missing attacker image refuses
+    with pytest.raises(IssueError) as excinfo:
+        render_bundle(spec, tmp_path / "default", options(cache))
+    assert excinfo.value.issues[0].code == "image-not-in-cache"
+    assert excinfo.value.issues[0].path == ("attacker", "image")
+    # the provider brings its own box: the attacker guest is exempt
+    render_bundle(spec, tmp_path / "external", options(cache), external_attack_box=True)
+
+
+def test_external_attack_box_still_requires_other_guest_images(
+    cache: Path, tmp_path: Path
+) -> None:
+    """The exemption is the attacker guest alone: a host image missing from the cache still refuses even when the provider boots the attack box."""
+    spec = two_segment_spec()
+    spec.hosts[0].image = "ghost-image"
+    with pytest.raises(IssueError) as excinfo:
+        render_bundle(
+            spec, tmp_path / "bundle", options(cache), external_attack_box=True
+        )
+    assert excinfo.value.issues[0].code == "image-not-in-cache"
+    assert excinfo.value.issues[0].path == ("hosts", 0, "image")
+
+
 def test_attacker_defaults_to_the_catalog_attack_image(cache: Path) -> None:
     """An undeclared dedicated attack box resolves to `attack` (standard-images-v1 slice 4: the schema's standard-attack-image promise gets its referent); routers keep the default guest image; a declared image opts out."""
     plan = resolve_plan(two_segment_spec(), options(cache))
