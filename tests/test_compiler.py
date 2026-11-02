@@ -880,12 +880,17 @@ def test_secure_boot_and_tpm_render_the_windows11_contract(tmp_path: Path) -> No
     assert "OVMF_CODE_4M.fd" in router and ".ms.fd" not in router
     assert "<smm state='on'/>" not in router and "tpm" not in router
 
+    # the TPM guest's VMM runs as the shared libvirt-qemu principal (the
+    # swtpm socket contract); every other guest keeps its per-VM uid
+    assert "<label>libvirt-qemu:kvm</label>" in bench
+    assert "<label>libvirt-qemu:kvm</label>" not in router
+
     plan = BootPlan.model_validate(json.loads((out / "boot.json").read_text()))
-    assert (
-        next(g for g in plan.guests if g.name == "workbench").firmware == "uefi-secure"
-    )
+    workbench_entry = next(g for g in plan.guests if g.name == "workbench")
+    assert workbench_entry.firmware == "uefi-secure" and workbench_entry.tpm is True
     script = boot_script(plan)
     assert (
         "/usr/share/OVMF/OVMF_VARS_4M.ms.fd /scratch/nvram/workbench_VARS.fd" in script
     )
     assert "/usr/share/OVMF/OVMF_VARS_4M.fd /scratch/nvram/router_VARS.fd" in script
+    assert "install -o libvirt-qemu -g kvm" in script
