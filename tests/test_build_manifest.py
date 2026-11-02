@@ -13,6 +13,7 @@ from inspect_ranges._build.manifest import (
     manifest_matches_spec,
     now_iso,
     realized_file_name,
+    respec_manifest,
     save_manifest,
     spec_projection,
     vars_hash,
@@ -839,3 +840,39 @@ def test_activity_only_host_is_content_and_requires_a_build(tmp_path: Path) -> N
     with pytest.raises(IssueError) as excinfo:
         apply_build_manifest(spec, image_cache=image_cache, build_cache=builds)
     assert excinfo.value.issues[0].code == "range-not-built"
+
+
+def test_respec_rerecords_a_build_of_the_same_spec_and_refuses_any_other() -> None:
+    """The 0.2.5 hash migration: a manifest whose embedded spec re-hashes to the spec on disk is re-recorded under the current hash (nothing else moves); a different embedded spec, an empty one, or another range name refuses with `manifest-spec-mismatch`."""
+    from inspect_ranges._compiler.plan import spec_sha256
+    from inspect_ranges.types import IssueError
+
+    from tests.test_compiler import two_segment_spec
+
+    spec = two_segment_spec()
+    stale = BuildManifest(
+        range_name=spec.meta.name,
+        schema_version=spec.meta.schema_version,
+        spec_sha256="77ab",
+        spec=spec.model_dump(mode="json", by_alias=True),
+        built_at=now_iso(),
+        guests=(),
+        verification=VerificationRecord(verified_at=now_iso(), declarations=()),
+    )
+    fresh = respec_manifest(stale, spec)
+    assert fresh.spec_sha256 == spec_sha256(spec) and fresh.spec_sha256 != "77ab"
+    assert fresh.model_copy(update={"spec_sha256": "77ab"}) == stale
+    assert respec_manifest(fresh, spec) == fresh  # idempotent
+    other = spec.model_copy(
+        update={"meta": spec.meta.model_copy(update={"description": "another range"})}
+    )
+    with pytest.raises(IssueError, match="built from a different spec") as refused:
+        respec_manifest(stale, other)
+    assert refused.value.issues[0].code == "manifest-spec-mismatch"
+    with pytest.raises(IssueError, match="embeds no spec"):
+        respec_manifest(stale.model_copy(update={"spec": {}}), spec)
+    renamed = spec.model_copy(
+        update={"meta": spec.meta.model_copy(update={"name": "elsewhere"})}
+    )
+    with pytest.raises(IssueError):
+        respec_manifest(stale, renamed)

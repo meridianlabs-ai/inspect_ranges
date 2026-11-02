@@ -60,12 +60,29 @@ def render_egress_nftables(
             continue
         rules += _entry_rules(network.egress, f'iifname "{bridge}"', uplink)
 
+    # On a host with br_netfilter loaded, frames bridged within one segment are
+    # diverted through this chain too (every new netns starts with
+    # bridge-nf-call-iptables=1), where the drop policy would sever guests on
+    # the same bridge from each other while ARP still resolves. Such a frame
+    # enters and leaves through the same bridge; a routed one has at most one
+    # bridge side, so the egress policy below still governs it.
+    # at the IP-layer hook br_netfilter presents a bridged frame with the
+    # bridge device as BOTH interfaces (ports appear only to physdev-style
+    # matches), so a plain name pair expresses "entered and left through this
+    # bridge" in every family on every kernel; `meta ibrname` carried the same
+    # meaning but is bridge-family-only meta on common kernels, where it
+    # refused to load and failed every boot (the 0.2.5 regression)
+    bridged = [
+        f'iifname "{bridge}" oifname "{bridge}" accept'
+        for bridge in (bridge_name(network.name) for network in spec.networks)
+    ]
     lines = [
         "flush ruleset",
         "table inet rangehost {",
         "  chain forward {",
         "    type filter hook forward priority 0; policy drop;",
         "    ct state established,related accept",
+        *[f"    {rule}" for rule in bridged],
         *[f"    {rule}" for rule in rules],
         "  }",
         "}",

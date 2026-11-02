@@ -60,12 +60,18 @@ def _caches(
     show_default="~/.cache/inspect-ranges/recipes (or INSPECT_RANGES_RECIPE_CACHE)",
     help="Recipe cache for resolving the manifest's recipe bundles.",
 )
+@click.option(
+    "--respec",
+    is_flag=True,
+    help="Re-record the cached manifest under the current normalized spec hash before pushing: the one-time migration for a build recorded before 0.2.5 (when the hash began excluding defaulted values), proven against the spec the manifest embeds, never asserted.",
+)
 def push(
     spec: Path | None,
     to_location: str | None,
     image_cache: Path | None,
     build_cache: Path | None,
     recipe_cache: Path | None,
+    respec: bool,
 ) -> None:
     """Publish the current range's build (its manifest's transitive closure) to a location."""
     spec_path = resolve_spec_path(spec)
@@ -95,6 +101,16 @@ def push(
             raise click.ClickException(
                 f"[range-not-built] no build manifest for "
                 f"{validated.meta.name!r} in {builds}; run 'inspect-ranges build' first"
+            )
+        if respec:
+            from .._build.manifest import respec_manifest, save_manifest
+
+            before = manifest.spec_sha256
+            manifest = respec_manifest(manifest, validated)
+            save_manifest(manifest, builds)
+            click.echo(
+                f"respec    {manifest.range_name}: spec sha256:{before[:6]}... -> "
+                f"sha256:{manifest.spec_sha256[:6]}... (embedded spec verified)"
             )
         click.echo(
             f"manifest  {manifest.range_name} (spec sha256:{manifest.spec_sha256[:6]}...) "

@@ -42,6 +42,7 @@ from .._channel.channel import MessageChannel, request_id
 from .._channel.protocol import Budget, ExecRequest
 from .._channel.vsock import HybridEndpoint, VsockTransport
 from .._compiler.plan import GUEST_UID_BASE, guest_uid
+from .images import installed_golden
 from .ownership import (
     PROJECT_PREFIX,
     StageLog,
@@ -269,6 +270,23 @@ class BootInterface(BaseModel):
     gateway: IPv4Address | None = None
 
 
+class BootDisk(BaseModel):
+    """One extra disk in a guest's `boot.json` entry: a blank volume by size, or an overlay of a cache image."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    bus: Literal["virtio", "ide"]
+    size_gb: int | None = Field(default=None, ge=1)
+    image_file: str | None = Field(default=None, pattern=_SAFE_NAME)
+    image_digest: str | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_source(self) -> "BootDisk":
+        if (self.size_gb is None) == (self.image_file is None):
+            raise ValueError("an extra disk takes exactly one of size_gb or image_file")
+        return self
+
+
 class BootGuest(BaseModel):
     """One guest in `boot.json`, shape-validated before anything interpolates it anywhere."""
 
@@ -283,8 +301,18 @@ class BootGuest(BaseModel):
     """A realized overlay's backing golden in the cache; verified at boot like the overlay itself (round-2 review: the overlay digest cannot see its backing, and goldens re-derive in place under the same name)."""
     backing_digest: str | None = None
     overlay_gb: int = Field(ge=1)
-    readiness: Literal["cloud-init", "daemon"]
-    injector: Literal["cloud-init", "unattend"] = "cloud-init"
+    readiness: Literal["cloud-init", "daemon", "tcp", "process"]
+    readiness_port: int | None = Field(default=None, ge=1, le=65535)
+    readiness_ip: IPv4Address | None = None
+    """The address the tcp readiness probe connects to (the opaque guest's first interface, declared as the address the image carries)."""
+    readiness_timeout: int | None = Field(default=None, ge=30, le=7200)
+    """The guest's declared boot budget in seconds (`TcpReadiness.timeout`): the probe waits at least this long for this guest, extending the deployment's shared window (never shrinking it)."""
+    injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
+    firmware: Literal["bios", "uefi"] = "bios"
+    opaque: bool = False
+    extra_disks: list[BootDisk] = []
+    nested_virtualization: bool = False
+    """The guest declares KVM-inside-the-guest workloads; preflight holds the host to it before anything boots."""
     vmm: Literal["qemu", "cloud-hypervisor"] = "qemu"
     cpus: int | None = Field(default=None, ge=1)
     memory_mb: int | None = Field(default=None, ge=64)
@@ -296,6 +324,13 @@ class BootGuest(BaseModel):
         if self.vmm == "cloud-hypervisor" and not sized:
             raise ValueError(
                 f"cloud-hypervisor guest {self.name!r} needs cpus and memory_mb"
+            )
+        if self.readiness == "tcp" and (
+            self.readiness_port is None or self.readiness_ip is None
+        ):
+            raise ValueError(
+                f"tcp readiness for guest {self.name!r} needs readiness_port "
+                "and readiness_ip"
             )
         return self
 
@@ -355,6 +390,22 @@ def boot_script(boot: BootPlan, skip: frozenset[str] = frozenset()) -> str:
             f"qemu-img create -f qcow2 -F qcow2 -b /images/{image} "
             f"/scratch/{name}.qcow2 {guest.overlay_gb}G >/dev/null"
         )
+        guest_files = [f"/scratch/{name}.qcow2"]
+        for index, disk in enumerate(guest.extra_disks):
+            data_path = f"/scratch/{name}-data{index}.qcow2"
+            if disk.image_file is not None:
+                data_image = shlex.quote(disk.image_file)
+                # a per-boot CoW overlay of the prepared volume: the cache
+                # base stays pristine, exactly like the root disk
+                lines.append(
+                    f"qemu-img create -f qcow2 -F qcow2 -b /images/{data_image} "
+                    f"{data_path} >/dev/null"
+                )
+            else:
+                lines.append(
+                    f"qemu-img create -f qcow2 {data_path} {disk.size_gb}G >/dev/null"
+                )
+            guest_files.append(data_path)
         if guest.injector == "unattend":
             # a windows guest's seed is a plain ISO with the per-boot answer
             # file at its root (the implicit specialize search reads it from
@@ -363,19 +414,29 @@ def boot_script(boot: BootPlan, skip: frozenset[str] = frozenset()) -> str:
                 f"genisoimage -quiet -o /scratch/{name}-seed.iso -J -R "
                 f"/render/guests/{name}/seed/unattend.xml"
             )
-        else:
+            guest_files.append(f"/scratch/{name}-seed.iso")
+        elif guest.injector == "cloud-init":
             lines.append(
                 f"cloud-localds -N /render/guests/{name}/seed/network-config "
                 f"/scratch/{name}-seed.iso "
                 f"/render/guests/{name}/seed/user-data /render/guests/{name}/seed/meta-data"
             )
+            guest_files.append(f"/scratch/{name}-seed.iso")
+        # injector "none" (opaque guests): the imported image boots as-is
         if guest.vmm == "qemu":
             # the DAC seclabel runs this QEMU as its own uid with relabel off
             # (issue #5): root pre-owns the files the unprivileged VMM opens
             uid = guest_uid(guest.cid)
-            lines.append(
-                f"chown {uid}:kvm /scratch/{name}.qcow2 /scratch/{name}-seed.iso"
-            )
+            if guest.firmware == "uefi":
+                # OVMF code is read-only and shared; the nvram copy is this
+                # guest's own, owned before the domain starts
+                lines.append("install -d -m 0755 /scratch/nvram")
+                lines.append(
+                    f"install -o {uid} -g kvm -m 0640 "
+                    "/usr/share/OVMF/OVMF_VARS_4M.fd "
+                    f"/scratch/nvram/{name}_VARS.fd"
+                )
+            lines.append(f"chown {uid}:kvm {' '.join(guest_files)}")
             lines.append(
                 f"install -o {uid} -g kvm -m 0640 /dev/null /scratch/console/{name}.log"
             )
@@ -499,16 +560,31 @@ async def _await_ready(
     readiness: str,
     deadline: float,
     min_window: float = 10.0,
+    *,
+    require_agent_identity: bool = False,
 ) -> tuple[bool, str | None]:
-    """One guest's readiness and, when unready, the swallowed cause for the stage log: daemon answering, then the cloud-init gate; any failure or malformed behavior is not-ready, never an escape."""
+    """One guest's readiness and, when unready, the swallowed cause for the stage log: daemon answering, then the cloud-init gate; any failure or malformed behavior is not-ready, never an escape.
+
+    `require_agent_identity` holds the foothold to its unprivileged default: when the daemon reports that default operations run as `root` (its image is missing the agent user, so it cannot drop), readiness refuses rather than hand the agent root. The check keys on `root` specifically — the host mirror of the daemon's own effective-root fail-closed guard — so a non-root daemon (dev/CI) is never refused here. A daemon predating the pong `identity` field reports `None` and cannot be checked; such a daemon also predates the daemon-side guard, so a bring-your-own image that pairs an old daemon with a missing agent user is not caught here (recipe-built images carry both the guard and the agent user, so in practice the gap is empty).
+    """
     while True:
         try:
-            await channel.ping(guest)
+            pong = await channel.ping(guest)
             break
         except Exception as error:
             if time.monotonic() >= deadline:
                 return False, f"daemon never answered: {error!r}"
             await asyncio.sleep(1.0)
+    # "root" is the exact value the daemon reports for an effective-root default
+    # identity (daemon.go `defaultIdentity`, euid 0 -> "root"); the two literals
+    # must stay in lockstep for this check to fire
+    if require_agent_identity and pong.identity == "root":
+        return (
+            False,
+            "foothold daemon runs commands as root by default (reported identity "
+            f"{pong.identity!r}); its image is missing the agent user — refusing, "
+            "a privilege-escalation task would start already solved",
+        )
     if readiness == "cloud-init":
         remaining_ms = max(
             int(min_window * 1000), int((deadline - time.monotonic()) * 1000)
@@ -528,6 +604,33 @@ async def _await_ready(
         except Exception as error:
             return False, f"readiness exec failed: {error!r}"
     return True, None
+
+
+def _await_tcp_ready(
+    run: Runner,
+    project: str,
+    bundle: Path,
+    env: dict[str, str],
+    guest: BootGuest,
+    deadline: float,
+) -> tuple[bool, str | None]:
+    """TCP readiness for an opaque guest: a bounded connect to its declared address and port, probed from inside the range container's netns (the only vantage that reaches guest segments). The daemon never participates; the guest has none."""
+    target = f"{guest.readiness_ip}:{guest.readiness_port}"
+    probe = (
+        f"timeout 3 bash -c 'exec 3<>/dev/tcp/{guest.readiness_ip}/"
+        f"{guest.readiness_port}' 2>/dev/null"
+    )
+    while True:
+        result = run(
+            _compose_argv(project, bundle, "exec", "-T", "range", "bash", "-c", probe),
+            env=env,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return True, None
+        if time.monotonic() > deadline:
+            return False, f"tcp {target} never answered"
+        time.sleep(5.0)
 
 
 def project_containers(
@@ -616,6 +719,18 @@ def _external_attack_box(
     return external, backend
 
 
+def nested_kvm_available(sys_module: Path = Path("/sys/module")) -> bool:
+    """Whether this host's KVM exposes nesting to guests (the `nested` module parameter), the capability a guest's `nested_virtualization` declaration needs; shared by `up` preflight and doctor."""
+    for module in ("kvm_intel", "kvm_amd"):
+        try:
+            value = (sys_module / module / "parameters" / "nested").read_text().strip()
+        except OSError:
+            continue
+        if value in ("Y", "y", "1"):
+            return True
+    return False
+
+
 def up(
     bundle: Path,
     options: UpOptions,
@@ -629,7 +744,7 @@ def up(
     `on_stage` mirrors every stage-log write (the applier's stage-translation hook); it never alters the log or the outcome.
 
     Raises:
-        UpError: Stage-named failure (`verify-bundle`, `prepare`, `verify-images`, `range-image`, `range-container`, `guest-boot`, `readiness`), with per-guest diagnostics on readiness failures. Unless `keep_on_failure`, a failed `up` tears its project down before raising (state and console logs are kept for diagnosis).
+        UpError: Stage-named failure (`verify-bundle`, `prepare`, `preflight`, `verify-images`, `range-image`, `range-container`, `guest-boot`, `readiness`), with per-guest diagnostics on readiness failures. Unless `keep_on_failure`, a failed `up` tears its project down before raising (state and console logs are kept for diagnosis).
     """
     run: Runner = runner or run_command
     started = time.monotonic()
@@ -650,6 +765,18 @@ def up(
             "prepare",
             f"project {project!r} is already running; refusing to supersede. "
             f"Tear it down first: inspect-ranges down {project}",
+        )
+
+    nested_guests = [g.name for g in boot.guests if g.nested_virtualization]
+    if nested_guests and not nested_kvm_available():
+        raise UpError(
+            "preflight",
+            f"guest(s) {', '.join(sorted(nested_guests))} declare "
+            "nested_virtualization, but this host's KVM does not expose "
+            "nesting (no kvm_intel/kvm_amd `nested` parameter reads Y). Use a "
+            "bare-metal host, or one whose kvm module was loaded with "
+            "nested=1; the declaration refuses here rather than failing when "
+            "the workload first touches /dev/kvm",
         )
 
     guests = boot.guests
@@ -673,6 +800,10 @@ def up(
             return  # a corrupt sidecar is the derive path's concern, not boot's
         if not isinstance(vendor_file, str) or not isinstance(vendor_sha, str):
             return
+        if meta.get("kind") in ("installed", "imported") or installed_golden(
+            vendor_file
+        ):
+            return  # chainless: no backing edge to verify, the recorded file is provenance
         vendor = options.image_cache / vendor_file
         if not vendor.is_file():
             raise UpError(
@@ -713,6 +844,29 @@ def up(
                     "re-render the bundle",
                     guest=guest.name,
                 )
+        for disk in guest.extra_disks:
+            if disk.image_file is None:
+                continue
+            base = options.image_cache / disk.image_file
+            if not base.is_file():
+                raise UpError(
+                    "verify-images",
+                    f"extra-disk base {disk.image_file} is not in the cache {options.image_cache}",
+                    guest=guest.name,
+                )
+            if disk.image_digest is not None:
+                actual = f"sha256:{_sha256(base)}"
+                if actual != disk.image_digest:
+                    raise UpError(
+                        "verify-images",
+                        f"extra-disk base {disk.image_file} digest {actual} does not match the bundle's {disk.image_digest}: "
+                        "the cache's copy changed since this bundle was rendered; re-render the bundle",
+                        guest=guest.name,
+                    )
+            # a derived-golden base is itself an overlay: its vendor edge
+            # needs the same check the root disk gets, or the data disk
+            # silently boots a mixed chain (round-2 appliance review B2)
+            verify_vendor_edge(disk.image_file, guest.name)
         if guest.backing_file is not None:
             backing = options.image_cache / guest.backing_file
             if not backing.is_file():
@@ -1009,6 +1163,12 @@ def up(
             guest_deadline = max(
                 deadline, time.monotonic() + options.readiness_min_window
             )
+            if guest.readiness_timeout is not None:
+                # a declared boot budget (slow appliances) extends the shared
+                # window for ITS guest only, and never shrinks it
+                guest_deadline = max(
+                    guest_deadline, time.monotonic() + guest.readiness_timeout
+                )
             # an external box's bar here is daemon liveness only (ping over its
             # exec surface); the conformance battery holds the deeper bar
             readiness = (
@@ -1016,13 +1176,25 @@ def up(
                 if external is not None and guest.name == external.name
                 else guest.readiness
             )
-            ready, cause = await _await_ready(
-                channel,
-                guest.name,
-                readiness,
-                guest_deadline,
-                min_window=options.readiness_min_window,
-            )
+            if readiness == "process":
+                # the opaque tier's weakest honest contract: the VM process
+                # started (guest-boot already failed otherwise); no probe
+                ready, cause = True, None
+            elif readiness == "tcp":
+                ready, cause = await asyncio.to_thread(
+                    _await_tcp_ready, run, project, bundle, env, guest, guest_deadline
+                )
+            else:
+                ready, cause = await _await_ready(
+                    channel,
+                    guest.name,
+                    readiness,
+                    guest_deadline,
+                    min_window=options.readiness_min_window,
+                    # the foothold must start unprivileged: refuse a dedicated
+                    # attack box whose daemon would run the agent as root
+                    require_agent_identity=guest.kind == "attacker",
+                )
             collected.append(
                 GuestState(
                     name=guest.name,
@@ -1044,7 +1216,8 @@ def up(
     if failed:
         raise fail(
             "readiness",
-            f"guests not ready within {options.readiness_timeout:.0f}s: {', '.join(failed)} "
+            "guests not ready within their windows "
+            f"(shared {options.readiness_timeout:.0f}s): {', '.join(failed)} "
             f"(console logs under {project_dir(options.state_dir, project) / 'consoles'})",
             guest=failed[0],
             consoles=[

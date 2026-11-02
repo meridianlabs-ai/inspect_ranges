@@ -44,6 +44,7 @@ def _cases() -> list[tuple[str, p.Message, bytes | None]]:
                 id=_rid(1),
                 daemon="vsockd 3.1.0",
                 session="ffffffffffffffffffffffffffffffff",
+                identity="agent",
             ),
             None,
         ),
@@ -148,6 +149,7 @@ def _cases() -> list[tuple[str, p.Message, bytes | None]]:
                 next_seq=44,
                 drops=2,
                 restarts=1,
+                session="abcdef0123456789abcdef0123456789",
             ),
             None,
         ),
@@ -371,6 +373,10 @@ def _rejects() -> list[dict[str, str]]:
             d(**base, kind="exec_events_result", events=[]),
         ),
         (
+            "exec-events-result-bad-session",
+            d(**base, kind="exec_events_result", next_seq=1, session="NOPE"),
+        ),
+        (
             "exec-events-result-too-many",
             d(
                 **base,
@@ -588,6 +594,16 @@ def _rejects() -> list[dict[str, str]]:
                 kind="pong",
                 daemon="x" * 200,
                 session="ffffffffffffffffffffffffffffffff",
+            ),
+        ),
+        (
+            "pong-identity-overlong",
+            d(
+                **base,
+                kind="pong",
+                daemon="d",
+                session="ffffffffffffffffffffffffffffffff",
+                identity="x" * 33,
             ),
         ),
         (

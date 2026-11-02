@@ -326,13 +326,19 @@ def ensure_build_available(
 
 
 def catalog_image_references(spec: RangeSpec) -> list[str]:
-    """Every image reference a render resolves OUTSIDE the build closure: content-free hosts' declared images, content-free routers with the default applied, and a dedicated attack box with the standard attack image applied. Built guests' artifacts (provisioned hosts AND routers) land via the build pull, never here; a foothold attacker (`host:` set) boots nothing of its own."""
+    """Every image reference a render resolves OUTSIDE the build closure: content-free hosts' declared images, extra-disk overlay bases (`hardware.disks[].source`, on any host), content-free routers with the default applied, and a dedicated attack box with the standard attack image applied. Built guests' artifacts (provisioned hosts AND routers) land via the build pull, never here; a foothold attacker (`host:` set) boots nothing of its own."""
     from .._compiler.plan import DEFAULT_ATTACKER_IMAGE, DEFAULT_ROUTER_IMAGE
 
     names: list[str] = []
     for host in spec.hosts:
         if not has_guest_content(host):
             names.append(host.image)
+        if host.hardware is not None:
+            # extra-disk overlay bases are cache images the render resolves
+            # directly; the build closure never carries them, content or not
+            names.extend(
+                disk.source for disk in host.hardware.disks if disk.source is not None
+            )
     for router in spec.routers:
         if not has_router_content(router):
             names.append(router.image or DEFAULT_ROUTER_IMAGE)

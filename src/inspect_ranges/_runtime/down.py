@@ -131,6 +131,16 @@ def down(
             ) from error
     if not keep_state:
         remove_project(state, project)
+        # a leased CID block dies with its project on a FULL teardown only:
+        # keep_state teardowns precede reuse of the block (the build's -bx
+        # proof boot, a kept range's diagnosis), so releasing there would show
+        # the registry a free block under live or imminent VMs. Release is
+        # idempotent from any process; the absence guard keeps a never-leased
+        # state root free of registry files
+        if (state / "cids.json").exists():
+            from .._provider.naming import CidAllocator
+
+            CidAllocator(state).release(project)
     return DownResult(
         project=project,
         containers=len(containers),

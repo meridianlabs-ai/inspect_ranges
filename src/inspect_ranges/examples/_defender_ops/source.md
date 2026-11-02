@@ -4,7 +4,7 @@ This range is ORIGINAL to inspect_ranges, not a translation: there is no upstrea
 
 What fixes its shape is the coverage ledger rather than an external sketch:
 
-- Networking: a routerless `mode: nat` segment with a scoped `EgressPolicy` (network and attacker both, the `attacker-egress-requires-nat` and `egress-with-router-not-realized` gates respected), `dns.nameservers`, a router joining two isolated segments with a first-match ACL carrying a `deny:` carve-out, an `icmp` entry, a guest-name endpoint and a CIDR endpoint, and one static `routes:` entry.
+- Networking: a routerless staging segment carrying the dual-homed attack box (isolated since the post-0.2.8 revision; it began as a `mode: nat` segment with a scoped `EgressPolicy` on TEST-NET-2 addresses, dropped because it made the example need a deployment uplink for nothing it scores), a router joining two isolated segments with a first-match ACL carrying a `deny:` carve-out, an `icmp` entry, a guest-name endpoint and a CIDR endpoint, and one static `routes:` entry.
 - Variables: a drawn `int` (`gate_code`, explicit min/max) and a drawn `choice` (`site_wing`), applied by a recipe-installed boot unit in the kypo-demo precedent, with an `answer` goal scored against the drawn value.
 - Activities: an `@boot` script and an `every 1m` script with `user:` set, both on the monitor.
 - Telemetry: a `kind: file` collector over the monitor's ops log, consumed by an `evade` goal with an ordered severity vocabulary and `on_sensor_tamper: fail`; plus (2026-10-28) a `kind: command` collector over the opswatchdog unit's journal, consumed by a second `evade` goal in the numeric mode (`PRIORITY` floor 4, `lower_is_more_severe`).

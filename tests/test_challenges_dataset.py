@@ -206,3 +206,67 @@ def test_foothold_ranges_state_the_seat_and_skip_it_as_a_target() -> None:
 def test_no_range_spec_means_no_facts() -> None:
     for sample in challenge_dataset(two_challenges()):
         assert "escape_sentinel_facts" not in (sample.metadata or {})
+
+
+def _entry_dir(tmp_path: Path, name: str, challenge_id: str) -> Path:
+    """A minimal range directory (range.yaml + challenges.yaml) for the multi-range form."""
+    directory = tmp_path / name
+    directory.mkdir()
+    spec = fixture_spec()
+    (directory / "range.yaml").write_text(
+        yaml.safe_dump(spec.model_dump(mode="json", exclude_none=True), sort_keys=False)
+    )
+    (directory / "challenges.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "challenges": [
+                    challenge_with(
+                        [{"id": "g", "type": "flag", "host": "web", "path": "/f"}],
+                        id=challenge_id,
+                    )
+                ]
+            }
+        )
+    )
+    return directory
+
+
+def test_multi_range_form_stamps_each_samples_own_range(tmp_path: Path) -> None:
+    """The multi-range form: samples arrive in entry order with ids unprefixed by default, and each carries its OWN absolute `("range", ...)` sandbox plus the full per-sample metadata (challenge and range-spec text), so a task declaring no sandbox spans many ranges."""
+    from inspect_ranges._metadata import RANGE_SPEC_METADATA_KEY
+
+    first = _entry_dir(tmp_path, "a", "alpha")
+    second = _entry_dir(tmp_path, "b", "bravo")
+    dataset = challenge_dataset([("a", first), ("b", second)])
+    assert [sample.id for sample in dataset] == ["alpha", "bravo"]
+    for sample, directory in zip(dataset, (first, second), strict=True):
+        assert sample.sandbox is not None and sample.sandbox.type == "range"
+        config = sample.sandbox.config
+        assert config == str((directory / "range.yaml").resolve())
+        assert Path(cast(str, config)).is_absolute()
+        assert sample.metadata is not None
+        assert CHALLENGE_METADATA_KEY in sample.metadata
+        assert RANGE_SPEC_METADATA_KEY in sample.metadata
+
+
+def test_multi_range_duplicate_ids_refuse_and_prefixing_resolves(
+    tmp_path: Path,
+) -> None:
+    """Sample ids must stay unique for --sample-id addressing: duplicates across ranges refuse, and prefix_ids rewrites to entry:id."""
+    first = _entry_dir(tmp_path, "a", "same")
+    second = _entry_dir(tmp_path, "b", "same")
+    with pytest.raises(ValueError, match="duplicate sample id"):
+        challenge_dataset([("a", first), ("b", second)])
+    dataset = challenge_dataset([("a", first), ("b", second)], prefix_ids=True)
+    assert [sample.id for sample in dataset] == ["a:same", "b:same"]
+
+
+def test_multi_range_misuse_refuses(tmp_path: Path) -> None:
+    """An entry without its files names the missing one, and range_spec does not combine with the multi-range form (each entry's range.yaml is its spec)."""
+    first = _entry_dir(tmp_path, "a", "alpha")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(ValueError, match="range directory"):
+        challenge_dataset([("empty", empty)])
+    with pytest.raises(ValueError, match="does not combine"):
+        challenge_dataset(cast(Any, [("a", first)]), range_spec=first / "range.yaml")

@@ -72,6 +72,9 @@ ANN_NAME = "org.inspect-ranges.name"
 ANN_GUEST = "org.inspect-ranges.guest"
 ANN_BACKING_FILE = "org.inspect-ranges.backing.file"
 ANN_BACKING_DIGEST = "org.inspect-ranges.backing.digest"
+ANN_INSTALL_MEDIA_FILE = "org.inspect-ranges.install-media.file"
+ANN_INSTALL_MEDIA_DIGEST = "org.inspect-ranges.install-media.digest"
+"""An installed golden's provenance (the install media it was installed from), recorded on the golden manifest in place of a backing edge: the media is never a closure member."""
 ANN_RECIPE_VERSION = "org.inspect-ranges.recipe.version"
 ANN_RECIPE_DIGEST = "org.inspect-ranges.recipe.digest"
 """The recipe-references identity (`recipe-digest-1`, over relative paths, content, and exec bits), distinct from the tar layer's blob digest; materialization recomputes it after extraction and refuses a mismatch."""
@@ -193,7 +196,11 @@ def encode_image_chain(
         if file.endswith(".qcow2") and qcow2_backing_name(image_cache / file):
             raise DistError(
                 "chain-invalid",
-                f"{file} embeds a backing file but has no provenance sidecar; it cannot publish as a vendor base",
+                f"{file} embeds a backing file but has no provenance sidecar; "
+                "the publisher models realized-over-golden-over-vendor chains "
+                "only, so an image whose base is itself a realized or "
+                "unmanaged file cannot publish as-is (a foreign appliance "
+                "image lands with `images import`, which flattens the chain)",
             )
         blob = qcow2_descriptor(
             store, image_cache / file, expected=digest, progress=progress
@@ -217,6 +224,45 @@ def encode_image_chain(
             f"{metadata_path} is not a valid golden sidecar: {error}",
         ) from error
     validated_cache_name(metadata.vendor_file)
+    if metadata.chainless:
+        # a chainless image (an installed golden, or an imported appliance
+        # image) embeds no backing file and never publishes its provenance
+        # file: the sidecar carries that file's digest, the manifest
+        # annotates it, and the chain is the image alone
+        if qcow2_backing_name(image_cache / file):
+            label = (
+                "an installed golden"
+                if metadata.resolved_kind == "installed"
+                else "an imported image"
+            )
+            raise DistError(
+                "chain-invalid",
+                f"{file} is {label} (provenance {metadata.vendor_file}) but embeds a backing file",
+            )
+        golden_blob = qcow2_descriptor(
+            store,
+            image_cache / file,
+            expected=prefixed_digest(digest or metadata.golden_sha256),
+            progress=progress,
+        )
+        members.append(
+            store.put_manifest(
+                OciManifest(
+                    artifact_type=ARTIFACT_GOLDEN,
+                    config=config,
+                    layers=[golden_blob, _sidecar_descriptor(store, metadata_path)],
+                    annotations={
+                        ANN_KIND: "golden",
+                        ANN_NAME: file,
+                        ANN_INSTALL_MEDIA_FILE: metadata.vendor_file,
+                        ANN_INSTALL_MEDIA_DIGEST: prefixed_digest(
+                            metadata.vendor_sha256
+                        ),
+                    },
+                )
+            )
+        )
+        return members
     vendor_path = image_cache / metadata.vendor_file
     vendor_blob = qcow2_descriptor(
         store,

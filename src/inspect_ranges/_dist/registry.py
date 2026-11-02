@@ -6,10 +6,13 @@ Auth is the standard docker credential config plus the two challenge flows regis
 """
 
 import hashlib
+import http.client
 import json
 import os
+import random
 import re
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -38,6 +41,20 @@ __all__ = [
 ]
 
 _CHUNK = 1 << 20
+_BLOB_ATTEMPTS = 6
+"""Download attempts per blob: a multi-gigabyte stream through an inspecting proxy fails mid-transfer often enough that giving up on the first fault lost whole pulls."""
+_BLOB_BACKOFF_S = 2.0
+"""First retry delay; each later delay doubles, capped at `_BLOB_BACKOFF_CAP_S`, with equal jitter (half fixed, half random) so concurrent pullers of one blob do not retry in lockstep. Worst-case patience across the budget is about two minutes, which outlasts a proxy's bad minute."""
+_BLOB_BACKOFF_CAP_S = 60.0
+
+
+def _blob_backoff(attempt: int) -> float:
+    """Delay before retry number `attempt` (1-based): exponential with equal jitter."""
+    base = min(_BLOB_BACKOFF_CAP_S, _BLOB_BACKOFF_S * 2 ** (attempt - 1))
+    return base / 2 + random.uniform(0, base / 2)
+
+
+_sleep = time.sleep
 _MANIFEST_CAP = 16 * 1024 * 1024
 _ERROR_BODY_CAP = 300
 _ACCEPT_MANIFESTS = f"{MEDIA_TYPE_INDEX}, {MEDIA_TYPE_MANIFEST}"
@@ -634,8 +651,32 @@ class RegistryRepo:
         temp_prefix: str | None = None,
         progress: "ProgressFn | None" = None,
     ) -> None:
+        """Download a blob to `destination`, verifying its digest; a stream that fails mid-transfer (a reset connection, a TLS record failure, a short read) restarts from the beginning up to `_BLOB_ATTEMPTS` times, which content addressing makes safe."""
         digest = descriptor.require_sha256()
         destination.parent.mkdir(parents=True, exist_ok=True)
+        for attempt in range(1, _BLOB_ATTEMPTS + 1):
+            try:
+                self._copy_blob_once(descriptor, destination, temp_prefix, progress)
+                return
+            except (OSError, urllib.error.URLError, http.client.HTTPException) as error:
+                # OSError covers ssl.SSLError, ConnectionResetError and socket
+                # timeouts; a DistError (digest mismatch, missing blob) is not a
+                # transfer fault and propagates untouched
+                if attempt == _BLOB_ATTEMPTS:
+                    raise DistError(
+                        "registry-unreachable",
+                        f"blob {digest} from {self._host} failed {attempt} times; last: {error}",
+                    ) from error
+                _sleep(_blob_backoff(attempt))
+
+    def _copy_blob_once(
+        self,
+        descriptor: Descriptor,
+        destination: Path,
+        temp_prefix: str | None,
+        progress: "ProgressFn | None",
+    ) -> None:
+        digest = descriptor.require_sha256()
         hasher = hashlib.sha256()
         done = 0
         fd, temp_name = tempfile.mkstemp(
@@ -650,6 +691,10 @@ class RegistryRepo:
                     done += len(chunk)
                     if progress is not None:
                         progress(digest, "downloading", done, descriptor.size or done)
+            if done < descriptor.size:
+                # http.client ends a Content-Length body quietly when the peer
+                # closes early; a truncated body is a transfer fault, not tampering
+                raise http.client.IncompleteRead(b"", descriptor.size - done)
             actual = f"sha256:{hasher.hexdigest()}"
             if actual != digest:
                 raise DistError(

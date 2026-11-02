@@ -9,6 +9,7 @@ Exit status: the in-guest rc passes through (signal deaths map to 128+signal); a
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import shlex
@@ -22,7 +23,7 @@ from .._channel.channel import (
     MessageChannel,
     request_id,
 )
-from .._channel.protocol import Budget, ExecRequest
+from .._channel.protocol import DAEMON_INBOUND_BULK_CAP, Budget, ExecRequest
 from .._channel.vsock import HybridEndpoint, VsockTransport
 
 EXIT_BUDGET = 124
@@ -190,6 +191,75 @@ async def _run_exec(args: argparse.Namespace) -> int:
     return exit_code(outcome.rc)
 
 
+PUSH_CHUNK_BYTES = DAEMON_INBOUND_BULK_CAP // 2
+"""Large pushes stream in chunks of this size: half the daemon's inbound bulk cap by construction, so a chunk can never flirt with the refusal while the chunk count (and per-chunk request overhead) stays low. One knob for both guest OS paths."""
+
+PUSH_PROMOTE_BASE_MS = 60_000
+PUSH_PROMOTE_PER_GIB_MS = 30_000
+"""The promote budget scales with payload size: reassembly plus digest plus install is three sequential full-file passes, so a fixed bound would time out exactly the appliance-sized pushes chunking exists for. The per-GiB allowance assumes a conservative effective pass rate."""
+
+
+async def _sweep_staging(
+    channel: MessageChannel, guest: str, staging: str, *, windows: bool
+) -> None:
+    """Best-effort removal of staged chunks after a mid-stream failure, so repeated large-push failures cannot fill the guest's temp space; the push's own error still propagates."""
+    try:
+        if windows:
+            script = (
+                f"Remove-Item -Path ({ps_quote(staging)} + '*') "
+                "-Force -ErrorAction SilentlyContinue"
+            )
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", script]
+            user: str | None = None
+        else:
+            cmd = [
+                "sh",
+                "-c",
+                f"rm -f -- {shlex.quote(staging)} {shlex.quote(staging)}.*",
+            ]
+            user = "root"
+        await channel.exec(
+            guest,
+            ExecRequest(
+                id=request_id(), cmd=cmd, user=user, budget=Budget(command_ms=30_000)
+            ),
+        )
+    except Exception:
+        pass
+
+
+async def _stage(
+    channel: MessageChannel,
+    guest: str,
+    local: Path,
+    size: int,
+    staging: str,
+    *,
+    windows: bool,
+) -> tuple[str, int] | None:
+    """Stage `local` at `staging` in the guest: one write for small files (returns `None`), else streamed chunks `staging.NNNN` (returns the file's sha256 and the chunk count for the caller's reassemble-and-verify promote). Streaming bounds host memory to one chunk regardless of file size."""
+    mode = None if windows else 0o600
+    if size <= PUSH_CHUNK_BYTES:
+        await channel.write_file(guest, staging, local.read_bytes(), mode=mode)
+        return None
+    hasher = hashlib.sha256()
+    count = 0
+    with local.open("rb") as handle:
+        while chunk := handle.read(PUSH_CHUNK_BYTES):
+            if count >= 10_000:
+                # the linux reassembly orders parts by glob, which the 4-digit
+                # suffix guarantees only up to here; refuse clearly instead of
+                # failing the digest check after staging over a tebibyte
+                raise ValueError(
+                    f"{local} exceeds the chunked-push bound "
+                    f"(10000 chunks of {PUSH_CHUNK_BYTES} bytes)"
+                )
+            hasher.update(chunk)
+            await channel.write_file(guest, f"{staging}.{count:04d}", chunk, mode=mode)
+            count += 1
+    return hasher.hexdigest(), count
+
+
 async def _run_push(args: argparse.Namespace) -> int:
     # The daemon file plane acts as the agent user, so privileged destinations
     # stage through /tmp and promote via a root exec (install creates parents
@@ -199,39 +269,95 @@ async def _run_push(args: argparse.Namespace) -> int:
     channel = MessageChannel(
         VsockTransport(cids, hybrid_sockets=sockets), label="recipe"
     )
-    data = Path(str(args.local)).read_bytes()
+    local = Path(str(args.local))
+    size = local.stat().st_size
+    windows = guest_os_from_env(dict(os.environ)).get(guest) == "windows"
     user: str | None
-    if guest_os_from_env(dict(os.environ)).get(guest) == "windows":
+    if windows:
         # the Windows daemon's file plane already acts as SYSTEM; the promote
         # only creates parents and moves (NTFS has no POSIX mode to apply)
         staging = f"C:\\Windows\\Temp\\.ir-push-{request_id()}"
-        await channel.write_file(guest, staging, data)
-        promote_ps = (
-            "$ErrorActionPreference='Stop'; "
-            f"$parent = Split-Path -Parent {ps_quote(str(args.remote))}; "
-            "if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }; "
-            f"Move-Item -LiteralPath {ps_quote(staging)} "
-            f"-Destination {ps_quote(str(args.remote))} -Force"
-        )
+        try:
+            parts = await _stage(channel, guest, local, size, staging, windows=True)
+        except BaseException:
+            await _sweep_staging(channel, guest, staging, windows=True)
+            raise
+        if parts is None:
+            promote_ps = (
+                "$ErrorActionPreference='Stop'; "
+                f"$parent = Split-Path -Parent {ps_quote(str(args.remote))}; "
+                "if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }; "
+                f"Move-Item -LiteralPath {ps_quote(staging)} "
+                f"-Destination {ps_quote(str(args.remote))} -Force"
+            )
+        else:
+            digest, count = parts
+            part_list = ", ".join(
+                ps_quote(f"{staging}.{index:04d}") for index in range(count)
+            )
+            # the finally sweeps parts and any partial assembly on every
+            # outcome, the linux promote's unconditional-rm parity
+            promote_ps = (
+                "$ErrorActionPreference='Stop'; "
+                f"$parts = @({part_list}); "
+                f"$assembled = {ps_quote(staging)}; "
+                "try { "
+                "$out = [System.IO.File]::Create($assembled); "
+                "try { foreach ($p in $parts) { $bytes = [System.IO.File]::ReadAllBytes($p); "
+                "$out.Write($bytes, 0, $bytes.Length) } } finally { $out.Close() }; "
+                "$hash = (Get-FileHash -LiteralPath $assembled -Algorithm SHA256).Hash.ToLower(); "
+                f"if ($hash -ne '{digest}') "
+                "{ throw ('reassembled push hash ' + $hash + ' does not match the source') }; "
+                f"$parent = Split-Path -Parent {ps_quote(str(args.remote))}; "
+                "if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }; "
+                f"Move-Item -LiteralPath $assembled -Destination {ps_quote(str(args.remote))} -Force "
+                "} finally { "
+                "foreach ($p in $parts) { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }; "
+                "if (Test-Path -LiteralPath $assembled) "
+                "{ Remove-Item -LiteralPath $assembled -Force -ErrorAction SilentlyContinue } }"
+            )
         cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", promote_ps]
         user = None
     else:
         mode = int(str(args.mode), 8)
         staging = f"/tmp/.ir-push-{request_id()}"
-        await channel.write_file(guest, staging, data, mode=0o600)
-        promote = (
-            f"rc=0; install -D -m {mode:o} -- {shlex.quote(staging)} {shlex.quote(str(args.remote))}"
-            f" || rc=$?; rm -f -- {shlex.quote(staging)}; exit $rc"
-        )
+        try:
+            parts = await _stage(channel, guest, local, size, staging, windows=False)
+        except BaseException:
+            await _sweep_staging(channel, guest, staging, windows=False)
+            raise
+        quoted = shlex.quote(staging)
+        if parts is None:
+            promote = (
+                f"rc=0; install -D -m {mode:o} -- {quoted} {shlex.quote(str(args.remote))}"
+                f" || rc=$?; rm -f -- {quoted}; exit $rc"
+            )
+        else:
+            digest, count = parts
+            # zero-padded suffixes keep the glob in write order; the digest
+            # check proves the reassembly before anything lands at the target
+            promote = (
+                # umask keeps the reassembled file 0600 like its parts;
+                # parts are removed right after a good digest to halve the
+                # disk high-water a large push demands
+                f"umask 077; rc=0; cat -- {quoted}.* > {quoted} "
+                f"&& printf '%s  %s\\n' {digest} {quoted} | sha256sum -c --quiet "
+                f"&& rm -f -- {quoted}.* "
+                f"&& install -D -m {mode:o} -- {quoted} {shlex.quote(str(args.remote))} "
+                f"|| rc=$?; rm -f -- {quoted} {quoted}.*; exit $rc"
+            )
         cmd = ["sh", "-c", promote]
         user = "root"
+    promote_ms = PUSH_PROMOTE_BASE_MS + PUSH_PROMOTE_PER_GIB_MS * (
+        size // (1024 * 1024 * 1024)
+    )
     outcome = await channel.exec(
         guest,
         ExecRequest(
             id=request_id(),
             cmd=cmd,
             user=user,
-            budget=Budget(command_ms=60_000),
+            budget=Budget(command_ms=promote_ms),
         ),
     )
     if outcome.rc != 0:

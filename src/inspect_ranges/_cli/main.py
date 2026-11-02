@@ -11,6 +11,7 @@ from .doctor import doctor
 from .evidencecmd import evidence
 from .imagescmd import images
 from .plancmd import plan, render
+from .provecmd import prove
 from .reapercmd import reaper
 from .schema import schema
 from .shellcmd import shell
@@ -34,6 +35,7 @@ ranges.add_command(evidence)
 ranges.add_command(images)
 ranges.add_command(mirror)
 ranges.add_command(plan)
+ranges.add_command(prove)
 ranges.add_command(publish)
 ranges.add_command(pull)
 ranges.add_command(push)

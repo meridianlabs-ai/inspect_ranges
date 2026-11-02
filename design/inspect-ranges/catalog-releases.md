@@ -191,3 +191,17 @@ Published from main commit `edbbd85` (the exclusions-arc merge, PR #22) to `dock
 SUPERSEDES `sha256:d516aa9ac67e4e78631c7e331a96e19e81181812204e0dbfb6af1aaafb611c0e` (earlier today): the arc's `quiet-journal` goal added a `defense.telemetry` flow, so the spec hash moved. New spec `sha256:2c4ec34ad9a692f517fa33f5a1b91b2134eb2577a7623291c10815bf7d7ad3c0` (was `sha256:939b36b1…`); only the monitor guest re-keyed (the journald exporter recipe), bastion and web reused from cache; the old root stays served by digest and its old spec ref. The nine-name list is unchanged (`defender-ops` was already enumerated; a range push supersedes under its name).
 
 Verified post-push: anonymous pull (fresh caches, empty `DOCKER_CONFIG`) resolved the new spec hash to the root above and materialized 13 artifacts fully verified; `images pin --from` wrote exactly the three image pins with digests unchanged. Proof behind the push (recorded in [exclusions-arc-2026-10.md](exclusions-arc-2026-10.md)): trios 6/6 on both rebuilds, the review's journal-tamper holes closed (bare-banner exporter, cursor anchor check, rate limiting off), and the real-model cleanup eval scored 1.0 valid against this exact build with all four goals determinate.
+
+## 2026-11-01 — defender-ops build (supersedes; no-egress spec)
+
+Published from main commit `a7a2f9e` (the defender-ops-isolated merge, PR #46) to `docker.io/meridianlabsai/inspect-ranges`, in-session at the user's request, CI green at the publishing commit.
+
+| Name | Kind | Root digest |
+|---|---|---|
+| `defender-ops` | range | `sha256:09e404eb248d6f62ea19f5a46cb820c43f11544cdb3db51296b18bd89dd64028` |
+
+SUPERSEDES `sha256:740fa0d2a6797286ee72147353ad5c5e0d0f98ded3791fc48cf6e9686d0ec5b7` (2026-10-28): the staging segment moved from `mode: nat` with a scoped allowlist to `mode: isolated` and the attacker to `egress: none`, so the example boots with no uplink and no egress of any kind and the spec hash moved. New spec `sha256:2d2ba44ba47bad21ce12c048de80b096ac0676b31a277d0729d3aef7674a7082` (was `sha256:2c4ec34a…`); all three guests rebuilt (the local build cache no longer held defender-ops, so nothing reused); the old root stays served by digest and its old spec ref. The nine-name typed list is unchanged and re-verified at the hub (`defender-ops` already enumerated as a range; a range push supersedes under its name).
+
+The accidental-private warning realized: the earlier `inspect-ranges-defender-ops` hub repo had been deleted at some point since 2026-10-28 (every other org repo still serves anonymously), so this push auto-created it under the org's current default visibility, which is PRIVATE. Verified post-push with the publishing credential (fresh caches): the new spec hash resolved to the root above and materialized 13 artifacts, 0 already present, fully verified; `images pin --from` wrote exactly the three image pins with digests unchanged (`attack` 626b43aa…, `ubuntu-noble` 80282f62…, `ubuntu-focal` e85b3f39…). Anonymous verification completed the same day, after the user made the repo public in the Hub UI (visibility is a UI act under the user's credentials): from fresh caches with an empty `DOCKER_CONFIG`, the spec hash resolved credential-free to the root above and materialized 13 artifacts, 0 already present, fully verified.
+
+Proof behind the push: the build at the publishing commit verified all 10 declarations against the live guests and scored the behavioral trios 6/6 valid (`sabotage` and `cleanup`, each reference 1.00 / insufficient 0.00 / forged 0.00).

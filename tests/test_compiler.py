@@ -1,9 +1,11 @@
 from collections.abc import Callable
 from ipaddress import IPv4Address
+from pathlib import Path
 
 import pytest
 from inspect_ranges._compiler import (
     allocate,
+    bridge_name,
     elect_gateways,
     render_dnsmasq_conf,
     render_egress_nftables,
@@ -122,13 +124,15 @@ def test_egress_ruleset_scopes_exactly_the_allowlist() -> None:
     spec = nat_spec()
     ruleset = render_egress_nftables(spec, allocate(spec))
     lines = [line.strip() for line in ruleset.splitlines()]
+    # frames bridged within a segment pass first (br_netfilter hosts divert them here)
+    assert lines[5] == 'iifname "br-corp" oifname "br-corp" accept'
     # attacker override (egress: none) precedes the network allowlist
-    assert lines[5] == 'ip saddr 10.90.10.2 oifname "eth0" drop'
+    assert lines[6] == 'ip saddr 10.90.10.2 oifname "eth0" drop'
     assert (
-        lines[6]
+        lines[7]
         == 'iifname "br-corp" oifname "eth0" ip daddr 198.51.100.7/32 tcp dport 443 accept'
     )
-    assert lines[7] == 'iifname "br-corp" oifname "eth0" udp dport 123 accept'
+    assert lines[8] == 'iifname "br-corp" oifname "eth0" udp dport 123 accept'
     assert 'oifname "eth0" masquerade' in ruleset
     assert "policy drop" in ruleset
 
@@ -279,10 +283,23 @@ def test_dnsmasq_conf_renders_reservations_and_records() -> None:
     assert "dhcp-option=option:domain-search,lab.internal" in lines
     assert "host-record=web,web.lab.internal,10.95.10.10" in lines
     assert "host-record=files.corp.local,10.95.10.200" in lines
-    # no gateway on an isolated network: no router option
-    assert not any(line.startswith("dhcp-option=option:router") for line in lines)
+    # an isolated network's leases advertise the service address as a
+    # DEAD-END router (some appliance DHCP clients refuse router-less
+    # leases; the address answers nothing and routes nowhere)
+    assert "dhcp-option=option:router,10.95.10.1" in lines
     # networks with neither dhcp nor records need no service
     assert render_dnsmasq_conf(spec, allocation, "net2") is None
+
+
+def test_dhcp_reservation_carries_the_declared_appliance_mac() -> None:
+    """The appliance pattern over segment DHCP: an opaque guest's declared MAC and ip land verbatim in the reservation, so a DHCP-client appliance leases its baked address deterministically (no engine config ever reaches inside the image)."""
+    from tests.test_plan import _appliance_spec
+
+    spec = _appliance_spec()
+    spec.networks[0].dhcp = True
+    conf = render_dnsmasq_conf(spec, allocate(spec), "lan")
+    assert conf is not None
+    assert "dhcp-host=52:54:00:e8:3c:19,10.9.0.10,router" in conf.splitlines()
 
 
 def test_resolvers_for_orders_authoritative_then_service_then_external() -> None:
@@ -635,3 +652,196 @@ def test_draw_variables_port_bounds_default_to_unprivileged() -> None:
 def test_draw_variables_nothing_to_draw_is_empty() -> None:
     assert draw_variables({}, "seed") == {}
     assert draw_variables({"undrawn": Variable(default=1)}, "seed") == {}
+
+
+def test_frames_bridged_within_a_segment_bypass_the_forward_drop() -> None:
+    """A host with br_netfilter loaded diverts frames bridged within one segment through the range netns forward chain (every new netns starts with bridge-nf-call-iptables=1): one accept per bridge, keyed on the frame entering and leaving through that same bridge, lets same-segment guests talk while routed traffic, which has at most one bridge side, still meets the egress policy. The bridge taps carry no IP, so no other path has both sides on one bridge."""
+    spec = two_segment_spec()
+    lines = [
+        line.strip()
+        for line in render_egress_nftables(spec, allocate(spec)).splitlines()
+    ]
+    bridged = [
+        line
+        for line in lines
+        if line.startswith("iifname ")
+        and ' oifname "' in line
+        and line.endswith("accept")
+    ]
+    assert bridged == [
+        f'iifname "{bridge_name(network.name)}" oifname "{bridge_name(network.name)}" accept'
+        for network in spec.networks
+    ]
+    assert (
+        lines.index(bridged[0]) == 5
+        and lines[4] == "ct state established,related accept"
+    )
+    assert all(
+        lines.index(line) > lines.index(bridged[-1])
+        for line in lines
+        if 'oifname "eth0"' in line
+    )
+
+
+def test_hardware_renders_the_appliance_domain(tmp_path: Path) -> None:
+    """The hardware knobs land in the domain XML exactly once each: pc machine with its reduced quirks, uefi loader+nvram, e1000 NICs, VGA+VNC, extra disks (ide from hda, virtio from vdc), and NO seed for an opaque guest; an undeclared guest keeps today's shape byte-for-byte semantics (q35, strip flags, virtio, seed at vdb)."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(_appliance_spec(), out, PlanOptions(image_cache=cache, cid_base=3000))
+    appliance = (out / "guests/router/domain.xml").read_text()
+    assert "machine='pc'" in appliance
+    assert "sata=off" not in appliance  # q35-only strip flags stay off pc
+    assert "kvm-apic.vapic=false" in appliance
+    assert appliance.count("<loader readonly='yes' type='pflash'>") == 1
+    assert "/scratch/nvram/router_VARS.fd" in appliance
+    assert appliance.count("<model type='e1000'/>") == 1
+    assert "<video><model type='vga'/></video>" in appliance
+    assert "graphics type='vnc' listen='127.0.0.1'" in appliance
+    assert "router-seed.iso" not in appliance  # opaque: no seed
+    assert "/scratch/router-data0.qcow2" in appliance
+    assert "target dev='hda' bus='ide'" in appliance
+    assert "/scratch/router-data1.qcow2" in appliance
+    assert "target dev='vdc' bus='virtio'" in appliance
+    assert not (out / "guests/router/seed").exists()
+
+    bench = (out / "guests/workbench/domain.xml").read_text()
+    assert "machine='q35'" in bench and "sata=off,smbus=off,i8042=off" in bench
+    assert "<loader" not in bench and "nvram" not in bench
+    assert bench.count("<model type='virtio'/>") == 1
+    assert "video" not in bench and "graphics" not in bench
+    assert "workbench-seed.iso" in bench and "dev='vdb'" in bench
+
+    boot = json.loads((out / "boot.json").read_text())
+    entries = {entry["name"]: entry for entry in boot["guests"]}
+    router = entries["router"]
+    assert router["firmware"] == "uefi" and router["opaque"] is True
+    assert router["readiness"] == "tcp" and router["readiness_port"] == 22
+    assert router["readiness_ip"] == "10.9.0.10"  # the declared appliance address
+    assert router["injector"] == "none"
+    assert [disk["bus"] for disk in router["extra_disks"]] == ["ide", "virtio"]
+    assert router["extra_disks"][1]["size_gb"] == 5
+    assert router["extra_disks"][0]["image_file"] == "data-img.qcow2"
+    assert "firmware" not in entries["workbench"]
+    assert "readiness_ip" not in entries["workbench"]
+    assert "extra_disks" not in entries["workbench"]
+
+
+def test_render_refuses_an_uncached_extra_disk_source(tmp_path: Path) -> None:
+    """Review round 1 finding 5: an extra-disk overlay base missing from the cache refuses `image-not-in-cache` at render, like the root disk, instead of dying as a qemu-img backing-file error at boot."""
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges.types import IssueError
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2"):  # no data-img
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    with pytest.raises(IssueError) as excinfo:
+        render_bundle(
+            _appliance_spec(), tmp_path / "bundle", PlanOptions(image_cache=cache)
+        )
+    assert any(
+        issue.code == "image-not-in-cache" and "data-img" in issue.message
+        for issue in excinfo.value.issues
+    )
+
+
+def test_boot_script_prepares_appliance_volumes(tmp_path: Path) -> None:
+    """The boot script creates the nvram copy and the extra-disk volumes (overlay and blank), owns them to the guest uid, and skips seed creation for the opaque guest."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._runtime.up import BootPlan, boot_script
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(_appliance_spec(), out, PlanOptions(image_cache=cache, cid_base=3000))
+    plan = BootPlan.model_validate(json.loads((out / "boot.json").read_text()))
+    script = boot_script(plan)
+    assert "install -d -m 0755 /scratch/nvram" in script
+    assert "/usr/share/OVMF/OVMF_VARS_4M.fd /scratch/nvram/router_VARS.fd" in script
+    assert (
+        "qemu-img create -f qcow2 -F qcow2 -b /images/data-img.qcow2 "
+        "/scratch/router-data0.qcow2" in script
+    )
+    assert "qemu-img create -f qcow2 /scratch/router-data1.qcow2 5G" in script
+    router_chown = next(
+        line
+        for line in script.splitlines()
+        if line.startswith("chown") and "router" in line
+    )
+    assert "/scratch/router-data0.qcow2" in router_chown
+    assert "/scratch/router-data1.qcow2" in router_chown
+    assert "router-seed.iso" not in script  # opaque: nothing seeds
+    assert "cloud-localds" in script  # the workbench still seeds
+
+
+def test_tcp_readiness_reserves_the_probe_source_address(tmp_path: Path) -> None:
+    """An opaque guest's tcp readiness probes from the range netns, so its first interface's network reserves the hypervisor address and the bridge gets it; without one the connect has no route and readiness can never latch (found live by the first appliance conversion)."""
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._compiler.allocate import allocate
+
+    from tests.test_plan import _appliance_spec
+
+    spec = _appliance_spec()
+    allocation = allocate(spec)
+    assert str(allocation.hypervisor_addresses["lan"]) == "10.9.0.1"
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    assert "br-lan 10.9.0.1/24" in (out / "netns/addresses.txt").read_text()
+    # process readiness reserves nothing: the shape stays byte-identical
+    quiet = _appliance_spec()
+    quiet.hosts[1].readiness = "process"
+    assert allocate(quiet).hypervisor_addresses == {}
+
+
+def test_declared_readiness_budget_rides_boot_json(tmp_path: Path) -> None:
+    """A declared `TcpReadiness.timeout` lands on the guest's boot entry (and only then): slow appliances carry their boot budget as a bundle fact."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges.types import TcpReadiness
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+
+    spec = _appliance_spec()
+    spec.hosts[1].readiness = TcpReadiness(tcp=22, timeout=1500)
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    entries = {
+        e["name"]: e for e in json.loads((out / "boot.json").read_text())["guests"]
+    }
+    assert entries["router"]["readiness_timeout"] == 1500
+    assert "readiness_timeout" not in entries["workbench"]
+
+    plain = _appliance_spec()
+    out2 = tmp_path / "bundle2"
+    render_bundle(plain, out2, PlanOptions(image_cache=cache, cid_base=3000))
+    entries2 = {
+        e["name"]: e for e in json.loads((out2 / "boot.json").read_text())["guests"]
+    }
+    assert "readiness_timeout" not in entries2["router"]

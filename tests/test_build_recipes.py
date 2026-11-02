@@ -17,6 +17,7 @@ from inspect_ranges._build import (
     validate_vars,
 )
 from inspect_ranges._build.guesttool import cids_from_env, exit_code
+from inspect_ranges._channel.protocol import ExecRequest
 from inspect_ranges._runtime.ownership import StageLog
 from inspect_ranges.types import IssueError
 
@@ -449,3 +450,123 @@ def test_contract_env_exports_ad_and_defense(tmp_path: Path) -> None:
         log_dir=tmp_path / "logs",
     )
     assert (recipe.bundle_dir / "contract.txt").read_text() == "absent|absent"
+
+
+class _FakePushChannel:
+    """Records write_file/exec calls for the push seam; always succeeds."""
+
+    def __init__(self) -> None:
+        self.writes: list[tuple[str, str, int, int | None]] = []
+        self.commands: list[list[str]] = []
+        self.exec_rc = 0
+
+    async def write_file(
+        self, guest: str, path: str, data: bytes, *, mode: int | None = None
+    ) -> int:
+        self.writes.append((guest, path, len(data), mode))
+        return 1
+
+    async def exec(self, guest: str, request: "ExecRequest") -> object:
+        from types import SimpleNamespace
+
+        self.commands.append(list(request.cmd))
+        return SimpleNamespace(rc=self.exec_rc, stdout=b"", stderr=b"promote failed")
+
+
+def _push_env(monkeypatch: pytest.MonkeyPatch, os_name: str = "linux") -> None:
+    monkeypatch.setenv("IR_GUEST", "box")
+    monkeypatch.setenv("IR_GUEST_CIDS", '{"box": 3}')
+    monkeypatch.setenv("IR_GUEST_OS", f'{{"box": "{os_name}"}}')
+
+
+def test_push_streams_large_files_in_chunks_and_verifies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file over the chunk size streams as ordered sub-cap chunks and the promote reassembles, sha-verifies, installs, and sweeps staging; a small file keeps the single-write path with no reassembly."""
+    import hashlib
+
+    import inspect_ranges._build.guesttool as guesttool_module
+    from inspect_ranges._build.guesttool import main
+
+    _push_env(monkeypatch)
+    channel = _FakePushChannel()
+
+    def fake_channel(*args: object, **kwargs: object) -> _FakePushChannel:
+        return channel
+
+    monkeypatch.setattr(guesttool_module, "MessageChannel", fake_channel)
+    monkeypatch.setattr(guesttool_module, "PUSH_CHUNK_BYTES", 1024)
+
+    big = tmp_path / "big.bin"
+    payload = bytes(range(256)) * 12  # 3072 bytes = 3 chunks
+    big.write_bytes(payload)
+    assert main(["push", str(big), "/opt/dest.bin", "--mode", "644"]) == 0
+    assert [w[2] for w in channel.writes] == [1024, 1024, 1024]
+    suffixes = [w[1].rsplit(".", 1)[-1] for w in channel.writes]
+    assert suffixes == [f"{i:04d}" for i in range(3)]  # zero-padded write order
+    promote = channel.commands[-1][-1]
+    assert hashlib.sha256(payload).hexdigest() in promote
+    assert "sha256sum -c" in promote and "install -D -m 644" in promote
+
+    channel.writes.clear()
+    channel.commands.clear()
+    small = tmp_path / "small.bin"
+    small.write_bytes(b"tiny")
+    assert main(["push", str(small), "/opt/small.bin", "--mode", "644"]) == 0
+    assert len(channel.writes) == 1
+    assert "sha256sum" not in channel.commands[-1][-1]
+
+
+def test_push_chunked_windows_promote_reassembles_and_verifies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Windows promote concatenates the ordered parts, compares Get-FileHash against the source digest, and only then moves to the destination."""
+    import hashlib
+
+    import inspect_ranges._build.guesttool as guesttool_module
+    from inspect_ranges._build.guesttool import main
+
+    _push_env(monkeypatch, os_name="windows")
+    channel = _FakePushChannel()
+
+    def fake_channel(*args: object, **kwargs: object) -> _FakePushChannel:
+        return channel
+
+    monkeypatch.setattr(guesttool_module, "MessageChannel", fake_channel)
+    monkeypatch.setattr(guesttool_module, "PUSH_CHUNK_BYTES", 512)
+    big = tmp_path / "big.iso"
+    payload = b"\x7f" * 1300  # 3 chunks
+    big.write_bytes(payload)
+    assert main(["push", str(big), "C:\\dest\\big.iso"]) == 0
+    assert len(channel.writes) == 3
+    promote = channel.commands[-1][-1]
+    assert hashlib.sha256(payload).hexdigest() in promote
+    assert "Get-FileHash" in promote and "Move-Item" in promote
+
+
+def test_push_chunk_size_fits_the_daemon_cap() -> None:
+    """The chunk size derives from the inbound cap, so a cap change can never strand pushes mid-stream."""
+    from inspect_ranges._build.guesttool import PUSH_CHUNK_BYTES
+    from inspect_ranges._channel.protocol import DAEMON_INBOUND_BULK_CAP
+
+    assert 0 < PUSH_CHUNK_BYTES <= DAEMON_INBOUND_BULK_CAP
+
+
+def test_push_promote_failure_passes_the_exit_status_through(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failing promote surfaces its in-guest exit status (and stderr) instead of a silent zero."""
+    import inspect_ranges._build.guesttool as guesttool_module
+    from inspect_ranges._build.guesttool import main
+
+    _push_env(monkeypatch)
+    channel = _FakePushChannel()
+    channel.exec_rc = 1
+
+    def fake_channel(*args: object, **kwargs: object) -> _FakePushChannel:
+        return channel
+
+    monkeypatch.setattr(guesttool_module, "MessageChannel", fake_channel)
+    small = tmp_path / "s.bin"
+    small.write_bytes(b"x")
+    assert main(["push", str(small), "/opt/s.bin", "--mode", "644"]) == 1

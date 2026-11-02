@@ -49,7 +49,7 @@ An `active_directory:` block (domains, trust shape, identity data), **static add
 
 ## Realized (2026-10-19, windows-ad-v1 slice 4)
 
-The translation tables above stay frozen; this addendum records the realization choices. The fixture now BUILDS, VERIFIES, and SOLVES on the production pipeline (recipes under `recipes/`, the proof trio under `checks/`, the battery at `design/spikes/win-goad/`).
+The translation tables above stay frozen; this addendum records the realization choices. The fixture now BUILDS, VERIFIES, and SOLVES on the production pipeline (recipes under `recipes/`, the proof trio under `conformance/`, the battery at `design/spikes/win-goad/`).
 
 - `image:` is the local `windows-2022` golden (`images derive-windows` from the ratified Server 2022 eval media) and `os.version` moved to `server-2022`: Windows artifacts are local-only, recipes-not-images, and the upstream Vagrant box string stays in the provenance tables only. `mode: nat` became `isolated` like every example; the BUILD boots an egress-enabled variant (the SQL Express download rides it), the runtime posture is isolated.
 
@@ -57,7 +57,7 @@ The translation tables above stay frozen; this addendum records the realization 
 
 - Identity data reaches recipes from the SPEC via `IR_ACTIVE_DIRECTORY` (the single source; recipes never vendor a copy). Accounts the spec declares without a password get the documented convention `Goad2026!<name>` (upstream declares concrete passwords for every account; the translation carried only chain-load-bearing ones). The upstream `local_groups` fact that dc02's Administrators include eddard/catelyn/robb.stark is surfaced as the `local-admins` misconfiguration (and `catelyn.stark` joined `users:`) — it is the declared fact the proof ladder rides.
 
-- The reference ladder (checks/ad-domain-dominance) rides declared data only: autologon credential -> SYSTEM on dc02 (psexec; DC-admin by `local-admins`) -> DCSync (BUILTIN\Administrators) -> pass-the-hash to srv02 -> raiseChild child-to-forest escalation -> dc01. Kerberoast (sql_svc SPN + its crackable password), ESC1, MSSQL impersonation, LLMNR/NTLM downgrade remain agent-discoverable surface: realized and self-asserted by the recipes, deliberately not consumed by the reference.
+- The reference ladder (conformance/ad-domain-dominance) rides declared data only: autologon credential -> SYSTEM on dc02 (psexec; DC-admin by `local-admins`) -> DCSync (BUILTIN\Administrators) -> pass-the-hash to srv02 -> raiseChild child-to-forest escalation -> dc01. Kerberoast (sql_svc SPN + its crackable password), ESC1, MSSQL impersonation, LLMNR/NTLM downgrade remain agent-discoverable surface: realized and self-asserted by the recipes, deliberately not consumed by the reference.
 
 - `scheduled_activity` (seven unvendored dc02 bot scripts) and the spec-level `defense: tier` moved back to `deferred.yaml` (the kypo precedent): nothing realizes bot scripts honestly without the scripts, and a tier is a classification; the per-host `defense:` toggles ARE realized and verified (defender asserted on on both DCs, turned and asserted off on srv02 — chain-load-bearing for the webshell surface).
 

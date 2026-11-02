@@ -40,7 +40,7 @@ const (
 	KillGrace      = 5 * time.Second // SIGTERM, then SIGKILL after grace
 	WaitDelay      = 5 * time.Second // bound on reaping pipe copiers after exit (cmd.WaitDelay)
 	MaxConnActive  = 512             // resource bound against floods; polls must outlive held exec slots
-	DaemonVersion  = "vsockd 3.3.0 (go)"
+	DaemonVersion  = "vsockd 3.5.0 (go)"
 	// exec must not PATH-resolve a privilege boundary: a range-writable PATH
 	// entry could shadow runuser, so the daemon invokes it absolutely
 	RunuserPath    = "/usr/sbin/runuser"
@@ -263,9 +263,19 @@ type Daemon struct {
 	// the exactly-once guarantee.
 	session string
 	// agent: the unprivileged default identity for exec and file operations,
-	// nil when the daemon cannot drop to it (pre-v4 golden without the user,
-	// or an unprivileged run)
+	// nil when the daemon cannot drop to it (a golden without the user, or an
+	// unprivileged run)
 	agent *agentIdentity
+	// privileged: the daemon runs as root (euid 0), so default-identity
+	// operations would run as root whenever agent is nil. Captured at
+	// construction; privileged && agent == nil is the dangerous state where
+	// those operations must fail closed rather than silently run as root.
+	privileged bool
+	// identity: the user that default-identity operations run as ("agent" when
+	// the daemon drops to the agent user, else its own identity, "root" on a
+	// range). Reported in every pong so the host can refuse a foothold that
+	// would hand the agent root.
+	identity string
 	// supervised listener recoveries since start; surfaced in diag_result
 	// so batteries can assert the storm never wedged the accept loop
 	listenerRestarts atomic.Int64
@@ -281,8 +291,30 @@ func NewDaemon() *Daemon {
 		session: newSessionID(),
 		witness: newExecWitness(),
 	}
+	daemon.privileged = os.Geteuid() == 0
 	daemon.agent = resolveAgent(daemon.diag)
+	daemon.identity = defaultIdentity(daemon.agent)
 	return daemon
+}
+
+// defaultIdentity names the user that default-identity operations (exec and file
+// operations with no explicit user) run as: the agent user when the daemon can
+// drop to it, otherwise the daemon's own EFFECTIVE identity (the euid the command
+// inherits, "root" on a range). It is derived from the euid, like `privileged`,
+// so the two cannot disagree on a setuid daemon, and is reported in every pong so
+// the host can refuse a foothold that would run the agent as root.
+func defaultIdentity(agent *agentIdentity) string {
+	if agent != nil {
+		return AgentUser
+	}
+	euid := os.Geteuid()
+	if euid == 0 {
+		return "root" // the host's foothold check keys on this exact value
+	}
+	if record, err := user.LookupId(strconv.Itoa(euid)); err == nil && record.Username != "" {
+		return record.Username
+	}
+	return strconv.Itoa(euid)
 }
 
 // newSessionID mints the daemon's boot session: 32 lowercase hex chars.
@@ -335,6 +367,16 @@ func resolveAgent(diag *Diag) *agentIdentity {
 // retires the thread the same way (dispatch's recover produces the reply).
 func (d *Daemon) asAgentFS(id string, fn func() *storedReply) *storedReply {
 	if d.agent == nil {
+		if d.privileged {
+			// fail closed: running as root but cannot drop to the agent user
+			// (image missing it). A file operation as root is refused rather
+			// than silently performed with root's reach; resolveAgent already
+			// left the diag warning.
+			layer := "file"
+			return errorReply(id, "EACCES",
+				fmt.Sprintf("default identity %q is unavailable (image missing the user); "+
+					"refusing a file operation as root", AgentUser), &layer)
+		}
 		return fn()
 	}
 	runtime.LockOSThread()
@@ -458,7 +500,7 @@ func (d *Daemon) dispatch(request *Message, bulk []byte) *storedReply {
 		return &storedReply{message: &Message{
 			V: ProtocolVersion, ID: request.ID, Kind: "pong",
 			Daemon: DaemonVersion, Protocol: i64(ProtocolVersion),
-			Session: d.session,
+			Session: d.session, Identity: d.identity,
 		}}
 	case "diag":
 		limit := int64(100)
@@ -473,7 +515,7 @@ func (d *Daemon) dispatch(request *Message, bulk []byte) *storedReply {
 	case "exec_events":
 		// pre-store like diag: polling the witness ring is a read, never
 		// charged to the durable store; the first poll arms the subscriber
-		return d.witness.handle(request)
+		return d.witness.handle(request, d.session)
 	}
 	// durable kinds: dedupe, tombstones, and attach-to-in-flight in ONE
 	// atomic acquire (exactly-once per id, immune to the completion race)
@@ -589,10 +631,19 @@ func (d *Daemon) runCommand(request *Message, stdin []byte) *storedReply {
 		// user (runuser exits nonzero), never a channel error
 		argv = append([]string{RunuserPath, "-u", AgentUser, "--"}, argv...)
 		usedRunuser = true
+	case d.privileged:
+		// fail closed: running as root but cannot drop to the agent user (image
+		// missing it). Refusing is safer than silently running as root — on a
+		// foothold a privilege-escalation task would start solved. An explicit
+		// user= above overrides; resolveAgent already left the diag warning.
+		layer := "exec"
+		return errorReply(request.ID, "EACCES",
+			fmt.Sprintf("default identity %q is unavailable (image missing the user); "+
+				"refusing to run as root — pass user= to override", AgentUser), &layer)
 	}
-	// neither arm: no agent identity and no explicit user, so the command
-	// keeps the daemon's own identity (pre-v4 golden or unprivileged run;
-	// resolveAgent already left the diag warning)
+	// neither arm: an unprivileged run with no agent identity and no explicit
+	// user, so the command keeps the daemon's own (non-root) identity
+	// (resolveAgent already left the diag warning)
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} // own group: budget kills the tree
 	if request.Cwd != nil {

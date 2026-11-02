@@ -24,6 +24,7 @@ from .._compiler.plan import image_file_name
 from .encode import (
     ANN_BACKING_DIGEST,
     ANN_BACKING_FILE,
+    ANN_KIND,
     ANN_NAME,
     ANN_RECIPE_DIGEST,
     ARTIFACT_BUILD_MANIFEST,
@@ -209,11 +210,20 @@ def _land_image(
 def _validate_chain(
     manifest: OciManifest, image_cache: Path, landed_digests: dict[str, str]
 ) -> None:
-    """The materialization-time chain check: embedded backing name equals the annotation, annotated backing digest equals what the backing landed as."""
+    """The materialization-time chain check: embedded backing name equals the annotation, annotated backing digest equals what the backing landed as. A golden manifest with no backing annotation is an installed golden (its install media is provenance, not a closure member) and must be chainless."""
     name = _annotation(manifest, ANN_NAME)
+    embedded = _qcow2_backing_name(image_cache / name)
+    if _annotation(manifest, ANN_KIND) == "golden" and ANN_BACKING_FILE not in (
+        manifest.annotations or {}
+    ):
+        if embedded is not None:
+            raise DistError(
+                "chain-invalid",
+                f"{name} embeds backing {embedded!r} but its manifest declares none (an installed golden is chainless)",
+            )
+        return
     declared_file = _annotation(manifest, ANN_BACKING_FILE)
     declared_digest = _annotation(manifest, ANN_BACKING_DIGEST)
-    embedded = _qcow2_backing_name(image_cache / name)
     if embedded != declared_file:
         raise DistError(
             "chain-invalid",

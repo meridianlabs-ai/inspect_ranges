@@ -119,9 +119,13 @@ def plan(
             f"  {guest.name:<16} {guest.kind:<8} cid {guest.cid:<3} {addresses:<32} {guest.image.reference} ({digest})"
         )
     requirements = resolved.requirements
-    click.echo(
-        f"requires: cpu={requirements.cpu_model} egress_uplink={str(requirements.egress_uplink).lower()}"
+    requires = (
+        f"requires: cpu={requirements.cpu_model} "
+        f"egress_uplink={str(requirements.egress_uplink).lower()}"
     )
+    if requirements.nested_virtualization:
+        requires += " nested_virtualization=true"
+    click.echo(requires)
     click.echo(
         f"totals: {resolved.totals.guests} guests, {resolved.totals.cpus} vcpus, {resolved.totals.memory_mb} MiB"
     )

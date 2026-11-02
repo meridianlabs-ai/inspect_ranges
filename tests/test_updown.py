@@ -3,6 +3,7 @@
 import os
 import subprocess
 from collections.abc import Callable
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -17,6 +18,7 @@ from inspect_ranges._attackbox import (
     write_attack_box_record,
 )
 from inspect_ranges._attackbox.attach import AttachInvocation
+from inspect_ranges._channel.protocol import PongReply
 from inspect_ranges._channel.vsock import HybridEndpoint
 from inspect_ranges._compiler import PlanOptions, render_bundle, resolve_plan
 from inspect_ranges._compiler.plan import image_file_name
@@ -34,7 +36,7 @@ from inspect_ranges._runtime.ownership import (
     read_owner,
     remove_project,
 )
-from inspect_ranges._runtime.up import boot_script
+from inspect_ranges._runtime.up import BootGuest, boot_script, nested_kvm_available
 from inspect_ranges.types import (
     Attacker,
     Host,
@@ -168,17 +170,21 @@ class FakeChannel:
         exec_rc: int = 0,
         run_commands: bool = False,
         env: dict[str, str] | None = None,
+        identity: str | None = "agent",
     ) -> None:
         self.ping_ok = ping_ok
         self.exec_rc = exec_rc
         self.run_commands = run_commands
         self.env = env
+        self.identity = identity
         self.exec_requests: list[Any] = []
 
-    async def ping(self, guest: str) -> object:
+    async def ping(self, guest: str) -> PongReply:
         if not self.ping_ok:
             raise ConnectionError("no daemon")
-        return object()
+        return PongReply(
+            id="0" * 32, daemon="fake", session="f" * 32, identity=self.identity
+        )
 
     async def exec(self, guest: str, request: Any, **kwargs: Any) -> FakeOutcome:
         self.exec_requests.append(request)
@@ -980,6 +986,46 @@ def test_up_verifies_the_golden_to_vendor_edge(tmp_path: Path, cache: Path) -> N
         up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())
 
 
+def test_up_treats_an_installed_golden_as_chainless(
+    tmp_path: Path, cache: Path
+) -> None:
+    """An installed golden (Windows: unattended install from an ISO) has no runtime backing edge: its sidecar names the install media as provenance, and verify-images neither requires the media in the cache nor hashes it. The boot proceeds to readiness."""
+    import hashlib as hashlib_module
+    import json as json_module
+
+    (cache / "win-backing.qcow2").write_bytes(b"installed")
+    backing_digest = f"sha256:{hashlib_module.sha256(b'installed').hexdigest()}"
+    (cache / "win-backing.json").write_text(
+        json_module.dumps(
+            {
+                "name": "win-backing",
+                "file": "win-backing.qcow2",
+                "recipe_version": "3",
+                "derivation_key": "k" * 64,
+                "vendor_file": "SERVER_EVAL_x64FRE_en-us.iso",
+                "vendor_sha256": "a" * 64,
+                "daemon": {"name": "vsockd", "version": "3.3.0", "sha256": "d" * 64},
+                "golden_sha256": hashlib_module.sha256(b"installed").hexdigest(),
+                "created": "2026-11-01T00:00:00Z",
+                "admin_password": "scenario-only",
+            }
+        )
+    )
+    assert not (cache / "SERVER_EVAL_x64FRE_en-us.iso").exists()
+    out = tmp_path / "installed-bundle"
+    render_bundle(
+        tiny_spec(),
+        out,
+        PlanOptions(
+            image_cache=cache,
+            cid_base=3000,
+            realized_backings={"web": ("win-backing.qcow2", backing_digest)},
+        ),
+    )
+    with pytest.raises(UpError, match=r"\[readiness\]"):
+        up(out, options(cache, tmp_path / "ok"), runner=FakeDocker())
+
+
 def _sweep_remove_project(state: Path) -> None:
     remove_project(state, "ir-tiny-raced")
 
@@ -1134,6 +1180,59 @@ def test_up_external_attack_box_happy_path(
     assert (
         stages.index("attach") < stages.index("attack-box") < stages.index("readiness")
     )
+
+
+def test_up_refuses_a_foothold_whose_daemon_runs_as_root(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The foothold must start unprivileged: a dedicated attack box whose daemon reports a non-'agent' default identity (an image missing the agent user) is refused at readiness, with the reason logged. The channel is otherwise healthy, so the identity check is the only thing that can fail the attacker."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=True, exec_rc=0, identity="root"))
+    docker = FakeDocker()
+    docker.ps_sequence = ["", "c1\n"]
+    with pytest.raises(UpError, match=r"\[readiness\] guest 'attacker'.*not ready"):
+        up(
+            bundle,
+            options(cache, tmp_path, attack_box=RECORDING_ORIGIN),
+            runner=docker,
+            attacher=fake_attacher,
+        )
+    assert docker.commands("docker", "rm", "-f"), "the refused foothold tears down"
+    state_root = tmp_path / "state"
+    causes = [
+        str(event.get("cause", ""))
+        for project in (p.name for p in state_root.iterdir() if p.is_dir())
+        for event in StageLog(state_root, project).events()
+        if event["stage"] == "readiness" and event["status"] == "fail"
+    ]
+    assert any("identity" in cause and "root" in cause for cause in causes)
+
+
+def test_up_allows_a_foothold_when_the_daemon_omits_identity(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Back-compat: a daemon predating the pong identity field reports None, so readiness does not refuse (it cannot observe the identity)."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=True, exec_rc=0, identity=None))
+    result = up(
+        bundle,
+        options(cache, tmp_path, attack_box=RECORDING_ORIGIN),
+        runner=FakeDocker(),
+        attacher=fake_attacher,
+    )
+    assert any(g.name == "attacker" and g.ready for g in result.guests)
+
+
+def test_up_allows_a_foothold_with_a_non_root_identity(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The foothold check keys on root specifically: a daemon reporting a non-root, non-'agent' identity (an unprivileged daemon, e.g. dev/CI) is not refused — there is no root to hand out."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=True, exec_rc=0, identity="builder"))
+    result = up(
+        bundle,
+        options(cache, tmp_path, attack_box=RECORDING_ORIGIN),
+        runner=FakeDocker(),
+        attacher=fake_attacher,
+    )
+    assert any(g.name == "attacker" and g.ready for g in result.guests)
 
 
 def test_up_without_attack_box_is_untouched(
@@ -1451,3 +1550,264 @@ def test_boot_script_skip_leaves_other_guests_identical(bundle: Path) -> None:
     skipped = boot_script(boot, skip=frozenset({"attacker"}))
     assert "attacker" in full and "attacker" not in skipped
     assert boot_script(boot, skip=frozenset()) == full, "empty skip is byte-identical"
+
+
+def test_nested_kvm_probe_reads_the_module_parameter(tmp_path: Path) -> None:
+    """The probe answers from the kvm module's `nested` parameter alone: Y/y/1 from either vendor module is available, anything else (N, 0, absent module, absent file) is not."""
+
+    def with_value(value: str | None, module: str = "kvm_intel") -> Path:
+        root = tmp_path / f"sys-{module}-{value}"
+        if value is not None:
+            params = root / module / "parameters"
+            params.mkdir(parents=True)
+            (params / "nested").write_text(value + "\n")
+        else:
+            root.mkdir()
+        return root
+
+    assert nested_kvm_available(with_value("Y")) is True
+    assert nested_kvm_available(with_value("1", module="kvm_amd")) is True
+    assert nested_kvm_available(with_value("N")) is False
+    assert nested_kvm_available(with_value("0")) is False
+    assert nested_kvm_available(with_value(None)) is False
+
+
+def test_boot_guest_accepts_the_nested_declaration() -> None:
+    """`boot.json` entries round-trip the flag, and entries without it (every existing bundle) default false."""
+    entry = {
+        "name": "bench",
+        "cid": 3000,
+        "image_file": "img.qcow2",
+        "overlay_gb": 10,
+        "readiness": "daemon",
+    }
+    assert BootGuest.model_validate(entry).nested_virtualization is False
+    assert (
+        BootGuest.model_validate(
+            {**entry, "nested_virtualization": True}
+        ).nested_virtualization
+        is True
+    )
+
+
+def _nested_bundle(tmp_path: Path, cache: Path) -> Path:
+    spec = tiny_spec()
+    spec.hosts[0].nested_virtualization = True
+    out = tmp_path / "nested-bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    return out
+
+
+def test_boot_json_carries_the_nested_flag_only_when_declared(
+    tmp_path: Path, cache: Path, bundle: Path
+) -> None:
+    """Emission is conditional so undeclared new bundles stay readable by older engines: a declared guest's entry carries the flag, every other entry omits the key entirely."""
+    import json
+
+    plain = json.loads((bundle / "boot.json").read_text())
+    assert all("nested_virtualization" not in g for g in plain["guests"])
+    nested = json.loads((_nested_bundle(tmp_path, cache) / "boot.json").read_text())
+    by_name = {g["name"]: g for g in nested["guests"]}
+    declared = tiny_spec().hosts[0].name
+    assert by_name[declared]["nested_virtualization"] is True
+    assert all(
+        "nested_virtualization" not in g
+        for name, g in by_name.items()
+        if name != declared
+    )
+
+
+def test_up_preflight_holds_the_host_to_the_nested_declaration(
+    tmp_path: Path, cache: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A declared bundle on a host without nested KVM refuses at the preflight stage before any docker resource exists; with the capability present, up proceeds past preflight (and fails later in this dockerless harness, at a different stage)."""
+    import importlib
+
+    up_module = importlib.import_module("inspect_ranges._runtime.up")
+    nested = _nested_bundle(tmp_path, cache)
+    docker = FakeDocker()
+    monkeypatch.setattr(up_module, "nested_kvm_available", lambda: False)
+    with pytest.raises(UpError, match=r"\[preflight\].*nested_virtualization"):
+        up(nested, UpOptions(image_cache=cache, state_dir=tmp_path / "s1"), docker)
+    assert all(call[:2] == ["docker", "ps"] for call in docker.calls)
+    monkeypatch.setattr(up_module, "nested_kvm_available", lambda: True)
+    with pytest.raises(UpError) as excinfo:
+        up(nested, UpOptions(image_cache=cache, state_dir=tmp_path / "s2"), docker)
+    assert "[preflight]" not in str(excinfo.value)
+
+
+def test_down_releases_the_projects_cid_lease(tmp_path: Path) -> None:
+    """A leased CID block dies with its project on a FULL teardown only: `keep_state` teardowns (the build's -bx window, kept diagnostics) hold the block, `down` without it releases idempotently, and a state root that never leased stays free of registry files."""
+    from inspect_ranges._provider.naming import CidAllocator
+
+    state = tmp_path / "state"
+    state.mkdir()
+    docker = FakeDocker()
+    down("ir-never-leased", state_dir=state, runner=docker)
+    assert not (state / "cids.json").exists()
+
+    allocator = CidAllocator(state)
+    allocator.lease("ir-leased-project", 4, origin="cli")
+    down("ir-leased-project", state_dir=state, runner=docker, keep_state=True)
+    assert allocator.leased_projects() == ["ir-leased-project"]  # block held
+    down("ir-leased-project", state_dir=state, runner=docker)
+    assert allocator.leased_projects() == []
+    down("ir-leased-project", state_dir=state, runner=docker)  # idempotent
+
+
+def test_cli_leases_are_invisible_to_provider_sweeps(tmp_path: Path) -> None:
+    """`cli_cleanup` targets provider-origin leases only: an operator's CLI-leased build or range never enters a provider sweep, while legacy entries without the field read as provider (which they all were)."""
+    import json
+
+    from inspect_ranges._provider.naming import CidAllocator
+
+    state = tmp_path / "state"
+    state.mkdir()
+    allocator = CidAllocator(state)
+    allocator.lease("ir-operator-build", 4, origin="cli")
+    allocator.lease("ir-sample", 3, origin="provider")
+    assert allocator.leased_projects(origin="provider") == ["ir-sample"]
+    assert allocator.leased_projects() == ["ir-operator-build", "ir-sample"]
+    # a pre-origin entry (older version) reads as provider
+    raw = json.loads((state / "cids.json").read_text())
+    raw["ir-legacy"] = {"project": "ir-legacy", "base": 10100, "count": 2}
+    (state / "cids.json").write_text(json.dumps(raw))
+    assert "ir-legacy" in allocator.leased_projects(origin="provider")
+
+
+def test_await_tcp_ready_probes_from_the_range_container(bundle: Path) -> None:
+    """The opaque tcp readiness probe: a bounded /dev/tcp connect execed inside the range container (the only vantage that reaches guest segments), retried until the deadline, then an honest cause."""
+    import subprocess
+    import time as time_module
+
+    from inspect_ranges._runtime.up import (
+        BootGuest,
+        _await_tcp_ready,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    guest = BootGuest(
+        name="router",
+        cid=3001,
+        image_file="appliance-img.qcow2",
+        overlay_gb=10,
+        readiness="tcp",
+        readiness_port=22,
+        readiness_ip=IPv4Address("10.9.0.10"),
+        injector="none",
+        opaque=True,
+    )
+    attempts: list[list[str]] = []
+    outcomes = [1, 1, 0]
+
+    def fake_run(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
+        attempts.append(argv)
+        return subprocess.CompletedProcess(argv, outcomes[min(len(attempts) - 1, 2)])
+
+    ready, cause = _await_tcp_ready(
+        fake_run, "proj", bundle, {}, guest, time_module.monotonic() + 60
+    )
+    assert ready and cause is None
+    assert len(attempts) == 3
+    assert "exec" in attempts[0] and "range" in attempts[0]
+    assert "/dev/tcp/10.9.0.10/22" in attempts[0][-1]
+
+    attempts.clear()
+
+    def never_up(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
+        attempts.append(argv)
+        return subprocess.CompletedProcess(argv, 1)
+
+    ready, cause = _await_tcp_ready(
+        never_up, "proj", bundle, {}, guest, time_module.monotonic() - 1
+    )
+    assert not ready
+    assert cause is not None and "10.9.0.10:22" in cause
+
+
+def test_boot_guest_shape_validates_readiness_and_disks() -> None:
+    """`boot.json` is shape-validated before anything interpolates it: tcp readiness demands a validated address and port, and an extra disk takes exactly one of size_gb or image_file (a hand-shaped entry refuses instead of probing `/dev/tcp/None/None` or rendering `qemu-img create ... NoneG`)."""
+    from inspect_ranges._runtime.up import BootDisk, BootGuest
+    from pydantic import ValidationError
+
+    base: dict[str, Any] = {
+        "name": "router",
+        "cid": 3001,
+        "image_file": "appliance-img.qcow2",
+        "overlay_gb": 10,
+        "injector": "none",
+        "opaque": True,
+    }
+    with pytest.raises(ValidationError, match="readiness_port"):
+        BootGuest(**base, readiness="tcp", readiness_port=22)
+    with pytest.raises(ValidationError, match="readiness_timeout"):
+        BootGuest.model_validate(
+            {**base, "readiness": "process", "readiness_timeout": 10}
+        )  # below the declared-budget floor
+    with pytest.raises(ValidationError, match="valid IPv4 address"):
+        BootGuest.model_validate(
+            {
+                **base,
+                "readiness": "tcp",
+                "readiness_port": 22,
+                "readiness_ip": "10.9.0.10; rm",
+            }
+        )
+    with pytest.raises(ValidationError, match="exactly one"):
+        BootDisk(bus="virtio")
+    with pytest.raises(ValidationError, match="exactly one"):
+        BootDisk(bus="virtio", size_gb=5, image_file="data-img.qcow2")
+
+
+def test_up_verifies_extra_disk_bases_and_their_vendor_edges(
+    tmp_path: Path, cache: Path
+) -> None:
+    """Round-2 appliance review B2 and I4: an extra-disk overlay base gets the root disk's full gate at verify-images: presence, digest, and (for a derived-golden base) the vendor edge, so a drifted or mixed data chain refuses instead of booting silently."""
+    import hashlib as hashlib_module
+    import json as json_module
+
+    from inspect_ranges.types import Hardware, HardwareDisk
+
+    (cache / "data-golden.qcow2").write_bytes(b"data-base")
+    (cache / "data-vendor.img").write_bytes(b"data-vendor-bytes")
+    (cache / "data-golden.json").write_text(
+        json_module.dumps(
+            {
+                "name": "data-golden",
+                "file": "data-golden.qcow2",
+                "recipe_version": "4",
+                "derivation_key": "k" * 64,
+                "vendor_file": "data-vendor.img",
+                "vendor_sha256": hashlib_module.sha256(
+                    b"data-vendor-bytes"
+                ).hexdigest(),
+                "daemon": {"name": "vsockd", "version": "3.1.0", "sha256": "d" * 64},
+                "golden_sha256": hashlib_module.sha256(b"data-base").hexdigest(),
+                "created": "2026-10-18T00:00:00Z",
+            }
+        )
+    )
+    spec = tiny_spec()
+    spec.hosts[0].hardware = Hardware(disks=[HardwareDisk(source="data-golden")])
+    out = tmp_path / "disk-bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    # the agreeing chain passes verify-images (failing later, at readiness)
+    with pytest.raises(UpError, match=r"\[readiness\]"):
+        up(out, options(cache, tmp_path / "ok"), runner=FakeDocker())
+    # the base's vendor moves: the data disk's mixed chain refuses
+    (cache / "data-vendor.img").write_bytes(b"data-vendor-v2")
+    with pytest.raises(UpError, match=r"\[verify-images\].*chain is mixed"):
+        up(out, options(cache, tmp_path / "mixed"), runner=FakeDocker())
+    (cache / "data-vendor.img").write_bytes(b"data-vendor-bytes")
+    # the base itself drifts: digest refusal naming the re-render remedy
+    (cache / "data-golden.qcow2").write_bytes(b"data-base-v2")
+    with pytest.raises(
+        UpError, match=r"\[verify-images\] guest 'web'.*extra-disk base.*does not match"
+    ):
+        up(out, options(cache, tmp_path / "drift"), runner=FakeDocker())
+    # the base goes missing: presence refusal
+    (cache / "data-golden.qcow2").unlink()
+    with pytest.raises(
+        UpError,
+        match=r"\[verify-images\] guest 'web'.*extra-disk base.*not in the cache",
+    ):
+        up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())

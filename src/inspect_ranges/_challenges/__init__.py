@@ -20,6 +20,7 @@ from .engine import (
     goal_type,
     latch,
     latched_records,
+    range_goal,
     register_goal_type,
     registered_goal_types,
 )
@@ -154,6 +155,7 @@ __all__ = [
     "plant_secret_file",
     "range_oracle",
     "register_exploit",
+    "range_goal",
     "register_goal_type",
     "source_bound_find",
     "registered_goal_types",

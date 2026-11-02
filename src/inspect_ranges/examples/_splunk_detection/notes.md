@@ -44,7 +44,7 @@ Translation of Splunk attack_range v5's AWS `splunk_windows` template (`github.c
 
 ## Realized (2026-10-20, windows-ad-v1 slice 5)
 
-The translation tables above stay frozen; this addendum records the realization choices. The fixture now BUILDS, VERIFIES, and SOLVES its detection challenge on the production pipeline (recipes under `recipes/`, the collector binding under `collectors.yaml`, the proof trio under `checks/`, the battery at `design/spikes/win-telemetry/`).
+The translation tables above stay frozen; this addendum records the realization choices. The fixture now BUILDS, VERIFIES, and SOLVES its detection challenge on the production pipeline (recipes under `recipes/`, the collector binding under `collectors.yaml`, the proof trio under `conformance/`, the battery at `design/spikes/win-telemetry/`).
 
 - `image:` fields are the local goldens (`windows-2022` from the ratified eval media; `ubuntu-noble` for the splunk host — upstream's 22.04 AMI becomes a recorded deviation, the house golden is noble) and `mode: nat` became `isolated` (the BUILD boots the egress-enabled variant for the vendor downloads; runtime posture is isolated like every example).
 

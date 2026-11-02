@@ -2,7 +2,7 @@
 
 Project names are collision-free by construction: `up`'s default project keys on the spec digest, so two samples of the same spec would collide; the provider always passes an explicit project of the form `ir-<range>-<sanitized sample id>-<6 hex random>`. The random suffix (never epoch arithmetic) makes epochs, same-sample retries, and layer-3 respins distinct, and the `ir-` prefix keeps `down --all` and `cli_cleanup` sweeps intact.
 
-CIDs are host-kernel-global, so parallel samples need disjoint blocks and the allocator must be safe across processes, not just tasks: every mutation is a read-modify-write of `cids.json` under an `flock` (the shared `JsonRegistry` discipline). The provider's partition starts at 10000, beside the compiler default (3+), the channel harness (2048-2999), the realizer batteries (3000+), and the range-host batteries (20000+).
+CIDs are host-kernel-global, so parallel samples need disjoint blocks and the allocator must be safe across processes, not just tasks: every mutation is a read-modify-write of `cids.json` under an `flock` (the shared `JsonRegistry` discipline). The provider's partition starts at 10000, beside the compiler default (3+, used only under an explicit --cid-base), the channel harness (2048-2999), the realizer batteries (3000+), and the range-host batteries (20000+).
 """
 
 import re
@@ -10,7 +10,7 @@ import secrets
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from pydantic import BaseModel
 
@@ -46,6 +46,8 @@ class CidLease(BaseModel):
     project: str
     base: int
     count: int
+    origin: Literal["provider", "cli"] = "provider"
+    """Who leased: provider samples are swept by `cli_cleanup`; a CLI-leased build or range is an operator's and never is. Old registry entries carry no field and read as provider, which is what they all were."""
 
 
 def entry_block(entry: object) -> tuple[int, int] | None:
@@ -84,7 +86,13 @@ class CidAllocator:
             self._extras_snapshot = view.extras
             yield view.entries
 
-    def lease(self, project: str, count: int) -> CidLease:
+    def lease(
+        self,
+        project: str,
+        count: int,
+        *,
+        origin: Literal["provider", "cli"] = "provider",
+    ) -> CidLease:
         """Lease a contiguous block of `count` CIDs for `project` (first fit in the partition).
 
         Entries another version wrote still RESERVE their blocks (best-effort `base`/`count` parse); an entry whose block cannot be determined fails the allocator loudly rather than risking a silent CID overlap under live VMs.
@@ -107,7 +115,7 @@ class CidAllocator:
                 if base + count <= existing_base:
                     break
                 base = max(base, existing_base + existing_count)
-            lease = CidLease(project=project, base=base, count=count)
+            lease = CidLease(project=project, base=base, count=count, origin=origin)
             leases[project] = lease
             return lease
 
@@ -131,10 +139,16 @@ class CidAllocator:
         with self._locked(write=True) as leases:
             leases.pop(project, None)
 
-    def leased_projects(self) -> list[str]:
-        """Projects currently holding leases (the provider-origin marker for fresh-process cleanup)."""
+    def leased_projects(
+        self, origin: Literal["provider", "cli"] | None = None
+    ) -> list[str]:
+        """Projects currently holding leases, optionally filtered by lease origin; `cli_cleanup` sweeps `origin="provider"` only, so an operator's CLI-leased build or range is never torn down by a provider sweep."""
         with self._locked(write=False) as leases:
-            return sorted(leases)
+            return sorted(
+                project
+                for project, lease in leases.items()
+                if origin is None or lease.origin == origin
+            )
 
     def prune(self, live_projects: set[str]) -> list[str]:
         """Drop leases for projects not in `live_projects`; returns what was pruned.

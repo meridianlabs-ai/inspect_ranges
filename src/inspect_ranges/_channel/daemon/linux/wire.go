@@ -100,6 +100,7 @@ type Message struct {
 	Daemon   string `json:"daemon,omitempty"`
 	Protocol *int64 `json:"protocol,omitempty"`
 	Session  string `json:"session,omitempty"`
+	Identity string `json:"identity,omitempty"`
 
 	// exec_result / file_data
 	Rc              *int64 `json:"rc,omitempty"`
@@ -494,7 +495,7 @@ type kindSpec struct {
 
 var kindFields = map[string]kindSpec{
 	"ping":        {},
-	"pong":        {required: []string{"daemon", "session"}, optional: []string{"protocol"}},
+	"pong":        {required: []string{"daemon", "session"}, optional: []string{"protocol", "identity"}},
 	"exec":        {required: []string{"cmd"}, optional: []string{"cwd", "env", "user", "budget"}},
 	"read_file":   {required: []string{"path"}, optional: []string{"max_bytes", "budget"}},
 	"write_file":  {required: []string{"path"}, optional: []string{"budget", "mode"}},
@@ -511,7 +512,7 @@ var kindFields = map[string]kindSpec{
 	"diag_result": {optional: []string{"entries", "listener_restarts"}},
 	"exec_events_result": {
 		required: []string{"next_seq"},
-		optional: []string{"events", "drops", "restarts"},
+		optional: []string{"events", "drops", "restarts", "session"},
 	},
 	"error":     {required: []string{"errno", "message"}, optional: []string{"layer", "partial"}},
 	"realize":   {required: []string{"bundle_digest"}, optional: []string{"grants"}},
@@ -716,13 +717,14 @@ var guestStateLiterals = map[string]bool{
 }
 
 const (
-	maxDaemonLen  = 128
-	maxMessageLen = 4096
-	maxDetailLen  = 4096
-	maxEventLen   = 128
-	maxDiagDetail = 2048
-	maxReqIDLen   = 64
-	maxCommandMs  = DefaultUntimedMs
+	maxDaemonLen   = 128
+	maxIdentityLen = 32 // a username; the Linux login-name limit
+	maxMessageLen  = 4096
+	maxDetailLen   = 4096
+	maxEventLen    = 128
+	maxDiagDetail  = 2048
+	maxReqIDLen    = 64
+	maxCommandMs   = DefaultUntimedMs
 
 	// execve-witness-v1: mirrors protocol.EXEC_EVENTS_MAX / EXEC_ARGV_BYTES /
 	// EXEC_REPLY_BUDGET; the budget is a PACKING bound (the reply builder
@@ -876,6 +878,9 @@ func (m *Message) validate() error {
 		if !sessionRe.MatchString(m.Session) {
 			return decodeErrf("pong: session must be 32 lowercase hex chars")
 		}
+		if len(m.Identity) > maxIdentityLen {
+			return decodeErrf("pong: identity too long")
+		}
 	case "stage":
 		if !stageLiterals[m.Stage] {
 			return decodeErrf("stage: unknown stage %q", m.Stage)
@@ -914,6 +919,9 @@ func (m *Message) validate() error {
 	case "exec_events_result":
 		if m.NextSeq == nil || *m.NextSeq < 0 || *m.NextSeq > MaxWireInt {
 			return decodeErrf("exec_events_result: next_seq out of bounds")
+		}
+		if m.Session != "" && !sessionRe.MatchString(m.Session) {
+			return decodeErrf("exec_events_result: session must be 32 lowercase hex chars")
 		}
 		for _, bounded := range []*int64{m.Drops, m.Restarts} {
 			if bounded != nil && (*bounded < 0 || *bounded > MaxWireInt) {

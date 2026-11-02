@@ -1197,7 +1197,9 @@ def check_platform(system: str, machine: str) -> CheckResult:
     )
 
 
-def check_virtualization(dev: Path) -> list[CheckResult]:
+def check_virtualization(
+    dev: Path, sys_module: Path = Path("/sys/module")
+) -> list[CheckResult]:
     kvm = dev / "kvm"
     results = [
         _device(
@@ -1226,6 +1228,27 @@ def check_virtualization(dev: Path) -> list[CheckResult]:
                 "not accessible by this user (needed only by tools run directly on the host, e.g. qemu-img, virt-install)",
                 fix="sudo usermod -aG kvm $USER, then log in again",
                 fix_command='usermod -aG kvm "$SUDO_USER"',
+            )
+        )
+    from .._runtime.up import nested_kvm_available
+
+    if nested_kvm_available(sys_module):
+        results.append(
+            CheckResult(
+                VIRTUALIZATION,
+                "nested kvm",
+                "ok",
+                "host kvm exposes nesting (guests may declare nested_virtualization)",
+            )
+        )
+    else:
+        results.append(
+            CheckResult(
+                VIRTUALIZATION,
+                "nested kvm",
+                "warn",
+                "host kvm does not expose nesting; ranges declaring nested_virtualization refuse at up (fine otherwise)",
+                fix="use a bare-metal host, or load kvm_intel/kvm_amd with nested=1",
             )
         )
     results.append(
@@ -1360,7 +1383,7 @@ def check_br_netfilter(proc_sys: Path) -> CheckResult:
         NETWORKING,
         "br_netfilter",
         "warn",
-        "loaded with bridge-nf-call-iptables=1 (host iptables rules can filter bridged range traffic)",
+        "loaded with bridge-nf-call-iptables=1 (bridged range traffic traverses the range netns forward chain, which accepts same-segment frames; host rules never see it)",
         fix="sudo sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0",
         fix_command="sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0",
     )

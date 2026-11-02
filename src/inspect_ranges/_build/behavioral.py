@@ -1,8 +1,10 @@
 """Challenge behavioral checks at build time (build-v1 slice 6).
 
-The ratified verification structure puts exploitability proof in exactly one place: the challenge's behavioral checks (the reference solution passes, an insufficient attempt fails, a forged submission fails). The build runs them against the range's CAPTURED artifacts: after capture and the build range's teardown, the realized images boot once more through the gate's own `swap_realized_spec` consumption step, the checks run, and only then does the manifest land on disk with the results in its `behavioral_checks` slot. The save is deferred past this phase deliberately (slice 6 review), and a failed proof lands as a REFUSED manifest (parked-decisions item 4): the failure's records are saved, the gate refuses `range-unproven`, and the next build reuses every guest and re-runs only the proof; under exits that record nothing (a teardown error before the phase, Ctrl-C, a crash) no manifest exists at all. Either way no consumer can boot a range whose challenge is unproven. Running against the captured artifacts rather than the build range proves the thing that ships, and exploit debris dirties only ephemeral per-boot overlays. A declared checks tree must be complete (`_validate_checks`): proof that silently does not run is indistinguishable from proof, so a misnamed directory or a missing trio script refuses instead of skipping. Check scripts and `challenges.yaml` participate in the build's cached fast path through `checks_digest`, never in guest build keys.
+The ratified verification structure puts exploitability proof in exactly one place: the challenge's behavioral checks (the reference solution passes, an insufficient attempt fails, a forged submission fails). The build runs them against the range's CAPTURED artifacts: after capture and the build range's teardown, the realized images boot once more through the gate's own `swap_realized_spec` consumption step, the checks run, and only then does the manifest land on disk with the results in its `behavioral_checks` slot. The save is deferred past this phase deliberately (slice 6 review), and a failed proof lands as a REFUSED manifest (parked-decisions item 4): the failure's records are saved, the gate refuses `range-unproven`, and the next build reuses every guest and re-runs only the proof; under exits that record nothing (a teardown error before the phase, Ctrl-C, a crash) no manifest exists at all. Either way no consumer can boot a range whose challenge is unproven. Running against the captured artifacts rather than the build range proves the thing that ships, and exploit debris dirties only ephemeral per-boot overlays. A declared conformance tree must be complete (`validate_conformance`): proof that silently does not run is indistinguishable from proof, so a misnamed directory or a missing trio script refuses instead of skipping. Check scripts and `challenges.yaml` participate in the build's cached fast path through `checks_digest`, never in guest build keys.
 
-Check convention: `<range>/checks/<challenge-id>/{reference,insufficient,forged}.sh`, each a bash script run ON THE ATTACKER GUEST via the oracle (outside an eval there is no `sandbox()`; the foothold-only property is held by construction here and enforced by the eval path), with `IR_ATTACKER_IP` exported. Scripts emit `SUBMIT <goal-id> <value>` lines (the refchains contract); `reference` must score 1.0 with validity `valid`, `insufficient` and `forged` must score 0.0. Model-graded goals are exempt from the trio's scoring (judge-at-build.md): the build has no model, so each check scores the challenge over its non-model-graded goals only (the weighted mean renormalizes over that share), the exempt goal ids ride the check detail as `judge-exempt=<ids>`, and a challenge whose goals are all model-graded refuses `challenge-not-provable` in `_validate_checks`. Eval-time scoring is untouched: judge goals grade there, under the engine's weight cap. A challenge with prober-backed goals gets a per-check `Prober` over its own derived targets (`probe_segments_for_checks` puts the probe endpoints into the proof boot's bundle), running across the chain and stopped-and-flushed before scoring, and each check's oracle scores only its own probe records (`_scoped_oracle_class`); prober windows are the chain's own responsibility, so a chain must keep running (sleeping is fine) until its goals' `window_s` is covered. Per-check plants are fresh: `run_setup` runs per check with a fresh `PlantStore`, and each check's planted files are removed afterward (the plant script refuses an existing target, and this runner reuses one boot across checks where a sample plants once per boot). Runtime samples re-plant, so nothing a check planted survives as a valid secret.
+Check convention: `<range>/conformance/<challenge-id>/{reference,insufficient,forged}.sh`, each a bash script run ON THE ATTACKER GUEST via the oracle (outside an eval there is no `sandbox()`; the foothold-only property is held by construction here and enforced by the eval path), with `IR_ATTACKER_IP` exported. Scripts emit `SUBMIT <goal-id> <value>` lines (the refchains contract); `reference` must score 1.0 with validity `valid`, `insufficient` and `forged` must score 0.0. Model-graded goals are exempt from the trio's scoring (judge-at-build.md): the build has no model, so each check scores the challenge over its non-model-graded goals only (the weighted mean renormalizes over that share), the exempt goal ids ride the check detail as `judge-exempt=<ids>`, and a challenge whose goals are all model-graded refuses `challenge-not-provable` in `validate_conformance`. Eval-time scoring is untouched: judge goals grade there, under the engine's weight cap. A challenge with prober-backed goals gets a per-check `Prober` over its own derived targets (`probe_segments_for_checks` puts the probe endpoints into the proof boot's bundle), running across the chain and stopped-and-flushed before scoring, and each check's oracle scores only its own probe records (`_scoped_oracle_class`); prober windows are the chain's own responsibility, so a chain must keep running (sleeping is fine) until its goals' `window_s` is covered. Per-check plants are fresh: `run_setup` runs per check with a fresh `PlantStore`, and each check's planted files are removed afterward (the plant script refuses an existing target, and this runner reuses one boot across checks where a sample plants once per boot). Runtime samples re-plant, so nothing a check planted survives as a valid secret.
+
+Python proofs are the second check kind: `conformance/<challenge-id>/<name>.py` defining `async def prove(ctx)` runs after the trio, in name order, under the same per-check lifecycle (fresh plants, per-check prober, scoped oracle), asserting goal verdicts through the scorer's own `evaluate_goal` (`_challenges/prove.py` holds the context). A `_name.py` sibling is a helper a script may import, never a proof.
 """
 
 import asyncio
@@ -31,10 +33,12 @@ if TYPE_CHECKING:
     from .._compiler.plan import ResolvedPlan
     from .._provider.state import SampleHandle
     from ..types import RangeSpec
+    from .manifest import GoalAssertion
 
 logger = logging.getLogger(__name__)
 
-CHECKS_DIR_NAME = "checks"
+CONFORMANCE_DIR_NAME = "conformance"
+_LEGACY_CHECKS_DIR_NAME = "checks"
 
 CONFORMANCE_PORT_CEILING = 1024
 """The defender-side sweep covers 1..1024 plus `CONFORMANCE_EXTRA_PORTS`; the attack image ships zero listeners, so any answer is a containment regression. Scope recorded in agent-containment.md section 6."""
@@ -97,8 +101,10 @@ def conformance_plan(
             if guest.kind != "attacker"
             # the sweep script is bash + /dev/tcp; a Windows guest cannot run
             # it, so the defender must be linux (an all-Windows shared segment
-            # skips the sweep like the no-defender case)
+            # skips the sweep like the no-defender case), and an opaque guest
+            # has no daemon to exec through
             and guest.os == "linux"
+            and not guest.opaque
             and attacker_networks
             & {interface.network for interface in guest.interfaces}
         ),
@@ -272,18 +278,41 @@ async def run_conformance_checks(
         )
 
 
-def checks_declared(range_dir: Path) -> bool:
-    """Whether the range carries build-time behavioral checks."""
-    return (range_dir / "challenges.yaml").is_file() and (
-        range_dir / CHECKS_DIR_NAME
-    ).is_dir()
+def conformance_root(range_dir: Path) -> Path:
+    """The range's conformance tree (`conformance/`), whether or not it exists yet.
+
+    A directory still using the retired `checks/` layout refuses instead of resolving: a layout this code no longer reads must never make a range silently build unproven (`git mv checks conformance` migrates; the digest is root-relative, so the rename invalidates no build caches).
+
+    Raises:
+        BuildError: stage `behavioral`, when the retired `checks/` directory exists.
+    """
+    if (range_dir / _LEGACY_CHECKS_DIR_NAME).is_dir():
+        raise BuildError(
+            "behavioral",
+            f"{range_dir / _LEGACY_CHECKS_DIR_NAME} uses the retired checks/ "
+            f"layout; conformance proofs live under {CONFORMANCE_DIR_NAME}/ "
+            f"(git mv checks {CONFORMANCE_DIR_NAME})",
+        )
+    return range_dir / CONFORMANCE_DIR_NAME
+
+
+def proofs_declared(range_dir: Path) -> bool:
+    """Whether the range declares build-time conformance proofs (behavioral trios or prove scripts)."""
+    # the root resolves first so a retired checks/ layout refuses even when
+    # challenges.yaml is missing or misnamed
+    root = conformance_root(range_dir)
+    return (range_dir / "challenges.yaml").is_file() and root.is_dir()
 
 
 def checks_digest(range_dir: Path) -> str:
-    """Content digest over the range's behavioral-check inputs: `challenges.yaml` plus every file under `checks/` (relative path, exec bit, bytes).
+    """Content digest over the range's conformance-proof inputs: `challenges.yaml` plus every file under `conformance/` (root-relative path, exec bit, bytes).
 
-    Check scripts are proof tools, not guest content, so they never enter a guest build key; this digest is what invalidates the build's cached fast path when a check is authored or edited after a green build (slice 6 review: without it, new or changed checks silently never ran).
+    Proof inputs are proof tools, not guest content, so they never enter a guest build key; this digest is what invalidates the build's cached fast path when a proof is authored or edited after a green build (slice 6 review: without it, new or changed checks silently never ran). Paths hash relative to the tree root, so the digest named `checks_sha256` in pre-rename manifests still matches a migrated tree with identical contents.
     """
+    return _tree_digest(range_dir, conformance_root(range_dir))
+
+
+def _tree_digest(range_dir: Path, root: Path) -> str:
     hasher = hashlib.sha256()
     hasher.update((range_dir / "challenges.yaml").read_bytes())
     collectors_file = range_dir / "collectors.yaml"
@@ -291,7 +320,6 @@ def checks_digest(range_dir: Path) -> str:
         # the collector bindings are proof inputs like the checks themselves
         # (windows-ad-v1 slice 5): an edited export command must re-run the trio
         hasher.update(b"collectors.yaml\0" + collectors_file.read_bytes() + b"\0")
-    root = range_dir / CHECKS_DIR_NAME
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
         exec_bit = b"x" if path.stat().st_mode & 0o111 else b"-"
         hasher.update(path.relative_to(root).as_posix().encode() + b"\0" + exec_bit)
@@ -316,55 +344,132 @@ def _model_graded(goal: object) -> bool:
     return engine.assurance_for(cast("GoalBase", goal)) == "model-graded"
 
 
-def _validate_checks(challenges: "Challenges", range_dir: Path) -> None:
-    """A declared checks tree must be complete: proof that silently does not run is indistinguishable from proof (slice 6 review).
+def prove_scripts(challenge_dir: Path) -> "list[Path]":
+    """The challenge's python conformance proofs, in name order (the execution order, after the trio when both are present).
 
-    A challenge whose goals are all model-graded also refuses here: the trio exempts model-graded goals from scoring (judge-at-build.md), so such a challenge has no provable share and its checks could only pass vacuously.
+    A leading underscore marks a helper, not a proof: `_name.py` siblings are importable by the scripts (and stay private to each script's import), participate in the digest, but never run or validate as proofs.
+    """
+    return sorted(
+        path
+        for path in challenge_dir.glob("*.py")
+        if path.is_file() and not path.name.startswith("_")
+    )
+
+
+def _validate_prove_script(script: Path) -> None:
+    """A prove script must define a top-level `prove`, verified by AST, never by import: validation runs pre-boot on the build host, and proof code executes only inside the proof boot.
 
     Raises:
-        BuildError: stage `behavioral`, naming the misnamed directory, the missing script, or the unprovable challenge (`challenge-not-provable`).
+        BuildError: stage `behavioral`, naming the unparseable script or the missing `prove` function.
     """
-    root = range_dir / CHECKS_DIR_NAME
+    import ast
+
+    try:
+        tree = ast.parse(script.read_text(), filename=str(script))
+    except (OSError, SyntaxError) as error:
+        raise BuildError(
+            "behavioral",
+            f"conformance script {script.parent.name}/{script.name} does not "
+            f"parse: {error}",
+        ) from error
+    if not any(
+        isinstance(node, ast.AsyncFunctionDef) and node.name == "prove"
+        for node in tree.body
+    ):
+        # async only: assert_goal is async, so a sync prove could never
+        # assert and would only fail as vacuous later; refuse it here instead
+        raise BuildError(
+            "behavioral",
+            f"conformance script {script.parent.name}/{script.name} defines no "
+            "top-level `async def prove` (the conformance contract: "
+            "`async def prove(ctx: ProveContext) -> None`)",
+        )
+
+
+def validate_conformance(challenges: "Challenges", range_dir: Path) -> None:
+    """A declared conformance tree must be complete: proof that silently does not run is indistinguishable from proof (slice 6 review).
+
+    Every declared challenge needs its directory holding the full behavioral trio, at least one prove script, or both; a partial trio refuses (a missing negative would leave the rest vacuous), and a `.py` without a top-level `prove` refuses by AST. A challenge whose goals are all model-graded also refuses: build-time proofs exempt model-graded goals from scoring (judge-at-build.md), so such a challenge has no provable share and its proofs could only pass vacuously.
+
+    Raises:
+        BuildError: stage `behavioral`, naming the misnamed directory, the missing script, the malformed prove script, or the unprovable challenge (`challenge-not-provable`).
+    """
+    root = conformance_root(range_dir)
     declared = {challenge.id for challenge in challenges.challenges}
     for entry in sorted(root.iterdir()):
         if entry.is_dir() and entry.name not in declared:
             raise BuildError(
                 "behavioral",
-                f"checks directory {entry.name!r} matches no declared challenge "
-                f"(declared: {sorted(declared)})",
+                f"conformance directory {entry.name!r} matches no declared "
+                f"challenge (declared: {sorted(declared)})",
+            )
+        if not entry.is_dir():
+            # a file at the root never runs (proofs are challenge-scoped) but
+            # WOULD enter the digest: green-but-silently-skipped, the exact
+            # class this validation closes; refuse like a misnamed directory
+            raise BuildError(
+                "behavioral",
+                f"{CONFORMANCE_DIR_NAME}/{entry.name} is not a challenge "
+                "directory; proofs are challenge-scoped "
+                f"({CONFORMANCE_DIR_NAME}/<challenge-id>/), and a stray file "
+                "here would digest without ever running",
             )
     for challenge in challenges.challenges:
         if challenge.goals and all(_model_graded(goal) for goal in challenge.goals):
             raise BuildError(
                 "behavioral",
                 f"challenge-not-provable: every goal on challenge "
-                f"{challenge.id!r} is model-graded; the trio exempts "
+                f"{challenge.id!r} is model-graded; build-time proofs exempt "
                 "model-graded goals from scoring, so the challenge has no "
-                "provable share (give it a goal the trio can score)",
+                "provable share (give it a goal a proof can score)",
             )
-        check_dir = root / challenge.id
-        if not check_dir.is_dir():
+        challenge_dir = root / challenge.id
+        if not challenge_dir.is_dir():
             raise BuildError(
                 "behavioral",
-                f"challenge {challenge.id!r} has no checks directory under "
-                f"{CHECKS_DIR_NAME}/ (this range declares behavioral checks; "
-                "every challenge needs the full trio)",
+                f"challenge {challenge.id!r} has no conformance directory under "
+                f"{CONFORMANCE_DIR_NAME}/ (this range declares conformance "
+                "proofs; every challenge needs the behavioral trio or a prove "
+                "script)",
             )
-        for name in CHECK_NAMES:
-            if not (check_dir / f"{name}.sh").is_file():
-                raise BuildError(
-                    "behavioral",
-                    f"challenge {challenge.id!r} is missing check "
-                    f"{CHECKS_DIR_NAME}/{challenge.id}/{name}.sh",
-                )
+        trio = [
+            name for name in CHECK_NAMES if (challenge_dir / f"{name}.sh").is_file()
+        ]
+        scripts = prove_scripts(challenge_dir)
+        if trio and len(trio) < len(CHECK_NAMES):
+            missing = next(name for name in CHECK_NAMES if name not in trio)
+            raise BuildError(
+                "behavioral",
+                f"challenge {challenge.id!r} is missing check "
+                f"{CONFORMANCE_DIR_NAME}/{challenge.id}/{missing}.sh "
+                "(the trio is all-or-nothing: a missing negative would leave "
+                "the rest vacuous)",
+            )
+        if not trio and not scripts:
+            raise BuildError(
+                "behavioral",
+                f"challenge {challenge.id!r} declares a conformance directory "
+                "with neither the behavioral trio nor a prove script",
+            )
+        for script in scripts:
+            _validate_prove_script(script)
 
 
 def load_challenges(range_dir: Path) -> "Challenges":
-    """The range's `challenges.yaml`, validated, with goal-type registrations loaded first (`ensure_goal_type_registrations`): the build parses custom-typed challenges exactly like the eval path does."""
+    """The range's `challenges.yaml`, validated, with goal-type registrations loaded first (entry points via `ensure_goal_type_registrations`, plus the range's loose `task.py`): the build parses custom-typed challenges exactly like the eval path does, where task import registers.
+
+    Raises:
+        BuildError: stage `behavioral`, when the range's `task.py` cannot be imported.
+    """
+    from .._challenges.prove import ConformanceError, register_range_goal_types
     from .._challenges.registration import ensure_goal_type_registrations
     from .._challenges.schema import load_challenges as load_challenges_file
 
     ensure_goal_type_registrations()
+    try:
+        register_range_goal_types(range_dir)
+    except ConformanceError as error:
+        raise BuildError("behavioral", str(error)) from error
     return load_challenges_file(range_dir / "challenges.yaml")
 
 
@@ -421,13 +526,16 @@ async def run_behavioral_checks(
     hybrid_sockets: "Mapping[str, HybridEndpoint] | None" = None,
     draws: "dict[str, int | str] | None" = None,
     draw_seed: str | None = None,
+    assertion_sink: "list[GoalAssertion] | None" = None,
 ) -> tuple[BehavioralCheckRecord, ...]:
-    """Run every declared check against the live (realized-image) range; a failing check ENDS the run and is returned as its record (the caller saves a refused manifest), while infra and authoring failures raise.
+    """Run every declared proof (behavioral trio chains, then prove scripts, per challenge) against the live (realized-image) range; a failing check ENDS the run and is returned as its record (the caller saves a refused manifest), while infra and authoring failures raise.
+
+    `assertion_sink`, when given, collects every passing prove script's goal assertions in run order (the standalone prove path records them in the manifest's `proven` slot).
 
     `draws` carries the proof boot's drawn variable values (variable-draws-v0), so each check's oracle scores `answer` goals against the values the rendered seeds delivered; they are recorded with `draw_seed` on the proof boot's evidence record like a sample's.
 
     Raises:
-        BuildError: stage `behavioral`, for malformed check trees (`_validate_checks`) or a missing attacker; infra failures (evidence, channel) propagate as their own exceptions.
+        BuildError: stage `behavioral`, for malformed conformance trees (`validate_conformance`) or a missing attacker; infra failures (evidence, channel) propagate as their own exceptions.
     """
     # imported here, not at module top: _provider imports _build (the gate),
     # so the behavioral runner's provider/challenge imports must stay lazy
@@ -437,7 +545,9 @@ async def run_behavioral_checks(
     from .._provider.state import SampleHandle
 
     challenges = load_challenges(range_dir)
-    _validate_checks(challenges, range_dir)
+    # the build hoists this validation pre-boot; this inner run is the defense
+    # for direct callers of the runner
+    validate_conformance(challenges, range_dir)
     from .._evidence.telemetry import CollectorSpec, load_collectors
 
     collectors_path = range_dir / "collectors.yaml"
@@ -503,14 +613,19 @@ async def run_behavioral_checks(
                 witness = ExecWitnessPoller(
                     channel,
                     witness_writer,
-                    [g.name for g in plan.guests if g.os == "linux"],
+                    [g.name for g in plan.guests if g.os == "linux" and not g.opaque],
                     [g.name for g in plan.guests if g.os == "windows"],
+                    opaque_guests=[g.name for g in plan.guests if g.opaque],
                 )
                 await witness.start()
                 session.register_producer(witness.stop)
+        proofs_root = conformance_root(range_dir)
         for challenge in challenges.challenges:
-            check_dir = range_dir / CHECKS_DIR_NAME / challenge.id
-            for name in CHECK_NAMES:
+            check_dir = proofs_root / challenge.id
+            # the trio is all-or-nothing (validate_conformance): one present
+            # script means all three run; a script-only challenge runs none
+            trio = CHECK_NAMES if (check_dir / f"{CHECK_NAMES[0]}.sh").is_file() else ()
+            for name in trio:
                 script = check_dir / f"{name}.sh"
                 # plant keys are write-once per store and the pcap/evidence
                 # memo must not leak across checks: fresh store and oracle
@@ -528,25 +643,7 @@ async def run_behavioral_checks(
                     attacker_ip,
                     telemetry=bool(collectors),
                 )
-                if stage_log is not None:
-                    # stages.jsonl grammar is start|ok|fail; a failing check's
-                    # detail rides the `error` field the CLI fail branch prints
-                    if record.status == "pass":
-                        stage_log.log(
-                            "behavioral",
-                            "ok",
-                            challenge=challenge.id,
-                            check=name,
-                            detail=record.detail,
-                        )
-                    else:
-                        stage_log.log(
-                            "behavioral",
-                            "fail",
-                            challenge=challenge.id,
-                            check=name,
-                            error=record.detail,
-                        )
+                _log_check(stage_log, record)
                 records.append(record)
                 if record.status != "pass":
                     # a failing check is a VERDICT, not an error: the caller
@@ -554,11 +651,128 @@ async def run_behavioral_checks(
                     # 4), so the next build reuses guests and re-runs only the
                     # proof; infra failures still raise
                     return tuple(records)
+            for script_path in prove_scripts(check_dir):
+                # prove scripts run AFTER the trio, in name order, each under
+                # the same per-check lifecycle (fresh plants, scoped oracle)
+                handle.plants = None
+                oracle = _scoped_oracle_class()(handle)
+                record = await _run_prove_script(
+                    oracle,
+                    challenge,
+                    script_path,
+                    telemetry=bool(collectors),
+                    assertion_sink=assertion_sink,
+                )
+                _log_check(stage_log, record)
+                records.append(record)
+                if record.status != "pass":
+                    return tuple(records)
     finally:
         # the provider's teardown verb: stops the capture streamer (final
         # harvest) and seals the record; bounded, idempotent, never raises
         await session.finalize()
     return tuple(records)
+
+
+def _log_check(stage_log: StageSink | None, record: BehavioralCheckRecord) -> None:
+    """One check's stage line: stages.jsonl grammar is start|ok|fail, and a failing check's detail rides the `error` field the CLI fail branch prints."""
+    if stage_log is None:
+        return
+    if record.status == "pass":
+        stage_log.log(
+            "behavioral",
+            "ok",
+            challenge=record.challenge,
+            check=record.check,
+            detail=record.detail,
+        )
+    else:
+        stage_log.log(
+            "behavioral",
+            "fail",
+            challenge=record.challenge,
+            check=record.check,
+            error=record.detail,
+        )
+
+
+async def _run_prove_script(
+    oracle: "RangeOracle",
+    challenge: "Challenge",
+    script: Path,
+    *,
+    telemetry: bool = False,
+    assertion_sink: "list[GoalAssertion] | None" = None,
+) -> BehavioralCheckRecord:
+    """One prove script under the per-check lifecycle: fresh plants via `run_setup`, a per-check prober over this challenge's own targets, `prove(ctx)` against the scoped oracle, unwind.
+
+    A `ConformanceError` out of the script (a failed assertion, a raising script, a vacuous no-assertion run) is this check's VERDICT and returns a fail record; lifecycle failures raise as infra.
+    """
+    from inspect_ai.util._store import Store
+
+    from .._challenges.prober import Prober
+    from .._challenges.prove import ConformanceError, ProveContext, execute_prove
+    from .._challenges.setup import (
+        _probe_targets,  # pyright: ignore[reportPrivateUsage]
+        _unwind,  # pyright: ignore[reportPrivateUsage]
+        run_setup,
+    )
+
+    store = Store()
+    planted = await run_setup(
+        oracle,
+        challenge,
+        store,
+        extra_observers=(
+            frozenset({"telemetry-collector"}) if telemetry else frozenset()
+        ),
+    )
+    prober: "Prober | None" = None
+    try:
+        # per-check prober over THIS challenge's derived targets, the _run_one
+        # shape; the proof's assert_goal takes the flush as its read barrier
+        targets = _probe_targets(oracle, challenge)
+        if targets:
+            session = oracle.evidence_session()
+            if session is None or not session.enabled:
+                raise RuntimeError("prober-backed checks need a live evidence session")
+            prober = Prober(session, oracle.project, targets)
+            prober.start()
+        context = ProveContext(
+            oracle,
+            challenge,
+            pre_assert=prober.flush if prober is not None else None,
+        )
+        try:
+            await execute_prove(script, context)
+        except ConformanceError as error:
+            return BehavioralCheckRecord(
+                challenge=challenge.id,
+                check=script.name,
+                status="fail",
+                detail=str(error),
+            )
+        if assertion_sink is not None:
+            assertion_sink.extend(context.assertions)
+        asserted = ",".join(dict.fromkeys(a.goal_id for a in context.assertions))
+        return BehavioralCheckRecord(
+            challenge=challenge.id,
+            check=script.name,
+            status="pass",
+            detail=f"assertions={len(context.assertions)} goals={asserted}",
+        )
+    finally:
+        if prober is not None:
+            # stop() is idempotent; this also force-flushes for the autopsy
+            # streams on the failure paths
+            await prober.stop()
+        # same removal rule as the trio (_run_one): each check's plants are
+        # removed so the next run_setup starts fresh; removal failures are
+        # logged and never mask the primary diagnosis
+        try:
+            await _unwind(oracle, planted)
+        except Exception:
+            logger.warning("check plant unwind failed for %r", script.name)
 
 
 async def _run_one(
@@ -708,7 +922,7 @@ async def _execute_and_score(
     # the build has no model, so model-graded goals are exempt from the trio's
     # scoring (judge-at-build.md): the check scores a copy of the challenge
     # without them, and aggregate's weighted mean renormalizes over the
-    # remaining share. _validate_checks already refused a challenge with no
+    # remaining share. validate_conformance already refused a challenge with no
     # provable share. Honest record, never a silent pass: the exempt ids ride
     # the detail into the stage line and the manifest's behavioral_checks slot
     exempt = [goal.id for goal in challenge.goals if _model_graded(goal)]

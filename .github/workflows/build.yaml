@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
@@ -52,13 +52,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --group dev
-      - name: Install qemu-utils (the overlay clamp test reads a real qcow2's virtual size)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-utils
+      - name: Install qemu-utils (the overlay clamp test reads a real qcow2's virtual size) and nftables (the ruleset kernel-load test)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-utils nftables
       - name: Install the pinned Go toolchain (the cross-codec drift guard)
         run: |
           curl -fsSL -o /tmp/go.tgz https://go.dev/dl/go1.23.6.linux-amd64.tar.gz
@@ -83,6 +83,9 @@ jobs:
           # same contract for the C# codec drift guard: the third codec's
           # parity is enforced here, never silently skipped
           INSPECT_RANGES_REQUIRE_DOTNET: "1"
+          # rendered rulesets must LOAD into a kernel here, never silently
+          # skip: the 0.2.5 regression shipped exactly through that gap
+          INSPECT_RANGES_REQUIRE_NETNS: "1"
 
   py-build:
     runs-on: ubuntu-latest
@@ -95,7 +98,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Build package

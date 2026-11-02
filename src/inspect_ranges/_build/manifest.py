@@ -148,8 +148,27 @@ class VerificationRecord(BaseModel):
     """Challenge behavioral-check results (reference solution passes, insufficient attempt fails, oracle shortcuts fail); populated by slice 6."""
 
 
+class GoalAssertion(BaseModel):
+    """One proven expectation: the goal, what was expected, and the verdict's reason."""
+
+    goal_id: str
+    expected_achieved: bool
+    reason: str | None = None
+
+
+class ProvenRecord(BaseModel):
+    """What a passing conformance run demonstrated, recorded in the build manifest."""
+
+    proven_at: str
+    scripts: list[str]
+    assertions: list[GoalAssertion]
+
+
 class BuildManifest(BaseModel):
     """A built range version: resolved inputs, captured outputs, verification results; never secrets."""
+
+    proven: ProvenRecord | None = None
+    """A passing conformance run's record (`inspect-ranges prove`): what scripts ran and which goal verdicts were demonstrated against the booted build. Absent means unproven, which every manifest was before proofs existed; an older engine reading a proven manifest ignores the field."""
 
     format_version: str = MANIFEST_FORMAT_VERSION
     range_name: str
@@ -171,7 +190,7 @@ class BuildManifest(BaseModel):
 
     built_at: str
     checks_sha256: str = ""
-    """Content digest over the range's behavioral-check inputs (`challenges.yaml` plus everything under `checks/`), or empty when the range declares none. Check scripts are proof tools, not guest content, so they participate in the build's cached-path decision through this digest rather than in any guest build key (slice 6 review)."""
+    """Content digest over the range's conformance-proof inputs (`challenges.yaml`, `collectors.yaml` when present, plus everything under `conformance/`; paths hash root-relative, so the digest survived the rename from `checks/`), or empty when the range declares none. Proof inputs are proof tools, not guest content, so they participate in the build's cached-path decision through this digest rather than in any guest build key (slice 6 review); the field name predates the rename and stays for manifest compatibility."""
 
     build_egress: bool = True
     """Whether build-time egress was granted (it always is today; recorded per the build-v1 decision)."""
@@ -259,6 +278,14 @@ def spec_projection(
         projected["roles"] = list(host.roles)
     if host.defense is not None:
         projected["defense"] = host.defense.model_dump(mode="json")
+    if host.hardware is not None:
+        # the machine shape bakes into what the recipe boot captured (device
+        # names, buses, slots), so declared hardware re-keys the guest; the
+        # exclude_defaults dump keeps an all-defaults block key-identical to
+        # an absent one
+        declared_hardware = host.hardware.model_dump(mode="json", exclude_defaults=True)
+        if declared_hardware:
+            projected["hardware"] = declared_hardware
     if host.scheduled_activity:
         projected["scheduled_activity"] = [
             activity.model_dump(mode="json") for activity in host.scheduled_activity
@@ -413,6 +440,62 @@ def stamp_bundle_sha256(
             fcntl.flock(lock, fcntl.LOCK_UN)
 
 
+def stamp_proven(
+    build_cache: Path,
+    range_name: str,
+    spec_sha256: str,
+    record: ProvenRecord,
+    *,
+    built_at: str,
+) -> None:
+    """Record a passing conformance run on the manifest its proofs booted, atomically.
+
+    The load-compare-save runs under the same per-range lock as `save_manifest`, and the stamp lands only when the on-disk manifest is still the exact BUILD the proofs consumed, by spec revision AND `built_at` (`save_refused_manifest`'s discipline; a concurrent same-spec rebuild produced different captured images and must earn its own proof), and carries no failing records (a concurrent refused re-proof must never read proven). A stamp that cannot land refuses loudly rather than printing a success the manifest does not carry.
+
+    Raises:
+        RuntimeError: No manifest exists for the range, the on-disk manifest is a different spec revision or build than the proofs booted, or it is refused.
+    """
+    path = manifest_path(build_cache, range_name)
+    lock_path = path.parent / ".manifest.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            current = load_manifest(build_cache, range_name)
+            if (
+                current is None
+                or current.spec_sha256 != spec_sha256
+                or current.built_at != built_at
+            ):
+                raise RuntimeError(
+                    f"the proven stamp for {range_name!r} did not land: the "
+                    "on-disk manifest is "
+                    + (
+                        "absent"
+                        if current is None
+                        else "a different spec revision"
+                        if current.spec_sha256 != spec_sha256
+                        else "a different build of the same revision"
+                    )
+                    + "; rebuild and prove again"
+                )
+            if any(
+                item.status != "pass" for item in current.verification.behavioral_checks
+            ):
+                raise RuntimeError(
+                    f"the proven stamp for {range_name!r} did not land: the "
+                    "on-disk manifest is REFUSED; rebuild and prove again"
+                )
+            temp = path.with_suffix(".json.writing")
+            temp.write_text(
+                current.model_copy(update={"proven": record}).model_dump_json(indent=2)
+                + "\n"
+            )
+            temp.replace(path)
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
 def save_refused_manifest(
     refused: "BuildManifest", build_cache: Path, supersedes_built_at: str | None
 ) -> Path | None:
@@ -447,6 +530,47 @@ def load_manifest(build_cache: Path, range_name: str) -> BuildManifest | None:
         return BuildManifest.model_validate_json(path.read_text())
     except (OSError, ValueError):
         return None
+
+
+def respec_manifest(manifest: BuildManifest, spec: "RangeSpec") -> BuildManifest:
+    """The manifest re-recorded under the current normalized hash of `spec`: the one-time migration for builds recorded before the hash excluded defaulted values (0.2.5), which left every earlier build unmatched by the spec that produced it.
+
+    Sound without any operator assertion: the manifest embeds the spec it was built from, so that spec re-hashed under the current rule must equal the hash of the spec on disk. A manifest whose embedded spec hashes differently was built from something else and is refused; so is a manifest that embeds no spec at all.
+
+    Args:
+        manifest: The cached build manifest.
+        spec: The validated range the build is claimed for.
+
+    Returns:
+        The manifest with `spec_sha256` set to the current hash of `spec`; nothing else changes.
+
+    Raises:
+        IssueError: `manifest-spec-mismatch` when the embedded spec is absent or is not this spec.
+    """
+    from .._compiler.plan import spec_sha256 as _spec_sha256
+    from ..types import IssueError, RangeSpec
+
+    current = _spec_sha256(spec)
+    recorded = (
+        _spec_sha256(RangeSpec.model_validate(manifest.spec)) if manifest.spec else None
+    )
+    if manifest.range_name != spec.meta.name or recorded != current:
+        why = (
+            "embeds no spec to verify against"
+            if recorded is None
+            else f"was built from a different spec (its embedded spec hashes to {recorded[:12]}..., this one to {current[:12]}...)"
+        )
+        raise IssueError(
+            [
+                Issue(
+                    code="manifest-spec-mismatch",
+                    path=("range", "name"),
+                    message=f"the build manifest for {manifest.range_name!r} {why}",
+                    hint="rebuild with 'inspect-ranges build'; --respec only re-records a build of this exact spec",
+                )
+            ]
+        )
+    return manifest.model_copy(update={"spec_sha256": current})
 
 
 def manifest_matches_spec(manifest: BuildManifest, spec_sha256: str) -> bool:

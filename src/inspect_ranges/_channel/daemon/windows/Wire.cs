@@ -38,6 +38,7 @@ namespace VsockD
         // strict-side-wins caps and literal sets, adopted from the Python
         // schema and pinned by the shared rejection table
         public const int MaxDaemonLen = 128;
+        public const int MaxIdentityLen = 32;  // a username; the Linux login-name limit
         public const int MaxMessageLen = 4096;
         public const int MaxStageDetailLen = 4096;
         public const int MaxEventLen = 128;
@@ -518,7 +519,7 @@ namespace VsockD
         static readonly Dictionary<string, string[]> OptionalFields = new Dictionary<string, string[]>
         {
             { "ping", new string[0] },
-            { "pong", new[] { "protocol" } },
+            { "pong", new[] { "protocol", "identity" } },
             { "exec", new[] { "cwd", "env", "user", "budget" } },
             { "read_file", new[] { "max_bytes", "budget" } },
             { "write_file", new[] { "budget", "mode" } },
@@ -533,7 +534,7 @@ namespace VsockD
             { "pending", new string[0] },
             { "forward_ok", new string[0] },
             { "diag_result", new[] { "entries", "listener_restarts" } },
-            { "exec_events_result", new[] { "events", "drops", "restarts" } },
+            { "exec_events_result", new[] { "events", "drops", "restarts", "session" } },
             { "error", new[] { "layer", "partial" } },
             { "realize", new[] { "grants" } },
             { "teardown", new string[0] },
@@ -727,6 +728,9 @@ namespace VsockD
                         throw new DecodeException("pong: protocol must be " + ProtocolVersion);
                     if (!SessionRe.IsMatch(GetString(m, "session")))
                         throw new DecodeException("pong: session must be 32 lowercase hex chars");
+                    string pongIdentity = GetString(m, "identity");
+                    if (pongIdentity != null && Encoding.UTF8.GetByteCount(pongIdentity) > MaxIdentityLen)
+                        throw new DecodeException("pong: identity too long");
                     break;
                 case "forward_ok":
                     GetString(m, "handle");
@@ -758,6 +762,12 @@ namespace VsockD
                 case "exec_events_result":
                     if (!m.ContainsKey("next_seq"))
                         throw new DecodeException("exec_events_result: missing next_seq");
+                    // an empty session string is "absent" on the wire (Go emits it
+                    // omitempty and accepts it the same way); treat it as absent here
+                    // too so the same frame decodes identically across all codecs
+                    string execSession = GetString(m, "session");
+                    if (!string.IsNullOrEmpty(execSession) && !SessionRe.IsMatch(execSession))
+                        throw new DecodeException("exec_events_result: session must be 32 lowercase hex chars");
                     ValidateExecEvents(m);
                     break;
                 case "realize":

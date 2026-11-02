@@ -59,9 +59,9 @@ Scenario networking and operator containment are different authorities, each wit
 
 ## Proving Containment
 
-A range that carries [behavioral checks](building.qmd#behavioral-checks) proves its containment at build time. Before the checks, the proof boot (the build's second boot of the captured images, where the checks run; see [Behavioral Checks](building.qmd#behavioral-checks)) runs the `conformance` stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed check, so an uncontained range is never consumable.
+A range that carries [conformance proofs](building.qmd#conformance-proofs) proves its containment at build time. Before the proofs, the proof boot (the build's second boot of the captured images, where the proofs run; see [Conformance Proofs](building.qmd#conformance-proofs)) runs the `conformance` stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed proof, so an uncontained range is never consumable.
 
-The stage's scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without behavioral checks has no proof boot, so it gets no conformance stage either.
+The stage's scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without conformance proofs has no proof boot, so it gets no conformance stage either.
 
 ## External Attack Boxes
 

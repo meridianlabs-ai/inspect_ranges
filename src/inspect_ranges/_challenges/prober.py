@@ -140,6 +140,11 @@ class Prober:
             await self._flush(goal_id, force=True)
         self._tasks.clear()
 
+    async def flush(self) -> None:
+        """Force-flush every target's batched records while the loops keep running: the read barrier a conformance proof takes before a goal verdict (records otherwise batch on the `batch_s` cadence and a mid-run read would miss this proof's own probes)."""
+        for goal_id in list(self._states):
+            await self._flush(goal_id, force=True)
+
     async def probe_once(self, target: ProbeTarget) -> dict[str, object]:
         """One probe tick: fresh nonce, client run in the probe sidecar, verdict record."""
         nonce = token_hex(8)

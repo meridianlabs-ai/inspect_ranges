@@ -198,10 +198,8 @@ def test_trio_exempts_model_graded_goals(
 def test_judge_only_challenge_refuses_challenge_not_provable(
     tmp_path: pathlib.Path,
 ) -> None:
-    """judge-at-build.md: a challenge whose goals are all model-graded has no provable share, so a complete checks tree still refuses before any chain runs; a mixed challenge validates."""
-    from inspect_ranges._build.behavioral import (
-        _validate_checks,  # pyright: ignore[reportPrivateUsage]
-    )
+    """judge-at-build.md: a challenge whose goals are all model-graded has no provable share, so a complete conformance tree still refuses before any chain runs; a mixed challenge validates."""
+    from inspect_ranges._build.behavioral import validate_conformance
     from inspect_ranges._build.errors import BuildError
     from inspect_ranges._challenges.registration import (
         ensure_goal_type_registrations,
@@ -209,7 +207,7 @@ def test_judge_only_challenge_refuses_challenge_not_provable(
     from inspect_ranges._challenges.schema import Challenges
 
     ensure_goal_type_registrations()
-    check_dir = tmp_path / "checks" / "demo"
+    check_dir = tmp_path / "conformance" / "demo"
     check_dir.mkdir(parents=True)
     for script in ("reference", "insufficient", "forged"):
         (check_dir / f"{script}.sh").write_text("true\n")
@@ -217,7 +215,7 @@ def test_judge_only_challenge_refuses_challenge_not_provable(
         {"challenges": [{"id": "demo", "prompt": "p", "goals": [_JUDGE_GOAL]}]}
     )
     with pytest.raises(BuildError, match="challenge-not-provable"):
-        _validate_checks(judge_only, tmp_path)
+        validate_conformance(judge_only, tmp_path)
     mixed = Challenges.model_validate(
         {
             "challenges": [
@@ -225,7 +223,94 @@ def test_judge_only_challenge_refuses_challenge_not_provable(
             ]
         }
     )
-    _validate_checks(mixed, tmp_path)
+    validate_conformance(mixed, tmp_path)
+
+
+def test_retired_checks_layout_refuses(tmp_path: pathlib.Path) -> None:
+    """A directory still using the retired `checks/` layout refuses with the rename hint, even when challenges.yaml is missing: a layout this code no longer reads must never build silently unproven."""
+    from inspect_ranges._build.behavioral import conformance_root, proofs_declared
+    from inspect_ranges._build.errors import BuildError
+
+    (tmp_path / "checks" / "demo").mkdir(parents=True)
+    with pytest.raises(BuildError, match="git mv checks conformance"):
+        conformance_root(tmp_path)
+    with pytest.raises(BuildError, match="retired checks/ layout"):
+        proofs_declared(tmp_path)
+
+
+def test_digest_is_root_name_invariant(tmp_path: pathlib.Path) -> None:
+    """The digest hashes paths relative to the tree root, so a `checks_sha256` recorded over `checks/` matches the identical tree under `conformance/`: the rename invalidates no build caches."""
+    from inspect_ranges._build.behavioral import (
+        _tree_digest,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    (tmp_path / "challenges.yaml").write_text("challenges: []\n")
+    digests: list[str] = []
+    for root_name in ("checks", "conformance"):
+        root = tmp_path / root_name
+        (root / "demo").mkdir(parents=True)
+        (root / "demo" / "reference.sh").write_text("true\n")
+        digests.append(_tree_digest(tmp_path, root))
+    assert digests[0] == digests[1]
+
+
+def test_digest_covers_prove_scripts(tmp_path: pathlib.Path) -> None:
+    """An authored or edited prove script must invalidate the build's cached fast path exactly like an edited trio chain."""
+    from inspect_ranges._build.behavioral import checks_digest
+
+    (tmp_path / "challenges.yaml").write_text("challenges: []\n")
+    demo = tmp_path / "conformance" / "demo"
+    demo.mkdir(parents=True)
+    script = demo / "prove_flow.py"
+    script.write_text("async def prove(ctx): ...\n")
+    before = checks_digest(tmp_path)
+    script.write_text("async def prove(ctx):\n    pass\n")
+    assert checks_digest(tmp_path) != before
+
+
+def test_validate_conformance_trio_or_prove_scripts(tmp_path: pathlib.Path) -> None:
+    """The unified completeness rule: a challenge directory needs the full trio, at least one prove script, or both; a partial trio refuses, a `.py` without a top-level `prove` refuses by AST, and an unparseable `.py` refuses."""
+    from inspect_ranges._build.behavioral import validate_conformance
+    from inspect_ranges._build.errors import BuildError
+    from inspect_ranges._challenges.registration import (
+        ensure_goal_type_registrations,
+    )
+    from inspect_ranges._challenges.schema import Challenges
+
+    ensure_goal_type_registrations()
+    challenges = Challenges.model_validate(
+        {"challenges": [{"id": "demo", "prompt": "p", "goals": [_FLAG_GOAL]}]}
+    )
+    demo = tmp_path / "conformance" / "demo"
+    demo.mkdir(parents=True)
+    with pytest.raises(BuildError, match="neither the behavioral trio nor"):
+        validate_conformance(challenges, tmp_path)
+    (demo / "prove_flow.py").write_text("def prove(ctx):\n    pass\n")
+    with pytest.raises(BuildError, match="no top-level `async def prove`"):
+        validate_conformance(challenges, tmp_path)
+    (demo / "prove_flow.py").write_text("async def prove(ctx):\n    pass\n")
+    validate_conformance(challenges, tmp_path)  # a prove script alone is complete
+    (demo / "reference.sh").write_text("true\n")
+    with pytest.raises(BuildError, match="all-or-nothing"):
+        validate_conformance(challenges, tmp_path)
+    for script in ("insufficient", "forged"):
+        (demo / f"{script}.sh").write_text("true\n")
+    validate_conformance(challenges, tmp_path)  # trio and scripts coexist
+    # an underscore sibling is a helper, not a proof: no prove() required
+    (demo / "_helper.py").write_text("flavor = 'alpha'\n")
+    validate_conformance(challenges, tmp_path)
+    from inspect_ranges._build.behavioral import prove_scripts
+
+    assert [p.name for p in prove_scripts(demo)] == ["prove_flow.py"]
+    (demo / "broken.py").write_text("def prove(:\n")
+    with pytest.raises(BuildError, match="does not parse"):
+        validate_conformance(challenges, tmp_path)
+    # a stray file at the root would digest without ever running: refuse
+    (tmp_path / "conformance" / "exfil_prove.py").write_text(
+        "async def prove(ctx):\n    pass\n"
+    )
+    with pytest.raises(BuildError, match="not a challenge directory"):
+        validate_conformance(challenges, tmp_path)
 
 
 def test_reference_requires_corroborated_beacon_goals(
@@ -319,6 +404,27 @@ def test_conformance_plan_resolves_the_section6_targets() -> None:
     assert any(candidate.startswith("10.45.0.") for candidate in silent)
     assigned = set(attacker_ips) | {"10.44.0.10", "10.45.0.9"}
     assert all(candidate not in assigned for candidate in silent)
+
+
+def test_conformance_plan_skips_an_opaque_defender() -> None:
+    """Review round 1 finding 6: the containment sweep execs bash through the defender's daemon, which an opaque appliance does not have; the pick must pass over it even when it is first on the shared segment."""
+    from inspect_ranges._build.behavioral import conformance_plan
+    from inspect_ranges._compiler import resolve_plan
+    from inspect_ranges.types import Host, Interface, Os
+
+    spec = _section6_spec()
+    spec.hosts.insert(
+        0,
+        Host(
+            name="appliance",
+            os=Os(type="linux"),
+            image="tiny-golden",
+            opaque=True,
+            interfaces=[Interface(network="lab", ip="10.44.0.5")],
+        ),
+    )
+    defender, _, _, _ = conformance_plan(spec, resolve_plan(spec))
+    assert defender == "web"
 
 
 def test_conformance_plan_is_empty_for_foothold_ranges() -> None:
@@ -535,8 +641,7 @@ collectors:
         load_collectors(bad)
     # digest coverage
     (tmp_path / "challenges.yaml").write_text("challenges: []\n")
-    checks = tmp_path / "checks"
-    checks.mkdir()
+    (tmp_path / "conformance").mkdir()
     before = checks_digest(tmp_path)
     collectors_yaml.write_text(collectors_yaml.read_text() + "# edited\n")
     assert checks_digest(tmp_path) != before
@@ -675,6 +780,7 @@ def test_prober_backed_trio_reads_valid(
                 SimpleNamespace(
                     name="box",
                     os="linux",
+                    opaque=False,
                     interfaces=[SimpleNamespace(network="lab", ip="10.0.0.5")],
                 )
             ],
@@ -719,13 +825,28 @@ def test_prober_backed_trio_reads_valid(
 @pytest.fixture()
 def isolated_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run the test against a copy of the goal-type registry, like tests/test_challenges_custom_types.py."""
+    import inspect_ai._util.registry as registry_module
     import inspect_ranges._challenges.engine as engine_module
 
     monkeypatch.setattr(
-        engine_module,
-        "_REGISTRY",
-        dict(engine_module._REGISTRY),  # pyright: ignore[reportPrivateUsage]
+        registry_module,
+        "_registry",
+        dict(registry_module._registry),  # pyright: ignore[reportPrivateUsage]
     )
+    monkeypatch.setattr(
+        engine_module,
+        "_REGISTERED",
+        dict(engine_module._REGISTERED),  # pyright: ignore[reportPrivateUsage]
+    )
+    monkeypatch.setattr(
+        engine_module,
+        "_ALIASES",
+        dict(engine_module._ALIASES),  # pyright: ignore[reportPrivateUsage]
+    )
+    import inspect_ai._util.entrypoints as entrypoints_module
+
+    for flag in ("_inspect_ai_eps_loaded", "_inspect_ai_eps_loaded_all"):
+        monkeypatch.setattr(entrypoints_module, flag, getattr(entrypoints_module, flag))
 
 
 def _write_challenges(tmp_path: pathlib.Path, text: str) -> pathlib.Path:
@@ -842,3 +963,218 @@ def test_detection_only_negatives_pass_without_submissions(
         ).status
         == "fail"
     )
+
+
+def test_prove_script_outcomes_map_to_check_records(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """A failed assertion returns a fail record (the build's refusal verdict), a passing script a pass record with its assertions in the sink, and plants unwind either way (the per-check lifecycle)."""
+    import inspect_ranges._challenges.prove as prove_module
+    import inspect_ranges._challenges.setup as setup_module
+    from inspect_ranges._build.behavioral import (
+        _run_prove_script,  # pyright: ignore[reportPrivateUsage]
+    )
+    from inspect_ranges._challenges.engine import GoalResult
+
+    unwound: list[list[str]] = []
+
+    async def fake_run_setup(
+        oracle: Any,
+        challenge: Any,
+        store: Any = None,
+        *,
+        extra_observers: Any = frozenset(),
+    ) -> list[str]:
+        return ["planted-key"]
+
+    async def fake_unwind(oracle: Any, planted: list[str]) -> None:
+        unwound.append(planted)
+
+    monkeypatch.setattr(setup_module, "run_setup", fake_run_setup)
+    monkeypatch.setattr(setup_module, "_unwind", fake_unwind)
+
+    def fake_targets(oracle: Any, challenge: Any) -> list[Any]:
+        return []
+
+    monkeypatch.setattr(setup_module, "_probe_targets", fake_targets)
+
+    class FakeEngine:
+        uses_submissions = True
+
+        def assurance_for(self, goal: Any) -> str:
+            return "guest-corroborated"
+
+    async def fake_eval(
+        engine: Any, goal: Any, oracle: Any, submissions: Any
+    ) -> tuple[GoalResult, int]:
+        achieved = submissions.value(goal.id) == "expected"
+        return GoalResult(achieved=achieved, reason="fake verdict"), 0
+
+    def fake_goal_type(name: str) -> Any:
+        return FakeEngine()
+
+    monkeypatch.setattr(prove_module, "goal_type", fake_goal_type)
+    monkeypatch.setattr(prove_module, "evaluate_goal", fake_eval)
+
+    class ProveOracle:
+        async def flush_capture(self) -> int:
+            return 0
+
+    challenge = _schema_challenge([_FLAG_GOAL])
+    script = tmp_path / "prove_flow.py"
+    script.write_text(
+        "async def prove(ctx):\n"
+        "    ctx.submit('token', 'expected')\n"
+        "    await ctx.assert_goal('token', achieved=True)\n"
+    )
+    sink: list[Any] = []
+    record = asyncio.run(
+        _run_prove_script(
+            cast(Any, ProveOracle()), challenge, script, assertion_sink=sink
+        )
+    )
+    assert record.status == "pass" and record.check == "prove_flow.py"
+    assert "goals=token" in record.detail
+    assert [a.goal_id for a in sink] == ["token"]
+
+    failing = tmp_path / "prove_fail.py"
+    failing.write_text(
+        "async def prove(ctx):\n"
+        "    ctx.submit('token', 'wrong')\n"
+        "    await ctx.assert_goal('token', achieved=True)\n"
+    )
+    record = asyncio.run(
+        _run_prove_script(cast(Any, ProveOracle()), challenge, failing)
+    )
+    assert record.status == "fail"
+    assert "expected achieved=True" in record.detail
+    assert len(unwound) == 2
+
+
+def test_runner_orders_trio_then_scripts_and_early_returns(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """run_behavioral_checks executes a challenge's trio before its prove scripts, scripts in name order, challenges in declaration order; the first failing record ends the run (the caller records the refusal)."""
+    import inspect_ranges._build.behavioral as behavioral_module
+    import inspect_ranges._channel.channel as channel_module
+    import inspect_ranges._channel.vsock as vsock_module
+    import inspect_ranges._provider.evidence as evidence_module
+    import inspect_ranges._provider.state as state_module
+    from inspect_ranges._build.behavioral import run_behavioral_checks
+    from inspect_ranges._build.manifest import BehavioralCheckRecord
+
+    monkeypatch.setenv("INSPECT_RANGES_EXEC_WITNESS", "0")
+    (tmp_path / "challenges.yaml").write_text(
+        "challenges:\n"
+        "  - id: c1\n"
+        "    prompt: p\n"
+        "    goals: [{id: g1, type: flag, host: atk, path: /f}]\n"
+        "  - id: c2\n"
+        "    prompt: p\n"
+        "    goals: [{id: g2, type: flag, host: atk, path: /f}]\n"
+    )
+    chain_dir = tmp_path / "conformance" / "c1"
+    chain_dir.mkdir(parents=True)
+    for name in ("reference", "insufficient", "forged"):
+        (chain_dir / f"{name}.sh").write_text("true\n")
+    script_dir = tmp_path / "conformance" / "c2"
+    script_dir.mkdir()
+    for script in ("a_first.py", "b_second.py"):
+        (script_dir / script).write_text("async def prove(ctx):\n    pass\n")
+
+    class FakeSession:
+        driver_writer = None
+        enabled = True
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        async def open(self, **kwargs: Any) -> None:
+            pass
+
+        async def finalize(self) -> None:
+            pass
+
+        def register_producer(self, stop: Any) -> None:
+            pass
+
+    def fake_handle(**kwargs: Any) -> Any:
+        return SimpleNamespace(**kwargs)
+
+    def fake_channel(*args: Any, **kwargs: Any) -> Any:
+        return object()
+
+    def fake_transport(*args: Any, **kwargs: Any) -> Any:
+        return object()
+
+    def fake_attacker(spec: Any, plan: Any) -> tuple[str, str]:
+        return ("atk", "10.0.0.2")
+
+    def fake_oracle_class() -> Any:
+        def construct(handle: Any) -> Any:
+            return object()
+
+        return construct
+
+    monkeypatch.setattr(evidence_module, "EvidenceSession", FakeSession)
+    monkeypatch.setattr(state_module, "SampleHandle", fake_handle)
+    monkeypatch.setattr(channel_module, "MessageChannel", fake_channel)
+    monkeypatch.setattr(vsock_module, "VsockTransport", fake_transport)
+    monkeypatch.setattr(behavioral_module, "_attacker_guest", fake_attacker)
+    monkeypatch.setattr(behavioral_module, "_scoped_oracle_class", fake_oracle_class)
+
+    ran: list[str] = []
+    outcomes: dict[str, str] = {}
+
+    async def fake_run_one(
+        oracle: Any, challenge: Any, name: str, script: str, *args: Any, **kwargs: Any
+    ) -> BehavioralCheckRecord:
+        ran.append(f"{challenge.id}:{name}")
+        return BehavioralCheckRecord(
+            challenge=challenge.id, check=name, status="pass", detail=""
+        )
+
+    async def fake_prove(
+        oracle: Any, challenge: Any, script: pathlib.Path, **kwargs: Any
+    ) -> BehavioralCheckRecord:
+        ran.append(f"{challenge.id}:{script.name}")
+        return BehavioralCheckRecord(
+            challenge=challenge.id,
+            check=script.name,
+            status=outcomes.get(script.name, "pass"),
+            detail="",
+        )
+
+    monkeypatch.setattr(behavioral_module, "_run_one", fake_run_one)
+    monkeypatch.setattr(behavioral_module, "_run_prove_script", fake_prove)
+
+    def run() -> tuple[BehavioralCheckRecord, ...]:
+        spec = SimpleNamespace(meta=SimpleNamespace(name="r"))
+        plan = SimpleNamespace(totals=None, guests=[])
+        return asyncio.run(
+            run_behavioral_checks(
+                cast(Any, spec),
+                cast(Any, plan),
+                tmp_path,
+                project="p",
+                bundle=tmp_path,
+                cids={"atk": 3},
+                evidence_dir=tmp_path / "ev",
+            )
+        )
+
+    records = run()
+    assert ran == [
+        "c1:reference",
+        "c1:insufficient",
+        "c1:forged",
+        "c2:a_first.py",
+        "c2:b_second.py",
+    ]
+    assert all(record.status == "pass" for record in records)
+
+    ran.clear()
+    outcomes["a_first.py"] = "fail"
+    records = run()
+    assert ran[-1] == "c2:a_first.py" and "c2:b_second.py" not in ran
+    assert records[-1].status == "fail" and records[-1].check == "a_first.py"

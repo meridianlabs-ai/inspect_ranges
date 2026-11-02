@@ -416,6 +416,10 @@ def run_attack_box_battery(
                 spec,
                 bundle,
                 plan_options.model_copy(update={"cid_base": cid_lease.base}),
+                # the battery realizes this bundle once, through the resolved
+                # provider, which boots the attack box: its image is never
+                # pulled locally, so the cache check exempts that guest
+                external_attack_box=True,
             )
             plan = ResolvedPlan.model_validate_json((bundle / "plan.json").read_text())
             attacker = next(g.name for g in plan.guests if g.kind == "attacker")
