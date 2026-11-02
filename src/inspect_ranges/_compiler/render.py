@@ -70,7 +70,7 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
        QEMU runs as its own uid, the same scheme Cloud Hypervisor guests use;
        relabel stays off because the boot script pre-owns the guest's files -->
   <seclabel type='static' model='dac' relabel='no'>
-    <label>+{uid}:kvm</label>
+    <label>{seclabel}</label>
   </seclabel>
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
@@ -474,6 +474,17 @@ def render_bundle(
                     ),
                     smm=_SMM_ON if guest.firmware == "uefi-secure" else "",
                     tpm=_TPM_CRB if guest.tpm else "",
+                    # a TPM guest's VMM runs as the shared libvirt-qemu
+                    # principal: libvirt hardcodes the swtpm control socket to
+                    # 0600 owned by swtpm_user, and with the MAC slot disabled
+                    # nothing re-chowns it, so the only principal that can
+                    # open it is that owner. Every other guest keeps its
+                    # per-VM uid (the issue #5 isolation scheme)
+                    seclabel=(
+                        "libvirt-qemu:kvm"
+                        if guest.tpm
+                        else f"+{guest_uid(guest.cid)}:kvm"
+                    ),
                     machine_quirks=(
                         _MACHINE_QUIRKS_Q35
                         if guest.machine == "q35"
@@ -651,6 +662,8 @@ def _boot_guest(
         entry["readiness_ip"] = str(guest.interfaces[0].ip)
     if guest.readiness_timeout is not None:
         entry["readiness_timeout"] = guest.readiness_timeout
+    if guest.tpm:
+        entry["tpm"] = True
     if guest.extra_disks:
         entry["extra_disks"] = [
             {

@@ -54,7 +54,14 @@ COPY --from=cloud-hypervisor /out/ /
 # and docker-default AppArmor/seccomp confining the whole container.
 # dynamic_ownership stays off: the boot script pre-owns each guest's files, so
 # libvirt never chowns a shared backing golden.
-RUN printf 'user = "libvirt-qemu"\ngroup = "kvm"\nsecurity_driver = "none"\ndynamic_ownership = 0\nremember_owner = 0\ncgroup_controllers = []\nnamespaces = []\nseccomp_sandbox = 1\n' \
+# swtpm runs under the kvm group every per-uid QEMU already carries: with the
+# MAC slot disabled there is no relabeling, and the stock swtpm:swtpm socket
+# would refuse the guest's VMM (found live realizing the TPM device). The
+# stock file carries ACTIVE swtpm_user/swtpm_group lines and the parser takes
+# the first occurrence, so these are replaced in place, never appended
+RUN sed -i 's/^swtpm_user.*/swtpm_user = "libvirt-qemu"/; s/^swtpm_group.*/swtpm_group = "kvm"/' /etc/libvirt/qemu.conf \
+    && chown -R libvirt-qemu:kvm /var/lib/swtpm-localca \
+    && printf 'user = "libvirt-qemu"\ngroup = "kvm"\nsecurity_driver = "none"\ndynamic_ownership = 0\nremember_owner = 0\ncgroup_controllers = []\nnamespaces = []\nseccomp_sandbox = 1\n' \
     >> /etc/libvirt/qemu.conf
 
 COPY entrypoint.sh /entrypoint.sh
