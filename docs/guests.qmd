@@ -256,7 +256,7 @@ Opaque is a contract, enforced fail-closed on both sides:
 
 - **Addresses are declared facts, not instructions.** Every interface of an opaque guest must declare its `ip`: the address is baked into the image, and the engine cannot invent one (`opaque-ip-required`). On a [`dhcp: true` network](networks.qmd#addressing) the declared MAC and ip become the appliance's reservation, so a DHCP-client appliance leases its baked address deterministically.
 
-- **Readiness is observed, not reported.** With no daemon handshake, `readiness` says how `up` decides the guest is ready: `{tcp: <port>}` probes a TCP connect against the first declared address, and `process` (the default) means the VM process runs, the weakest honest signal. `readiness` on a non-opaque guest refuses: managed guests keep the daemon handshake.
+- **Readiness is observed, not reported.** With no daemon handshake, `readiness` says how `up` decides the guest is ready: `{tcp: <port>}` probes a TCP connect against the first declared address, and `process` (the default) means the VM process runs, the weakest honest signal. An appliance whose stack boots slower than the deployment's per-guest window declares its budget alongside the port (`{tcp: 830, timeout: 1200}`): a fact of the image, extending the shared window for that guest and never shrinking it. `readiness` on a non-opaque guest refuses: managed guests keep the daemon handshake.
 
 ## Routers {#routers-are-guests-too}
 

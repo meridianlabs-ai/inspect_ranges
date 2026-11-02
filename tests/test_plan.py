@@ -1498,6 +1498,7 @@ def test_hardware_threads_into_the_plan(cache: Path) -> None:
     assert appliance.extra_disks[1].size_gb == 5
     assert appliance.opaque is True
     assert appliance.readiness == "tcp" and appliance.readiness_port == 22
+    assert appliance.readiness_timeout is None  # undeclared budget stays None
     assert appliance.injector == "none"
     assert appliance.interfaces[0].mac == "52:54:00:e8:3c:19"
     bench = guests["workbench"]

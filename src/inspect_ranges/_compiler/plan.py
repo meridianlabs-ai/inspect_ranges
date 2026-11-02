@@ -149,6 +149,8 @@ class PlannedGuest(BaseModel):
     """A sealed appliance guest: no daemon, no content, readiness from `readiness`/`readiness_port`."""
     readiness_port: int | None = None
     """The TCP readiness port, when `readiness` is `tcp`."""
+    readiness_timeout: int | None = None
+    """The guest's declared boot budget in seconds (`TcpReadiness.timeout`), for appliances slower than the deployment's readiness window."""
     interfaces: list[InterfaceAllocation]
     hostname: str
     """The rendered in-guest hostname: the declared `hostname:` when a host carries one (realized as of windows-ad-v1 slice 4), else derived from the guest name; sanitized, and NetBIOS-truncated for Windows. Plan-resolved so render, the collision gate, and the Windows build key all consume one value."""
@@ -763,12 +765,14 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
         declared_readiness = getattr(declared, "readiness", None)
         readiness: Literal["cloud-init", "daemon", "tcp", "process"]
         readiness_port: int | None = None
+        readiness_timeout: int | None = None
         if opaque:
             # the opaque tier's daemon-free contracts; an undeclared readiness
             # means "the VM process runs", the weakest honest signal
             if isinstance(declared_readiness, TcpReadiness):
                 readiness = "tcp"
                 readiness_port = declared_readiness.tcp
+                readiness_timeout = declared_readiness.timeout
             else:
                 readiness = "process"
         else:
@@ -805,6 +809,7 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 ],
                 opaque=opaque,
                 readiness_port=readiness_port,
+                readiness_timeout=readiness_timeout,
                 interfaces=guest.interfaces,
                 hostname=(
                     windows_hostname(declared_hostname)

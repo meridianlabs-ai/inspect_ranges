@@ -1,3 +1,7 @@
+## Unreleased
+
+- Opaque guests with tcp readiness can declare their boot budget (`readiness: {tcp: 830, timeout: 1200}`): a management-plane appliance that takes fifteen minutes to open its ports is a fact of the image, like its addresses, so the budget rides the spec and the bundle (`boot.json`, emitted only when declared) rather than a deployment flag. The declared budget extends the shared `--readiness-timeout` window for its guest only and never shrinks it; undeclared guests are untouched, and the new field is defaulted so no existing spec hash moves.
+
 ## 0.2.11 (01 November 2026)
 
 - Appliance hardware vocabulary: hosts gain a `hardware` block (firmware `bios`/`uefi` with per-guest OVMF nvram, machine `q35`/`pc`, `nic_model` `virtio`/`e1000`, an optional `vga` video device, and extra `disks` as blank volumes or copy-on-write overlays of cache images), plus per-interface declared MACs, for images built against particular virtual hardware. Every default reproduces the engine's standard shape, so an absent block moves no spec hash and changes nothing. Declared vocabulary that is not yet realized (`uefi-secure`, `tpm`) refuses at validation, as do ide disks off `machine: pc`, disk counts past the machine's address space, and hardware on cloud-hypervisor or Windows guests. Extra-disk overlay bases ride every image gate: the catalog pull, the render's cache check, and `up`'s digest and vendor-edge verification.
