@@ -208,11 +208,15 @@ class ExecWitnessPoller:
                         "session": reply.session,
                     },
                 )
-                state.cursor = reply.next_seq
                 state.drops_seen = 0
-                state.session = reply.session
+                # the post-restart events this same reply already carries are in
+                # hand — ship them (below) rather than fold them into the
+                # unknown-size restart gap. Reset the cursor to their first seq so
+                # they ship with no spurious overflow gap; the loss *across* the
+                # restart is the gap recorded above. (#31 #2)
+                state.cursor = reply.events[0].seq if reply.events else reply.next_seq
                 await self._flush_meta(name, force=True)
-                continue
+                # fall through to the normal shipping path (no `continue`)
             if reply.session is not None:
                 state.session = reply.session
             if reply.events:

@@ -762,8 +762,11 @@ namespace VsockD
                 case "exec_events_result":
                     if (!m.ContainsKey("next_seq"))
                         throw new DecodeException("exec_events_result: missing next_seq");
+                    // an empty session string is "absent" on the wire (Go emits it
+                    // omitempty and accepts it the same way); treat it as absent here
+                    // too so the same frame decodes identically across all codecs
                     string execSession = GetString(m, "session");
-                    if (execSession != null && !SessionRe.IsMatch(execSession))
+                    if (!string.IsNullOrEmpty(execSession) && !SessionRe.IsMatch(execSession))
                         throw new DecodeException("exec_events_result: session must be 32 lowercase hex chars");
                     ValidateExecEvents(m);
                     break;

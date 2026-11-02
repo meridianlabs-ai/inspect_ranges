@@ -87,8 +87,10 @@ func (s *netlinkSource) Read() ([]byte, uint32, error) {
 	}
 	// the sender's nl_pid distinguishes a genuine kernel connector message
 	// (port 0) from an in-guest unicast forger (issue #31); AF_NETLINK always
-	// yields a SockaddrNetlink here
-	var fromPid uint32
+	// yields a SockaddrNetlink here, but default to a non-kernel port so an
+	// unexpected sockaddr type fails closed (ingest drops it) rather than being
+	// accepted as genuine
+	fromPid := uint32(1)
 	if nl, ok := from.(*unix.SockaddrNetlink); ok {
 		fromPid = nl.Pid
 	}
