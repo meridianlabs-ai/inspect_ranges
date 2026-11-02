@@ -394,9 +394,9 @@ class RangeOracle:
         )
 
     async def alive(self, guest: str) -> bool:
-        """Whether the guest's VMM process runs right now: `virsh domstate` running (QEMU) or a live Cloud Hypervisor pidfile, observed from the driver, so it answers for every guest, daemon-managed or opaque (the denial-of-service scoring primitive: a crashed appliance reads `False`).
+        """Whether the guest's VMM process runs right now, observed from the driver, so it answers for every locally realized guest, daemon-managed or opaque (the denial-of-service scoring primitive: a crashed appliance reads `False`).
 
-        Any failure to observe (range container gone, domain undefined) is `False`, never an exception. Unknown guest names refuse, and a handle without the driver seam (unit fixtures) refuses rather than guessing.
+        ALIVE means the VMM process exists: a QEMU guest in `running`, `paused`, `pmsuspended`, or `in shutdown` state reads `True` (a suspended guest is a reversible nap, deliberately not a kill: an in-guest `rtcwake` must never score as one), as does a live Cloud Hypervisor process. Any failure to observe (range container gone, domain undefined) is `False`, never an exception. A guest realized by an external attack-box provider has no local domain or pidfile and reads `False` even while live (goals score appliances, not the attack box). Unknown guest names refuse, and a handle without the driver seam (unit fixtures, separated host backends whose range runs on a remote host) refuses rather than guessing.
         """
         if guest not in self._handle.guest_cids:
             raise OracleSetupError(

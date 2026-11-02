@@ -36,7 +36,12 @@ from inspect_ranges._runtime.ownership import (
     read_owner,
     remove_project,
 )
-from inspect_ranges._runtime.up import BootGuest, boot_script, nested_kvm_available
+from inspect_ranges._runtime.up import (
+    BootGuest,
+    boot_script,
+    nested_kvm_available,
+    vmm_liveness,
+)
 from inspect_ranges.types import (
     Attacker,
     Host,
@@ -1813,13 +1818,20 @@ def test_up_verifies_extra_disk_bases_and_their_vendor_edges(
         up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())
 
 
-def test_vmm_liveness_probes_the_range_service_and_answers_false_safely() -> None:
-    """The driver-side liveness callable: resolves the RANGE service container specifically (capture/probe sidecars share the project label; review round 1 B1), bounds both docker legs, treats paused/pmsuspended as alive (a reversible nap is not a kill), verifies CH pidfiles against the process comm, and answers False (never raises) on absence, failure, timeout, or a hostile name."""
-    import subprocess
+def test_vmm_liveness_probes_the_range_service_and_answers_false_safely(
+    tmp_path: Path,
+) -> None:
+    """The driver-side liveness callable: resolves the RANGE service container specifically (capture/probe sidecars share the project label; review round 1 B1), bounds both docker legs, treats paused/pmsuspended as alive (a reversible nap is not a kill), and answers False (never raises) on absence, failure, timeout, or a hostile name. The state table executes the REAL probe script under bash with a stub `virsh` (round 2: a fake that re-implements the case statement would only test itself)."""
 
-    from inspect_ranges._runtime.up import vmm_liveness
+    def bash_runner_factory(domstate_line: str, virsh_rc: int = 0) -> Any:
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        stub = bin_dir / "virsh"
+        stub.write_text(
+            f"#!/bin/sh\nprintf '%s\\n' \"{domstate_line}\"\nexit {virsh_rc}\n"
+        )
+        stub.chmod(0o755)
 
-    def runner_factory(domstate: str, probe_rc: int | None = None):
         def runner(
             argv: list[str], **kwargs: Any
         ) -> "subprocess.CompletedProcess[str]":
@@ -1830,17 +1842,16 @@ def test_vmm_liveness_probes_the_range_service_and_answers_false_safely() -> Non
                     argv, 0, stdout="cid-range\n", stderr=""
                 )
             assert argv[:3] == ["docker", "exec", "cid-range"]
-            script = argv[-1]
-            assert (
-                'case "$state" in running|paused|pmsuspended|"in shutdown")' in script
+            assert kwargs.get("timeout") == 30
+            # the real script, real bash, stub virsh; /scratch/ch is absent on
+            # the host so the CH leg honestly falls through to not-alive
+            completed = subprocess.run(
+                ["bash", "-c", argv[-1]],
+                env={"PATH": f"{bin_dir}:/usr/bin:/bin"},
+                capture_output=True,
+                text=True,
             )
-            assert "cloud-hyperviso" in script and "/scratch/ch/router.pid" in script
-            if probe_rc is not None:
-                return subprocess.CompletedProcess(argv, probe_rc)
-            alive_states = ("running", "paused", "pmsuspended", "in shutdown")
-            return subprocess.CompletedProcess(
-                argv, 0 if domstate in alive_states else 1
-            )
+            return subprocess.CompletedProcess(argv, completed.returncode)
 
         return runner
 
@@ -1848,16 +1859,27 @@ def test_vmm_liveness_probes_the_range_service_and_answers_false_safely() -> Non
         ("running", True),
         ("paused", True),
         ("pmsuspended", True),
+        ("in shutdown", True),
         ("shut off", False),
         ("crashed", False),
     ):
-        assert vmm_liveness(runner_factory(state), "ir-proj")("router") is expected
+        assert (
+            vmm_liveness(bash_runner_factory(state), "ir-proj")("router") is expected
+        ), state
+    # a virsh connect failure (empty state, nonzero rc) reads not-alive
+    assert (
+        vmm_liveness(bash_runner_factory("", virsh_rc=1), "ir-proj")("router") is False
+    )
 
     # the exec leg's timeout contract: rc 124 reads not-alive
-    assert (
-        vmm_liveness(runner_factory("running", probe_rc=124), "ir-proj")("router")
-        is False
-    )
+    def timeout_runner(
+        argv: list[str], **kwargs: Any
+    ) -> "subprocess.CompletedProcess[str]":
+        if argv[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(argv, 0, stdout="cid-range\n", stderr="")
+        return subprocess.CompletedProcess(argv, 124)
+
+    assert vmm_liveness(timeout_runner, "ir-proj")("router") is False
 
     # no range-service container (even with sidecars running): not-alive
     def no_range(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":

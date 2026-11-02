@@ -657,7 +657,7 @@ def vmm_liveness(runner: Runner, project: str) -> "Callable[[str], bool]":
 
     The returned callable answers "does the guest's VMM process run right now". For QEMU guests that is `virsh domstate` in a VMM-process-running state: `running`, `paused`, `pmsuspended`, and `in shutdown` all count as ALIVE (a suspended or pausing guest is a reversible nap, deliberately not a denial of service; an in-guest `rtcwake` must never score as a kill). For Cloud Hypervisor guests the recorded pidfile must name a live process whose comm IS cloud-hypervisor (bare `kill -0` would read alive-when-dead once the pid recycles). The probe execs the RANGE service container specifically: capture and probe sidecars share the project label and would otherwise shadow it.
 
-    Any failure to observe (range container gone, domain undefined, stale or malformed pidfile, docker itself wedged past the bound or absent) is `False`, never an exception: liveness is a scoring observation, and an unobservable guest is honestly not-alive.
+    Any failure to observe (range container gone, domain undefined, stale or malformed pidfile, docker itself wedged past the bound or absent) is `False`, never an exception: liveness is a scoring observation, and an unobservable guest is honestly not-alive. That rule also means a guest realized by an external attack-box provider (a CID but no local domain or pidfile) reads `False` even while live; goals score appliances, not the attack box.
     """
 
     def alive(guest: str) -> bool:

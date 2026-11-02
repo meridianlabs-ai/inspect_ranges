@@ -43,7 +43,14 @@ from .._runtime.ownership import (
     remove_project,
     write_owner,
 )
-from .._runtime.up import UpError, UpOptions, UpResult, bundle_digest
+from .._runtime.up import (
+    UpError,
+    UpOptions,
+    UpResult,
+    bundle_digest,
+    run_command,
+    vmm_liveness,
+)
 from .._terminal.capture import finalize_terminal_captures
 from ..schema import load_range, revalidate_range
 from ..types import RangeSpec
@@ -435,10 +442,13 @@ class RangeSandboxEnvironment(SandboxEnvironment):
                     # available_observers reads it off the handle
                     handle.plan = rendered_plan
                     # the driver-side liveness seam: oracle.alive() for every
-                    # guest, daemon-managed or opaque
-                    from .._runtime.up import run_command, vmm_liveness
-
-                    handle.vmm_alive = vmm_liveness(run_command, project)
+                    # guest, daemon-managed or opaque. On a separated host
+                    # backend the range's docker lives on the remote host and
+                    # a local probe would read every guest as dead, so the
+                    # seam stays absent there and alive() refuses instead of
+                    # guessing (round-2 review, blocking)
+                    if not runtime.backend_separated:
+                        handle.vmm_alive = vmm_liveness(run_command, project)
                 except asyncio.CancelledError:
                     # none of these can be aborted and all keep creating
                     # resources; drain them (up is internally bounded) so the
