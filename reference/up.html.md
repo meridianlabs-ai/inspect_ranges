@@ -17,7 +17,7 @@ inspect-ranges up [OPTIONS] [BUNDLE]
 | `--from-spec` | path | Render SPEC into a temporary bundle first, then apply it (composition sugar; the applier still consumes only the verified bundle). | None |
 | `--project` | text | Compose project name (default: `ir-<range>-<spec digest>`). | None |
 | `--image-cache` | path | Image cache the bundle’s image digests re-verify against. | None |
-| `--cid-base` | integer range (`3` and above) | First vsock CID when rendering `--from-spec` (plan-time input). | `3` |
+| `--cid-base` | integer range (`3` and above) | First vsock CID when rendering `--from-spec`; by default a block is leased from the host allocator so parallel ranges never collide (released by `down`). | None |
 | `--readiness-timeout` | float | Per-guest readiness deadline in seconds (daemon answer, then cloud-init). | `300.0` |
 | `--keep` | boolean | Keep a failed range running for inspection instead of tearing it down. | `Sentinel.UNSET` |
 | `--uplink-network` | text | Deployment-supplied uplink network, for ranges that request egress. | None |

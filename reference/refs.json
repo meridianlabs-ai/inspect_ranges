@@ -56,6 +56,7 @@
   "PatchGoal": "inspect_ranges.qmd#patchgoal",
   "GoalType": "inspect_ranges.qmd#goaltype",
   "GoalResult": "inspect_ranges.qmd#goalresult",
+  "range_goal": "inspect_ranges.qmd#range_goal",
   "register_goal_type": "inspect_ranges.qmd#register_goal_type",
   "register_exploit": "inspect_ranges.qmd#register_exploit",
   "RangeOracle": "inspect_ranges.qmd#rangeoracle",

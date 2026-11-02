@@ -33,6 +33,25 @@ The bare `"challenges.yaml"` and `"range.yaml"` strings resolve against the proc
 
 [challenge_dataset()](./reference/inspect_ranges.html.md#challenge_dataset) turns each challenge into a sample and validates the file against the range: goal hosts exist, segments are declared, required observers are deliverable, and problems refuse with positioned errors before anything boots. [challenge_setup()](./reference/inspect_ranges.html.md#challenge_setup) runs every goal’s setup before the agent acts and starts the sample’s observers; a plant failure or a missing observer refuses up front, and plants already written are unwound, so a failed setup leaves no half-planted range behind. [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) verifies each goal and aggregates. The [range_apparatus](./reference/scanners.html.md#range_apparatus) scanner rides in the scorer list beside it, reporting range-apparatus anomalies per sample as a second score (zero findings is healthy); it takes no arguments, reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes.
 
+## Multi-Range Datasets
+
+One task can span several ranges: [challenge_dataset()](./reference/inspect_ranges.html.md#challenge_dataset) also accepts a sequence of `(entry_name, range_dir)` pairs, builds each range’s challenges with that range as its spec, and stamps every sample’s own `sandbox=("range", ...)`. The task then declares no `sandbox=` at all, and inspect resolves each sample’s. This serves runners that parallelize samples rather than tasks: scenarios become samples of one task, scheduled under ordinary sample concurrency.
+
+``` python
+@task
+def family(scenarios: str = "all") -> Task:
+    entries = [(name, DIR / name) for name in select(scenarios)]
+    return Task(
+        dataset=challenge_dataset(entries),
+        setup=challenge_setup(),
+        solver=react(tools=[terminal(), verify_goal()]),
+        scorer=challenge_scorer(),
+        # no sandbox=: each sample boots its own range
+    )
+```
+
+Sample ids must stay unique for `--sample-id` addressing: duplicates across ranges refuse, and `prefix_ids=True` rewrites each to `entry:id` when a collection’s challenge ids repeat. Everything downstream is already per-sample ([challenge_setup()](./reference/inspect_ranges.html.md#challenge_setup) and [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) read the sample’s challenge and sandbox, never the task’s), so no other part of the recipe changes. Each distinct range costs one `task_init` (its warm image pull and manifest check) before samples start, serially; setup, scoring, and admission then run per sample as usual.
+
 ## Authoring Challenges
 
     challenges.yaml
@@ -117,7 +136,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | `availability` | *(defender)* keep a service up | The probe’s response is computed over a fresh per-probe nonce inside `window_s`, so canned and replayed responses fail; down and wrong answers are penalized. |
 | `detection` | *(defender)* surface an alert | The exported telemetry stream matches (or, with `stealth: true`, never matches) the `signal` regex within the window, gated by a completeness precondition: an absence of alerts over an incomplete or stalled window scores indeterminate, not as a stealth pass. Completeness is window-scoped: a gap or dirty poll inside (or reaching) the window makes it incomplete, while a gap that ended before the window opened (a boot-era bootstrap hole) leaves it decidable; stealth verdicts additionally treat any gap after the pipeline first carried data as a violation, so activity cannot hide inside an induced gap behind a clean trailing window. `signal` is a Python regex searched against the exported record bytes with multiline semantics, so author it to match the export’s record text (schema validation refuses one that does not compile). In-range collectors run at a declared lower assurance (see [Evidence](./evidence.html.md)). |
 | `evade` | achieve objectives while staying quiet | Qualifying alerts in the exported telemetry (records matching the declared `severity` filter, and `match` when given) stay at or below `threshold` within the window; `zero_at` declares a linear partial-credit decay above it. The same completeness precondition as `detection` applies, and what a violated window means is declared per goal: `on_sensor_tamper` is `indeterminate` (default), `fail` (tampering out of bounds), or `succeed` (sensor destruction is legitimate evasion; alerts already recorded still count). |
-| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. The build trio exempts judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#behavioral-checks)). |
+| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. Build-time proofs exempt judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#conformance-proofs)). |
 | `patch` | *(defender)* fix a vulnerability | The registered reference `exploit` chain is re-run at scoring time and must fail, while the functional probe on `port` still passes; both or nothing. |
 
 Three sets of rules govern how goals prove things: how proof material is planted, how corroboration works, and what the active probe expects of a probed service.
@@ -144,7 +163,7 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - `degrade` scores sliding windows, one starting at every probe that has a full `window_s` of observation after it: an outage counts even when the service is restored before the run ends, provided probing continues for at least `window_s` after the outage begins. `availability` anchors its single window to the last record, and an observed span shorter than `window_s` reads indeterminate. An omitted `segment` means the probe reaches the host through its first interface on a segment that carries a probe endpoint; a declared `segment` must carry one in the plan, or setup refuses.
 
-- The build’s proof boot runs the same prober: each behavioral check gets its own, scored only against its own records. A check chain must keep running (sleeping is fine) until its prober goals’ `window_s` is covered, or the goal reads indeterminate.
+- The build’s proof boot runs the same prober: each conformance proof gets its own, scored only against its own records. A check chain must keep running (sleeping is fine) until its prober goals’ `window_s` is covered, or the goal reads indeterminate; a prove script’s prober force-flushes before each `assert_goal`.
 
 ## Verifying Goals
 
@@ -177,6 +196,10 @@ The [tool reference](./reference/inspect_ranges.html.md#terminal) covers the act
 **During the run.** `verify_goal` calls verify and latch cheap-tier goals as the agent works, and a mid-run poller re-checks unlatched goals on a cadence (`INSPECT_RANGES_POLL_S`, default 10 s) with zero guest or evidence reads per tick. Latching is first-pass-wins, so transient achievements survive to the end of the run even if the state reverts.
 
 **At the end.** The scorer verifies the remaining goals, corroborates the latched results against the evidence record (rule 3 above), and aggregates per the challenge’s scoring mode. Every score carries its validity state.
+
+## Escape-Guard Facts
+
+Inspect’s sandbox-escape sentinel judges an agent’s tool calls against structured facts the task declares about itself, under the sample-metadata key `escape_sentinel_facts`. When `challenge_dataset` is given a `range_spec`, every sample carries those facts derived from the two definitions alone: each target host, router, and segment with the goals that name it (`declared_targets`), the agent’s seat and each router’s forwarding policy (`task_topology`), the goal mix (`assignment_type`), whether anything routes out of the range (`egress_reality`), and what range tradecraft looks like (`expected_activity`, `process_namespace_reality`). Scanning, exploiting, and pivoting against declared targets is then read as the task’s own work rather than as leaving the sandbox; a host the range does not declare stays under the guard’s standard rubric. Nothing an agent says can add to the block.
 
 ## Reading the Score
 

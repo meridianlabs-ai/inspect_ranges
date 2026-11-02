@@ -2,24 +2,21 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.18">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and behavioral checks.">
+<meta name="description" content="Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and conformance proofs.">
 
 <title>Building Ranges – Inspect Ranges</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
+code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -80,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -860,6 +857,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
  <span class="menu-text">register_goal_type</span></a>
   </div>
@@ -1373,7 +1376,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#period-software" id="toc-period-software" class="nav-link" data-scroll-target="#period-software">Period Software</a></li>
   </ul></li>
   <li><a href="#verification" id="toc-verification" class="nav-link" data-scroll-target="#verification">Verification</a></li>
+  <li><a href="#conformance-proofs" id="toc-conformance-proofs" class="nav-link" data-scroll-target="#conformance-proofs">Conformance Proofs</a>
+  <ul class="collapse">
   <li><a href="#behavioral-checks" id="toc-behavioral-checks" class="nav-link" data-scroll-target="#behavioral-checks">Behavioral Checks</a></li>
+  <li><a href="#prove-scripts" id="toc-prove-scripts" class="nav-link" data-scroll-target="#prove-scripts">Prove Scripts</a></li>
+  <li><a href="#standalone-prove" id="toc-standalone-prove" class="nav-link" data-scroll-target="#standalone-prove">Standalone Prove</a></li>
+  </ul></li>
   <li><a href="#diagnosing-failures" id="toc-diagnosing-failures" class="nav-link" data-scroll-target="#diagnosing-failures">Diagnosing Failures</a></li>
   </ul>
 </nav>
@@ -1388,7 +1396,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div>
   <div class="description">
-    Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and behavioral checks.
+    Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and conformance proofs.
   </div>
 </div>
 
@@ -1422,7 +1430,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>Docker Engine 24+ with the Compose plugin (2.22+) and cgroup v2.</p></li>
 <li><p>Kernel modules <code>tun</code>, <code>vhost_net</code>, and <code>vhost_vsock</code>.</p></li>
 <li><p><code>qemu-utils</code> and <code>libguestfs-tools</code> for building images (libguestfs also requires that the host kernel be readable).</p></li>
-<li><p><code>br_netfilter</code> unloaded, or loaded with <code>bridge-nf-call-iptables=0</code>, so host iptables never filters bridged range traffic.</p></li>
+<li><p><code>br_netfilter</code> may be loaded (Docker hosts usually load it): frames bridged within a segment are then diverted through the range namespace’s forward chain, which accepts them per bridge, so same-segment guests reach each other either way. <code>doctor</code> notes the module’s state.</p></li>
 <li><p>IPv6 enabled. This one is forward-looking only: IPv6 is not realized yet (every IPv6 construct in a definition refuses validation with <code>ipv6-not-realized</code>), so no current range needs it; <code>doctor</code> checks it ahead of future mitm6-style scenarios.</p></li>
 </ul>
 <p><code>inspect-ranges doctor</code> verifies all of this and prints an exact fix for anything missing.</p>
@@ -1456,7 +1464,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><p><code>--keep</code>: holds the build range up for inspection (success or failure);</p></li>
 <li><p><code>--reverify</code>: forces the full boot-and-verify pass on an unchanged range;</p></li>
-<li><p><code>--cid-base</code>: picks a different host-global vsock CID block while a kept range still holds the default.</p></li>
+<li><p><code>--cid-base</code>: overrides the leased host-global vsock CID block (by default each build leases a free block, so parallel builds and kept ranges never collide).</p></li>
 </ul>
 <p>When a stage goes red, start at <a href="#diagnosing-failures">Diagnosing Failures</a>; a green build is the entry to <a href="#running-the-range">Running the Range</a>.</p></li>
 <li><p><strong>Plan.</strong> <code>inspect-ranges plan</code> resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after <code>build</code> here because for a range declaring guest content (dmz_pivot does) <code>plan</code> refuses with <code>range-not-built</code> until a matching build exists; for a topology-only range <code>plan</code> works immediately and slots second.</p></li>
@@ -1474,29 +1482,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> up <span class="at">--from-spec</span> range.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p><code>up</code> prints the compose project name (<code>ir-dmz-pivot-...</code>). Attach the range oracle (the privileged guest-access surface scoring uses; see <a href="./challenges.html#scoring-lifecycle">Challenges</a>) by that name from a REPL or script and run commands against any guest, targets included:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> asyncio</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> range_oracle</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> poke(project: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> range_oracle(project) <span class="im">as</span> oracle:</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="cf">await</span> oracle.<span class="bu">exec</span>(<span class="st">"db"</span>, [<span class="st">"ss"</span>, <span class="st">"-ltn"</span>])</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(out.stdout.decode())</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        creds <span class="op">=</span> <span class="cf">await</span> oracle.read_file(</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"web"</span>, <span class="st">"/home/deploy/.pgpass"</span>, user<span class="op">=</span><span class="st">"deploy"</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(creds.decode())</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>asyncio.run(poke(<span class="st">"ir-dmz-pivot-..."</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>up</code> prints the compose project name (<code>ir-dmz-pivot-...</code>). Two attach surfaces work against it, and they compose: the interactive shell for exploring by hand, the oracle for scripted assertions.</p>
+<p>For hands-on poking, open an operator shell on a guest (see <a href="./cli.html#shell"><code>shell</code></a> for the full behavior: tmux over the control channel, <code>Ctrl-]</code> detaches, sessions persist for reattach, eval-booted projects refuse by origin):</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> shell ir-dmz-pivot-... web</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>This is the fastest way to try a task the way an agent would (from the foothold, over the range network) or to inspect a target from the inside, with no eval ceremony and no SSH.</p>
+<p>For scripted checks, attach the range oracle (the privileged guest-access surface scoring uses; see <a href="./challenges.html#scoring-lifecycle">Challenges</a>) by the same project name from a REPL or script and run commands against any guest, targets included:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> asyncio</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> range_oracle</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> poke(project: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> range_oracle(project) <span class="im">as</span> oracle:</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="cf">await</span> oracle.<span class="bu">exec</span>(<span class="st">"db"</span>, [<span class="st">"ss"</span>, <span class="st">"-ltn"</span>])</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(out.stdout.decode())</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        creds <span class="op">=</span> <span class="cf">await</span> oracle.read_file(</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"web"</span>, <span class="st">"/home/deploy/.pgpass"</span>, user<span class="op">=</span><span class="st">"deploy"</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(creds.decode())</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>asyncio.run(poke(<span class="st">"ir-dmz-pivot-..."</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>exec</code> returns the channel’s <span class="element-type-name ref-interlink"><a href="./reference/host.html#execoutcome">ExecOutcome</a></span>: <code>rc</code> (the signed exit status), <code>stdout</code>/<code>stderr</code> bytes, and truncation flags. The attach rides the same vsock channel the provider uses, so it reaches every guest without touching the range’s network posture, and it logs loudly (an out-of-band oracle attached during a scoring run must be visible in that run’s logs). Confirm what the build claims: the service listening, the planted file in place, the content you declared. Then tear down:</p>
 <div class="code-with-filename">
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> down <span class="op">&lt;</span>project<span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> down <span class="op">&lt;</span>project<span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="smoke-eval" class="level3">
@@ -1506,7 +1523,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect</span> eval inspect_ranges/dmz_pivot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Set a wall-clock limit beside the message cap: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a <code>--time-limit</code> termination still scores, so the run always produces a verdict.</p>
 <p>The registry form runs the shipped task; your own range runs the same way with the <a href="./index.html#range-tasks">Range Tasks</a> wiring (<a href="./provider.html">Range Sandbox</a> covers the provider).</p>
@@ -1515,12 +1532,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="scan" class="level3">
 <h3 class="anchored" data-anchor-id="scan">Scan</h3>
 <p>Did the apparatus misbehave? <a href="./reference/scanners.html#range_apparatus">range_apparatus</a> is a deterministic checker for the range plumbing itself: post-readiness channel failures, spec-contradicting reachability, <code>verify_goal</code> wiring trouble, and scoring-integrity flags, each with a remediation hint. Run it online by adding it to the smoke eval’s scorer list, where findings land beside the challenge score in the normal log view:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> challenge_scorer</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges.scanners <span class="im">import</span> range_apparatus</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>scorer <span class="op">=</span> [challenge_scorer(), range_apparatus()]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> challenge_scorer</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges.scanners <span class="im">import</span> range_apparatus</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>scorer <span class="op">=</span> [challenge_scorer(), range_apparatus()]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Or scan accumulated logs after the fact:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scout</span> scan inspect_ranges/range_apparatus <span class="at">-T</span> ./logs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scout</span> scan inspect_ranges/range_apparatus <span class="at">-T</span> ./logs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The score value is the finding count, so a healthy range reads <code>0</code> with explanation <code>no findings</code>. A finding reads like <code>[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'</code>, followed by its hint; the structured findings (detector id, severity, message, hint, event references) ride the score metadata.</p>
 </section>
 </section>
@@ -1531,10 +1548,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> my-range/        <span class="co"># range.yaml plus ./recipes/</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> my-range/        <span class="co"># range.yaml plus ./recipes/</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest’s disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared <code>users</code>, <code>misconfigurations</code>, and <code>data</code> are not independently probed yet: the build trusts the recipes’ success for them, and the behavioral checks confirm whichever of them the attack chains actually depend on. Direct probes for these fields are planned.</p>
+<p>The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest’s disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared <code>users</code>, <code>misconfigurations</code>, and <code>data</code> are not independently probed yet: the build trusts the recipes’ success for them, and the conformance proofs confirm whichever of them the attack chains actually depend on. Direct probes for these fields are planned.</p>
 <p>Until a range has a matching build, every command that consumes built content refuses with <code>range-not-built</code>: <code>plan</code>, <code>render</code>, <code>up --from-spec</code>, <code>push</code>, and the sandbox provider all require a manifest whose spec hash (a digest of the definition) matches the definition and whose realized images verify by digest in the image cache. The refusal names the fix. Pulling the published build satisfies the gate the same way (<a href="./distribution.html">Distribution</a>), so consumers of a published range never run <code>build</code>. Nothing boots with silently missing content.</p>
 </section>
 <section id="build-stages" class="level2">
@@ -1545,10 +1562,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><strong>Verification</strong> checks every declared <code>services</code>, <code>vulnerabilities</code>, and <code>scheduled_activity</code> entry against the live guests, independent of what the recipes claimed (see <a href="#verification">Verification</a>).</p></li>
 <li><p><strong>Capture.</strong> Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image: a qcow2 rebased onto its golden image (<a href="./guests.html#images">Guests</a>), its digest recorded, with a provenance sidecar (a companion file recording the digests of everything it was built from).</p></li>
 <li><p><strong>The manifest.</strong> The builds cache (<code>~/.cache/inspect-ranges/builds/&lt;range&gt;/manifest.json</code>, or <code>INSPECT_RANGES_BUILD_CACHE</code>) records the spec and its hash, every guest’s build key and realized digest, recipe versions and digests, base-image digests, and the verification results. Consumers and the provider resolve the cache the same way; a non-default location is set through the environment variable (there is no per-verb flag).</p></li>
-<li><p><strong>Behavioral checks</strong>, when the range declares them: the captured images boot once more and each challenge’s chains run against the thing that ships (see <a href="#behavioral-checks">Behavioral Checks</a>). The manifest lands on disk proven (every check passed) or REFUSED (the failure recorded; consumers reject it with <code>range-unproven</code>; the next build reuses every guest and re-runs only the checks). A build interrupted before this phase leaves no manifest at all.</p></li>
+<li><p><strong>Conformance proofs</strong>, when the range declares them: the captured images boot once more and each challenge’s proofs run against the thing that ships (see <a href="#conformance-proofs">Conformance Proofs</a>). The manifest lands on disk proven (every proof passed) or REFUSED (the failure recorded; consumers reject it with <code>range-unproven</code>; the next build reuses every guest and re-runs only the proofs). A build interrupted before this phase leaves no manifest at all.</p></li>
 </ol>
 <p>Build success also garbage-collects the range’s superseded realized generations: the new generation and the immediately-previous one stay, so reverting an edit rebuilds instantly; anything a running project references is excluded; the deletion is stage-logged with bytes reclaimed. <code>inspect-ranges images prune</code> reclaims the rest (generations stranded by refused manifests or crashes, capture temps, orphan sidecars); <code>images list</code> and <code>doctor</code> report reclaimable bytes.</p>
-<p><code>--keep</code> preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its <code>--cid-base</code> vsock CIDs, which are host-global: tear it down before the next build, or rebuild with a different <code>--cid-base</code>. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.</p>
+<p><code>--keep</code> preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its leased vsock CID block, which is host-global: the next build of the same spec refuses with the exact <code>down</code> command that frees it, while builds of other specs lease disjoint blocks and proceed. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.</p>
 </section>
 <section id="reading-build-output" class="level2">
 <h2 class="anchored" data-anchor-id="reading-build-output">Reading Build Output</h2>
@@ -1557,23 +1574,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-with-filename-file">
 <pre><strong>Terminal</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" data-filename="Terminal"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>resolve   rebuilt_guests=2  recipes=2  reused_guests=0</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>render    bundle=...  guests=3</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>ready     seconds=41.2</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>recipe    guest=web  recipe=dmz.web  seconds=201.3  ...</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>verify    ok  service web/ssh</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>verify    ok  service db/postgres</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>verified  declarations=4</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>capture   file=dmz-pivot-web-ab12cd.qcow2  guest=web</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>teardown  after=success</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>behavioral-settle seconds=18.0</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>conformance check=attacker-surface  defender=web  ports=1-1024+8</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>behavioral challenge=pivot  check=reference  detail=value=1.00 ...</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>behavioral checks=3</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>manifest  guests=2  path=...</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>build     kept=False  recipes=2  seconds=1243.7</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>manifest  ~/.cache/inspect-ranges/builds/dmz-pivot/manifest.json</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>build OK (1243.7 s, 2 recipes) project ir-dmz-pivot-9f1c2a4b</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-filename="Terminal"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>resolve   rebuilt_guests=2  recipes=2  reused_guests=0</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>render    bundle=...  guests=3</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>ready     seconds=41.2</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>recipe    guest=web  recipe=dmz.web  seconds=201.3  ...</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>verify    ok  service web/ssh</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>verify    ok  service db/postgres</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>verified  declarations=4</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>capture   file=dmz-pivot-web-ab12cd.qcow2  guest=web</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>teardown  after=success</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>behavioral-settle seconds=18.0</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>conformance check=attacker-surface  defender=web  ports=1-1024+8</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>behavioral challenge=pivot  check=reference  detail=value=1.00 ...</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>behavioral checks=3</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>manifest  guests=2  path=...</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>build     kept=False  recipes=2  seconds=1243.7</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>manifest  ~/.cache/inspect-ranges/builds/dmz-pivot/manifest.json</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>build OK (1243.7 s, 2 recipes) project ir-dmz-pivot-9f1c2a4b</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The <code>manifest</code> lines appear after the <code>behavioral</code> lines: a build is never recorded proven before its checks pass. The final <code>build OK</code> line names the compose project (the <code>&lt;project&gt;</code> that <code>inspect-ranges down</code> takes), which is also the build’s directory name under the project state directory (<code>~/.local/state/inspect-ranges/projects/&lt;project&gt;/</code>): <code>stages.jsonl</code> there keeps this history as JSONL, and <code>recipes/</code> and <code>verify/</code> hold the per-run logs. A fully cached build prints a single <code>build</code> row and <code>build OK (cached, verified &lt;timestamp&gt;; pass --reverify to re-run)</code>.</p>
 </section>
@@ -1583,7 +1600,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><p>A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.</p></li>
 <li><p>A guest whose recipe, variables, declarations, or golden changed rebuilds from its golden.</p></li>
-<li><p>When every key matches, the spec hash matches, and the behavioral-check inputs are unchanged, the build is a no-op: nothing boots, and the recorded verification is reported with its timestamp. <code>--reverify</code> forces the full boot-and-verify pass anyway.</p></li>
+<li><p>When every key matches, the spec hash matches, and the conformance-proof inputs are unchanged, the build is a no-op: nothing boots, and the recorded verification is reported with its timestamp. <code>--reverify</code> forces the full boot-and-verify pass anyway.</p></li>
 <li><p>Check scripts and <code>challenges.yaml</code> are build inputs through their own content digest: editing a check after a green build re-runs only the proof, with every guest reused.</p></li>
 </ul>
 </section>
@@ -1594,16 +1611,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-with-filename-file">
 <pre><strong>recipes/acme.telemetry_stack/recipe.yaml</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-filename="recipes/acme.telemetry_stack/recipe.yaml"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">name</span><span class="kw">:</span><span class="at"> acme.telemetry_stack</span><span class="co">   # the name provisioning steps reference</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">"2.1"</span><span class="co">               # in the manifest; steps may pin it</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">entrypoint</span><span class="kw">:</span><span class="at"> run.sh</span><span class="co">           # executable, relative to the bundle</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">mode</span><span class="kw">:</span><span class="at"> online</span><span class="co">                 # converges a booted guest (v1);</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">                             # offline parses but refuses</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="fu">inputs</span><span class="kw">:</span></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">splunk_ip</span><span class="kw">:</span></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">description</span><span class="kw">:</span><span class="at"> Indexer address written into outputs.conf</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">verbose</span><span class="kw">:</span></span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span><span class="co">           # optional; no default makes it required</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" data-filename="recipes/acme.telemetry_stack/recipe.yaml"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">name</span><span class="kw">:</span><span class="at"> acme.telemetry_stack</span><span class="co">   # the name provisioning steps reference</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">"2.1"</span><span class="co">               # in the manifest; steps may pin it</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">entrypoint</span><span class="kw">:</span><span class="at"> run.sh</span><span class="co">           # executable, relative to the bundle</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="fu">mode</span><span class="kw">:</span><span class="at"> online</span><span class="co">                 # converges a booted guest (v1);</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">                             # offline parses but refuses</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="fu">inputs</span><span class="kw">:</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">splunk_ip</span><span class="kw">:</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">description</span><span class="kw">:</span><span class="at"> Indexer address written into outputs.conf</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">verbose</span><span class="kw">:</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">default</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span><span class="co">           # optional; no default makes it required</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The entrypoint runs <strong>on the host</strong>, with the bundle directory as working directory and the step’s validated <code>vars</code> as environment variables: every value arrives as a string, booleans rendered lowercase (<code>true</code>/<code>false</code>) and integers decimal, and an <code>IR_*</code> name always wins a collision with a <code>vars</code> name. Guest access goes through the <code>IR_*</code> contract:</p>
 <table class="caption-top table">
@@ -1661,10 +1678,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>The wrappers’ whole grammar:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> [--user U] [--budget-ms N] [--cwd DIR] <span class="at">--</span> argv...</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> [--user U] [--budget-ms N] <span class="at">--script</span> FILE</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> LOCAL REMOTE [--mode 644]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>IR_EXEC</code> runs as root by default (<code>--user</code> switches principal) and passes the in-guest exit status through; 124 is budget expiry, 125 a channel failure, 2 a usage error. <code>--script</code> uploads a local file and runs it (as root or the agent user only) and is mutually exclusive with trailing argv. <code>IR_PUSH</code> installs the file root-owned at the given <code>--mode</code>, creating parent directories, bounded at 60 s per push; there is no ownership flag, so a recipe needing another owner chowns through <code>IR_EXEC</code> afterward (the <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot">dmz-pivot</a> and <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_equifax">equifax</a> recipes both do).</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> [--user U] [--budget-ms N] [--cwd DIR] <span class="at">--</span> argv...</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> [--user U] [--budget-ms N] <span class="at">--script</span> FILE</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> LOCAL REMOTE [--mode 644]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>IR_EXEC</code> runs as root by default (<code>--user</code> switches principal) and passes the in-guest exit status through; 124 is budget expiry, 125 a channel failure, 2 a usage error. <code>--script</code> uploads a local file and runs it (as root or the agent user only) and is mutually exclusive with trailing argv. <code>IR_PUSH</code> installs the file root-owned at the given <code>--mode</code>, creating parent directories, bounded at 60 s per promote; a file over the chunk size (half the daemon’s inbound cap) streams in chunks and reassembles in-guest under a sha256 check with a size-scaled promote budget, so pushes of any size work and host memory stays bounded regardless; the guest’s temp space briefly holds about twice the payload during the promote. There is no ownership flag, so a recipe needing another owner chowns through <code>IR_EXEC</code> afterward (the <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot">dmz-pivot</a> and <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_equifax">equifax</a> recipes both do).</p>
 <p>These two wrappers are the entire surface. Nothing fetches a file back from a guest: a recipe that must read guest state reads <code>IR_EXEC</code> stdout. Both wrappers reach only <code>IR_GUEST</code>, so a recipe cannot provision another guest; state shared across guests is committed material duplicated into each bundle (dmz-pivot writes the same database password into both of its recipes, and equifax commits its pivot keypair’s public half into every bundle that authorizes it).</p>
 <p>Exit status 0 is demanded and is never sufficient: verification of the declared state happens independently, after all recipes. The whole entrypoint is bounded by <code>--recipe-budget</code> (default 1800 s) and killed as a process group on expiry, so stray children cannot hold the build.</p>
 <section id="entrypoint-conventions" class="level3">
@@ -1674,30 +1691,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-with-filename-file">
 <pre><strong>recipes/acme.telemetry_stack/run.sh</strong></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" data-filename="recipes/acme.telemetry_stack/run.sh"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/sh</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-e</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">exec_guest()</span> <span class="kw">{</span> <span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> <span class="at">--budget-ms</span> 600000 <span class="at">--</span> sh <span class="at">-c</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span><span class="kw">;</span> <span class="kw">}</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: fetch vendor tarball"</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt &amp;&amp;</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="st">  wget -nv -t 5 --waitretry=15 -O stack.tar.gz "https://..." &amp;&amp;</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="st">  tar -xzf stack.tar.gz'</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: compile"</span></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt/stack &amp;&amp;</span></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="st">  { ./configure &gt;/tmp/configure.log 2&gt;&amp;1 ||</span></span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="st">    { echo "configure failed:" &gt;&amp;2;</span></span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="st">      tail -30 /tmp/configure.log &gt;&amp;2; exit 1; }; } &amp;&amp;</span></span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="st">  make -s install &gt;/tmp/make.log 2&gt;&amp;1'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" data-filename="recipes/acme.telemetry_stack/run.sh"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/sh</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-e</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">exec_guest()</span> <span class="kw">{</span> <span class="st">"</span><span class="va">$IR_EXEC</span><span class="st">"</span> <span class="at">--budget-ms</span> 600000 <span class="at">--</span> sh <span class="at">-c</span> <span class="st">"</span><span class="va">$1</span><span class="st">"</span><span class="kw">;</span> <span class="kw">}</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: fetch vendor tarball"</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt &amp;&amp;</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="st">  wget -nv -t 5 --waitretry=15 -O stack.tar.gz "https://..." &amp;&amp;</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="st">  tar -xzf stack.tar.gz'</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"step: compile"</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">'cd /opt/stack &amp;&amp;</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="st">  { ./configure &gt;/tmp/configure.log 2&gt;&amp;1 ||</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="st">    { echo "configure failed:" &gt;&amp;2;</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="st">      tail -30 /tmp/configure.log &gt;&amp;2; exit 1; }; } &amp;&amp;</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="st">  make -s install &gt;/tmp/make.log 2&gt;&amp;1'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p><strong>Variables never splice into guest shell strings.</strong> A step’s <code>vars</code> arrive as host environment; interpolating them into a single-quoted <code>sh -c</code> string hands the variable’s value to the guest shell as code. Pass values through <code>IR_PUSH</code>ed files, or expand them host-side into positional arguments:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># UNSAFE: the guest shell parses $splunk_ip; a crafted value injects</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">"sed -i 's/HOST/</span><span class="va">$splunk_ip</span><span class="st">/' /etc/stack/outputs.conf"</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Safe: the value travels as file content, never as shell text</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$splunk_ip</span><span class="st">"</span> <span class="op">&gt;</span> /tmp/host.<span class="va">$$</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> /tmp/host.<span class="va">$$</span> /etc/stack/indexer_host <span class="at">--mode</span> 644</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-f</span> /tmp/host.<span class="va">$$</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># UNSAFE: the guest shell parses $splunk_ip; a crafted value injects</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">exec_guest</span> <span class="st">"sed -i 's/HOST/</span><span class="va">$splunk_ip</span><span class="st">/' /etc/stack/outputs.conf"</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Safe: the value travels as file content, never as shell text</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="bu">printf</span> <span class="st">'%s'</span> <span class="st">"</span><span class="va">$splunk_ip</span><span class="st">"</span> <span class="op">&gt;</span> /tmp/host.<span class="va">$$</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$IR_PUSH</span><span class="st">"</span> /tmp/host.<span class="va">$$</span> /etc/stack/indexer_host <span class="at">--mode</span> 644</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-f</span> /tmp/host.<span class="va">$$</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="period-software" class="level3">
 <h3 class="anchored" data-anchor-id="period-software">Period Software</h3>
@@ -1710,14 +1727,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><p>A service with a <code>port</code> must have a TCP or UDP socket listening on it in-guest.</p></li>
 <li><p>A service with a <code>version</code> must match the observed version. A declared <code>package</code> (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no <code>package</code>, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the right default for anything that listens, so omit <code>package</code> unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so <code>"3.0"</code> matches <code>1:3.0.3+dfsg-1</code>; a pre-release observation (<code>~</code>) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.</p></li>
-<li><p>A vulnerability with a <code>service</code> reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in <a href="#behavioral-checks">behavioral checks</a>, not here.</p></li>
+<li><p>A vulnerability with a <code>service</code> reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in <a href="#conformance-proofs">conformance proofs</a>, not here.</p></li>
 <li><p>A <code>scheduled_activity</code> entry must have its installed unit or task present and enabled (<code>systemctl is-enabled</code> on Linux, the scheduled task’s state on Windows); a failure is <code>activity-not-verified</code>. The unit is verified, never run: an activity may legitimately run long, and the first run happens on the consumer boot’s schedule.</p></li>
 </ul>
 <p>Failures produce coded refusals (<code>service-not-verified</code>, <code>vulnerability-not-verified</code>) with the declared-versus-observed delta and the probe log path, and the build fails. Software installed from tarballs has no dpkg identity: declare its service by port alone and record the version in the range’s notes.</p>
 </section>
-<section id="behavioral-checks" class="level2">
-<h2 class="anchored" data-anchor-id="behavioral-checks">Behavioral Checks</h2>
-<p>A range that carries challenges (<a href="./challenges.html">Challenges</a>) can prove them at build time. The build discovers both pieces beside <code>range.yaml</code>: a <code>challenges.yaml</code>, and a <code>checks/&lt;challenge-id&gt;/{reference,insufficient,forged}.sh</code> directory per challenge. Each script runs on the attacker guest as a plain root bash with a 900 s budget per chain (chains legitimately wait for convergence and run full scans). <code>IR_ATTACKER_IP</code> is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, never copied onto the attacker’s filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content to land on (the <code>conformance</code> containment sweep (<a href="./security.html#proving-containment">Security</a>) runs before the checks, so a check’s own listener never trips it). Submissions are <code>SUBMIT &lt;goal-id&gt; &lt;value&gt;</code> lines on stdout, one per submission, the value running to the end of the line; a value that contains an <code>exfiltrate</code> canary passes, so single-line excerpts of multi-line content work. Chain stdout is capped at 16 MiB and truncation is a hard check failure, since <code>SUBMIT</code> lines may be lost. A failing chain’s output lands in the build’s stage log (<code>stages.jsonl</code> under the project state directory; the failing <code>behavioral</code> row carries the chain’s exit status and the tail of its stderr). Each check runs against fresh per-sample plants, removed afterward. The shipped <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/checks">dmz-pivot checks</a> are the worked example. The contract:</p>
+<section id="conformance-proofs" class="level2">
+<h2 class="anchored" data-anchor-id="conformance-proofs">Conformance Proofs</h2>
+<p>A range that carries challenges (<a href="./challenges.html">Challenges</a>) can prove them at build time. The build discovers proofs beside <code>range.yaml</code>: a <code>challenges.yaml</code>, plus a <code>conformance/&lt;challenge-id&gt;/</code> directory per challenge holding the behavioral trio (<code>{reference,insufficient,forged}.sh</code>), one or more python prove scripts (<code>*.py</code>), or both. Proofs run against the <strong>captured</strong> realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before them, the same boot runs the <code>conformance</code> containment stage (an unrelated use of the name: that stage proves defender-to-agent containment, <a href="./security.html#proving-containment">Security</a>); a containment finding refuses the manifest exactly like a failed proof.</p>
+<p>Per challenge the trio runs first, then prove scripts in name order; challenges run in declaration order, and the first failure ends the run. A declared conformance tree must be complete, since proof that silently does not run is indistinguishable from proof: a partial trio, a challenge directory with neither kind, a stray file at the conformance root, a <code>.py</code> without a top-level <code>async def prove</code>, or a directory naming no declared challenge each refuse the build before anything boots. A failing proof saves a REFUSED manifest: consumers refuse it with <code>range-unproven</code>, while the next build reuses every guest and re-runs only the proof, so fixing a proof costs a boot-and-prove cycle, not a rebuild. The build reports a <code>behavioral</code> stage line per proof and records the results in the manifest.</p>
+<p>Custom goal types parse at build time: the build loads the <code>inspect_ai</code> entry-point registrations, and a loose <code>task.py</code> beside the range, before parsing <code>challenges.yaml</code> (<a href="./goals.html#registration">Custom Goals</a>).</p>
+<section id="behavioral-checks" class="level3">
+<h3 class="anchored" data-anchor-id="behavioral-checks">Behavioral Checks</h3>
+<p>The trio is three bash chains per challenge: <code>conformance/&lt;challenge-id&gt;/{reference,insufficient,forged}.sh</code>. Each script runs on the attacker guest as a plain root bash with a 900 s budget per chain (chains legitimately wait for convergence and run full scans). <code>IR_ATTACKER_IP</code> is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, never copied onto the attacker’s filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content to land on (the containment sweep runs before the checks, so a check’s own listener never trips it). Submissions are <code>SUBMIT &lt;goal-id&gt; &lt;value&gt;</code> lines on stdout, one per submission, the value running to the end of the line; a value that contains an <code>exfiltrate</code> canary passes, so single-line excerpts of multi-line content work. Chain stdout is capped at 16 MiB and truncation is a hard check failure, since <code>SUBMIT</code> lines may be lost. A failing chain’s output lands in the build’s stage log (<code>stages.jsonl</code> under the project state directory; the failing <code>behavioral</code> row carries the chain’s exit status and the tail of its stderr). Each check runs against fresh per-sample plants, removed afterward; nothing a check planted survives as a valid secret at runtime. The shipped <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/conformance">dmz-pivot conformance tree</a> is the worked example. The contract:</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1744,9 +1766,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The one-submission floor applies only when the challenge has submission-consuming goals: a challenge scored purely by observation (<code>detection</code>, <code>evade</code>) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0 with validity <code>valid</code> (the splunk-detection checks are the worked example). Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal’s <code>window_s</code> is covered (<a href="./challenges.html#goal-types">Challenges</a>).</p>
 <p>Model-graded (<code>judge</code>) goals are exempt from the trio’s scoring: the build has no model, so each check scores the challenge over its non-model-graded goals (the weighted mean renormalizes over that share, and the floor reads it too) and records the exemption as <code>judge-exempt=&lt;goal ids&gt;</code> in the check’s stage line and manifest detail. A challenge whose goals are all model-graded has no provable share and refuses with <code>challenge-not-provable</code>.</p>
 <p>Beacons corroborate once they cross the wire: scoring flushes the still-active capture chunk before reading, so a beacon no longer waits for its chunk to rotate. Only the separated (uds) capture topology, where the flush is a recorded follow-up, still depends on the chunk rotating before scoring. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).</p>
-<p>The checks run against the <strong>captured</strong> realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the <code>conformance</code> stage, proving the range’s defender-to-agent containment (<a href="./security.html#proving-containment">Security</a>); a containment finding refuses the manifest exactly like a failed check.</p>
-<p>Custom goal types parse at build time: the build loads the <code>inspect_ai</code> entry-point registrations before parsing <code>challenges.yaml</code> (<a href="./goals.html#registration">Custom Goals</a>).</p>
-<p>Each check gets fresh per-sample proof material, removed afterward; nothing a check planted survives as a valid secret at runtime. A declared checks tree must be complete: a misnamed directory or missing script refuses rather than silently skipping. A failing check saves a REFUSED manifest: consumers refuse it with <code>range-unproven</code>, while the next build reuses every guest and re-runs only the proof, so fixing a check script costs a boot-and-prove cycle, not a rebuild. The build reports a <code>behavioral</code> stage line per check and records the results in the manifest.</p>
+</section>
+<section id="prove-scripts" class="level3">
+<h3 class="anchored" data-anchor-id="prove-scripts">Prove Scripts</h3>
+<p>A proof that needs more than a chain-and-submit shape (staged payloads, protocol clients, mid-run verdicts) is a python script: <code>conformance/&lt;challenge-id&gt;/&lt;name&gt;.py</code> defining <code>async def prove(ctx)</code>. Scripts run on the operator side, inside the proof boot, after the challenge’s own setup; the exploit still reaches the range over the network through the oracle (the privileged guest-access surface scoring uses, <a href="./challenges.html#scoring-lifecycle">Challenges</a>).</p>
+<p>The context carries three things. <code>ctx.oracle</code> is the live range oracle. <code>ctx.submit(goal_id, value)</code> records a submission exactly as an agent’s <code>verify_goal</code> would. <code>await ctx.assert_goal(goal_id, achieved=..., partial=...)</code> evaluates the goal immediately through the scorer’s own candidate semantics (the same <code>evaluate_goal</code> live scoring runs, so a proof can never pass under semantics scoring would not apply) and fails the proof unless the verdict matches, carrying the verdict’s reason so a failing proof reads like a scoring diagnosis. A script must assert at least one verdict (a proof that demonstrates nothing is vacuous and fails), and asserting a model-graded goal refuses: the build has no model, the same rule as the trio’s judge exemption.</p>
+<p>Scripts get the trio’s isolation: fresh plants per script, a per-script prober over the challenge’s own targets (force-flushed before every <code>assert_goal</code>, so a verdict reads the proof’s own probes), and the per-check evidence floor. Only top-level <code>.py</code> files without a leading underscore run as proofs: a <code>_name.py</code> sibling is a helper module a script may import, and other artifacts (wheels, payloads) belong in subdirectories such as <code>assets/</code>. Everything a script imports from inside its challenge directory stays private to that script, so two challenges’ same-named helpers never collide. Trio chains, helpers, and prove scripts all participate in the build’s cached fast path through the conformance digest, so editing one re-proves without rebuilding. Proof artifacts are working exploits: they must never sit inside <code>recipes/</code>, where they would ride the bundle guest-ward (<code>validate</code> warns).</p>
+</section>
+<section id="standalone-prove" class="level3">
+<h3 class="anchored" data-anchor-id="standalone-prove">Standalone Prove</h3>
+<p>The build already refuses unproven ranges, so <code>inspect-ranges prove</code> exists for the consumer side: re-demonstrate a built or pulled artifact’s scoring post hoc, against the exact realized images its manifest names, through the same proof boot the build runs. The asymmetry is deliberate. The build is fail-closed (a failing proof lands a REFUSED manifest), while standalone prove is fail-open and additive: a passing run stamps the manifest’s <code>proven</code> record with every goal assertion demonstrated, a failing one exits nonzero and changes nothing on disk, and <code>verification</code> is never touched either way. Standalone proving refuses up front when no manifest exists, when the range directory’s spec or conformance tree differs from what the recorded build proved (rebuild instead; the rebuild re-proves from cache), or when the manifest is REFUSED (the build is where refusals are earned and cleared). <code>--keep</code> holds a failed proof boot up for diagnosis.</p>
+</section>
 </section>
 <section id="diagnosing-failures" class="level2">
 <h2 class="anchored" data-anchor-id="diagnosing-failures">Diagnosing Failures</h2>

@@ -16,7 +16,7 @@ inspect-ranges build [OPTIONS] [PATH]
 |----|----|----|----|
 | `--image-cache` | path | Image cache used for golden resolution. | None |
 | `--recipe-cache` | path | Recipe cache for the resolution fallback after ./recipes/. | None |
-| `--cid-base` | integer range (`3` and above) | First vsock CID (plan-time input; realizer batteries use 3000+). | `3` |
+| `--cid-base` | integer range (`3` and above) | First vsock CID; by default a block is leased from the host allocator so parallel builds never collide. | None |
 | `--keep` | boolean | Keep the built range running for inspection (success or failure); tear down with `inspect-ranges down`. | `Sentinel.UNSET` |
 | `--uplink-network` | text | Docker network build-time egress masquerades onto (created when absent). | `ir-uplink` |
 | `--build-nameserver` | text | Resolver handed to build guests (fleets forcing DNS through a VPC resolver are the norm, not the exception). | None |

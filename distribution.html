@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.18">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -13,13 +13,10 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
+code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -80,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -860,6 +857,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
  <span class="menu-text">register_goal_type</span></a>
   </div>
@@ -1397,7 +1400,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>A range is built once and consumed everywhere: <code>inspect-ranges build</code> produces captured, verified images and a build manifest (<a href="./building.html">Building Ranges</a>), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec’s normalized-form hash (a hash over the definition’s semantic content, so comment and formatting edits do not change it), recorded in the build manifest and matched exactly at pull time.</p>
+<p>A range is built once and consumed everywhere: <code>inspect-ranges build</code> produces captured, verified images and a build manifest (<a href="./building.html">Building Ranges</a>), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec’s normalized-form hash (a hash over the definition’s semantic content: comment and formatting edits do not change it, and neither do engine upgrades that add schema fields with behavior-preserving defaults, since defaulted values are excluded from the normalized form), recorded in the build manifest and matched exactly at pull time.</p>
 <p>Every artifact is content-addressed: qcow2 images, provenance sidecars (each image’s record of the digests it was built from), recipe bundles, and the build manifest itself publish as OCI artifacts whose blobs verify against their digests on every path (push, pull, mirror, and out of a directory archive). A pulled range is byte-identical to the built one, and nothing unverified ever lands under a consumable name.</p>
 <p>Deployment recipes (mirroring for an air gap, pinning a fleet, running offline) live in <a href="./images.html">Images</a>; this page is the mechanics those recipes rest on.</p>
 </section>
@@ -1407,6 +1410,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><strong>The public hub</strong>: <code>docker.io/meridianlabsai/inspect-ranges</code>, the out-of-box default, carrying the reusable base tier: goldens (the catalog’s verified base images), the guest control daemon bundle, and common recipes (<a href="./images.html#catalog">Images</a> describes each) and published range builds (dmz-pivot today). The hub is two-level, so the third segment is a repo-name prefix: name <code>attack</code> lives in the repo <code>meridianlabsai/inspect-ranges-attack</code>, and any <code>docker.io/&lt;org&gt;/&lt;prefix&gt;</code> location spells repos the same way.</li>
 <li><strong>A private OCI registry</strong>: <code>registry.example.net/ranges</code> (served over https; an explicit <code>http://host:port/path</code> form exists for local registries).</li>
+<li><strong>One repository of a registry</strong>: <code>registry.example.net/mirror:ranges</code>, a tag prefix after the repository path. Every name lives in that single repository, spelled into its tags (<code>ranges--attack</code> for a name’s current root, <code>ranges--vulhub-zabbix--spec-&lt;hash&gt;</code> for a build), so a deployment whose registry treats each repository as a pre-created, allowlisted resource (Amazon ECR) admits one repository once and never creates another. The prefix keeps the tags apart from anything else the repository holds.</li>
 <li><strong>A directory</strong> in standard OCI image-layout format: <code>./archive</code> or <code>/mnt/mirror</code>. This is the registry-less shape: tar it, ship it across an air gap, untar it, and everything still verifies, because identity is content, not transport. Directory locations must look like paths (start with <code>/</code>, <code>./</code>, <code>../</code>, or <code>~</code>), so a configured value parses the same way in every working directory.</li>
 </ul>
 <p>The search path is <code>INSPECT_RANGES_REGISTRY</code>, an ordered comma-separated list, first match wins. A deployment prepends its own registry and its artifacts shadow public names deterministically; the public org stays as the fallback so connected deployments never need to mirror. A broken location in the path (an unmounted mirror directory, a registry answering errors) aborts resolution with the location named rather than silently falling through, because silent fallback would un-shadow the location the operator put first. Nothing in any spec or manifest names a registry host: redirection is configuration, never spec content.</p>
@@ -1420,7 +1424,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> inspect-ranges push <span class="at">--to</span> registry.example.net/ranges</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">manifest</span>  vulhub-zabbix <span class="er">(</span><span class="ex">spec</span> 77ab41...<span class="kw">)</span> <span class="ex">-</span><span class="op">&gt;</span> registry.example.net/ranges</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">push</span> OK   vulhub-zabbix@sha256:ab12e0...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>push</code> reads the current directory’s build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto (each realized image rebases onto a golden, which derives from a vendor base), the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed <code>name@digest</code> is the range’s publishable identity. Each push also tags the root with a reference derived from the spec’s normalized-form hash (the exact-spec reference); a later <code>pull</code> holding the same spec resolves that reference to this build.</p>
+<p><code>push</code> reads the current directory’s build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto (each realized image rebases onto a golden, which derives from a vendor base; an installed golden, the Windows case, is chainless and publishes alone, its install media recorded on the manifest as provenance and never uploaded), the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed <code>name@digest</code> is the range’s publishable identity. Each push also tags the root with a reference derived from the spec’s normalized-form hash (the exact-spec reference); a later <code>pull</code> holding the same spec resolves that reference to this build.</p>
+<p><code>push --respec</code> first re-records the cached manifest under the current normalized spec hash, verified against the spec the manifest embeds: the migration for builds recorded before 0.2.5, when the hash began excluding defaulted values, so they resolve by spec again without a rebuild.</p>
 <p><code>push</code> has no default destination: pass <code>--to</code> or configure <code>INSPECT_RANGES_REGISTRY</code>. Pushing to the public org is the project publisher’s job, never a user move, and user ranges must not aim anywhere public by accident.</p>
 </section>
 <section id="the-catalog-list" class="level3">

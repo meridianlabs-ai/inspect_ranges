@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.18">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -13,13 +13,10 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
+code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -80,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -860,6 +857,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
  <span class="menu-text">register_goal_type</span></a>
   </div>
@@ -1404,18 +1407,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="goaltype-contract" class="level2">
 <h2 class="anchored" data-anchor-id="goaltype-contract">GoalType Contract</h2>
 <p>A goal type is a stateless object, registered once per process and shared across samples; everything per-sample lives in the plant store and the sample store. It binds four pieces:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python fragment code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> GoalResult, GoalType, Observations</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python fragment code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> GoalResult, GoalType, Observations, range_goal</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MarkerType(GoalType):</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> <span class="st">"marker"</span>            <span class="co"># the YAML `type:` name</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> MarkerGoal          <span class="co"># schema class its fields dispatch to</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    assurance <span class="op">=</span> <span class="st">"guest-corroborated"</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> setup(<span class="va">self</span>, goal, oracle) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]: ...</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> check(</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>, goal, oracle, submissions</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    ) <span class="op">-&gt;</span> Observations: ...</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> compare(<span class="va">self</span>, goal, obs, store) <span class="op">-&gt;</span> GoalResult: ...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">@range_goal</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MarkerType(GoalType):</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> <span class="st">"marker"</span>            <span class="co"># the YAML `type:` name</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> MarkerGoal          <span class="co"># schema class its fields dispatch to</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    assurance <span class="op">=</span> <span class="st">"guest-corroborated"</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> setup(<span class="va">self</span>, goal, oracle) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]: ...</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> check(</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>, goal, oracle, submissions</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    ) <span class="op">-&gt;</span> Observations: ...</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> compare(<span class="va">self</span>, goal, obs, store) <span class="op">-&gt;</span> GoalResult: ...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong><code>setup(goal, oracle)</code></strong> runs once per sample before the agent acts, planting per-sample proof material through the oracle (the privileged scoring surface; see <a href="#the-oracle-surface">Oracle Surface</a>). It returns the plant-store keys it recorded so a later setup failure can unwind them: <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#challenge_setup">challenge_setup()</a></span> removes planted files and discards the keys, so a failed setup leaves no half-planted range behind. Generate every value from <code>oracle.nonce()</code> (independent entropy, never derived from a recorded seed), record it with <code>oracle.store.record()</code> before it lands on any guest, then place it with <code>oracle.write_file()</code>. Types that plant nothing inherit the default empty setup.</p>
 <p><strong><code>check(goal, oracle, submissions)</code></strong> gathers raw observations at scoring time and packs them into an <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#observations">Observations</a></span>: a <code>source</code> (<code>submission</code>, <code>guest</code>, or <code>evidence</code>), named byte <code>reads</code>, and <code>chunk_reads</code> for evidence streams (each pcap chunk is a standalone capture file with its own header, so chunks must never be concatenated). <code>check</code> gathers without interpreting, and sends no expected value guest-ward.</p>
 <p><strong><code>compare(goal, obs, store)</code></strong> is a pure, host-side function from the observations and the plant record to a <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#goalresult">GoalResult</a></span>. It is the only place the expected value is consulted, read from the in-memory <code>PlantStore</code> in the same process that planted it.</p>
@@ -1462,7 +1466,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    GoalResult,</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    GoalType,</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    Observations,</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    register_goal_type,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    range_goal,</span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MarkerGoal(GoalBase):</span>
@@ -1471,39 +1475,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    path: <span class="bu">str</span></span>
 <span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    owner: <span class="bu">str</span> <span class="op">=</span> <span class="st">"root"</span></span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MarkerType(GoalType):</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> <span class="st">"marker"</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> MarkerGoal</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    assurance <span class="op">=</span> <span class="st">"guest-corroborated"</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> setup(<span class="va">self</span>, goal, oracle):</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        value <span class="op">=</span> oracle.nonce().encode()</span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        key <span class="op">=</span> <span class="ss">f"marker:</span><span class="sc">{</span>goal<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> oracle.store.record(</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>            key, value, goal_id<span class="op">=</span>goal.<span class="bu">id</span>,</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>            guest<span class="op">=</span>goal.host, path<span class="op">=</span>goal.path,</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> oracle.write_file(</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>            goal.host, goal.path, value,</span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>            mode<span class="op">=</span><span class="bn">0o600</span>, owner<span class="op">=</span>goal.owner,</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [key]</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> check(<span class="va">self</span>, goal, oracle, submissions):</span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>        latest <span class="op">=</span> submissions.value(goal.<span class="bu">id</span>)</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Observations(</span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>            source<span class="op">=</span><span class="st">"submission"</span>,</span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>            reads<span class="op">=</span>{<span class="st">"v"</span>: (latest <span class="kw">or</span> <span class="st">""</span>).encode()},</span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> compare(<span class="va">self</span>, goal, obs, store):</span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>        submitted <span class="op">=</span> obs.reads[<span class="st">"v"</span>].strip()</span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> submitted:</span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> GoalResult(achieved<span class="op">=</span><span class="va">False</span>, reason<span class="op">=</span><span class="st">"no submission"</span>)</span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>        expected <span class="op">=</span> store.get(<span class="ss">f"marker:</span><span class="sc">{</span>goal<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">"</span>).strip()</span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> GoalResult(achieved<span class="op">=</span>submitted <span class="op">==</span> expected)</span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>register_goal_type(MarkerType())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="at">@range_goal</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MarkerType(GoalType):</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> <span class="st">"marker"</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> MarkerGoal</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    assurance <span class="op">=</span> <span class="st">"guest-corroborated"</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> setup(<span class="va">self</span>, goal, oracle):</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        value <span class="op">=</span> oracle.nonce().encode()</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        key <span class="op">=</span> <span class="ss">f"marker:</span><span class="sc">{</span>goal<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> oracle.store.record(</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>            key, value, goal_id<span class="op">=</span>goal.<span class="bu">id</span>,</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>            guest<span class="op">=</span>goal.host, path<span class="op">=</span>goal.path,</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> oracle.write_file(</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>            goal.host, goal.path, value,</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            mode<span class="op">=</span><span class="bn">0o600</span>, owner<span class="op">=</span>goal.owner,</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [key]</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> check(<span class="va">self</span>, goal, oracle, submissions):</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>        latest <span class="op">=</span> submissions.value(goal.<span class="bu">id</span>)</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> Observations(</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>            source<span class="op">=</span><span class="st">"submission"</span>,</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>            reads<span class="op">=</span>{<span class="st">"v"</span>: (latest <span class="kw">or</span> <span class="st">""</span>).encode()},</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> compare(<span class="va">self</span>, goal, obs, store):</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>        submitted <span class="op">=</span> obs.reads[<span class="st">"v"</span>].strip()</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> submitted:</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> GoalResult(achieved<span class="op">=</span><span class="va">False</span>, reason<span class="op">=</span><span class="st">"no submission"</span>)</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>        expected <span class="op">=</span> store.get(<span class="ss">f"marker:</span><span class="sc">{</span>goal<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">"</span>).strip()</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> GoalResult(achieved<span class="op">=</span>submitted <span class="op">==</span> expected)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Note what makes this sound: the value is per-sample entropy, planted 0600 under the declared owner (so reading it requires the claimed access), recorded before it exists anywhere on a guest, compared host-side, and never consulted guest-ward at scoring. The label is <code>guest-corroborated</code>, not <code>host-anchored</code>, because no external observer witnesses the read; pair the goal with a declared capture segment and corroboration if the scenario needs more.</p>
 <section id="corroborating-against-evidence" class="level3">
 <h3 class="anchored" data-anchor-id="corroborating-against-evidence">Corroborating Against Evidence</h3>
@@ -1537,7 +1540,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="testing" class="level2">
 <h2 class="anchored" data-anchor-id="testing">Testing</h2>
 <p>The contract splits cleanly for unit testing without VMs. <code>compare</code> is pure: construct an <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#observations">Observations</a></span> and a <code>PlantStore(None)</code> with recorded values, and table-drive the verdicts, including the empty-submission, wrong-value, and (where applicable) indeterminate rows. <code>check</code> takes a fake oracle object exposing just the verbs it calls. The repo’s own goal-type tests follow this shape.</p>
-<p>The end-to-end proof belongs to the build: a range carrying challenges proves each one at build time with the <code>reference</code>/<code>insufficient</code>/<code>forged</code> trio (<a href="./building.html#behavioral-checks">Building Ranges</a>), and that falsifiability discipline applies with full force to a custom type, since the trio is what catches a type that passes vacuously.</p>
+<p>The end-to-end proof belongs to the build: a range carrying challenges proves each one at build time with the <code>reference</code>/<code>insufficient</code>/<code>forged</code> trio or a <code>prove(ctx)</code> script asserting both verdict directions (<a href="./building.html#conformance-proofs">Building Ranges</a>), and that falsifiability discipline applies with full force to a custom type, since the negative half is what catches a type that passes vacuously.</p>
 </section>
 <section id="performance" class="level2">
 <h2 class="anchored" data-anchor-id="performance">Performance</h2>
@@ -1545,22 +1548,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="registration" class="level2">
 <h2 class="anchored" data-anchor-id="registration">Registration</h2>
-<p>Registration itself is one call per type instance. <code>register_goal_type</code> refuses a name already registered to a different instance, and <code>names=</code> registers one implementation under aliases (the built-in <code>control</code>/<code>privilege</code> pair shares one). Make it run in every process that scores by registering from an <code>inspect_ai</code> entry-point module, the same mechanism <code>inspect_ranges</code> uses for its own built-ins:</p>
+<p>The <code>@range_goal</code> decorator registers the type in inspect-ai’s shared registry (the <code>range_goal</code> kind, the same registry <code>@task</code> and <code>@scorer</code> write to) when the defining module loads, and <code>@range_goal(names=(...))</code> registers one implementation under several YAML names (the first is primary, the rest alias to it; the built-in <code>control</code>/<code>privilege</code> pair shares one). Aliases are process-local: an installed package’s alias resolves only after its module has loaded, so reference packaged types by their primary or qualified name. A name already registered to a different instance refuses: define a shared type once and import it wherever it is used, never a copy of the class per range. <code>register_goal_type(instance)</code> remains for pre-built instances and programmatic registration.</p>
+<p>Where the type lives determines how a <code>challenges.yaml</code> reaches it:</p>
+<ul>
+<li><strong>Beside its task</strong> (the common case for range-bound types): the decorator runs when inspect loads the <code>task.py</code>, before the dataset parses, so <code>type: marker</code> just works with no further ceremony.</li>
+<li><strong>In an installed package</strong> (a reusable goal-type library): the type registers as <code>my_package/marker</code>, and a challenges file can reference that name with no prior import anywhere; the registry loads the package’s <code>inspect_ai</code> entry point on the lookup miss. The bare <code>marker</code> also resolves while no other installed package claims the same suffix; a collision refuses with the qualified candidates listed rather than picking by load order. The package declares the standard entry point, and the entry-point module does nothing but import:</li>
+</ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode toml fragment code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[project.entry-points.inspect_ai]</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">my_package</span> <span class="op">=</span> <span class="st">"my_package._registry"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The module itself does nothing but import and register:</p>
-<div class="code-with-filename">
-<div class="code-with-filename-file">
-<pre><strong>my_package/_registry.py</strong></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="my_package/_registry.py"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">"""Entry point: loaded by inspect_ai, registers our goal types."""</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges <span class="im">import</span> register_goal_type</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> .marker <span class="im">import</span> MarkerType</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>register_goal_type(MarkerType())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python fragment code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># my_package/_registry.py: loaded by inspect_ai; importing registers</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> .marker <span class="im">import</span> MarkerType  <span class="co"># noqa: F401</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="authoring-the-type-in-yaml" class="level3">
 <h3 class="anchored" data-anchor-id="authoring-the-type-in-yaml">Authoring the Type in YAML</h3>
 <p>With the type registered, its name parses in <code>challenges.yaml</code> like a built-in. A goal’s <code>type:</code> first matches the built-in types; any other name is looked up in the registry, and the goal mapping validates against the registered type’s <code>spec</code> with the built-ins’ strictness: unknown keys are errors, the shared <span class="element-type-name ref-interlink"><a href="./reference/inspect_ranges.html#goalbase">GoalBase</a></span> fields apply, the goal id must satisfy the evidence stream-name grammar, and validation errors carry source positions into the authored document. A name known to neither refuses with a positioned error listing every known type, built-in and registered. The spec declares a <code>type</code> field whose <code>Literal</code> value matches the registered name (<code>type: Literal["marker"] = "marker"</code>):</p>
@@ -1580,7 +1577,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">path</span><span class="kw">:</span><span class="at"> /opt/app/marker</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Registration must run before parsing. Under inspect, the entry-point module makes this automatic: it is imported in every process that parses or scores, including the scorer’s re-parse of the challenge from sample metadata. Calling <code>load_challenges</code> or <code>validate_challenges</code> outside inspect requires importing the registering module first; otherwise the custom <code>type:</code> name refuses as <code>unknown-goal-type</code> with the known-type listing and a hint naming this requirement, an honest refusal rather than a misparse.</p>
-<p><code>inspect-ranges build</code> loads the same entry-point group before parsing <code>challenges.yaml</code>, so a custom-typed challenges file with declared behavioral checks parses at build time exactly as it does under inspect.</p>
+<p><code>inspect-ranges build</code> loads the same entry-point group, and a loose <code>task.py</code> beside the range, before parsing <code>challenges.yaml</code>, so a custom-typed challenges file with declared conformance proofs parses at build time exactly as it does under inspect.</p>
 <p>With a <code>range_spec</code>, cross-validation checks a custom goal’s observer requirements via <code>observers()</code>; its other fields are the type’s own semantics (a custom <code>host</code> is not assumed to name a range guest), so dangling cross-references surface when the plant or probe fails.</p>
 
 

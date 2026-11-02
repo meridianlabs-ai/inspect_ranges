@@ -15,6 +15,7 @@ inspect-ranges images [OPTIONS] COMMAND [ARGS]...
 | [derive](#inspect-ranges-images-derive) | Derive a daemon-baked golden from a digest-pinned vendor cloud image. |
 | [derive-windows](#inspect-ranges-images-derive-windows) | Install a sysprep’d Windows golden from digest-pinned eval media (windows-ad-v1). |
 | [list](#inspect-ranges-images-list) | List the cache: managed goldens with provenance, then unmanaged files. |
+| [import](#inspect-ranges-images-import) | Land a foreign qcow2 as an IMPORTED image: the opaque tier’s image source (prepared appliance disks the engine cannot derive). |
 | [pull](#inspect-ranges-images-pull) | Fetch a published catalog image’s chain into the cache (sticky thereafter: later builds keep resolving the cached artifact until an explicit refresh). |
 | [refresh](#inspect-ranges-images-refresh) | The explicit move-forward act: re-resolve bare names against the search path and replace cached chains that moved; the next build’s keys change accordingly. |
 | [prune](#inspect-ranges-images-prune) | Reclaim realized images no manifest references, plus capture temps and orphan sidecars; `--chains` extends to unreferenced goldens and vendor bases (pulled chains accounted exactly like built ones). |
@@ -85,6 +86,27 @@ inspect-ranges images list [OPTIONS]
 |-----------------|---------|-----------------------------|------------------|
 | `--image-cache` | path    | Image cache to list.        | None             |
 | `--help`        | boolean | Show this message and exit. | `Sentinel.UNSET` |
+
+## inspect-ranges images import
+
+Land a foreign qcow2 as an IMPORTED image: the opaque tier’s image source (prepared appliance disks the engine cannot derive).
+
+The image is flattened on the way in (any backing chain collapses into one self-contained file) and recorded under a kind=imported provenance sidecar: no daemon pin, the source file’s name and digest as provenance, plus –notes. Imported images publish chainless and boot without a vendor edge; guests booting them are typically declared `opaque`.
+
+#### Usage
+
+``` text
+inspect-ranges images import [OPTIONS] SOURCE
+```
+
+#### Options
+
+| Name | Type | Description | Default |
+|----|----|----|----|
+| `--as` | text | Cache name the image lands under (a Host.image reference). | `Sentinel.UNSET` |
+| `--notes` | text | Free-text provenance recorded in the sidecar (where the image came from, how it was prepared). | None |
+| `--image-cache` | path | Image cache the import lands in. | None |
+| `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |
 
 ## inspect-ranges images pull
 

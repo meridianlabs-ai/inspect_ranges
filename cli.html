@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.18">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -13,13 +13,10 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
+code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -80,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -860,6 +857,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
  <span class="menu-text">register_goal_type</span></a>
   </div>
@@ -1354,6 +1357,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#workflow" id="toc-workflow" class="nav-link active" data-scroll-target="#workflow">Workflow</a></li>
   <li><a href="#up" id="toc-up" class="nav-link" data-scroll-target="#up"><code>up</code></a></li>
   <li><a href="#down" id="toc-down" class="nav-link" data-scroll-target="#down"><code>down</code></a></li>
+  <li><a href="#shell" id="toc-shell" class="nav-link" data-scroll-target="#shell"><code>shell</code></a></li>
   <li><a href="#applier" id="toc-applier" class="nav-link" data-scroll-target="#applier"><code>applier</code></a></li>
   <li><a href="#reaper" id="toc-reaper" class="nav-link" data-scroll-target="#reaper"><code>reaper</code></a></li>
   <li><a href="#doctor" id="toc-doctor" class="nav-link" data-scroll-target="#doctor"><code>doctor</code></a></li>
@@ -1410,6 +1414,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="down" class="level2">
 <h2 class="anchored" data-anchor-id="down"><code>down</code></h2>
 <p><code>inspect-ranges down &lt;project&gt;</code> tears down by recorded ownership (compose labels and deterministic names), never by live process state: it works from any process, after any crash, and twice in a row. <code>down --all</code> sweeps every <code>ir-</code> project discovered from the ownership registry, container labels, and volume names, attempting all of them and aggregating any failures. The sweep cannot tell a crashed project from one mid-boot, so run it only when nothing on the host should be live. A failed removal keeps the ownership record so a retry can still find the project.</p>
+</section>
+<section id="shell" class="level2">
+<h2 class="anchored" data-anchor-id="shell"><code>shell</code></h2>
+<p><code>inspect-ranges shell &lt;project&gt; [guest]</code> opens an interactive shell on a guest of a running range: a tmux session inside the guest, driven over the range’s control channel, so it needs no SSH, no guest listener, and works on fully isolated networks. The guest defaults to the range’s attacker when it has exactly one; <code>--session</code> names the tmux session (the same name reattaches, and sessions survive detach); <code>--user</code> picks the guest identity (default: the daemon identity, root on Linux); <code>--cast &lt;path&gt;</code> records the attach as a local asciicast. Detach with <code>Ctrl-]</code>.</p>
+<p>This is an operator surface for ranges booted with <code>up</code> (trying tasks by hand, debugging guest state and images). A project booted by the Inspect sandbox provider refuses by recorded origin, so an eval sample can never acquire an interactive operator mid-run. Guest output is treated as untrusted: display sequences pass to your terminal, but clipboard writes, palette programming, and device-control strings are filtered out. Linux guests only (the session is tmux). One known seam: the attach paints the current visible screen and then streams new output, so a full-screen program already mid-flight may need a redraw (<code>Ctrl-L</code>) to render cleanly.</p>
 </section>
 <section id="applier" class="level2">
 <h2 class="anchored" data-anchor-id="applier"><code>applier</code></h2>

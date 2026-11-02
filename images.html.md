@@ -10,7 +10,7 @@ When a name is needed, it resolves in a fixed order:
 
 2.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`). On a host with a pin file configured, the pin binds this download step and `images refresh`, never the cache (see [Pinned Fleet](#pinned-fleet)).
 
-A location can be a Docker Hub org, a private registry, or a plain directory, and the same artifacts work from all three because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
+A location can be a Docker Hub org, a private registry (or one repository of it, with the names in the tags), or a plain directory, and the same artifacts work from all of them because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
 
 Two behaviors to know before the recipes below:
 
@@ -147,7 +147,21 @@ Failure modes, each stage-named:
 
 - an interrupted derive: self-healing on the next run.
 
-On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with `images derive-windows` from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published; the Windows examples’ READMEs ([goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light), [splunk_detection](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection)) cover the specifics.
+On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with `images derive-windows` from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published to the public catalog; a deployment that pushes a Windows-backed build to its own registry ships the installed golden alone, never the media; the Windows examples’ READMEs ([goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light), [splunk_detection](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection)) cover the specifics.
+
+### Imported Images
+
+Some guests boot images that cannot carry the daemon at all: sealed appliance disks (a router OS, a firewall VM) obtained as vendor artifacts rather than derived from a cloud image. These enter the cache as a third kind, `imported`:
+
+    Terminal
+
+``` bash
+inspect-ranges images import <source> --as <name>
+```
+
+The source is anything qemu-img reads (qcow2, vmdk, raw, a disk extracted from an OVA); import flattens it into a standalone qcow2 in the cache and writes a provenance sidecar whose derivation key is the sha256 of the source file. `--notes` records free-text provenance (where the artifact came from, its advisory, its version) on the sidecar. An existing image under the target name never gets clobbered.
+
+An imported image has no recipe and no daemon, so the golden chain cannot speak for it: the sidecar says so (`images list` shows `daemon=none (imported)`), and the image publishes alone, exactly like an installed Windows golden. Guests booting one are declared [`opaque`](./guests.html.md#appliances): the engine never reaches inside them.
 
 ### Image Cache
 

@@ -11,8 +11,9 @@ The engine treats third-party types exactly like built-ins: the same registry, t
 A goal type is a stateless object, registered once per process and shared across samples; everything per-sample lives in the plant store and the sample store. It binds four pieces:
 
 ``` python
-from inspect_ranges import GoalResult, GoalType, Observations
+from inspect_ranges import GoalResult, GoalType, Observations, range_goal
 
+@range_goal
 class MarkerType(GoalType):
     name = "marker"            # the YAML `type:` name
     spec = MarkerGoal          # schema class its fields dispatch to
@@ -78,7 +79,7 @@ from inspect_ranges import (
     GoalResult,
     GoalType,
     Observations,
-    register_goal_type,
+    range_goal,
 )
 
 class MarkerGoal(GoalBase):
@@ -87,6 +88,7 @@ class MarkerGoal(GoalBase):
     path: str
     owner: str = "root"
 
+@range_goal
 class MarkerType(GoalType):
     name = "marker"
     spec = MarkerGoal
@@ -118,8 +120,6 @@ class MarkerType(GoalType):
             return GoalResult(achieved=False, reason="no submission")
         expected = store.get(f"marker:{goal.id}").strip()
         return GoalResult(achieved=submitted == expected)
-
-register_goal_type(MarkerType())
 ```
 
 Note what makes this sound: the value is per-sample entropy, planted 0600 under the declared owner (so reading it requires the claimed access), recorded before it exists anywhere on a guest, compared host-side, and never consulted guest-ward at scoring. The label is `guest-corroborated`, not `host-anchored`, because no external observer witnesses the read; pair the goal with a declared capture segment and corroboration if the scenario needs more.
@@ -160,7 +160,7 @@ Three details carry the soundness. The find is source-bound: a match counts only
 
 The contract splits cleanly for unit testing without VMs. `compare` is pure: construct an [Observations](./reference/inspect_ranges.html.md#observations) and a `PlantStore(None)` with recorded values, and table-drive the verdicts, including the empty-submission, wrong-value, and (where applicable) indeterminate rows. `check` takes a fake oracle object exposing just the verbs it calls. The repo’s own goal-type tests follow this shape.
 
-The end-to-end proof belongs to the build: a range carrying challenges proves each one at build time with the `reference`/`insufficient`/`forged` trio ([Building Ranges](./building.html.md#behavioral-checks)), and that falsifiability discipline applies with full force to a custom type, since the trio is what catches a type that passes vacuously.
+The end-to-end proof belongs to the build: a range carrying challenges proves each one at build time with the `reference`/`insufficient`/`forged` trio or a `prove(ctx)` script asserting both verdict directions ([Building Ranges](./building.html.md#conformance-proofs)), and that falsifiability discipline applies with full force to a custom type, since the negative half is what catches a type that passes vacuously.
 
 ## Performance
 
@@ -168,25 +168,21 @@ Scoring wall-clock is recorded per goal in the sample store (`inspect_ranges:tim
 
 ## Registration
 
-Registration itself is one call per type instance. `register_goal_type` refuses a name already registered to a different instance, and `names=` registers one implementation under aliases (the built-in `control`/`privilege` pair shares one). Make it run in every process that scores by registering from an `inspect_ai` entry-point module, the same mechanism `inspect_ranges` uses for its own built-ins:
+The `@range_goal` decorator registers the type in inspect-ai’s shared registry (the `range_goal` kind, the same registry `@task` and `@scorer` write to) when the defining module loads, and `@range_goal(names=(...))` registers one implementation under several YAML names (the first is primary, the rest alias to it; the built-in `control`/`privilege` pair shares one). Aliases are process-local: an installed package’s alias resolves only after its module has loaded, so reference packaged types by their primary or qualified name. A name already registered to a different instance refuses: define a shared type once and import it wherever it is used, never a copy of the class per range. `register_goal_type(instance)` remains for pre-built instances and programmatic registration.
+
+Where the type lives determines how a `challenges.yaml` reaches it:
+
+- **Beside its task** (the common case for range-bound types): the decorator runs when inspect loads the `task.py`, before the dataset parses, so `type: marker` just works with no further ceremony.
+- **In an installed package** (a reusable goal-type library): the type registers as `my_package/marker`, and a challenges file can reference that name with no prior import anywhere; the registry loads the package’s `inspect_ai` entry point on the lookup miss. The bare `marker` also resolves while no other installed package claims the same suffix; a collision refuses with the qualified candidates listed rather than picking by load order. The package declares the standard entry point, and the entry-point module does nothing but import:
 
 ``` toml
 [project.entry-points.inspect_ai]
 my_package = "my_package._registry"
 ```
 
-The module itself does nothing but import and register:
-
-    my_package/_registry.py
-
 ``` python
-"""Entry point: loaded by inspect_ai, registers our goal types."""
-
-from inspect_ranges import register_goal_type
-
-from .marker import MarkerType
-
-register_goal_type(MarkerType())
+# my_package/_registry.py: loaded by inspect_ai; importing registers
+from .marker import MarkerType  # noqa: F401
 ```
 
 ### Authoring the Type in YAML
@@ -210,6 +206,6 @@ challenges:
 
 Registration must run before parsing. Under inspect, the entry-point module makes this automatic: it is imported in every process that parses or scores, including the scorer’s re-parse of the challenge from sample metadata. Calling `load_challenges` or `validate_challenges` outside inspect requires importing the registering module first; otherwise the custom `type:` name refuses as `unknown-goal-type` with the known-type listing and a hint naming this requirement, an honest refusal rather than a misparse.
 
-`inspect-ranges build` loads the same entry-point group before parsing `challenges.yaml`, so a custom-typed challenges file with declared behavioral checks parses at build time exactly as it does under inspect.
+`inspect-ranges build` loads the same entry-point group, and a loose `task.py` beside the range, before parsing `challenges.yaml`, so a custom-typed challenges file with declared conformance proofs parses at build time exactly as it does under inspect.
 
 With a `range_spec`, cross-validation checks a custom goal’s observer requirements via `observers()`; its other fields are the type’s own semantics (a custom `host` is not assumed to name a range guest), so dangling cross-references surface when the plant or probe fails.

@@ -16,4 +16,5 @@ inspect-ranges push [OPTIONS] [SPEC]
 | `--image-cache` | path | Image cache holding the build’s artifacts. | None |
 | `--build-cache` | path | Builds cache holding the manifest to publish. | None |
 | `--recipe-cache` | path | Recipe cache for resolving the manifest’s recipe bundles. | None |
+| `--respec` | boolean | Re-record the cached manifest under the current normalized spec hash before pushing: the one-time migration for a build recorded before 0.2.5 (when the hash began excluding defaulted values), proven against the spec the manifest embeds, never asserted. | `Sentinel.UNSET` |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |

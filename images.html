@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.18">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -13,13 +13,10 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
+code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -80,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -860,6 +857,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./reference/inspect_ranges.html#range_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
  <span class="menu-text">register_goal_type</span></a>
   </div>
@@ -1363,6 +1366,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#locked-down-host" id="toc-locked-down-host" class="nav-link" data-scroll-target="#locked-down-host">Locked-Down Host</a></li>
   <li><a href="#range-container-pin" id="toc-range-container-pin" class="nav-link" data-scroll-target="#range-container-pin">Range Container Pin</a></li>
   <li><a href="#self-derived-goldens" id="toc-self-derived-goldens" class="nav-link" data-scroll-target="#self-derived-goldens">Self-Derived Goldens</a></li>
+  <li><a href="#imported-images" id="toc-imported-images" class="nav-link" data-scroll-target="#imported-images">Imported Images</a></li>
   <li><a href="#image-cache" id="toc-image-cache" class="nav-link" data-scroll-target="#image-cache">Image Cache</a></li>
   </ul></li>
   </ul>
@@ -1403,7 +1407,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>the local cache of already-downloaded images, which always answers first;</p></li>
 <li><p>the locations listed in <code>INSPECT_RANGES_REGISTRY</code>, in order, which defaults to the public catalog (<code>docker.io/meridianlabsai/inspect-ranges</code>). On a host with a pin file configured, the pin binds this download step and <code>images refresh</code>, never the cache (see <a href="#pinned-fleet">Pinned Fleet</a>).</p></li>
 </ol>
-<p>A location can be a Docker Hub org, a private registry, or a plain directory, and the same artifacts work from all three because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.</p>
+<p>A location can be a Docker Hub org, a private registry (or one repository of it, with the names in the tags), or a plain directory, and the same artifacts work from all of them because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.</p>
 <p>Two behaviors to know before the recipes below:</p>
 <ul>
 <li><p><strong>Downloads are sticky.</strong> Once an image is in the local cache, builds keep using it even after the registry publishes a newer version. Updating is an explicit action: <code>images refresh &lt;name&gt;</code>, or regenerating a pin file.</p></li>
@@ -1542,7 +1546,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>a corrupt provenance sidecar: refuses rather than trusting unverifiable recorded inputs;</p></li>
 <li><p>an interrupted derive: self-healing on the next run.</p></li>
 </ul>
-<p>On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with <code>images derive-windows</code> from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published; the Windows examples’ READMEs (<a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light">goad_light</a>, <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection">splunk_detection</a>) cover the specifics.</p>
+<p>On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with <code>images derive-windows</code> from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published to the public catalog; a deployment that pushes a Windows-backed build to its own registry ships the installed golden alone, never the media; the Windows examples’ READMEs (<a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light">goad_light</a>, <a href="https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection">splunk_detection</a>) cover the specifics.</p>
+</section>
+<section id="imported-images" class="level3">
+<h3 class="anchored" data-anchor-id="imported-images">Imported Images</h3>
+<p>Some guests boot images that cannot carry the daemon at all: sealed appliance disks (a router OS, a firewall VM) obtained as vendor artifacts rather than derived from a cloud image. These enter the cache as a third kind, <code>imported</code>:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>Terminal</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-filename="Terminal"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> images import <span class="op">&lt;</span>source<span class="op">&gt;</span> --as <span class="op">&lt;</span>name<span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The source is anything qemu-img reads (qcow2, vmdk, raw, a disk extracted from an OVA); import flattens it into a standalone qcow2 in the cache and writes a provenance sidecar whose derivation key is the sha256 of the source file. <code>--notes</code> records free-text provenance (where the artifact came from, its advisory, its version) on the sidecar. An existing image under the target name never gets clobbered.</p>
+<p>An imported image has no recipe and no daemon, so the golden chain cannot speak for it: the sidecar says so (<code>images list</code> shows <code>daemon=none (imported)</code>), and the image publishes alone, exactly like an installed Windows golden. Guests booting one are declared <a href="./guests.html#appliances"><code>opaque</code></a>: the engine never reaches inside them.</p>
 </section>
 <section id="image-cache" class="level3">
 <h3 class="anchored" data-anchor-id="image-cache">Image Cache</h3>

@@ -10,7 +10,7 @@ Models validate fully at construction (structural and cross-reference checks) an
 
 A complete v0.1 range definition.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L1049)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1130)
 
 ``` python
 class RangeSpec(_StrictModel)
@@ -51,7 +51,7 @@ Identity of the range.
 
 Upstream provenance is a convention, not schema: record it in a `source.md` next to the `range.yaml`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L84)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L88)
 
 ``` python
 class RangeMeta(_StrictModel)
@@ -74,7 +74,7 @@ What the range is and why it exists.
 
 A target guest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L822)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L891)
 
 ``` python
 class Host(_StrictModel)
@@ -102,6 +102,18 @@ Sizing; omitted means backend defaults.
 
 `vmm` Vmm  
 Virtual machine monitor that runs this guest: `qemu` (default, via libvirt) or `cloud-hypervisor` (smaller device model; started directly, reached over its hybrid-vsock Unix socket).
+
+`hardware` Hardware \| None  
+Machine shape for images built against particular virtual hardware; omitted means the engine’s standard shape (see `Hardware`). QEMU guests only (planning refuses `hardware-vmm-not-supported` on cloud-hypervisor).
+
+`opaque` bool  
+A sealed appliance image: no control daemon, so the engine never reaches inside it. Opaque guests carry no provisioning, services, vulnerabilities, misconfigurations, data, defense, roles, or scheduled activity (all refused: nothing could realize or verify them); they boot an imported image as-is, readiness comes from `readiness`, and goals scored against them carry the externally-observed assurance posture. Every interface of an opaque guest must declare its `ip`, and the declaration is a statement of fact about the image (the address it carries on that network), not an instruction: nothing configures addresses inside a sealed image (refused `opaque-ip-required` otherwise).
+
+`readiness` Readiness \| None  
+How an opaque guest reports ready: `{tcp: <port>}` (a connect probe against the first declared address) or `process` (the VM process runs). Opaque guests only (one meaning per field; daemon guests keep the daemon handshake); omitted on an opaque guest means `process`.
+
+`nested_virtualization` bool  
+The guest runs KVM virtual machines of its own (kernel-under-test and appliance-emulation workloads). Needs two things the engine checks rather than assumes: the plan’s `host-passthrough` CPU (a named CPU model does not carry the virtualization flag, refused at planning as `nested-virt-requires-host-passthrough`) and a host whose KVM module exposes nesting (`up` refuses at preflight otherwise, naming the host classes that work). The guest image still owns loading its own kvm modules.
 
 `interfaces` list\[[Interface](../reference/types.html.md#interface)\]  
 Network attachments (explicit; v0.1 has no implicit attachment).
@@ -137,7 +149,7 @@ Recurring in-guest behavior simulation, realized at build as persistent units in
 
 A gateway guest joining two or more networks, carrying the inter-segment ACL.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L788)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L857)
 
 ``` python
 class Router(_StrictModel)
@@ -181,7 +193,7 @@ The agent’s foothold: either a dedicated attack box or an existing host.
 
 Declare `host` to start on a declared host (assumed breach), or `interfaces` (plus optionally `name`, `image`, `resources`) to boot a dedicated attack box.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L877)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L958)
 
 ``` python
 class Attacker(_StrictModel)
@@ -217,7 +229,7 @@ Attacker-reachable egress from the range: `none` (default), `open`, or a scoped 
 
 Guest operating system.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L329)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L340)
 
 ``` python
 class Os(_StrictModel)
@@ -238,7 +250,7 @@ Windows version, e.g. `server-2019`.
 
 Backend-neutral guest sizing.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L342)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L353)
 
 ``` python
 class Resources(_StrictModel)
@@ -263,7 +275,7 @@ A local account on a guest.
 
 Scenario credentials are scenario content and belong in the definition in plaintext; per-sample proof material (flags, canaries) never appears here. Domain accounts live in `active_directory`, not on hosts.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L355)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L424)
 
 ``` python
 class User(_StrictModel)
@@ -287,7 +299,7 @@ Free-text intent, e.g. why the account exists or what makes it interesting.
 
 A credential pair a service accepts.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L374)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L443)
 
 ``` python
 class Credentials(_StrictModel)
@@ -307,7 +319,7 @@ An assertion about a guest’s converged listening surface.
 
 Services are declarations, never an install language: the build satisfies them (via a provisioning recipe, content baked into the image, or a checkpoint) and verifies them before the range ships. Installation itself belongs in `provisioning`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L384)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L453)
 
 ``` python
 class Service(_StrictModel)
@@ -339,7 +351,7 @@ A seeded exploitable weakness on a guest.
 
 Exploitable vulnerabilities and misconfigurations are distinct lists because real intrusions lean heavily on the second; the list itself is the classification.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L409)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L478)
 
 ``` python
 class Vulnerability(_StrictModel)
@@ -363,7 +375,7 @@ What the weakness is and how it is reachable.
 
 A seeded misconfiguration on a guest (weak policy, dangerous sudoers line, disabled protection).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L428)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L497)
 
 ``` python
 class Misconfiguration(_StrictModel)
@@ -381,7 +393,7 @@ What is misconfigured and why it matters.
 
 A scenario-content file declaration: a record of what the guest carries, realized by the recipes (or, for `exfiltrate` targets, planted per sample by the challenge layer).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L438)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L507)
 
 ``` python
 class DataFile(_StrictModel)
@@ -404,7 +416,7 @@ A build-time recipe reference, applied in list order.
 
 Recipes run at build time and never per sample; their output is captured into images and checkpoints. The recipe language itself is deliberately out of the definition: a step names a recipe and its inputs, nothing more.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L464)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L533)
 
 ``` python
 class ProvisioningStep(_StrictModel)
@@ -427,7 +439,7 @@ Recurring in-guest behavior, simulating users or defenders (bot scripts, schedul
 
 The build realizes each declaration as a persistent unit in the captured image (a systemd service plus timer on Linux, a scheduled task on Windows), installed from `activities/<script>` beside `range.yaml` and verified after realization (scheduled-activity-v1).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L484)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L553)
 
 ``` python
 class ScheduledActivity(_StrictModel)
@@ -453,7 +465,7 @@ A named per-instance value with a required default; `draw: boot` adds a per-samp
 
 Definitions reference variables as `"{{name}}"` in YAML scalars; loading substitutes the defaults before validation, so a whole-scalar reference takes the variable’s typed value (`port: "{{telnet_port}}"` validates as an integer) and embedded references interpolate as text. Required defaults mean every definition always validates and realizes concretely: builds substitute defaults, and realized images never carry a draw. A variable marked `draw: boot` additionally gets a per-sample value when the sample’s range boots, delivered to guests through the cloud-init draws file and applied by range-authored boot units (variable-draws-v0.md); per-sample secrets stay the challenge plant layer’s job. Python authors draw values and construct concretely instead of using references.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L534)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L603)
 
 ``` python
 class Variable(_StrictModel)
@@ -487,7 +499,7 @@ When a per-sample value is drawn: `boot` draws one at sample boot from the typed
 draw_bounds  
 The inclusive numeric draw range for a `port` or `int` variable: the declared `min`/`max`, with `port` falling back to `PORT_DRAW_MIN`/`PORT_DRAW_MAX`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L561)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L630)
 
 ``` python
 def draw_bounds(self) -> tuple[int, int]
@@ -499,7 +511,7 @@ def draw_bounds(self) -> tuple[int, int]
 
 The range’s defensive posture, on the D0 (no defenders) to D5 (adaptive defender) spectrum.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L954)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1035)
 
 ``` python
 class Defense(_StrictModel)
@@ -520,7 +532,7 @@ Telemetry flows, when the range records or forwards signals.
 
 Per-host protection toggles (typed knowns; extended when evidence forces).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L451)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L520)
 
 ``` python
 class HostDefense(_StrictModel)
@@ -541,7 +553,7 @@ Windows Update on or off.
 
 One telemetry flow: which guest’s signals reach which sink.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L941)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1022)
 
 ``` python
 class Telemetry(_StrictModel)
@@ -566,7 +578,7 @@ Range-scoped Active Directory identity data.
 
 Identity is declared here, not on hosts, because accounts exist in the domain. The build realizes it (promotion, joins, account and ACL seeding) and captures the converged result; see `design/inspect-ranges/range-build.md`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L1036)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1117)
 
 ``` python
 class ActiveDirectory(_StrictModel)
@@ -584,7 +596,7 @@ The forest’s domains.
 
 One domain in the forest.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L1014)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1095)
 
 ``` python
 class AdDomain(_StrictModel)
@@ -614,7 +626,7 @@ Seeded ACL-abuse edges.
 
 A domain account.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L995)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1076)
 
 ``` python
 class AdUser(_StrictModel)
@@ -643,7 +655,7 @@ One seeded ACL-abuse edge: `principal` holds `right` over `target`.
 
 Principals and targets are names as AD knows them (users, groups, OUs, or computer objects) and are not cross-validated against declared users this round.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L979)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1060)
 
 ``` python
 class AdAcl(_StrictModel)
@@ -664,7 +676,7 @@ What the right applies to.
 
 Seeded AD ACL rights (the vocabulary observed in surveyed ranges; extended when evidence forces).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L967)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L1048)
 
 ``` python
 AdRight = Literal[
@@ -684,7 +696,7 @@ AdRight = Literal[
 
 A layer-2 segment with its addressing and egress posture.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L255)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L259)
 
 ``` python
 class Network(_StrictModel)
@@ -717,7 +729,7 @@ Scoped egress allowlist; only meaningful with `mode: nat` (the hypervisor NATs e
 
 A guest’s attachment to a network.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L309)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L313)
 
 ``` python
 class Interface(_StrictModel)
@@ -731,13 +743,16 @@ Name of a declared network.
 `ip` [AnyIPAddress](../reference/types.html.md#anyipaddress) \| None  
 Static address within the network’s subnet; omitted means IPAM-allocated.
 
+`mac` str \| None  
+Declared MAC address, for images that key behavior to a specific MAC (appliance first-boot config, DHCP reservations); omitted means the deterministic generated MAC. Form-checked and range-unique (`semantic_issues`).
+
 ### DnsConfig
 
 Per-network DNS, as a union of the shapes real ranges need.
 
 `records` serves name-based discovery on flat networks; `nameservers` points guests at external resolvers; `authoritative` names guests (e.g. domain controllers) that are the network’s DNS servers, optionally chaining to `forwarder`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L116)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L120)
 
 ``` python
 class DnsConfig(_StrictModel)
@@ -761,7 +776,7 @@ Upstream forwarder for the authoritative chain.
 
 A name record served on a network.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L100)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L104)
 
 ``` python
 class DnsRecord(_StrictModel)
@@ -781,7 +796,7 @@ A scoped egress allowlist: exactly what may leave, nothing else.
 
 Entries are `CIDR[:proto/port]` (a bare address is its `/32`; omitting the service allows all traffic to the CIDR) or `FQDN:proto/port`. FQDN entries are in the vocabulary but gated by `egress-fqdn-not-realized` until their realization lands (networking-v0.2 §3).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L204)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L208)
 
 ``` python
 class EgressPolicy(_StrictModel)
@@ -796,7 +811,7 @@ Allowlist entries, e.g. `198.51.100.7:tcp/443`, `0.0.0.0/0:udp/123`; empty allo
 
 A static route on a router, for traffic to segments it reaches through another router.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L732)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L801)
 
 ``` python
 class Route(_StrictModel)
@@ -816,7 +831,7 @@ One ordered rule on a router, carrying exactly one of `allow:` or `deny:`.
 
 Rules evaluate first-match in list order against new connections `from` one endpoint `to` another; anything no rule matches is dropped (default-deny), and return traffic of allowed flows always passes (stateful). Endpoints are a network name, a guest name (resolved to its allocated addresses at plan time), or a CIDR (`/32` for a literal host, `0.0.0.0/0` for any). `deny` exists for carve-outs inside a broader allow. In typed construction the source field is spelled `from_` (the YAML surface keeps `from:`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L665)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L734)
 
 ``` python
 class AclRule(_StrictModel)
@@ -840,7 +855,7 @@ Services to drop at this point in the rule order (same entry syntax as `allow`).
 
 Either address family. IPv6 values validate structurally but are rejected by the `ipv6-not-realized` gate until their realization lands (networking-v0.2 §4).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L28)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L28)
 
 ``` python
 AnyIPAddress = IPv4Address | IPv6Address
@@ -850,7 +865,7 @@ AnyIPAddress = IPv4Address | IPv6Address
 
 Either address family. IPv6 values validate structurally but are rejected by the `ipv6-not-realized` gate until their realization lands (networking-v0.2 §4).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L31)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L31)
 
 ``` python
 AnyIPNetwork = IPv4Network | IPv6Network
@@ -862,7 +877,7 @@ Split an egress allowlist entry into its target and service.
 
 Entries are `CIDR[:proto/port]` or `FQDN:proto/port`; a bare address is its `/32`. The service is returned unvalidated (callers validate; the compiler receives only validated specs).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/types.py#L178)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/types.py#L182)
 
 ``` python
 def parse_egress_entry(
@@ -878,7 +893,7 @@ def parse_egress_entry(
 
 One problem found in a range definition.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L47)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/_diagnostics.py#L47)
 
 ``` python
 class Issue(BaseModel)
@@ -916,7 +931,7 @@ Carrier for collected issues raised inside pydantic validators.
 
 Subclasses `ValueError` so pydantic wraps it as an ordinary validation error; `issues_from_validation_error` recovers the original list from the error context, so both the raise path (`RangeSpec.model_validate`) and the report path (`validate_range`) share one implementation of every check.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L77)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/_diagnostics.py#L77)
 
 ``` python
 class IssueError(ValueError)
@@ -926,7 +941,7 @@ class IssueError(ValueError)
 
 Every issue found in one `range.yaml`, with rendering helpers.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L88)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/_diagnostics.py#L88)
 
 ``` python
 class ValidationReport(BaseModel)
@@ -954,7 +969,7 @@ True when no error-severity issues were found.
 render  
 Render the report as aligned, human-readable text (warnings do not invalidate).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L110)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/_diagnostics.py#L110)
 
 ``` python
 def render(self) -> str
@@ -963,7 +978,7 @@ def render(self) -> str
 to_json  
 Return the report as JSON-serializable data with stable field names.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/4bad68d79c1d2ee9de4d339016cddc9630aaf8d9/src/inspect_ranges/_diagnostics.py#L144)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/a1e081453a5a12209c60846e56528a79522c30d8/src/inspect_ranges/_diagnostics.py#L144)
 
 ``` python
 def to_json(self) -> dict[str, Any]

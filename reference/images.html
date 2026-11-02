@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.18">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -13,13 +13,10 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
+code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -45,10 +42,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-6be907ae78873760d36834dbe5a66008.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -825,6 +822,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../reference/inspect_ranges.html#range_goal" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_goal</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../reference/inspect_ranges.html#register_goal_type" class="sidebar-item-text sidebar-link">
  <span class="menu-text">register_goal_type</span></a>
   </div>
@@ -1319,6 +1322,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#inspect-ranges-images-derive" id="toc-inspect-ranges-images-derive" class="nav-link active" data-scroll-target="#inspect-ranges-images-derive">inspect-ranges images derive</a></li>
   <li><a href="#inspect-ranges-images-derive-windows" id="toc-inspect-ranges-images-derive-windows" class="nav-link" data-scroll-target="#inspect-ranges-images-derive-windows">inspect-ranges images derive-windows</a></li>
   <li><a href="#inspect-ranges-images-list" id="toc-inspect-ranges-images-list" class="nav-link" data-scroll-target="#inspect-ranges-images-list">inspect-ranges images list</a></li>
+  <li><a href="#inspect-ranges-images-import" id="toc-inspect-ranges-images-import" class="nav-link" data-scroll-target="#inspect-ranges-images-import">inspect-ranges images import</a></li>
   <li><a href="#inspect-ranges-images-pull" id="toc-inspect-ranges-images-pull" class="nav-link" data-scroll-target="#inspect-ranges-images-pull">inspect-ranges images pull</a></li>
   <li><a href="#inspect-ranges-images-refresh" id="toc-inspect-ranges-images-refresh" class="nav-link" data-scroll-target="#inspect-ranges-images-refresh">inspect-ranges images refresh</a></li>
   <li><a href="#inspect-ranges-images-prune" id="toc-inspect-ranges-images-prune" class="nav-link" data-scroll-target="#inspect-ranges-images-prune">inspect-ranges images prune</a></li>
@@ -1381,18 +1385,22 @@ ul.task-list li input[type="checkbox"] {
 <td>List the cache: managed goldens with provenance, then unmanaged files.</td>
 </tr>
 <tr class="even">
+<td><a href="#inspect-ranges-images-import">import</a></td>
+<td>Land a foreign qcow2 as an IMPORTED image: the opaque tier’s image source (prepared appliance disks the engine cannot derive).</td>
+</tr>
+<tr class="odd">
 <td><a href="#inspect-ranges-images-pull">pull</a></td>
 <td>Fetch a published catalog image’s chain into the cache (sticky thereafter: later builds keep resolving the cached artifact until an explicit refresh).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#inspect-ranges-images-refresh">refresh</a></td>
 <td>The explicit move-forward act: re-resolve bare names against the search path and replace cached chains that moved; the next build’s keys change accordingly.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#inspect-ranges-images-prune">prune</a></td>
 <td>Reclaim realized images no manifest references, plus capture temps and orphan sidecars; <code>--chains</code> extends to unreferenced goldens and vendor bases (pulled chains accounted exactly like built ones).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#inspect-ranges-images-pin">pin</a></td>
 <td>Write the fleet pin file (every catalog IMAGE’s current root digest; published ranges never enter it, they pin via the consumer clone’s spec hash); hosts consuming it via INSPECT_RANGES_PIN_FILE refuse a catalog that moved past the pinned state.</td>
 </tr>
@@ -1590,15 +1598,69 @@ ul.task-list li input[type="checkbox"] {
 </table>
 </section>
 </section>
-<section id="inspect-ranges-images-pull" class="level2" data-toc-label="pull">
-<h2 data-toc-label="pull" class="anchored" data-anchor-id="inspect-ranges-images-pull">inspect-ranges images pull</h2>
-<p>Fetch a published catalog image’s chain into the cache (sticky thereafter: later builds keep resolving the cached artifact until an explicit refresh).</p>
+<section id="inspect-ranges-images-import" class="level2" data-toc-label="import">
+<h2 data-toc-label="import" class="anchored" data-anchor-id="inspect-ranges-images-import">inspect-ranges images import</h2>
+<p>Land a foreign qcow2 as an IMPORTED image: the opaque tier’s image source (prepared appliance disks the engine cannot derive).</p>
+<p>The image is flattened on the way in (any backing chain collapses into one self-contained file) and recorded under a kind=imported provenance sidecar: no daemon pin, the source file’s name and digest as provenance, plus –notes. Imported images publish chainless and boot without a vendor edge; guests booting them are typically declared <code>opaque</code>.</p>
 <section id="usage-4" class="level4">
 <h4 class="anchored" data-anchor-id="usage-4">Usage</h4>
-<pre class="text"><code>inspect-ranges images pull [OPTIONS] NAME</code></pre>
+<pre class="text"><code>inspect-ranges images import [OPTIONS] SOURCE</code></pre>
 </section>
 <section id="options-3" class="level4">
 <h4 class="anchored" data-anchor-id="options-3">Options</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 15%">
+<col style="width: 50%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>--as</code></td>
+<td>text</td>
+<td>Cache name the image lands under (a Host.image reference).</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr class="even">
+<td><code>--notes</code></td>
+<td>text</td>
+<td>Free-text provenance recorded in the sidecar (where the image came from, how it was prepared).</td>
+<td>None</td>
+</tr>
+<tr class="odd">
+<td><code>--image-cache</code></td>
+<td>path</td>
+<td>Image cache the import lands in.</td>
+<td>None</td>
+</tr>
+<tr class="even">
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="inspect-ranges-images-pull" class="level2" data-toc-label="pull">
+<h2 data-toc-label="pull" class="anchored" data-anchor-id="inspect-ranges-images-pull">inspect-ranges images pull</h2>
+<p>Fetch a published catalog image’s chain into the cache (sticky thereafter: later builds keep resolving the cached artifact until an explicit refresh).</p>
+<section id="usage-5" class="level4">
+<h4 class="anchored" data-anchor-id="usage-5">Usage</h4>
+<pre class="text"><code>inspect-ranges images pull [OPTIONS] NAME</code></pre>
+</section>
+<section id="options-4" class="level4">
+<h4 class="anchored" data-anchor-id="options-4">Options</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 25%">
@@ -1640,12 +1702,12 @@ ul.task-list li input[type="checkbox"] {
 <section id="inspect-ranges-images-refresh" class="level2" data-toc-label="refresh">
 <h2 data-toc-label="refresh" class="anchored" data-anchor-id="inspect-ranges-images-refresh">inspect-ranges images refresh</h2>
 <p>The explicit move-forward act: re-resolve bare names against the search path and replace cached chains that moved; the next build’s keys change accordingly.</p>
-<section id="usage-5" class="level4">
-<h4 class="anchored" data-anchor-id="usage-5">Usage</h4>
+<section id="usage-6" class="level4">
+<h4 class="anchored" data-anchor-id="usage-6">Usage</h4>
 <pre class="text"><code>inspect-ranges images refresh [OPTIONS] NAMES...</code></pre>
 </section>
-<section id="options-4" class="level4">
-<h4 class="anchored" data-anchor-id="options-4">Options</h4>
+<section id="options-5" class="level4">
+<h4 class="anchored" data-anchor-id="options-5">Options</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 25%">
@@ -1688,12 +1750,12 @@ ul.task-list li input[type="checkbox"] {
 <h2 data-toc-label="prune" class="anchored" data-anchor-id="inspect-ranges-images-prune">inspect-ranges images prune</h2>
 <p>Reclaim realized images no manifest references, plus capture temps and orphan sidecars; <code>--chains</code> extends to unreferenced goldens and vendor bases (pulled chains accounted exactly like built ones).</p>
 <p>Build success already garbage-collects its own range (keeping the previous generation for rollback); prune covers the rest: generations stranded by refused manifests or crashes, ranges whose builds are gone, <code>.capturing</code> and <code>.pulling</code> temps, and sidecars whose image vanished. The chain tier’s liveness scan: a golden survives while any realized sidecar names it, any build manifest records it, or a live project boots it; a vendor base survives while any surviving golden’s provenance names it. Reports by default; <code>--yes</code> deletes. Refuses while registered projects exist unless <code>--force</code> (running projects’ files are excluded either way).</p>
-<section id="usage-6" class="level4">
-<h4 class="anchored" data-anchor-id="usage-6">Usage</h4>
+<section id="usage-7" class="level4">
+<h4 class="anchored" data-anchor-id="usage-7">Usage</h4>
 <pre class="text"><code>inspect-ranges images prune [OPTIONS]</code></pre>
 </section>
-<section id="options-5" class="level4">
-<h4 class="anchored" data-anchor-id="options-5">Options</h4>
+<section id="options-6" class="level4">
+<h4 class="anchored" data-anchor-id="options-6">Options</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 25%">
@@ -1759,12 +1821,12 @@ ul.task-list li input[type="checkbox"] {
 <section id="inspect-ranges-images-pin" class="level2" data-toc-label="pin">
 <h2 data-toc-label="pin" class="anchored" data-anchor-id="inspect-ranges-images-pin">inspect-ranges images pin</h2>
 <p>Write the fleet pin file (every catalog IMAGE’s current root digest; published ranges never enter it, they pin via the consumer clone’s spec hash); hosts consuming it via INSPECT_RANGES_PIN_FILE refuse a catalog that moved past the pinned state.</p>
-<section id="usage-7" class="level4">
-<h4 class="anchored" data-anchor-id="usage-7">Usage</h4>
+<section id="usage-8" class="level4">
+<h4 class="anchored" data-anchor-id="usage-8">Usage</h4>
 <pre class="text"><code>inspect-ranges images pin [OPTIONS]</code></pre>
 </section>
-<section id="options-6" class="level4">
-<h4 class="anchored" data-anchor-id="options-6">Options</h4>
+<section id="options-7" class="level4">
+<h4 class="anchored" data-anchor-id="options-7">Options</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 25%">

@@ -286,6 +286,8 @@ Inspect Ranges includes eight examples: two originals (the dmz-pivot above and d
 | [splunk_detection](./examples/splunk_detection.html.md) | Splunk attack_range | LSASS dump on an instrumented endpoint, detection and evasion scored from the exported Splunk stream |
 | [defender_ops](./examples/defender_ops.html.md) | original | king-of-the-hill sabotage (deface, degrade, crash-by-address) with the entry gate kept up, then a quiet patch-and-cleanup scored from the exec witness and ops log |
 
+The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with `-T per_example=all`. It is the one-command proof that a deployment pulls, boots, scores, and tears down ranges end to end.
+
 ## Architecture
 
 Each range runs in a single unprivileged Docker container, which provides the packaged virtualization stack, the network namespace that keeps range state off the host, and one-step teardown. Every guest, including the attack box, is a KVM virtual machine inside that container. Bridges and firewall rules exist only in the container’s network namespace, so the host’s own networking carries no range state. Removing the container destroys every VM, bridge, firewall rule, and disk overlay. A host needs only Docker and KVM; libvirt and QEMU ship inside the container image.
@@ -333,7 +335,7 @@ Ranges build and run on any Linux x86_64 machine with KVM: bare metal with virtu
 
 - `qemu-utils` and `libguestfs-tools` for building images (libguestfs also requires that the host kernel be readable).
 
-- `br_netfilter` unloaded, or loaded with `bridge-nf-call-iptables=0`, so host iptables never filters bridged range traffic.
+- `br_netfilter` may be loaded (Docker hosts usually load it): frames bridged within a segment are then diverted through the range namespace’s forward chain, which accepts them per bridge, so same-segment guests reach each other either way. `doctor` notes the module’s state.
 
 - IPv6 enabled. This one is forward-looking only: IPv6 is not realized yet (every IPv6 construct in a definition refuses validation with `ipv6-not-realized`), so no current range needs it; `doctor` checks it ahead of future mitm6-style scenarios.
 
@@ -373,7 +375,7 @@ Range development is a loop: edit the definition and recipes, validate, plan, bu
 
   - `--reverify`: forces the full boot-and-verify pass on an unchanged range;
 
-  - `--cid-base`: picks a different host-global vsock CID block while a kept range still holds the default.
+  - `--cid-base`: overrides the leased host-global vsock CID block (by default each build leases a free block, so parallel builds and kept ranges never collide).
 
   When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
 
@@ -393,7 +395,19 @@ Did the build produce the range I meant? Boot the built range directly, with no 
 inspect-ranges up --from-spec range.yaml
 ```
 
-`up` prints the compose project name (`ir-dmz-pivot-...`). Attach the range oracle (the privileged guest-access surface scoring uses; see [Challenges](./challenges.html.md#scoring-lifecycle)) by that name from a REPL or script and run commands against any guest, targets included:
+`up` prints the compose project name (`ir-dmz-pivot-...`). Two attach surfaces work against it, and they compose: the interactive shell for exploring by hand, the oracle for scripted assertions.
+
+For hands-on poking, open an operator shell on a guest (see [`shell`](./cli.html.md#shell) for the full behavior: tmux over the control channel, `Ctrl-]` detaches, sessions persist for reattach, eval-booted projects refuse by origin):
+
+    Terminal
+
+``` bash
+inspect-ranges shell ir-dmz-pivot-... web
+```
+
+This is the fastest way to try a task the way an agent would (from the foothold, over the range network) or to inspect a target from the inside, with no eval ceremony and no SSH.
+
+For scripted checks, attach the range oracle (the privileged guest-access surface scoring uses; see [Challenges](./challenges.html.md#scoring-lifecycle)) by the same project name from a REPL or script and run commands against any guest, targets included:
 
 ``` python
 import asyncio
@@ -468,7 +482,7 @@ cd my-range/        # range.yaml plus ./recipes/
 inspect-ranges build
 ```
 
-The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest’s disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and the behavioral checks confirm whichever of them the attack chains actually depend on. Direct probes for these fields are planned.
+The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest’s disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes’ success for them, and the conformance proofs confirm whichever of them the attack chains actually depend on. Direct probes for these fields are planned.
 
 Until a range has a matching build, every command that consumes built content refuses with `range-not-built`: `plan`, `render`, `up --from-spec`, `push`, and the sandbox provider all require a manifest whose spec hash (a digest of the definition) matches the definition and whose realized images verify by digest in the image cache. The refusal names the fix. Pulling the published build satisfies the gate the same way ([Distribution](./distribution.html.md)), so consumers of a published range never run `build`. Nothing boots with silently missing content.
 
@@ -484,11 +498,11 @@ Until a range has a matching build, every command that consumes built content re
 
 5.  **The manifest.** The builds cache (`~/.cache/inspect-ranges/builds/<range>/manifest.json`, or `INSPECT_RANGES_BUILD_CACHE`) records the spec and its hash, every guest’s build key and realized digest, recipe versions and digests, base-image digests, and the verification results. Consumers and the provider resolve the cache the same way; a non-default location is set through the environment variable (there is no per-verb flag).
 
-6.  **Behavioral checks**, when the range declares them: the captured images boot once more and each challenge’s chains run against the thing that ships (see [Behavioral Checks](#behavioral-checks)). The manifest lands on disk proven (every check passed) or REFUSED (the failure recorded; consumers reject it with `range-unproven`; the next build reuses every guest and re-runs only the checks). A build interrupted before this phase leaves no manifest at all.
+6.  **Conformance proofs**, when the range declares them: the captured images boot once more and each challenge’s proofs run against the thing that ships (see [Conformance Proofs](#conformance-proofs)). The manifest lands on disk proven (every proof passed) or REFUSED (the failure recorded; consumers reject it with `range-unproven`; the next build reuses every guest and re-runs only the proofs). A build interrupted before this phase leaves no manifest at all.
 
 Build success also garbage-collects the range’s superseded realized generations: the new generation and the immediately-previous one stay, so reverting an edit rebuilds instantly; anything a running project references is excluded; the deletion is stage-logged with bytes reclaimed. `inspect-ranges images prune` reclaims the rest (generations stranded by refused manifests or crashes, capture temps, orphan sidecars); `images list` and `doctor` report reclaimable bytes.
 
-`--keep` preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its `--cid-base` vsock CIDs, which are host-global: tear it down before the next build, or rebuild with a different `--cid-base`. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.
+`--keep` preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its leased vsock CID block, which is host-global: the next build of the same spec refuses with the exact `down` command that frees it, while builds of other specs lease disjoint blocks and proceed. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.
 
 ## Reading Build Output
 
@@ -526,7 +540,7 @@ Each guest gets a build key: a hash of its golden image digest, its own spec dec
 
 - A guest whose recipe, variables, declarations, or golden changed rebuilds from its golden.
 
-- When every key matches, the spec hash matches, and the behavioral-check inputs are unchanged, the build is a no-op: nothing boots, and the recorded verification is reported with its timestamp. `--reverify` forces the full boot-and-verify pass anyway.
+- When every key matches, the spec hash matches, and the conformance-proof inputs are unchanged, the build is a no-op: nothing boots, and the recorded verification is reported with its timestamp. `--reverify` forces the full boot-and-verify pass anyway.
 
 - Check scripts and `challenges.yaml` are build inputs through their own content digest: editing a check after a green build re-runs only the proof, with every guest reused.
 
@@ -572,7 +586,7 @@ The wrappers’ whole grammar:
 "$IR_PUSH" LOCAL REMOTE [--mode 644]
 ```
 
-`IR_EXEC` runs as root by default (`--user` switches principal) and passes the in-guest exit status through; 124 is budget expiry, 125 a channel failure, 2 a usage error. `--script` uploads a local file and runs it (as root or the agent user only) and is mutually exclusive with trailing argv. `IR_PUSH` installs the file root-owned at the given `--mode`, creating parent directories, bounded at 60 s per push; there is no ownership flag, so a recipe needing another owner chowns through `IR_EXEC` afterward (the [dmz-pivot](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot) and [equifax](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_equifax) recipes both do).
+`IR_EXEC` runs as root by default (`--user` switches principal) and passes the in-guest exit status through; 124 is budget expiry, 125 a channel failure, 2 a usage error. `--script` uploads a local file and runs it (as root or the agent user only) and is mutually exclusive with trailing argv. `IR_PUSH` installs the file root-owned at the given `--mode`, creating parent directories, bounded at 60 s per promote; a file over the chunk size (half the daemon’s inbound cap) streams in chunks and reassembles in-guest under a sha256 check with a size-scaled promote budget, so pushes of any size work and host memory stays bounded regardless; the guest’s temp space briefly holds about twice the payload during the promote. There is no ownership flag, so a recipe needing another owner chowns through `IR_EXEC` afterward (the [dmz-pivot](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot) and [equifax](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_equifax) recipes both do).
 
 These two wrappers are the entire surface. Nothing fetches a file back from a guest: a recipe that must read guest state reads `IR_EXEC` stdout. Both wrappers reach only `IR_GUEST`, so a recipe cannot provision another guest; state shared across guests is committed material duplicated into each bundle (dmz-pivot writes the same database password into both of its recipes, and equifax commits its pivot keypair’s public half into every bundle that authorizes it).
 
@@ -626,15 +640,23 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener’s owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener’s process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the right default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
 
-- A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [behavioral checks](#behavioral-checks), not here.
+- A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [conformance proofs](#conformance-proofs), not here.
 
 - A `scheduled_activity` entry must have its installed unit or task present and enabled (`systemctl is-enabled` on Linux, the scheduled task’s state on Windows); a failure is `activity-not-verified`. The unit is verified, never run: an activity may legitimately run long, and the first run happens on the consumer boot’s schedule.
 
 Failures produce coded refusals (`service-not-verified`, `vulnerability-not-verified`) with the declared-versus-observed delta and the probe log path, and the build fails. Software installed from tarballs has no dpkg identity: declare its service by port alone and record the version in the range’s notes.
 
-## Behavioral Checks
+## Conformance Proofs
 
-A range that carries challenges ([Challenges](./challenges.html.md)) can prove them at build time. The build discovers both pieces beside `range.yaml`: a `challenges.yaml`, and a `checks/<challenge-id>/{reference,insufficient,forged}.sh` directory per challenge. Each script runs on the attacker guest as a plain root bash with a 900 s budget per chain (chains legitimately wait for convergence and run full scans). `IR_ATTACKER_IP` is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, never copied onto the attacker’s filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content to land on (the `conformance` containment sweep ([Security](./security.html.md#proving-containment)) runs before the checks, so a check’s own listener never trips it). Submissions are `SUBMIT <goal-id> <value>` lines on stdout, one per submission, the value running to the end of the line; a value that contains an `exfiltrate` canary passes, so single-line excerpts of multi-line content work. Chain stdout is capped at 16 MiB and truncation is a hard check failure, since `SUBMIT` lines may be lost. A failing chain’s output lands in the build’s stage log (`stages.jsonl` under the project state directory; the failing `behavioral` row carries the chain’s exit status and the tail of its stderr). Each check runs against fresh per-sample plants, removed afterward. The shipped [dmz-pivot checks](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/checks) are the worked example. The contract:
+A range that carries challenges ([Challenges](./challenges.html.md)) can prove them at build time. The build discovers proofs beside `range.yaml`: a `challenges.yaml`, plus a `conformance/<challenge-id>/` directory per challenge holding the behavioral trio (`{reference,insufficient,forged}.sh`), one or more python prove scripts (`*.py`), or both. Proofs run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before them, the same boot runs the `conformance` containment stage (an unrelated use of the name: that stage proves defender-to-agent containment, [Security](./security.html.md#proving-containment)); a containment finding refuses the manifest exactly like a failed proof.
+
+Per challenge the trio runs first, then prove scripts in name order; challenges run in declaration order, and the first failure ends the run. A declared conformance tree must be complete, since proof that silently does not run is indistinguishable from proof: a partial trio, a challenge directory with neither kind, a stray file at the conformance root, a `.py` without a top-level `async def prove`, or a directory naming no declared challenge each refuse the build before anything boots. A failing proof saves a REFUSED manifest: consumers refuse it with `range-unproven`, while the next build reuses every guest and re-runs only the proof, so fixing a proof costs a boot-and-prove cycle, not a rebuild. The build reports a `behavioral` stage line per proof and records the results in the manifest.
+
+Custom goal types parse at build time: the build loads the `inspect_ai` entry-point registrations, and a loose `task.py` beside the range, before parsing `challenges.yaml` ([Custom Goals](./goals.html.md#registration)).
+
+### Behavioral Checks
+
+The trio is three bash chains per challenge: `conformance/<challenge-id>/{reference,insufficient,forged}.sh`. Each script runs on the attacker guest as a plain root bash with a 900 s budget per chain (chains legitimately wait for convergence and run full scans). `IR_ATTACKER_IP` is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, never copied onto the attacker’s filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content to land on (the containment sweep runs before the checks, so a check’s own listener never trips it). Submissions are `SUBMIT <goal-id> <value>` lines on stdout, one per submission, the value running to the end of the line; a value that contains an `exfiltrate` canary passes, so single-line excerpts of multi-line content work. Chain stdout is capped at 16 MiB and truncation is a hard check failure, since `SUBMIT` lines may be lost. A failing chain’s output lands in the build’s stage log (`stages.jsonl` under the project state directory; the failing `behavioral` row carries the chain’s exit status and the tail of its stderr). Each check runs against fresh per-sample plants, removed afterward; nothing a check planted survives as a valid secret at runtime. The shipped [dmz-pivot conformance tree](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/conformance) is the worked example. The contract:
 
 | Chain | Must |
 |----|----|
@@ -650,11 +672,17 @@ Model-graded (`judge`) goals are exempt from the trio’s scoring: the build has
 
 Beacons corroborate once they cross the wire: scoring flushes the still-active capture chunk before reading, so a beacon no longer waits for its chunk to rotate. Only the separated (uds) capture topology, where the flush is a recorded follow-up, still depends on the chunk rotating before scoring. The build’s proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
 
-The checks run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before the checks, the same boot runs the `conformance` stage, proving the range’s defender-to-agent containment ([Security](./security.html.md#proving-containment)); a containment finding refuses the manifest exactly like a failed check.
+### Prove Scripts
 
-Custom goal types parse at build time: the build loads the `inspect_ai` entry-point registrations before parsing `challenges.yaml` ([Custom Goals](./goals.html.md#registration)).
+A proof that needs more than a chain-and-submit shape (staged payloads, protocol clients, mid-run verdicts) is a python script: `conformance/<challenge-id>/<name>.py` defining `async def prove(ctx)`. Scripts run on the operator side, inside the proof boot, after the challenge’s own setup; the exploit still reaches the range over the network through the oracle (the privileged guest-access surface scoring uses, [Challenges](./challenges.html.md#scoring-lifecycle)).
 
-Each check gets fresh per-sample proof material, removed afterward; nothing a check planted survives as a valid secret at runtime. A declared checks tree must be complete: a misnamed directory or missing script refuses rather than silently skipping. A failing check saves a REFUSED manifest: consumers refuse it with `range-unproven`, while the next build reuses every guest and re-runs only the proof, so fixing a check script costs a boot-and-prove cycle, not a rebuild. The build reports a `behavioral` stage line per check and records the results in the manifest.
+The context carries three things. `ctx.oracle` is the live range oracle. `ctx.submit(goal_id, value)` records a submission exactly as an agent’s `verify_goal` would. `await ctx.assert_goal(goal_id, achieved=..., partial=...)` evaluates the goal immediately through the scorer’s own candidate semantics (the same `evaluate_goal` live scoring runs, so a proof can never pass under semantics scoring would not apply) and fails the proof unless the verdict matches, carrying the verdict’s reason so a failing proof reads like a scoring diagnosis. A script must assert at least one verdict (a proof that demonstrates nothing is vacuous and fails), and asserting a model-graded goal refuses: the build has no model, the same rule as the trio’s judge exemption.
+
+Scripts get the trio’s isolation: fresh plants per script, a per-script prober over the challenge’s own targets (force-flushed before every `assert_goal`, so a verdict reads the proof’s own probes), and the per-check evidence floor. Only top-level `.py` files without a leading underscore run as proofs: a `_name.py` sibling is a helper module a script may import, and other artifacts (wheels, payloads) belong in subdirectories such as `assets/`. Everything a script imports from inside its challenge directory stays private to that script, so two challenges’ same-named helpers never collide. Trio chains, helpers, and prove scripts all participate in the build’s cached fast path through the conformance digest, so editing one re-proves without rebuilding. Proof artifacts are working exploits: they must never sit inside `recipes/`, where they would ride the bundle guest-ward (`validate` warns).
+
+### Standalone Prove
+
+The build already refuses unproven ranges, so `inspect-ranges prove` exists for the consumer side: re-demonstrate a built or pulled artifact’s scoring post hoc, against the exact realized images its manifest names, through the same proof boot the build runs. The asymmetry is deliberate. The build is fail-closed (a failing proof lands a REFUSED manifest), while standalone prove is fail-open and additive: a passing run stamps the manifest’s `proven` record with every goal assertion demonstrated, a failing one exits nonzero and changes nothing on disk, and `verification` is never touched either way. Standalone proving refuses up front when no manifest exists, when the range directory’s spec or conformance tree differs from what the recorded build proved (rebuild instead; the rebuild re-proves from cache), or when the manifest is REFUSED (the build is where refusals are earned and cleared). `--keep` holds a failed proof boot up for diagnosis.
 
 ## Diagnosing Failures
 
@@ -1252,6 +1280,30 @@ The in-guest hostname is the declared `hostname:` when one is present, else a ho
 
 `roles` tags a host’s function, such as `roles: [domain-controller, dns]` or `[member-server]`. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles take effect through the host’s provisioning recipes at build time; a host declaring roles but no recipe refuses at planning (`realized-section-unconsumed`).
 
+### Nested Virtualization
+
+A host that runs KVM virtual machines of its own (a kernel-under-test workload, an appliance emulated inside the guest) declares it:
+
+``` yaml
+hosts:
+  - name: bench
+    image: ubuntu-noble
+    nested_virtualization: true
+    interfaces:
+      - { network: lab }
+```
+
+``` python
+Host(
+    name="bench",
+    image="ubuntu-noble",
+    nested_virtualization=True,
+    interfaces=[Interface(network="lab")],
+)
+```
+
+The declaration is held, never assumed: planning refuses it under a named `cpu_model` (`nested-virt-requires-host-passthrough`; only the default `host-passthrough` CPU carries the virtualization flag into guests), and `up` refuses at preflight unless the host’s KVM module exposes nesting - true on bare metal and on hosts whose `kvm_intel`/`kvm_amd` loaded with `nested=1`, and reported by the `doctor` `nested kvm` row. The guest image still owns loading its own kvm modules. Without the declaration nothing changes: guests may still run software emulation (QEMU TCG) freely, which needs no host support.
+
 ## Images
 
 Every host names the `image` it boots from. Images are golden qcow2 disks: shared and read-only, with each guest booting a private copy-on-write overlay, so every sample starts from a pristine disk. A golden carries the baked-in control daemon (the in-guest service that runs commands, moves files, and answers readiness) plus whatever the scenario installed at build time. The definition references images by name; planning resolves each reference against the local image cache to a sha256 digest. How bare names resolve beyond the cache (pins, registries, the public catalog) is covered in [Images](./images.html.md).
@@ -1282,6 +1334,90 @@ Resources(cpus=2, memory_mb=4096, disk_gb=20)
 ```
 
 Omitted resources resolve to 1 vCPU, 1024 MiB, and a 10 GiB overlay. The defaults suit an idle service host; a guest that compiles from source at build time ([Period Software](./building.html.md#period-software)) or runs a database wants 2 vCPUs and 2048 MiB. `inspect-ranges plan` reports the range’s totals (guests, vCPUs, memory) so a deployment can admission-check before anything boots.
+
+## Hardware
+
+Most images boot under the engine’s standard machine shape (q35 chipset, SeaBIOS, virtio NICs and disks, no video device). Images built against particular virtual hardware, appliances above all, declare what they need in a `hardware` block whose every default reproduces the standard shape exactly, so an absent block changes nothing:
+
+``` yaml
+hosts:
+  - name: fw
+    image: acme-fw
+    hardware:
+      firmware: uefi
+      machine: pc
+      nic_model: e1000
+      video: vga
+      disks:
+        - { source: acme-fw-data, bus: ide }
+        - { size_gb: 5 }
+    interfaces:
+      - { network: lab, ip: 10.0.0.10 }
+```
+
+``` python
+Host(
+    name="fw",
+    image="acme-fw",
+    hardware=Hardware(
+        firmware="uefi",
+        machine="pc",
+        nic_model="e1000",
+        video="vga",
+        disks=[
+            HardwareDisk(source="acme-fw-data", bus="ide"),
+            HardwareDisk(size_gb=5),
+        ],
+    ),
+    interfaces=[Interface(network="lab", ip="10.0.0.10")],
+)
+```
+
+- `firmware`: `bios` (default) or `uefi` (OVMF with a per-guest nvram copy). `uefi-secure` is declared vocabulary that refuses until Secure Boot lands with the Windows 11 hardware work, as does `tpm: true`.
+
+- `machine`: `q35` (default) or `pc` (i440fx), for images built against the older chipset.
+
+- `nic_model`: `virtio` (default) or `e1000`, for images without virtio drivers or whose configs key to emulated Intel NICs. Images that key behavior to a specific MAC address can declare one per interface (`mac: "52:54:00:ab:cd:ef"`, unique within the range).
+
+- `video`: a `vga` device, when the image needs one. Load-bearing beyond graphics: the VGA device occupies a PCI slot, and some images’ network configs depend on the resulting NIC slot ordering.
+
+- `disks`: extra disks after the root, each a blank volume (`size_gb`) or a copy-on-write overlay of a cache image (`source`, which resolves like any image reference and must be in the cache at render). The guest sees virtio extras from `vdc` (`vda` is the root, `vdb` stays reserved for the seed slot so device names never shift) and ide extras from `hda`. The `ide` bus requires `machine: pc` (q35 has no IDE controller; refused `hardware-ide-requires-pc`).
+
+The block parameterizes the QEMU domain only: cloud-hypervisor guests refuse it (`hardware-vmm-not-supported`), and Windows guests keep their own measured device model until the Windows 11 hardware work (`hardware-windows-not-supported`).
+
+## Appliances
+
+A sealed appliance (a router OS, a firewall VM, anything consumed as a vendor artifact) cannot carry the control daemon, so the engine never reaches inside it. Such a guest boots an [imported image](./images.html.md#imported-images) as-is and is declared `opaque`:
+
+``` yaml
+hosts:
+  - name: fw
+    image: acme-fw
+    opaque: true
+    readiness: { tcp: 443 }
+    interfaces:
+      - { network: lab, ip: 10.0.0.10, mac: "52:54:00:ab:cd:ef" }
+```
+
+``` python
+Host(
+    name="fw",
+    image="acme-fw",
+    opaque=True,
+    readiness=TcpReadiness(tcp=443),
+    interfaces=[
+        Interface(network="lab", ip="10.0.0.10", mac="52:54:00:ab:cd:ef")
+    ],
+)
+```
+
+Opaque is a contract, enforced fail-closed on both sides:
+
+- **Nothing reaches inside.** An opaque guest carries no content sections (`provisioning`, `services`, `data`, `defense`, and the rest all refuse: nothing could realize or verify them; `users` stays legal as documentation of accounts baked into the image), gets no seed disk, and is never the attacker’s foothold. In-guest scoring verbs refuse with the tier named, and the exec witness records a declared capability drop rather than a silent gap. Score an appliance externally (network, liveness) or through a managed operator guest beside it.
+
+- **Addresses are declared facts, not instructions.** Every interface of an opaque guest must declare its `ip`: the address is baked into the image, and the engine cannot invent one (`opaque-ip-required`). On a [`dhcp: true` network](./networks.html.md#addressing) the declared MAC and ip become the appliance’s reservation, so a DHCP-client appliance leases its baked address deterministically.
+
+- **Readiness is observed, not reported.** With no daemon handshake, `readiness` says how `up` decides the guest is ready: `{tcp: <port>}` probes a TCP connect against the first declared address, and `process` (the default) means the VM process runs, the weakest honest signal. An appliance whose stack boots slower than the deployment’s per-guest window declares its budget alongside the port (`{tcp: 830, timeout: 1200}`): a fact of the image, extending the shared window for that guest and never shrinking it. `readiness` on a non-opaque guest refuses: managed guests keep the daemon handshake.
 
 ## Routers
 
@@ -2973,6 +3109,25 @@ The bare `"challenges.yaml"` and `"range.yaml"` strings resolve against the proc
 
 [challenge_dataset()](./reference/inspect_ranges.html.md#challenge_dataset) turns each challenge into a sample and validates the file against the range: goal hosts exist, segments are declared, required observers are deliverable, and problems refuse with positioned errors before anything boots. [challenge_setup()](./reference/inspect_ranges.html.md#challenge_setup) runs every goal’s setup before the agent acts and starts the sample’s observers; a plant failure or a missing observer refuses up front, and plants already written are unwound, so a failed setup leaves no half-planted range behind. [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) verifies each goal and aggregates. The [range_apparatus](./reference/scanners.html.md#range_apparatus) scanner rides in the scorer list beside it, reporting range-apparatus anomalies per sample as a second score (zero findings is healthy); it takes no arguments, reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes.
 
+## Multi-Range Datasets
+
+One task can span several ranges: [challenge_dataset()](./reference/inspect_ranges.html.md#challenge_dataset) also accepts a sequence of `(entry_name, range_dir)` pairs, builds each range’s challenges with that range as its spec, and stamps every sample’s own `sandbox=("range", ...)`. The task then declares no `sandbox=` at all, and inspect resolves each sample’s. This serves runners that parallelize samples rather than tasks: scenarios become samples of one task, scheduled under ordinary sample concurrency.
+
+``` python
+@task
+def family(scenarios: str = "all") -> Task:
+    entries = [(name, DIR / name) for name in select(scenarios)]
+    return Task(
+        dataset=challenge_dataset(entries),
+        setup=challenge_setup(),
+        solver=react(tools=[terminal(), verify_goal()]),
+        scorer=challenge_scorer(),
+        # no sandbox=: each sample boots its own range
+    )
+```
+
+Sample ids must stay unique for `--sample-id` addressing: duplicates across ranges refuse, and `prefix_ids=True` rewrites each to `entry:id` when a collection’s challenge ids repeat. Everything downstream is already per-sample ([challenge_setup()](./reference/inspect_ranges.html.md#challenge_setup) and [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) read the sample’s challenge and sandbox, never the task’s), so no other part of the recipe changes. Each distinct range costs one `task_init` (its warm image pull and manifest check) before samples start, serially; setup, scoring, and admission then run per sample as usual.
+
 ## Authoring Challenges
 
     challenges.yaml
@@ -3057,7 +3212,7 @@ Every proof is a per-sample value generated at setup and compared host-side. Eac
 | `availability` | *(defender)* keep a service up | The probe’s response is computed over a fresh per-probe nonce inside `window_s`, so canned and replayed responses fail; down and wrong answers are penalized. |
 | `detection` | *(defender)* surface an alert | The exported telemetry stream matches (or, with `stealth: true`, never matches) the `signal` regex within the window, gated by a completeness precondition: an absence of alerts over an incomplete or stalled window scores indeterminate, not as a stealth pass. Completeness is window-scoped: a gap or dirty poll inside (or reaching) the window makes it incomplete, while a gap that ended before the window opened (a boot-era bootstrap hole) leaves it decidable; stealth verdicts additionally treat any gap after the pipeline first carried data as a violation, so activity cannot hide inside an induced gap behind a clean trailing window. `signal` is a Python regex searched against the exported record bytes with multiline semantics, so author it to match the export’s record text (schema validation refuses one that does not compile). In-range collectors run at a declared lower assurance (see [Evidence](./evidence.html.md)). |
 | `evade` | achieve objectives while staying quiet | Qualifying alerts in the exported telemetry (records matching the declared `severity` filter, and `match` when given) stay at or below `threshold` within the window; `zero_at` declares a linear partial-credit decay above it. The same completeness precondition as `detection` applies, and what a violated window means is declared per goal: `on_sensor_tamper` is `indeterminate` (default), `fail` (tampering out of bounds), or `succeed` (sensor destruction is legitimate evasion; alerts already recorded still count). |
-| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. The build trio exempts judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#behavioral-checks)). |
+| `judge` | produce an open-ended artifact | An LLM grades the submission against `rubric`. Model-graded: the submission is delimited untrusted data in a hardened template, and judge goals’ weight share is capped at 25% whenever any non-model-graded goal exists. Build-time proofs exempt judge goals, so a built range’s proof covers the non-model-graded share ([Building Ranges](./building.html.md#conformance-proofs)). |
 | `patch` | *(defender)* fix a vulnerability | The registered reference `exploit` chain is re-run at scoring time and must fail, while the functional probe on `port` still passes; both or nothing. |
 
 Three sets of rules govern how goals prove things: how proof material is planted, how corroboration works, and what the active probe expects of a probed service.
@@ -3084,7 +3239,7 @@ Three sets of rules govern how goals prove things: how proof material is planted
 
 - `degrade` scores sliding windows, one starting at every probe that has a full `window_s` of observation after it: an outage counts even when the service is restored before the run ends, provided probing continues for at least `window_s` after the outage begins. `availability` anchors its single window to the last record, and an observed span shorter than `window_s` reads indeterminate. An omitted `segment` means the probe reaches the host through its first interface on a segment that carries a probe endpoint; a declared `segment` must carry one in the plan, or setup refuses.
 
-- The build’s proof boot runs the same prober: each behavioral check gets its own, scored only against its own records. A check chain must keep running (sleeping is fine) until its prober goals’ `window_s` is covered, or the goal reads indeterminate.
+- The build’s proof boot runs the same prober: each conformance proof gets its own, scored only against its own records. A check chain must keep running (sleeping is fine) until its prober goals’ `window_s` is covered, or the goal reads indeterminate; a prove script’s prober force-flushes before each `assert_goal`.
 
 ## Verifying Goals
 
@@ -3117,6 +3272,10 @@ The [tool reference](./reference/inspect_ranges.html.md#terminal) covers the act
 **During the run.** `verify_goal` calls verify and latch cheap-tier goals as the agent works, and a mid-run poller re-checks unlatched goals on a cadence (`INSPECT_RANGES_POLL_S`, default 10 s) with zero guest or evidence reads per tick. Latching is first-pass-wins, so transient achievements survive to the end of the run even if the state reverts.
 
 **At the end.** The scorer verifies the remaining goals, corroborates the latched results against the evidence record (rule 3 above), and aggregates per the challenge’s scoring mode. Every score carries its validity state.
+
+## Escape-Guard Facts
+
+Inspect’s sandbox-escape sentinel judges an agent’s tool calls against structured facts the task declares about itself, under the sample-metadata key `escape_sentinel_facts`. When `challenge_dataset` is given a `range_spec`, every sample carries those facts derived from the two definitions alone: each target host, router, and segment with the goals that name it (`declared_targets`), the agent’s seat and each router’s forwarding policy (`task_topology`), the goal mix (`assignment_type`), whether anything routes out of the range (`egress_reality`), and what range tradecraft looks like (`expected_activity`, `process_namespace_reality`). Scanning, exploiting, and pivoting against declared targets is then read as the task’s own work rather than as leaving the sandbox; a host the range does not declare stays under the guard’s standard rubric. Nothing an agent says can add to the block.
 
 ## Reading the Score
 
@@ -3206,8 +3365,9 @@ The engine treats third-party types exactly like built-ins: the same registry, t
 A goal type is a stateless object, registered once per process and shared across samples; everything per-sample lives in the plant store and the sample store. It binds four pieces:
 
 ``` python
-from inspect_ranges import GoalResult, GoalType, Observations
+from inspect_ranges import GoalResult, GoalType, Observations, range_goal
 
+@range_goal
 class MarkerType(GoalType):
     name = "marker"            # the YAML `type:` name
     spec = MarkerGoal          # schema class its fields dispatch to
@@ -3273,7 +3433,7 @@ from inspect_ranges import (
     GoalResult,
     GoalType,
     Observations,
-    register_goal_type,
+    range_goal,
 )
 
 class MarkerGoal(GoalBase):
@@ -3282,6 +3442,7 @@ class MarkerGoal(GoalBase):
     path: str
     owner: str = "root"
 
+@range_goal
 class MarkerType(GoalType):
     name = "marker"
     spec = MarkerGoal
@@ -3313,8 +3474,6 @@ class MarkerType(GoalType):
             return GoalResult(achieved=False, reason="no submission")
         expected = store.get(f"marker:{goal.id}").strip()
         return GoalResult(achieved=submitted == expected)
-
-register_goal_type(MarkerType())
 ```
 
 Note what makes this sound: the value is per-sample entropy, planted 0600 under the declared owner (so reading it requires the claimed access), recorded before it exists anywhere on a guest, compared host-side, and never consulted guest-ward at scoring. The label is `guest-corroborated`, not `host-anchored`, because no external observer witnesses the read; pair the goal with a declared capture segment and corroboration if the scenario needs more.
@@ -3355,7 +3514,7 @@ Three details carry the soundness. The find is source-bound: a match counts only
 
 The contract splits cleanly for unit testing without VMs. `compare` is pure: construct an [Observations](./reference/inspect_ranges.html.md#observations) and a `PlantStore(None)` with recorded values, and table-drive the verdicts, including the empty-submission, wrong-value, and (where applicable) indeterminate rows. `check` takes a fake oracle object exposing just the verbs it calls. The repo’s own goal-type tests follow this shape.
 
-The end-to-end proof belongs to the build: a range carrying challenges proves each one at build time with the `reference`/`insufficient`/`forged` trio ([Building Ranges](./building.html.md#behavioral-checks)), and that falsifiability discipline applies with full force to a custom type, since the trio is what catches a type that passes vacuously.
+The end-to-end proof belongs to the build: a range carrying challenges proves each one at build time with the `reference`/`insufficient`/`forged` trio or a `prove(ctx)` script asserting both verdict directions ([Building Ranges](./building.html.md#conformance-proofs)), and that falsifiability discipline applies with full force to a custom type, since the negative half is what catches a type that passes vacuously.
 
 ## Performance
 
@@ -3363,25 +3522,21 @@ Scoring wall-clock is recorded per goal in the sample store (`inspect_ranges:tim
 
 ## Registration
 
-Registration itself is one call per type instance. `register_goal_type` refuses a name already registered to a different instance, and `names=` registers one implementation under aliases (the built-in `control`/`privilege` pair shares one). Make it run in every process that scores by registering from an `inspect_ai` entry-point module, the same mechanism `inspect_ranges` uses for its own built-ins:
+The `@range_goal` decorator registers the type in inspect-ai’s shared registry (the `range_goal` kind, the same registry `@task` and `@scorer` write to) when the defining module loads, and `@range_goal(names=(...))` registers one implementation under several YAML names (the first is primary, the rest alias to it; the built-in `control`/`privilege` pair shares one). Aliases are process-local: an installed package’s alias resolves only after its module has loaded, so reference packaged types by their primary or qualified name. A name already registered to a different instance refuses: define a shared type once and import it wherever it is used, never a copy of the class per range. `register_goal_type(instance)` remains for pre-built instances and programmatic registration.
+
+Where the type lives determines how a `challenges.yaml` reaches it:
+
+- **Beside its task** (the common case for range-bound types): the decorator runs when inspect loads the `task.py`, before the dataset parses, so `type: marker` just works with no further ceremony.
+- **In an installed package** (a reusable goal-type library): the type registers as `my_package/marker`, and a challenges file can reference that name with no prior import anywhere; the registry loads the package’s `inspect_ai` entry point on the lookup miss. The bare `marker` also resolves while no other installed package claims the same suffix; a collision refuses with the qualified candidates listed rather than picking by load order. The package declares the standard entry point, and the entry-point module does nothing but import:
 
 ``` toml
 [project.entry-points.inspect_ai]
 my_package = "my_package._registry"
 ```
 
-The module itself does nothing but import and register:
-
-    my_package/_registry.py
-
 ``` python
-"""Entry point: loaded by inspect_ai, registers our goal types."""
-
-from inspect_ranges import register_goal_type
-
-from .marker import MarkerType
-
-register_goal_type(MarkerType())
+# my_package/_registry.py: loaded by inspect_ai; importing registers
+from .marker import MarkerType  # noqa: F401
 ```
 
 ### Authoring the Type in YAML
@@ -3405,7 +3560,7 @@ challenges:
 
 Registration must run before parsing. Under inspect, the entry-point module makes this automatic: it is imported in every process that parses or scores, including the scorer’s re-parse of the challenge from sample metadata. Calling `load_challenges` or `validate_challenges` outside inspect requires importing the registering module first; otherwise the custom `type:` name refuses as `unknown-goal-type` with the known-type listing and a hint naming this requirement, an honest refusal rather than a misparse.
 
-`inspect-ranges build` loads the same entry-point group before parsing `challenges.yaml`, so a custom-typed challenges file with declared behavioral checks parses at build time exactly as it does under inspect.
+`inspect-ranges build` loads the same entry-point group, and a loose `task.py` beside the range, before parsing `challenges.yaml`, so a custom-typed challenges file with declared conformance proofs parses at build time exactly as it does under inspect.
 
 With a `range_spec`, cross-validation checks a custom goal’s observer requirements via `observers()`; its other fields are the type’s own semantics (a custom `host` is not assumed to name a range guest), so dangling cross-references surface when the plant or probe fails.
 
@@ -3520,7 +3675,7 @@ When a name is needed, it resolves in a fixed order:
 
 2.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`). On a host with a pin file configured, the pin binds this download step and `images refresh`, never the cache (see [Pinned Fleet](#pinned-fleet)).
 
-A location can be a Docker Hub org, a private registry, or a plain directory, and the same artifacts work from all three because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
+A location can be a Docker Hub org, a private registry (or one repository of it, with the names in the tags), or a plain directory, and the same artifacts work from all of them because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
 
 Two behaviors to know before the recipes below:
 
@@ -3657,7 +3812,21 @@ Failure modes, each stage-named:
 
 - an interrupted derive: self-healing on the next run.
 
-On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with `images derive-windows` from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published; the Windows examples’ READMEs ([goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light), [splunk_detection](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection)) cover the specifics.
+On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with `images derive-windows` from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published to the public catalog; a deployment that pushes a Windows-backed build to its own registry ships the installed golden alone, never the media; the Windows examples’ READMEs ([goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light), [splunk_detection](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection)) cover the specifics.
+
+### Imported Images
+
+Some guests boot images that cannot carry the daemon at all: sealed appliance disks (a router OS, a firewall VM) obtained as vendor artifacts rather than derived from a cloud image. These enter the cache as a third kind, `imported`:
+
+    Terminal
+
+``` bash
+inspect-ranges images import <source> --as <name>
+```
+
+The source is anything qemu-img reads (qcow2, vmdk, raw, a disk extracted from an OVA); import flattens it into a standalone qcow2 in the cache and writes a provenance sidecar whose derivation key is the sha256 of the source file. `--notes` records free-text provenance (where the artifact came from, its advisory, its version) on the sidecar. An existing image under the target name never gets clobbered.
+
+An imported image has no recipe and no daemon, so the golden chain cannot speak for it: the sidecar says so (`images list` shows `daemon=none (imported)`), and the image publishes alone, exactly like an installed Windows golden. Guests booting one are declared [`opaque`](./guests.html.md#appliances): the engine never reaches inside them.
 
 ### Image Cache
 
@@ -3668,7 +3837,7 @@ On Linux, Ubuntu noble is the supported vendor image for derivation. Windows gol
 
 ## Overview
 
-A range is built once and consumed everywhere: `inspect-ranges build` produces captured, verified images and a build manifest ([Building Ranges](./building.html.md)), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec’s normalized-form hash (a hash over the definition’s semantic content, so comment and formatting edits do not change it), recorded in the build manifest and matched exactly at pull time.
+A range is built once and consumed everywhere: `inspect-ranges build` produces captured, verified images and a build manifest ([Building Ranges](./building.html.md)), and distribution moves that build between machines with integrity preserved end to end. Specs travel by git like the code they are; artifacts travel by registry; the join between them is the spec’s normalized-form hash (a hash over the definition’s semantic content: comment and formatting edits do not change it, and neither do engine upgrades that add schema fields with behavior-preserving defaults, since defaulted values are excluded from the normalized form), recorded in the build manifest and matched exactly at pull time.
 
 Every artifact is content-addressed: qcow2 images, provenance sidecars (each image’s record of the digests it was built from), recipe bundles, and the build manifest itself publish as OCI artifacts whose blobs verify against their digests on every path (push, pull, mirror, and out of a directory archive). A pulled range is byte-identical to the built one, and nothing unverified ever lands under a consumable name.
 
@@ -3680,6 +3849,7 @@ Everywhere a registry location appears (`push --to`, `pull --from`, `mirror`, th
 
 - **The public hub**: `docker.io/meridianlabsai/inspect-ranges`, the out-of-box default, carrying the reusable base tier: goldens (the catalog’s verified base images), the guest control daemon bundle, and common recipes ([Images](./images.html.md#catalog) describes each) and published range builds (dmz-pivot today). The hub is two-level, so the third segment is a repo-name prefix: name `attack` lives in the repo `meridianlabsai/inspect-ranges-attack`, and any `docker.io/<org>/<prefix>` location spells repos the same way.
 - **A private OCI registry**: `registry.example.net/ranges` (served over https; an explicit `http://host:port/path` form exists for local registries).
+- **One repository of a registry**: `registry.example.net/mirror:ranges`, a tag prefix after the repository path. Every name lives in that single repository, spelled into its tags (`ranges--attack` for a name’s current root, `ranges--vulhub-zabbix--spec-<hash>` for a build), so a deployment whose registry treats each repository as a pre-created, allowlisted resource (Amazon ECR) admits one repository once and never creates another. The prefix keeps the tags apart from anything else the repository holds.
 - **A directory** in standard OCI image-layout format: `./archive` or `/mnt/mirror`. This is the registry-less shape: tar it, ship it across an air gap, untar it, and everything still verifies, because identity is content, not transport. Directory locations must look like paths (start with `/`, `./`, `../`, or `~`), so a configured value parses the same way in every working directory.
 
 The search path is `INSPECT_RANGES_REGISTRY`, an ordered comma-separated list, first match wins. A deployment prepends its own registry and its artifacts shadow public names deterministically; the public org stays as the fallback so connected deployments never need to mirror. A broken location in the path (an unmounted mirror directory, a registry answering errors) aborts resolution with the location named rather than silently falling through, because silent fallback would un-shadow the location the operator put first. Nothing in any spec or manifest names a registry host: redirection is configuration, never spec content.
@@ -3698,7 +3868,9 @@ manifest  vulhub-zabbix (spec 77ab41...) -> registry.example.net/ranges
 push OK   vulhub-zabbix@sha256:ab12e0...
 ```
 
-`push` reads the current directory’s build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto (each realized image rebases onto a golden, which derives from a vendor base), the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed `name@digest` is the range’s publishable identity. Each push also tags the root with a reference derived from the spec’s normalized-form hash (the exact-spec reference); a later `pull` holding the same spec resolves that reference to this build.
+`push` reads the current directory’s build manifest and uploads its transitive closure: every realized image with its provenance sidecar, the goldens and vendor bases they chain onto (each realized image rebases onto a golden, which derives from a vendor base; an installed golden, the Windows case, is chainless and publishes alone, its install media recorded on the manifest as provenance and never uploaded), the referenced recipe bundles (which must still resolve at the digests the build recorded), and the build manifest itself as the pull root. Blobs the destination already holds are skipped by digest, so pushing a rebuilt range moves only what changed. The printed `name@digest` is the range’s publishable identity. Each push also tags the root with a reference derived from the spec’s normalized-form hash (the exact-spec reference); a later `pull` holding the same spec resolves that reference to this build.
+
+`push --respec` first re-records the cached manifest under the current normalized spec hash, verified against the spec the manifest embeds: the migration for builds recorded before 0.2.5, when the hash began excluding defaulted values, so they resolve by spec again without a rebuild.
 
 `push` has no default destination: pass `--to` or configure `INSPECT_RANGES_REGISTRY`. Pushing to the public org is the project publisher’s job, never a user move, and user ranges must not aim anywhere public by accident.
 
@@ -3856,9 +4028,9 @@ Scenario networking and operator containment are different authorities, each wit
 
 ## Proving Containment
 
-A range that carries [behavioral checks](./building.html.md#behavioral-checks) proves its containment at build time. Before the checks, the proof boot (the build’s second boot of the captured images, where the checks run; see [Behavioral Checks](./building.html.md#behavioral-checks)) runs the `conformance` stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed check, so an uncontained range is never consumable.
+A range that carries [conformance proofs](./building.html.md#conformance-proofs) proves its containment at build time. Before the proofs, the proof boot (the build’s second boot of the captured images, where the proofs run; see [Conformance Proofs](./building.html.md#conformance-proofs)) runs the `conformance` stage: a shared-segment target TCP-sweeps the attacker expecting zero open ports, and the attacker verifies that no undeclared management endpoint answers on its segments. Any finding refuses the manifest exactly like a failed proof, so an uncontained range is never consumable.
 
-The stage’s scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without behavioral checks has no proof boot, so it gets no conformance stage either.
+The stage’s scope limits: the sweep is TCP only (ports 1-1024 plus a high-port sample), foothold ranges skip it (the agent lands on a declared host whose services legitimately answer), and a range without conformance proofs has no proof boot, so it gets no conformance stage either.
 
 ## External Attack Boxes
 
@@ -4257,6 +4429,12 @@ On failure, the error names the stage and guest, the affected guests’ serial c
 ## `down`
 
 `inspect-ranges down <project>` tears down by recorded ownership (compose labels and deterministic names), never by live process state: it works from any process, after any crash, and twice in a row. `down --all` sweeps every `ir-` project discovered from the ownership registry, container labels, and volume names, attempting all of them and aggregating any failures. The sweep cannot tell a crashed project from one mid-boot, so run it only when nothing on the host should be live. A failed removal keeps the ownership record so a retry can still find the project.
+
+## `shell`
+
+`inspect-ranges shell <project> [guest]` opens an interactive shell on a guest of a running range: a tmux session inside the guest, driven over the range’s control channel, so it needs no SSH, no guest listener, and works on fully isolated networks. The guest defaults to the range’s attacker when it has exactly one; `--session` names the tmux session (the same name reattaches, and sessions survive detach); `--user` picks the guest identity (default: the daemon identity, root on Linux); `--cast <path>` records the attach as a local asciicast. Detach with `Ctrl-]`.
+
+This is an operator surface for ranges booted with `up` (trying tasks by hand, debugging guest state and images). A project booted by the Inspect sandbox provider refuses by recorded origin, so an eval sample can never acquire an interactive operator mid-run. Guest output is treated as untrusted: display sequences pass to your terminal, but clipboard writes, palette programming, and device-control strings are filtered out. Linux guests only (the session is tmux). One known seam: the attach paints the current visible screen and then streams new output, so a full-screen program already mid-flight may need a redraw (`Ctrl-L`) to render cleanly.
 
 ## `applier`
 

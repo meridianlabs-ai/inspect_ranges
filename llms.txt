@@ -9,7 +9,7 @@
 
 ## Building
 
-- [Overview](https://meridianlabs-ai.github.io/inspect_ranges/building.html.md): Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and behavioral checks.
+- [Overview](https://meridianlabs-ai.github.io/inspect_ranges/building.html.md): Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and conformance proofs.
 - [Ranges](https://meridianlabs-ai.github.io/inspect_ranges/ranges.html.md): What a range definition is: the anatomy of range.yaml, the typed Python surface, end-to-end examples, and the validation workflow.
 - [Guests](https://meridianlabs-ai.github.io/inspect_ranges/guests.html.md): The guest side of a range definition: hosts, images, and the content they carry, from accounts and services to defense and Active Directory.
 - [Networks](https://meridianlabs-ai.github.io/inspect_ranges/networks.html.md): The range.yaml networking syntax, from a single flat network to multi-router enterprise topologies.
