@@ -201,7 +201,7 @@ def test_hardware_vocabulary_accepts_the_appliance_shape() -> None:
 
 
 def test_hardware_vocabulary_gates_refuse() -> None:
-    """Malformed/duplicate MACs, not-realized firmware/tpm, misscoped readiness, opaque content, opaque Windows, and an opaque foothold each refuse with their code in the message."""
+    """Malformed/duplicate MACs, uefi-secure off q35, misscoped readiness, opaque content, opaque Windows, and an opaque foothold each refuse with their code in the message; the realized secure+tpm shape is accepted."""
     from inspect_ranges.types import Attacker, Hardware, HardwareDisk, TcpReadiness
 
     bad_mac = dmz_pivot()
