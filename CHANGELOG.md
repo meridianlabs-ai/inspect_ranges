@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.12 (01 November 2026)
 
 - Opaque guests with tcp readiness can declare their boot budget (`readiness: {tcp: 830, timeout: 1200}`): a management-plane appliance that takes fifteen minutes to open its ports is a fact of the image, like its addresses, so the budget rides the spec and the bundle (`boot.json`, emitted only when declared) rather than a deployment flag. The declared budget extends the shared `--readiness-timeout` window for its guest only and never shrinks it; undeclared guests are untouched, and the new field is defaulted so no existing spec hash moves.
 
