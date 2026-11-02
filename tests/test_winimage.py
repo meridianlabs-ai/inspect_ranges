@@ -30,6 +30,10 @@ def test_install_unattend_parses_with_a_hostile_password(variant_key: str) -> No
     assert all(v == hostile for v in values), "escaping must round-trip exactly"
     # the password is the only caller data; every template placeholder renders
     assert "__" not in rendered
+    # client OOBE needs the full wizard skipped, not just the named screens
+    # (measured: Windows 11 stops at the country/region screen without these)
+    assert "<SkipMachineOOBE>true</SkipMachineOOBE>" in rendered
+    assert "<SkipUserOOBE>true</SkipUserOOBE>" in rendered
 
 
 def test_variant_answer_files_pin_the_install_contract() -> None:

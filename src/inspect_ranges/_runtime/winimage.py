@@ -166,6 +166,11 @@ __DISK_AND_IMAGE__
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <ProtectYourPC>3</ProtectYourPC>
+        <!-- client OOBE runs a wizard the Hide* flags alone do not cover
+             (measured: Windows 11 stops at the country/region screen); the
+             Skip pair bypasses the whole wizard. Server ignores them. -->
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
       <UserAccounts>
         <AdministratorPassword>
