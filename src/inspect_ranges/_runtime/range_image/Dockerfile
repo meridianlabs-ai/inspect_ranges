@@ -60,6 +60,7 @@ COPY --from=cloud-hypervisor /out/ /
 # stock file carries ACTIVE swtpm_user/swtpm_group lines and the parser takes
 # the first occurrence, so these are replaced in place, never appended
 RUN sed -i 's/^swtpm_user.*/swtpm_user = "libvirt-qemu"/; s/^swtpm_group.*/swtpm_group = "kvm"/' /etc/libvirt/qemu.conf \
+    && grep -q '^swtpm_user = "libvirt-qemu"' /etc/libvirt/qemu.conf \
     && chown -R libvirt-qemu:kvm /var/lib/swtpm-localca \
     && printf 'user = "libvirt-qemu"\ngroup = "kvm"\nsecurity_driver = "none"\ndynamic_ownership = 0\nremember_owner = 0\ncgroup_controllers = []\nnamespaces = []\nseccomp_sandbox = 1\n' \
     >> /etc/libvirt/qemu.conf

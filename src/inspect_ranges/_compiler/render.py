@@ -67,7 +67,8 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
   <!-- per-guest DAC principal (issue #5): sVirt AppArmor cannot load profiles
        inside the hardened container (CAP_MAC_ADMIN + securityfs are denied by
        the outer jail), so per-VM confinement is per-VM IDENTITY instead: each
-       QEMU runs as its own uid, the same scheme Cloud Hypervisor guests use;
+       QEMU runs as its own uid (TPM guests as the shared libvirt-qemu, the
+       swtpm socket contract), the same scheme Cloud Hypervisor guests use;
        relabel stays off because the boot script pre-owns the guest's files -->
   <seclabel type='static' model='dac' relabel='no'>
     <label>{seclabel}</label>
@@ -137,9 +138,9 @@ _SMM_ON = "<smm state='on'/>"
 # a per-guest swtpm libvirt spawns and reaps with the domain; TPM state is
 # per-boot (ranges are cold-boot), so images must not seal secrets to it
 _TPM_CRB = """\
-                <tpm model='tpm-crb'>
-                    <backend type='emulator' version='2.0'/>
-                </tpm>
+    <tpm model='tpm-crb'>
+      <backend type='emulator' version='2.0'/>
+    </tpm>
 """
 
 # the VNC listener binds the range container's loopback, which no guest
@@ -463,7 +464,6 @@ def render_bundle(
                     cpus=guest.cpus,
                     cpu=cpu,
                     cid=guest.cid,
-                    uid=guest_uid(guest.cid),
                     machine=guest.machine,
                     loader=(
                         _LOADER_UEFI.format(name=guest.name)

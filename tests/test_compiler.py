@@ -878,7 +878,7 @@ def test_secure_boot_and_tpm_render_the_windows11_contract(tmp_path: Path) -> No
     # the appliance (plain uefi from the fixture) keeps the unsigned build
     router = (out / "guests/router/domain.xml").read_text()
     assert "OVMF_CODE_4M.fd" in router and ".ms.fd" not in router
-    assert "<smm state='on'/>" not in router and "tpm" not in router
+    assert "<smm state='on'/>" not in router and "<tpm" not in router
 
     # the TPM guest's VMM runs as the shared libvirt-qemu principal (the
     # swtpm socket contract); every other guest keeps its per-VM uid
