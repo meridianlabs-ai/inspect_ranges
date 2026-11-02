@@ -16,7 +16,7 @@ timestamp: 2026-11-02
 - **Windows 11 client guests ride the managed tier**, not opaque imports: daemon readiness/exec, recipes for software, the plant store for per-sample content. Everything windows-ad-v1 proved carries; this phase adds the client OS, not a new mechanism.
 - **The media posture is unchanged**: user-supplied, digest-pinned at derive, local-only goldens, recipes-not-images, nothing published (the windows-ad ratification stands verbatim).
 - **Hardware contract**: a Windows 11 guest declares `hardware: { firmware: uefi-secure, tpm: true }` explicitly; the plan refuses a Windows 11 guest without them rather than injecting defaults silently (declared-is-authoritative, consistent with the explicit-ip rule for Windows content hosts).
-- **NVRAM**: per-guest nvram seeds from the stock `OVMF_VARS_4M.ms.fd` template (the uefi-secure slice's mechanism); a freshly specialized clone boots via the UEFI fallback path. If measured boot proves sticky about install-time boot entries, the fallback is a companion-VARS mechanism (the golden's install nvram captured beside the disk) — parked until measured.
+- **NVRAM**: per-guest nvram seeds from the stock `OVMF_VARS_4M.ms.fd` template (the uefi-secure slice's mechanism); a freshly specialized clone boots via the UEFI fallback path. MEASURED 2026-11-02: a sysprepped Windows 11 Pro clone (independently built reference template) booted twice from fresh stock vars under the full contract and reported `Confirm-SecureBootUEFI` True and `Get-Tpm` ready in-guest, so the companion-VARS fallback is closed, not parked.
 
 ## The slices
 
@@ -30,7 +30,6 @@ No Windows artifact publication (standing); no client-OS additions to the AD fix
 
 ## Parked for the user
 
-- Companion-VARS: only if the stock-template expectation fails under measured boot (see ratified inputs).
 - Edition/index defaults: slice 1 pins Pro (index 6 on current multi-edition media) as the documented default; whether the engine should verify the media's WIM catalog against the requested index (vs. failing deep in setup) is a nice-to-have decided by how the first wrong-index failure presents.
 
 ## Ledger
