@@ -228,7 +228,7 @@ namespace VsockD
         // supervised listener recoveries since start; surfaced in diag_result
         // so the storm battery can assert the accept loop never wedged
         static long _listenerRestarts;
-        public static string Version = "vsockd 3.3.0 (windows)";
+        public static string Version = "vsockd 3.4.0 (windows)";
         // minted once per daemon process ("N" = 32 lowercase hex): a restart,
         // which empties the dedupe store, surfaces to the host as a session
         // change rather than a silent loss of exactly-once (provider-v1
@@ -463,6 +463,14 @@ namespace VsockD
                 pong["daemon"] = Version;
                 pong["protocol"] = (long)Wire.ProtocolVersion;
                 pong["session"] = Session;
+                // the user default-identity operations run as; honest for the
+                // host's foothold check (a Windows guest is never a foothold).
+                // Capped to the decoder's limit so the pong never fails its own
+                // decode on an unusually long account name.
+                string identity = Environment.UserName;
+                while (Encoding.UTF8.GetByteCount(identity) > Wire.MaxIdentityLen && identity.Length > 0)
+                    identity = identity.Substring(0, identity.Length - 1);
+                pong["identity"] = identity;
                 return new StoredReply(pong, null);
             }
             if (kind == "diag")

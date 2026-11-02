@@ -560,16 +560,31 @@ async def _await_ready(
     readiness: str,
     deadline: float,
     min_window: float = 10.0,
+    *,
+    require_agent_identity: bool = False,
 ) -> tuple[bool, str | None]:
-    """One guest's readiness and, when unready, the swallowed cause for the stage log: daemon answering, then the cloud-init gate; any failure or malformed behavior is not-ready, never an escape."""
+    """One guest's readiness and, when unready, the swallowed cause for the stage log: daemon answering, then the cloud-init gate; any failure or malformed behavior is not-ready, never an escape.
+
+    `require_agent_identity` holds the foothold to its unprivileged default: when the daemon reports that default operations run as `root` (its image is missing the agent user, so it cannot drop), readiness refuses rather than hand the agent root. The check keys on `root` specifically — the host mirror of the daemon's own effective-root fail-closed guard — so a non-root daemon (dev/CI) is never refused here. A daemon predating the pong `identity` field reports `None` and cannot be checked; such a daemon also predates the daemon-side guard, so a bring-your-own image that pairs an old daemon with a missing agent user is not caught here (recipe-built images carry both the guard and the agent user, so in practice the gap is empty).
+    """
     while True:
         try:
-            await channel.ping(guest)
+            pong = await channel.ping(guest)
             break
         except Exception as error:
             if time.monotonic() >= deadline:
                 return False, f"daemon never answered: {error!r}"
             await asyncio.sleep(1.0)
+    # "root" is the exact value the daemon reports for an effective-root default
+    # identity (daemon.go `defaultIdentity`, euid 0 -> "root"); the two literals
+    # must stay in lockstep for this check to fire
+    if require_agent_identity and pong.identity == "root":
+        return (
+            False,
+            "foothold daemon runs commands as root by default (reported identity "
+            f"{pong.identity!r}); its image is missing the agent user — refusing, "
+            "a privilege-escalation task would start already solved",
+        )
     if readiness == "cloud-init":
         remaining_ms = max(
             int(min_window * 1000), int((deadline - time.monotonic()) * 1000)
@@ -1176,6 +1191,9 @@ def up(
                     readiness,
                     guest_deadline,
                     min_window=options.readiness_min_window,
+                    # the foothold must start unprivileged: refuse a dedicated
+                    # attack box whose daemon would run the agent as root
+                    require_agent_identity=guest.kind == "attacker",
                 )
             collected.append(
                 GuestState(

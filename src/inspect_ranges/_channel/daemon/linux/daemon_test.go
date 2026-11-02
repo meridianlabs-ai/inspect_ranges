@@ -155,6 +155,70 @@ func TestSessionStableWithinDaemonFreshAcrossRestarts(t *testing.T) {
 	}
 }
 
+// TestPongReportsDefaultIdentity pins that the pong carries the user that
+// default-identity operations run as, so the host can refuse a foothold that
+// would hand the agent root (issue #52).
+func TestPongReportsDefaultIdentity(t *testing.T) {
+	d := NewDaemon()
+	d.identity = "agent" // deterministic regardless of the test process's euid
+	reply := d.dispatch(&Message{V: ProtocolVersion, ID: rid(6101), Kind: "ping"}, nil)
+	if reply.message.Kind != "pong" {
+		t.Fatalf("ping: got %s", reply.message.Kind)
+	}
+	if reply.message.Identity != "agent" {
+		t.Fatalf("pong identity = %q, want \"agent\"", reply.message.Identity)
+	}
+}
+
+// TestPrivilegedWithoutAgentFailsClosed pins the core of issue #52: when the
+// daemon is root but cannot drop to the agent user, a default-identity exec or
+// file operation refuses with EACCES rather than silently running as root. An
+// explicit user= is unaffected. The refusal returns before any privileged
+// operation, so this is hermetic regardless of the test process's euid.
+func TestPrivilegedWithoutAgentFailsClosed(t *testing.T) {
+	d := NewDaemon()
+	d.privileged = true // simulate a root daemon
+	d.agent = nil       // whose image is missing the agent user
+
+	exec := d.dispatch(execMessage(rid(6111), "id"), nil)
+	if exec.message.Kind != "error" || exec.message.Errno != "EACCES" {
+		t.Fatalf("exec: got kind=%s errno=%s, want error/EACCES",
+			exec.message.Kind, exec.message.Errno)
+	}
+	readFile := d.dispatch(&Message{
+		V: ProtocolVersion, ID: rid(6112), Kind: "read_file", Path: "/etc/hostname",
+	}, nil)
+	if readFile.message.Kind != "error" || readFile.message.Errno != "EACCES" {
+		t.Fatalf("read_file: got kind=%s errno=%s, want error/EACCES",
+			readFile.message.Kind, readFile.message.Errno)
+	}
+
+	// an explicit user= is the deliberate privileged path and must not hit the
+	// default-identity refusal (it may fail downstream, but never as EACCES here)
+	user := "root"
+	withUser := d.dispatch(&Message{
+		V: ProtocolVersion, ID: rid(6113), Kind: "exec", Cmd: []string{"true"}, User: &user,
+	}, nil)
+	if withUser.message.Kind == "error" && withUser.message.Errno == "EACCES" {
+		t.Fatal("explicit user= must bypass the default-identity refusal")
+	}
+}
+
+// TestUnprivilegedWithoutAgentStaysTolerant pins that the fail-closed guard is
+// scoped to the dangerous root case: an unprivileged daemon with no agent user
+// (dev/CI) keeps running default-identity operations as its own identity, since
+// there is no root to hand out.
+func TestUnprivilegedWithoutAgentStaysTolerant(t *testing.T) {
+	d := NewDaemon()
+	d.privileged = false
+	d.agent = nil
+
+	exec := d.dispatch(execMessage(rid(6121), "true"), nil)
+	if exec.message.Kind == "error" && exec.message.Errno == "EACCES" {
+		t.Fatal("an unprivileged daemon must not fail closed: no root to hand out")
+	}
+}
+
 // TestWriteFileHonorsMode pins the atomic-permissions contract: the mode
 // travels with the write (umask-proof), so a 0600 secret is never
 // world-readable between creation and a separate chmod.

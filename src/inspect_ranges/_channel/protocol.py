@@ -245,6 +245,8 @@ class PongReply(_MessageBase):
     protocol: Literal[3] = PROTOCOL_VERSION
     session: SessionHex
     """Required: an honest daemon always reports its session (provider-v1 layer 2b)."""
+    identity: Annotated[str, Field(max_length=32), utf8_capped(32)] | None = None
+    """The user default-identity operations run as (`agent`, or `root` on a daemon that cannot drop to the agent user). Optional: a daemon predating this field omits it, decoding as `None`. Such a daemon also predates the daemon-side fail-closed guard, so `None` is treated as unknown (unrefusable) rather than safe; recipe-built images carry both the guard and the agent user, so a root-reporting daemon is the real signal the host acts on."""
 
 
 class ExecResult(_BulkMessage):

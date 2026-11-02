@@ -65,10 +65,11 @@
     "kind": "pong",
     "daemon": "vsockd 3.1.0",
     "protocol": 3,
-    "session": "ffffffffffffffffffffffffffffffff"
+    "session": "ffffffffffffffffffffffffffffffff",
+    "identity": "agent"
    },
    "frames_hex": [
-    "0000008f437b226461656d6f6e223a2276736f636b6420332e312e30222c226964223a223030303030303030303030303030303030303030303030303030303030303031222c226b696e64223a22706f6e67222c2270726f746f636f6c223a332c2273657373696f6e223a226666666666666666666666666666666666666666666666666666666666666666222c2276223a337d"
+    "000000a2437b226461656d6f6e223a2276736f636b6420332e312e30222c226964223a223030303030303030303030303030303030303030303030303030303030303031222c226964656e74697479223a226167656e74222c226b696e64223a22706f6e67222c2270726f746f636f6c223a332c2273657373696f6e223a226666666666666666666666666666666666666666666666666666666666666666222c2276223a337d"
    ]
   },
   {
@@ -839,6 +840,10 @@
   {
    "name": "pong-daemon-overlong",
    "payload": "{\"v\": 3, \"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"kind\": \"pong\", \"daemon\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\", \"session\": \"ffffffffffffffffffffffffffffffff\"}"
+  },
+  {
+   "name": "pong-identity-overlong",
+   "payload": "{\"v\": 3, \"id\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"kind\": \"pong\", \"daemon\": \"d\", \"session\": \"ffffffffffffffffffffffffffffffff\", \"identity\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"
   },
   {
    "name": "command-ms-over-cap",

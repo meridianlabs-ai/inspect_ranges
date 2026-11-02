@@ -18,6 +18,7 @@ from inspect_ranges._attackbox import (
     write_attack_box_record,
 )
 from inspect_ranges._attackbox.attach import AttachInvocation
+from inspect_ranges._channel.protocol import PongReply
 from inspect_ranges._channel.vsock import HybridEndpoint
 from inspect_ranges._compiler import PlanOptions, render_bundle, resolve_plan
 from inspect_ranges._compiler.plan import image_file_name
@@ -169,17 +170,21 @@ class FakeChannel:
         exec_rc: int = 0,
         run_commands: bool = False,
         env: dict[str, str] | None = None,
+        identity: str | None = "agent",
     ) -> None:
         self.ping_ok = ping_ok
         self.exec_rc = exec_rc
         self.run_commands = run_commands
         self.env = env
+        self.identity = identity
         self.exec_requests: list[Any] = []
 
-    async def ping(self, guest: str) -> object:
+    async def ping(self, guest: str) -> PongReply:
         if not self.ping_ok:
             raise ConnectionError("no daemon")
-        return object()
+        return PongReply(
+            id="0" * 32, daemon="fake", session="f" * 32, identity=self.identity
+        )
 
     async def exec(self, guest: str, request: Any, **kwargs: Any) -> FakeOutcome:
         self.exec_requests.append(request)
@@ -1175,6 +1180,59 @@ def test_up_external_attack_box_happy_path(
     assert (
         stages.index("attach") < stages.index("attack-box") < stages.index("readiness")
     )
+
+
+def test_up_refuses_a_foothold_whose_daemon_runs_as_root(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The foothold must start unprivileged: a dedicated attack box whose daemon reports a non-'agent' default identity (an image missing the agent user) is refused at readiness, with the reason logged. The channel is otherwise healthy, so the identity check is the only thing that can fail the attacker."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=True, exec_rc=0, identity="root"))
+    docker = FakeDocker()
+    docker.ps_sequence = ["", "c1\n"]
+    with pytest.raises(UpError, match=r"\[readiness\] guest 'attacker'.*not ready"):
+        up(
+            bundle,
+            options(cache, tmp_path, attack_box=RECORDING_ORIGIN),
+            runner=docker,
+            attacher=fake_attacher,
+        )
+    assert docker.commands("docker", "rm", "-f"), "the refused foothold tears down"
+    state_root = tmp_path / "state"
+    causes = [
+        str(event.get("cause", ""))
+        for project in (p.name for p in state_root.iterdir() if p.is_dir())
+        for event in StageLog(state_root, project).events()
+        if event["stage"] == "readiness" and event["status"] == "fail"
+    ]
+    assert any("identity" in cause and "root" in cause for cause in causes)
+
+
+def test_up_allows_a_foothold_when_the_daemon_omits_identity(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Back-compat: a daemon predating the pong identity field reports None, so readiness does not refuse (it cannot observe the identity)."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=True, exec_rc=0, identity=None))
+    result = up(
+        bundle,
+        options(cache, tmp_path, attack_box=RECORDING_ORIGIN),
+        runner=FakeDocker(),
+        attacher=fake_attacher,
+    )
+    assert any(g.name == "attacker" and g.ready for g in result.guests)
+
+
+def test_up_allows_a_foothold_with_a_non_root_identity(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The foothold check keys on root specifically: a daemon reporting a non-root, non-'agent' identity (an unprivileged daemon, e.g. dev/CI) is not refused — there is no root to hand out."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=True, exec_rc=0, identity="builder"))
+    result = up(
+        bundle,
+        options(cache, tmp_path, attack_box=RECORDING_ORIGIN),
+        runner=FakeDocker(),
+        attacher=fake_attacher,
+    )
+    assert any(g.name == "attacker" and g.ready for g in result.guests)
 
 
 def test_up_without_attack_box_is_untouched(
