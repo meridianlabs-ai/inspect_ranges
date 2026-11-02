@@ -1,3 +1,7 @@
+## Unreleased
+
+- Isolated `dhcp: true` networks now advertise the bridge's service address as a dead-end router option in every lease: some appliance DHCP clients refuse to program a lease that carries no router option (observed live porting a management-plane appliance whose client logged `dhcp-address-assigned` and then installed nothing). The address answers nothing and routes nowhere, so isolation is unchanged; this is the same lease shape libvirt and slirp present. Linux guests on such segments gain a dead-end default route they previously lacked.
+
 ## 0.2.12 (01 November 2026)
 
 - Opaque guests with tcp readiness can declare their boot budget (`readiness: {tcp: 830, timeout: 1200}`): a management-plane appliance that takes fifteen minutes to open its ports is a fact of the image, like its addresses, so the budget rides the spec and the bundle (`boot.json`, emitted only when declared) rather than a deployment flag. The declared budget extends the shared `--readiness-timeout` window for its guest only and never shrinks it; undeclared guests are untouched, and the new field is defaulted so no existing spec hash moves.

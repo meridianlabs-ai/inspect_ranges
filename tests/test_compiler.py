@@ -283,8 +283,10 @@ def test_dnsmasq_conf_renders_reservations_and_records() -> None:
     assert "dhcp-option=option:domain-search,lab.internal" in lines
     assert "host-record=web,web.lab.internal,10.95.10.10" in lines
     assert "host-record=files.corp.local,10.95.10.200" in lines
-    # no gateway on an isolated network: no router option
-    assert not any(line.startswith("dhcp-option=option:router") for line in lines)
+    # an isolated network's leases advertise the service address as a
+    # DEAD-END router (some appliance DHCP clients refuse router-less
+    # leases; the address answers nothing and routes nowhere)
+    assert "dhcp-option=option:router,10.95.10.1" in lines
     # networks with neither dhcp nor records need no service
     assert render_dnsmasq_conf(spec, allocation, "net2") is None
 

@@ -1,6 +1,6 @@
 """Per-network dnsmasq rendering: DHCP reservations and range-served DNS, from the allocation.
 
-Networks with `dhcp: true` or `dns.records` get a dnsmasq instance in the range netns, bound to the bridge on the hypervisor address the allocator reserved. DHCP is reservation-only (`dhcp-range=...,static`): every lease comes from the allocation by MAC, so DHCP addressing is as deterministic as static. DNS serves exactly the declared records (`no-hosts`, `no-resolv`: nothing leaks from the hypervisor's own resolver or hosts file); a record without an explicit `ip` resolves to the named guest's address on that network. Records networks carry a derived search domain (`<network>.internal`, handed to guests via DHCP or the generated netplan), because stub resolvers like systemd-resolved do not send single-label names to DNS without one; single-label records are registered under both the bare name and the search domain.
+Networks with `dhcp: true` or `dns.records` get a dnsmasq instance in the range netns, bound to the bridge on the hypervisor address the allocator reserved. DHCP is reservation-only (`dhcp-range=...,static`): every lease comes from the allocation by MAC, so DHCP addressing is as deterministic as static. Every lease carries a router option: the elected gateway when the network has one, else the service address as a dead-end router (some appliance DHCP clients refuse to program router-less leases; the address answers nothing and routes nowhere, so isolated stays isolated, the same shape libvirt and slirp present). DNS serves exactly the declared records (`no-hosts`, `no-resolv`: nothing leaks from the hypervisor's own resolver or hosts file); a record without an explicit `ip` resolves to the named guest's address on that network. Records networks carry a derived search domain (`<network>.internal`, handed to guests via DHCP or the generated netplan), because stub resolvers like systemd-resolved do not send single-label names to DNS without one; single-label records are registered under both the bare name and the search domain.
 
 `resolvers_for` is the other half: which resolver addresses the generated guest config hands each network's guests — `dns.authoritative` guests first (in declared order, the AD pattern goad-forest proved), then the range's own service when it serves records, then any explicit external `nameservers`. The `forwarder` field is consumed by guest provisioning (it is the authoritative server's upstream, not network realization).
 """
@@ -53,6 +53,15 @@ def render_dnsmasq_conf(
         gateway = elect_gateways(spec, allocation).get(network.name)
         if gateway is not None:
             lines.append(f"dhcp-option=option:router,{gateway}")
+        else:
+            # a dead-end router: some appliance DHCP clients refuse to
+            # program a lease that carries no router option, so an isolated
+            # network's leases advertise the service address (which answers
+            # nothing and routes nowhere; the libvirt and slirp shape).
+            # The hypervisor address exists on every dhcp network by
+            # construction (the service reservation above)
+            service = allocation.hypervisor_addresses[network.name]
+            lines.append(f"dhcp-option=option:router,{service}")
         resolvers = resolvers_for(spec, allocation, network.name)
         if resolvers:
             joined = ",".join(str(address) for address in resolvers)
