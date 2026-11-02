@@ -154,6 +154,11 @@ def up(
                                 realized_backings(consumed) if consumed else {}
                             ),
                         ),
+                        # this bundle is realized once, here, with the provider
+                        # already resolved: when one boots the attack box, its
+                        # image is never pulled locally, so the cache check
+                        # exempts it (no double-download)
+                        external_attack_box=attack_box is not None,
                     )
                     result = run_up(Path(temp) / "bundle", options)
                 except BaseException as error:

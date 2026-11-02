@@ -1,5 +1,7 @@
 ## Unreleased
 
+- `up --from-spec` and the attack-box conformance battery (`inspect-ranges attackbox verify`) no longer require the attacker's image in the cache when a provider supplies the attack box (`INSPECT_RANGES_ATTACK_BOX`). Both render the bundle to a temporary directory and realize it once with the provider already resolved, which boots the dedicated attack box instead of pulling its image locally, so the self-sufficiency cache check previously forced a download the run never used. The check still holds for every other guest and for bundles `inspect-ranges render` writes, which may later run without a provider and must stay self-sufficient.
+
 - Isolated `dhcp: true` networks now advertise the bridge's service address as a dead-end router option in every lease: some appliance DHCP clients refuse to program a lease that carries no router option (observed live porting a management-plane appliance whose client logged `dhcp-address-assigned` and then installed nothing). The address answers nothing and routes nowhere, so isolation is unchanged; this is the same lease shape libvirt and slirp present. Linux guests on such segments gain a dead-end default route they previously lacked.
 
 ## 0.2.12 (01 November 2026)

@@ -282,7 +282,11 @@ volumes:
 
 
 def render_bundle(
-    spec: RangeSpec, out: Path, options: PlanOptions | None = None
+    spec: RangeSpec,
+    out: Path,
+    options: PlanOptions | None = None,
+    *,
+    external_attack_box: bool = False,
 ) -> ResolvedPlan:
     """Resolve a spec and write its realization bundle.
 
@@ -290,6 +294,7 @@ def render_bundle(
         spec: A validated range definition.
         out: Bundle directory (created; must be empty or absent).
         options: Planning options (image cache location, CPU model).
+        external_attack_box: The caller realizes this bundle once with an external attack-box provider already resolved, which boots the dedicated attack box instead of booting its image locally (`INSPECT_RANGES_ATTACK_BOX`). The attacker guest's image is then exempt from the cache check, since the download would never be used. Leave `False` for a bundle `inspect-ranges render` writes: it may later run without a provider and must stay self-sufficient.
 
     Returns:
         The resolved plan the bundle carries.
@@ -299,7 +304,7 @@ def render_bundle(
         FileExistsError: `out` exists and is not empty.
     """
     plan = resolve_plan(spec, options)
-    _require_cached_images(spec, plan)
+    _require_cached_images(spec, plan, external_attack_box=external_attack_box)
     out.mkdir(parents=True, exist_ok=True)
     if any(out.iterdir()):
         raise FileExistsError(f"bundle directory {out} is not empty")
@@ -653,7 +658,9 @@ def _boot_guest(
     return entry
 
 
-def _require_cached_images(spec: RangeSpec, plan: ResolvedPlan) -> None:
+def _require_cached_images(
+    spec: RangeSpec, plan: ResolvedPlan, *, external_attack_box: bool = False
+) -> None:
     paths: dict[str, tuple[Any, ...]] = {
         host.name: ("hosts", index, "image") for index, host in enumerate(spec.hosts)
     }
@@ -661,6 +668,13 @@ def _require_cached_images(spec: RangeSpec, plan: ResolvedPlan) -> None:
         paths[router.name] = ("routers", index, "image")
     if spec.attacker.host is None:
         paths[spec.attacker.name] = ("attacker", "image")
+    # a provider that boots the dedicated attack box never pulls its image here,
+    # so a once-realized bundle with the provider resolved exempts that guest
+    guests = [
+        guest
+        for guest in plan.guests
+        if not (external_attack_box and guest.kind == "attacker")
+    ]
     issues = [
         Issue(
             code="image-not-in-cache",
@@ -668,7 +682,7 @@ def _require_cached_images(spec: RangeSpec, plan: ResolvedPlan) -> None:
             message=f"image {guest.image.reference!r} for guest {guest.name!r} is not in the image cache, so the bundle cannot be self-sufficient",
             hint="pull or build the image into the cache (pass --image-cache / PlanOptions.image_cache)",
         )
-        for guest in plan.guests
+        for guest in guests
         if guest.image.digest is None
     ]
     issues += [
@@ -678,7 +692,7 @@ def _require_cached_images(spec: RangeSpec, plan: ResolvedPlan) -> None:
             message=f"extra-disk source {disk.image.reference!r} for guest {guest.name!r} is not in the image cache, so the bundle cannot be self-sufficient",
             hint="pull or build the image into the cache (pass --image-cache / PlanOptions.image_cache)",
         )
-        for guest in plan.guests
+        for guest in guests
         for disk in guest.extra_disks
         if disk.image is not None and disk.image.digest is None
     ]
