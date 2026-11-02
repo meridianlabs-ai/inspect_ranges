@@ -650,6 +650,29 @@ def project_containers(
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
+def vmm_liveness(runner: Runner, project: str) -> "Callable[[str], bool]":
+    """A driver-side VMM-process liveness probe for the project's guests, by compose label alone (no bundle needed, so the provider, the oracle attach, and the build's proof boot all construct it the same way).
+
+    The returned callable answers "does the guest's VMM process run right now": `virsh domstate` reports `running` for QEMU guests, and a Cloud Hypervisor guest's recorded pidfile names a live process. Any failure (range container gone, domain undefined, stale pidfile) is `False`, never an exception: liveness is a scoring observation, and an unobservable guest is honestly not-alive.
+    """
+
+    def alive(guest: str) -> bool:
+        containers = project_containers(runner, project, running_only=True)
+        if not containers:
+            return False
+        probe = (
+            f"state=$(virsh -c qemu:///system domstate {guest} 2>/dev/null) && "
+            f'[ "$state" = running ] || '
+            f"kill -0 $(cat /scratch/ch/{guest}.pid 2>/dev/null) 2>/dev/null"
+        )
+        result = runner(
+            ["docker", "exec", containers[0], "bash", "-c", probe], timeout=30
+        )
+        return result.returncode == 0
+
+    return alive
+
+
 def _compose_argv(project: str, bundle: Path, *args: str) -> list[str]:
     return [
         "docker",

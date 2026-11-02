@@ -33,6 +33,7 @@ from .._runtime.up import (
     ch_uid,
     project_containers,
     run_command,
+    vmm_liveness,
 )
 from .oracle import OracleSetupError, RangeOracle
 
@@ -190,6 +191,7 @@ def attach_oracle(
         # an attach has no resolved plan; the recorded boot entries carry the
         # opaque tier so in-guest verbs still refuse instead of timing out
         opaque_guests=frozenset(g.name for g in boot.guests if g.opaque),
+        vmm_alive=vmm_liveness(run, project),
     )
     logger.warning(
         "out-of-band oracle attached to project %s (%d guests): privileged "

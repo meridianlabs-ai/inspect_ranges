@@ -1811,3 +1811,38 @@ def test_up_verifies_extra_disk_bases_and_their_vendor_edges(
         match=r"\[verify-images\] guest 'web'.*extra-disk base.*not in the cache",
     ):
         up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())
+
+
+def test_vmm_liveness_probes_by_label_and_answers_false_safely() -> None:
+    """The driver-side liveness callable: resolves the range container by compose label (no bundle needed), asks virsh-domstate-or-CH-pidfile in one probe, and answers False (never raises) when the container is gone or the probe fails."""
+    import subprocess
+
+    from inspect_ranges._runtime.up import vmm_liveness
+
+    calls: list[list[str]] = []
+
+    def runner(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
+        calls.append(argv)
+        if argv[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(argv, 0, stdout="cid123\n", stderr="")
+        assert argv[:3] == ["docker", "exec", "cid123"]
+        assert "virsh" in argv[-1] and "/scratch/ch/router.pid" in argv[-1]
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    assert vmm_liveness(runner, "ir-proj")("router") is True
+
+    def dead_runner(
+        argv: list[str], **kwargs: Any
+    ) -> "subprocess.CompletedProcess[str]":
+        if argv[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(argv, 0, stdout="cid123\n", stderr="")
+        return subprocess.CompletedProcess(argv, 1, stdout="", stderr="")
+
+    assert vmm_liveness(dead_runner, "ir-proj")("router") is False
+
+    def no_container(
+        argv: list[str], **kwargs: Any
+    ) -> "subprocess.CompletedProcess[str]":
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    assert vmm_liveness(no_container, "ir-proj")("router") is False

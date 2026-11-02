@@ -870,3 +870,27 @@ def test_opaque_refusal_survives_a_plan_less_attach(tmp_path: Path) -> None:
         assert endpoint.requests == []
 
     asyncio.run(run())
+
+
+def test_alive_rides_the_driver_seam_and_refuses_without_it(tmp_path: Path) -> None:
+    """`alive()` answers through the handle's injected VMM-liveness callable (so it works for opaque guests the daemon cannot speak for), refuses unknown guest names before any probe, and refuses handles without the seam instead of guessing."""
+    oracle, endpoint, handle = make_oracle(tmp_path)
+    probed: list[str] = []
+
+    def probe(guest: str) -> bool:
+        probed.append(guest)
+        return guest == "box"
+
+    handle.vmm_alive = probe
+
+    async def run() -> None:
+        assert await oracle.alive("box") is True
+        with pytest.raises(OracleSetupError, match="not part of this sample"):
+            await oracle.alive("ghost")
+        handle.vmm_alive = None
+        with pytest.raises(OracleSetupError, match="liveness seam"):
+            await oracle.alive("box")
+        assert probed == ["box"]
+        assert endpoint.requests == []  # liveness never touches the guest wire
+
+    asyncio.run(run())

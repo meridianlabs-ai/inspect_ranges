@@ -392,6 +392,25 @@ class RangeOracle:
             ),
         )
 
+    async def alive(self, guest: str) -> bool:
+        """Whether the guest's VMM process runs right now: `virsh domstate` running (QEMU) or a live Cloud Hypervisor pidfile, observed from the driver, so it answers for every guest, daemon-managed or opaque (the denial-of-service scoring primitive: a crashed appliance reads `False`).
+
+        Any failure to observe (range container gone, domain undefined) is `False`, never an exception. Unknown guest names refuse, and a handle without the driver seam (unit fixtures) refuses rather than guessing.
+        """
+        if guest not in self._handle.guest_cids:
+            raise OracleSetupError(
+                f"guest {guest!r} is not part of this sample's range"
+            )
+        probe = self._handle.vmm_alive
+        if probe is None:
+            raise OracleSetupError(
+                "this handle carries no VMM liveness seam; alive() needs the "
+                "provider, attach, or proof-boot construction path"
+            )
+        import asyncio
+
+        return await asyncio.to_thread(probe, guest)
+
     async def console(self, guest: str) -> list[bytes]:
         """The guest's continuous serial-console chunks from the sample's evidence record (host writer)."""
         return cast(

@@ -434,6 +434,11 @@ class RangeSandboxEnvironment(SandboxEnvironment):
                     # evidence_capture and realized allocations); the oracle's
                     # available_observers reads it off the handle
                     handle.plan = rendered_plan
+                    # the driver-side liveness seam: oracle.alive() for every
+                    # guest, daemon-managed or opaque
+                    from .._runtime.up import run_command, vmm_liveness
+
+                    handle.vmm_alive = vmm_liveness(run_command, project)
                 except asyncio.CancelledError:
                     # none of these can be aborted and all keep creating
                     # resources; drain them (up is internally bounded) so the
