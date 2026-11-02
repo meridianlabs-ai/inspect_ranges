@@ -607,19 +607,29 @@ def _install_locked(
                 )
                 if variant.firmware == "uefi-secure":
                     # the install media's UEFI bootloader waits on "Press any
-                    # key to boot from CD or DVD": cover the firmware window
-                    # with keypresses (BIOS boots the cdrom unprompted; after
-                    # WinPE's reboot the ESP boots first, so the prompt never
-                    # recurs). 90 s of coverage: a prompt that appears later
-                    # than this falls through to the EFI shell and the install
-                    # burns its whole timeout, so the window is deliberately
-                    # generous (battery watch item, mid-slice review)
+                    # key to boot from CD or DVD" (BIOS boots the cdrom
+                    # unprompted; after WinPE's reboot the ESP boots first, so
+                    # the prompt never recurs). A space landing AFTER WinPE
+                    # takes over activates setup's focused Cancel button and
+                    # wedges the install behind a quit-confirm modal (measured
+                    # live: run 1 burned its whole timeout behind one), so key
+                    # coverage gates on the install cdrom's read counter: once
+                    # cdboot streams boot.wim the prompt is consumed and the
+                    # keys stop within a second
+                    iso_source = shlex.quote(f"/images/{iso.name}")
                     _exec(
                         container,
-                        "for i in $(seq 1 45); do "
+                        "target=$(virsh -c qemu:///system domblklist wininstall"
+                        f" | grep -F {iso_source} | awk '{{print $1}}'); "
+                        '[ -n "$target" ] || '
+                        '{ echo "install cdrom target not found" >&2; exit 1; }; '
+                        "for i in $(seq 1 90); do "
+                        "reads=$(virsh -c qemu:///system domblkstat wininstall "
+                        "\"$target\" 2>/dev/null | awk '/rd_req/ {print $3}'); "
+                        '[ "${reads:-0}" -gt 5000 ] && exit 0; '
                         "virsh -c qemu:///system send-key wininstall "
                         "--codeset linux KEY_SPACE >/dev/null 2>&1 || true; "
-                        "sleep 2; done",
+                        "sleep 1; done; exit 0",
                     )
                 deadline = time.monotonic() + timeout_s
                 while time.monotonic() < deadline:
