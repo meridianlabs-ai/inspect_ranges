@@ -1,4 +1,4 @@
-"""The exec-witness poller's evidence contract (execve-witness-v1): events land on sealed `exec/<guest>` streams, every loss is an in-chain gap with its count, unsupported endpoints become one declared-drop record and a stopped loop, and the kill switch means nothing is constructed.
+"""The exec-witness poller's evidence contract (execve-witness-v1): events land on sealed `exec/<guest>` streams, every loss is an in-chain gap (counted for ring-overflow, unknown-size for kernel-subscriber overflow), a daemon restart is caught by its boot-session change, unsupported endpoints become one declared-drop record and a stopped loop, and the kill switch means nothing is constructed.
 
 Assertions run against the SEALED record via `verify_location`/`stream_chunks` (the telemetry-test discipline), never against mocks alone.
 """
@@ -45,10 +45,20 @@ class WitnessFakeChannel:
 
 
 def reply(
-    events: list[ExecEvent], next_seq: int, *, drops: int = 0, restarts: int = 0
+    events: list[ExecEvent],
+    next_seq: int,
+    *,
+    drops: int = 0,
+    restarts: int = 0,
+    session: str | None = None,
 ) -> ExecEventsReply:
     return ExecEventsReply(
-        id="a" * 32, events=events, next_seq=next_seq, drops=drops, restarts=restarts
+        id="a" * 32,
+        events=events,
+        next_seq=next_seq,
+        drops=drops,
+        restarts=restarts,
+        session=session,
     )
 
 
@@ -128,8 +138,10 @@ def test_events_land_on_the_sealed_stream(tmp_path: Path) -> None:
     asyncio.run(run())
 
 
-def test_losses_are_counted_gaps(tmp_path: Path) -> None:
-    """A seq discontinuity becomes `exec-ring-overflow` with the lost count; a drops delta becomes `exec-subscriber-loss`."""
+def test_losses_are_gaps_counted_only_when_the_kernel_reports_a_count(
+    tmp_path: Path,
+) -> None:
+    """A seq discontinuity becomes `exec-ring-overflow` with the exact lost count; a `drops` delta becomes an UNKNOWN-size `exec-subscriber-loss` gap (the kernel counts overflow episodes, not events — issue #31 #3), so its `dropped` is 0."""
 
     async def run() -> None:
         channel = WitnessFakeChannel()
@@ -147,7 +159,7 @@ def test_losses_are_counted_gaps(tmp_path: Path) -> None:
         assert (await verify_location(store)).ok
         assert await gap_causes(store, "exec/web") == [
             ("exec-ring-overflow", 9),
-            ("exec-subscriber-loss", 3),
+            ("exec-subscriber-loss", 0),  # unknown size: episodes != events
         ]
 
     asyncio.run(run())
@@ -258,6 +270,35 @@ def test_daemon_restart_is_detected_not_silenced(tmp_path: Path) -> None:
         meta = b"".join(await stream_chunks(store, "driver", "exec-meta/web"))
         outcomes = [json.loads(line)["outcome"] for line in meta.decode().splitlines()]
         assert "restarted" in outcomes
+
+    asyncio.run(run())
+
+
+def test_restart_is_detected_by_session_change_even_when_seq_advances(
+    tmp_path: Path,
+) -> None:
+    """Issue #31 #2: a restart whose new seq space has already passed the old cursor before the next poll is invisible to the `next_seq < cursor` check (here next_seq 6 >= cursor 2), but the daemon's boot-session change catches it, and the post-restart event still ships."""
+
+    async def run() -> None:
+        channel = WitnessFakeChannel()
+        channel.script = [
+            reply([event(0), event(1)], 2, session="a" * 32),  # session A, cursor -> 2
+            # restart: new daemon (session B) already emitted past the old cursor,
+            # so the seq check (6 < 2) is False — only the session change reveals it
+            reply([], 6, session="b" * 32),
+            reply([event(6, pid=777)], 7, session="b" * 32),  # post-restart event ships
+            reply([], 7, session="b" * 32),
+        ]
+        poller, writer, store = make_poller(tmp_path, channel)
+        await poller.poll_once("web")
+        await poller.poll_once("web")  # restart caught by session, post-event ships
+        await poller.stop()
+        await writer.seal()
+        assert (await verify_location(store)).ok
+        assert ("exec-witness-restart", 0) in await gap_causes(store, "exec/web")
+        chunks = await stream_chunks(store, "driver", "exec/web")
+        pids = [r["pid"] for chunk in chunks for r in exec_event_lines(chunk)]
+        assert pids == [100, 100, 777]
 
     asyncio.run(run())
 

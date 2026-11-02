@@ -149,6 +149,7 @@ def _cases() -> list[tuple[str, p.Message, bytes | None]]:
                 next_seq=44,
                 drops=2,
                 restarts=1,
+                session="abcdef0123456789abcdef0123456789",
             ),
             None,
         ),
@@ -370,6 +371,10 @@ def _rejects() -> list[dict[str, str]]:
         (
             "exec-events-result-missing-next-seq",
             d(**base, kind="exec_events_result", events=[]),
+        ),
+        (
+            "exec-events-result-bad-session",
+            d(**base, kind="exec_events_result", next_seq=1, session="NOPE"),
         ),
         (
             "exec-events-result-too-many",

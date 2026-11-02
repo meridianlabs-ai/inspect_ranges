@@ -22,27 +22,28 @@ type fakeSource struct {
 	stop         chan struct{}
 	subscribeErr error
 	closed       bool
+	fromPid      uint32 // sender nl_pid for every datagram (0 = kernel)
 }
 
 func (s *fakeSource) Subscribe() error { return s.subscribeErr }
 
-func (s *fakeSource) Read() ([]byte, error) {
+func (s *fakeSource) Read() ([]byte, uint32, error) {
 	s.mu.Lock()
 	if len(s.errs) > 0 {
 		err := s.errs[0]
 		s.errs = s.errs[1:]
 		s.mu.Unlock()
-		return nil, err
+		return nil, 0, err
 	}
 	if len(s.datagrams) > 0 {
 		data := s.datagrams[0]
 		s.datagrams = s.datagrams[1:]
 		s.mu.Unlock()
-		return data, nil
+		return data, s.fromPid, nil
 	}
 	s.mu.Unlock()
 	<-s.stop
-	return nil, errors.New("stopped")
+	return nil, 0, errors.New("stopped")
 }
 
 func (s *fakeSource) Close() {
@@ -99,8 +100,10 @@ func waitFor(t *testing.T, label string, condition func() bool) {
 	t.Fatalf("timed out waiting for %s", label)
 }
 
+const testSession = "abcdef0123456789abcdef0123456789"
+
 func pollWitness(w *execWitness, since int64) *Message {
-	reply := w.handle(&Message{V: ProtocolVersion, ID: strings.Repeat("a", 32), Kind: "exec_events", SinceSeq: i64(since)})
+	reply := w.handle(&Message{V: ProtocolVersion, ID: strings.Repeat("a", 32), Kind: "exec_events", SinceSeq: i64(since)}, testSession)
 	return reply.message
 }
 
@@ -257,14 +260,50 @@ func TestIngestFiltersNonConnectorShapes(t *testing.T) {
 	binary.LittleEndian.PutUint16(spoofWrongType[4:], 2) // NLMSG_ERROR
 	spoofWrongID := execDatagram(51)
 	binary.LittleEndian.PutUint32(spoofWrongID[16:], 7) // not CN_IDX_PROC
-	w.ingest(spoofWrongType)
-	w.ingest(spoofWrongID)
-	w.ingest(execDatagram(52))
+	w.ingest(spoofWrongType, 0)
+	w.ingest(spoofWrongID, 0)
+	w.ingest(execDatagram(52), 0)
 	if w.nextSeq != 1 {
 		t.Fatalf("filter admitted %d events, want exactly the real one", w.nextSeq)
 	}
 	if w.ring[0].Pid != 52 {
 		t.Fatalf("wrong event admitted: %+v", w.ring[0])
+	}
+}
+
+// TestForgedSenderIsDropped pins issue #31 finding 1: a perfectly connector-
+// shaped PROC_EVENT_EXEC from a nonzero netlink sender (an in-guest forger) is
+// dropped whole, while the identical datagram from the kernel (nl_pid 0) is
+// recorded. Only the sender distinguishes them.
+func TestForgedSenderIsDropped(t *testing.T) {
+	source := &fakeSource{stop: make(chan struct{})}
+	w := testWitness(t, source, staticFacts("x"))
+	w.ring = make([]ExecEvent, ExecRingSize) // ingest directly, no loop
+	w.ingest(execDatagram(60), 4242)         // userspace forger: dropped
+	if w.nextSeq != 0 {
+		t.Fatalf("forged datagram admitted %d events, want 0", w.nextSeq)
+	}
+	w.ingest(execDatagram(61), 0) // genuine kernel sender: recorded
+	if w.nextSeq != 1 || w.ring[0].Pid != 61 {
+		t.Fatalf("genuine datagram not recorded: nextSeq=%d ring0=%+v", w.nextSeq, w.ring[0])
+	}
+}
+
+// TestExecEventsReplyCarriesSession pins issue #31 finding 2: every reply
+// carries the daemon's boot session so the host detects a restart by session
+// change rather than sequence ordering.
+func TestExecEventsReplyCarriesSession(t *testing.T) {
+	source := &fakeSource{stop: make(chan struct{})}
+	w := testWitness(t, source, staticFacts("x"))
+	reply := w.handle(
+		&Message{V: ProtocolVersion, ID: strings.Repeat("a", 32), Kind: "exec_events"},
+		testSession,
+	)
+	if reply.message.Kind != "exec_events_result" {
+		t.Fatalf("unexpected reply kind %q", reply.message.Kind)
+	}
+	if reply.message.Session != testSession {
+		t.Fatalf("reply session = %q, want %q", reply.message.Session, testSession)
 	}
 }
 

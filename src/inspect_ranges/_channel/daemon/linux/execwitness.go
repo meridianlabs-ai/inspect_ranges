@@ -43,7 +43,10 @@ const (
 // crafted datagrams without root or CONFIG_PROC_EVENTS.
 type eventSource interface {
 	Subscribe() error
-	Read() ([]byte, error)
+	// Read returns the next datagram and its sender's netlink port id
+	// (nl_pid). Only the kernel sends connector multicast from port 0; a
+	// nonzero sender is an in-guest forger and the datagram is dropped.
+	Read() ([]byte, uint32, error)
 	Close()
 }
 
@@ -76,13 +79,20 @@ func (s *netlinkSource) Subscribe() error {
 	return nil
 }
 
-func (s *netlinkSource) Read() ([]byte, error) {
+func (s *netlinkSource) Read() ([]byte, uint32, error) {
 	buf := make([]byte, 4096)
-	n, _, err := unix.Recvfrom(s.fd, buf, 0)
+	n, from, err := unix.Recvfrom(s.fd, buf, 0)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return buf[:n], nil
+	// the sender's nl_pid distinguishes a genuine kernel connector message
+	// (port 0) from an in-guest unicast forger (issue #31); AF_NETLINK always
+	// yields a SockaddrNetlink here
+	var fromPid uint32
+	if nl, ok := from.(*unix.SockaddrNetlink); ok {
+		fromPid = nl.Pid
+	}
+	return buf[:n], fromPid, nil
 }
 
 func (s *netlinkSource) Close() {
@@ -119,8 +129,10 @@ func newExecWitness() *execWitness {
 }
 
 // handle serves one exec_events request; dispatched pre-store like diag
-// (polling is a read, never charged to the durable store).
-func (w *execWitness) handle(request *Message) *storedReply {
+// (polling is a read, never charged to the durable store). The daemon session
+// rides every reply so the host detects a daemon restart by session change
+// rather than fragile sequence ordering (issue #31 #2).
+func (w *execWitness) handle(request *Message, session string) *storedReply {
 	if err := w.arm(); err != nil {
 		return errorReply(request.ID, "ENOSYS", "process connector unavailable: "+err.Error(), nil)
 	}
@@ -139,6 +151,7 @@ func (w *execWitness) handle(request *Message) *storedReply {
 		NextSeq:  i64(nextSeq),
 		Drops:    i64(w.drops.Load()),
 		Restarts: i64(w.restarts.Load()),
+		Session:  session,
 	}}
 }
 
@@ -171,11 +184,11 @@ func (w *execWitness) arm() error {
 func (w *execWitness) run(source eventSource) {
 	backoff := 100 * time.Millisecond
 	for {
-		data, err := source.Read()
+		data, fromPid, err := source.Read()
 		switch {
 		case err == nil:
 			backoff = 100 * time.Millisecond
-			w.ingest(data)
+			w.ingest(data, fromPid)
 		case err == unix.ENOBUFS:
 			w.drops.Add(1)
 		default:
@@ -204,8 +217,13 @@ func (w *execWitness) run(source eventSource) {
 }
 
 // ingest walks a datagram's netlink messages (4-byte aligned) and records
-// every PROC_EVENT_EXEC.
-func (w *execWitness) ingest(datagram []byte) {
+// every PROC_EVENT_EXEC. A datagram from a nonzero sender (fromPid) is dropped
+// whole: only the kernel sends connector multicast from port 0, so any other
+// sender is an in-guest process forging exec records (issue #31).
+func (w *execWitness) ingest(datagram []byte, fromPid uint32) {
+	if fromPid != 0 {
+		return
+	}
 	for len(datagram) >= 16 {
 		msgLen := int(binary.LittleEndian.Uint32(datagram[0:]))
 		if msgLen < 16 || msgLen > len(datagram) {
@@ -227,9 +245,10 @@ func (w *execWitness) ingestOne(msg []byte) {
 	if len(msg) < 60 {
 		return
 	}
-	// only connector data messages on the proc channel qualify: an in-guest
-	// unicast spoofer aliasing procEventExec at offset 36 inside some other
-	// netlink shape is cheap to exclude (review round 1, finding 7)
+	// only connector data messages on the proc channel qualify; these are
+	// shape filters for non-exec connector traffic, not a trust boundary — a
+	// forged message from an in-guest sender is excluded by the nl_pid check in
+	// ingest (issue #31), since these offsets are all guest-writable bytes
 	if binary.LittleEndian.Uint16(msg[4:]) != uint16(unix.NLMSG_DONE) {
 		return
 	}
@@ -246,6 +265,9 @@ func (w *execWitness) ingestOne(msg []byte) {
 	}
 	ppid, uid, comm, argv, truncated := w.readProc(tgid)
 	event := ExecEvent{
+		// host-ingest wall-clock, deliberately not the connector's
+		// timestamp_ns (offset 44, monotonic-since-boot): ts_ms is a wall-clock
+		// field comparable to the rest of the evidence record (issue #31 #4)
 		TsMs:      time.Now().UnixMilli(),
 		Pid:       int64(tgid),
 		Ppid:      ppid,

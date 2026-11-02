@@ -534,7 +534,7 @@ namespace VsockD
             { "pending", new string[0] },
             { "forward_ok", new string[0] },
             { "diag_result", new[] { "entries", "listener_restarts" } },
-            { "exec_events_result", new[] { "events", "drops", "restarts" } },
+            { "exec_events_result", new[] { "events", "drops", "restarts", "session" } },
             { "error", new[] { "layer", "partial" } },
             { "realize", new[] { "grants" } },
             { "teardown", new string[0] },
@@ -762,6 +762,9 @@ namespace VsockD
                 case "exec_events_result":
                     if (!m.ContainsKey("next_seq"))
                         throw new DecodeException("exec_events_result: missing next_seq");
+                    string execSession = GetString(m, "session");
+                    if (execSession != null && !SessionRe.IsMatch(execSession))
+                        throw new DecodeException("exec_events_result: session must be 32 lowercase hex chars");
                     ValidateExecEvents(m);
                     break;
                 case "realize":
