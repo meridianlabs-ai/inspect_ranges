@@ -56,7 +56,7 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
     <type arch='x86_64' machine='{machine}'>hvm</type>
 {loader}    <boot dev='hd'/>
   </os>
-  <features><acpi/><apic/><vmport state='off'/></features>
+  <features><acpi/><apic/><vmport state='off'/>{smm}</features>
   {cpu}
   <clock offset='utc'>
     <timer name='hpet' present='no'/>
@@ -79,7 +79,7 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
       <source file='/scratch/{name}.qcow2'/>
       <target dev='vda' bus='virtio'/>
     </disk>
-{seed_stanza}{extra_disks}{interfaces}{video}    <vsock model='virtio'>
+{seed_stanza}{extra_disks}{interfaces}{video}{tpm}    <vsock model='virtio'>
       <cid auto='no' address='{cid}'/>
     </vsock>
     <serial type='file'>
@@ -122,6 +122,24 @@ _MACHINE_QUIRKS_PC = """\
 _LOADER_UEFI = """\
     <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.fd</loader>
     <nvram>/scratch/nvram/{name}_VARS.fd</nvram>
+"""
+
+# Secure Boot: the MS-key-enrolled OVMF build; SMM holds the variable store
+# (the {smm} feature pairs with this loader), and each guest's nvram copies
+# the enrolled VARS template
+_LOADER_UEFI_SECURE = """\
+    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.ms.fd</loader>
+    <nvram>/scratch/nvram/{name}_VARS.fd</nvram>
+"""
+
+_SMM_ON = "<smm state='on'/>"
+
+# a per-guest swtpm libvirt spawns and reaps with the domain; TPM state is
+# per-boot (ranges are cold-boot), so images must not seal secrets to it
+_TPM_CRB = """\
+                <tpm model='tpm-crb'>
+                    <backend type='emulator' version='2.0'/>
+                </tpm>
 """
 
 # the VNC listener binds the range container's loopback, which no guest
@@ -450,8 +468,12 @@ def render_bundle(
                     loader=(
                         _LOADER_UEFI.format(name=guest.name)
                         if guest.firmware == "uefi"
+                        else _LOADER_UEFI_SECURE.format(name=guest.name)
+                        if guest.firmware == "uefi-secure"
                         else ""
                     ),
+                    smm=_SMM_ON if guest.firmware == "uefi-secure" else "",
+                    tpm=_TPM_CRB if guest.tpm else "",
                     machine_quirks=(
                         _MACHINE_QUIRKS_Q35
                         if guest.machine == "q35"

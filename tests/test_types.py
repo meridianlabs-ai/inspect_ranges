@@ -213,13 +213,13 @@ def test_hardware_vocabulary_gates_refuse() -> None:
     dupe.hosts[1].interfaces[0].mac = "52:54:00:AA:BB:CC"  # case-insensitive
     _refuses(dupe, "already declared")
 
-    secure = dmz_pivot()
-    secure.hosts[0].hardware = Hardware(firmware="uefi-secure")
-    _refuses(secure, "not yet realized")
+    secure_pc = dmz_pivot()
+    secure_pc.hosts[0].hardware = Hardware(firmware="uefi-secure", machine="pc")
+    _refuses(secure_pc, "SMM lockbox exists on q35")
 
-    tpm = dmz_pivot()
-    tpm.hosts[0].hardware = Hardware(tpm=True)
-    _refuses(tpm, "not yet realized")
+    secure = dmz_pivot()
+    secure.hosts[0].hardware = Hardware(firmware="uefi-secure", tpm=True)
+    revalidate_range(secure)  # the realized Windows 11 contract shape
 
     scoped = dmz_pivot()
     scoped.hosts[0].readiness = TcpReadiness(tcp=22)

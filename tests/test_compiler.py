@@ -845,3 +845,47 @@ def test_declared_readiness_budget_rides_boot_json(tmp_path: Path) -> None:
         e["name"]: e for e in json.loads((out2 / "boot.json").read_text())["guests"]
     }
     assert "readiness_timeout" not in entries2["router"]
+
+
+def test_secure_boot_and_tpm_render_the_windows11_contract(tmp_path: Path) -> None:
+    """`firmware: uefi-secure` + `tpm: true` render exactly what a Win11 image demands: the MS-key-enrolled OVMF loader marked secure, SMM on, a per-guest nvram copied from the enrolled VARS template, and a tpm-crb emulator device; plain uefi and bios guests are untouched."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._runtime.up import BootPlan, boot_script
+    from inspect_ranges.types import Hardware
+
+    from tests.test_plan import _appliance_spec
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("bench-img.qcow2", "appliance-img.qcow2", "data-img.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    spec = _appliance_spec()
+    spec.hosts[0].hardware = Hardware(firmware="uefi-secure", tpm=True)
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+
+    bench = (out / "guests/workbench/domain.xml").read_text()
+    assert (
+        "<loader readonly='yes' secure='yes' type='pflash'>"
+        "/usr/share/OVMF/OVMF_CODE_4M.ms.fd</loader>" in bench
+    )
+    assert "/scratch/nvram/workbench_VARS.fd" in bench
+    assert "<smm state='on'/>" in bench
+    assert "<tpm model='tpm-crb'>" in bench and "type='emulator' version='2.0'" in bench
+
+    # the appliance (plain uefi from the fixture) keeps the unsigned build
+    router = (out / "guests/router/domain.xml").read_text()
+    assert "OVMF_CODE_4M.fd" in router and ".ms.fd" not in router
+    assert "<smm state='on'/>" not in router and "tpm" not in router
+
+    plan = BootPlan.model_validate(json.loads((out / "boot.json").read_text()))
+    assert (
+        next(g for g in plan.guests if g.name == "workbench").firmware == "uefi-secure"
+    )
+    script = boot_script(plan)
+    assert (
+        "/usr/share/OVMF/OVMF_VARS_4M.ms.fd /scratch/nvram/workbench_VARS.fd" in script
+    )
+    assert "/usr/share/OVMF/OVMF_VARS_4M.fd /scratch/nvram/router_VARS.fd" in script
