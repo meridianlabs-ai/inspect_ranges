@@ -73,6 +73,9 @@ class WindowsOsVariant:
     disk_gb: int
     """The golden's virtual disk size (sparse; setup checks a per-OS storage floor)."""
 
+    install_timeout_s: float
+    """Bound on this variant's unattended install, a fact of the media like the disk floor (the win-guest spike measured ~190 s for Server Core before guest-tools and the daemon compile; the multi-edition client WIM alone outruns that shape's whole bound)."""
+
     default_name: str
     """Golden name when the caller does not pass one."""
 
@@ -86,6 +89,7 @@ WINDOWS_OS_VARIANTS: dict[str, WindowsOsVariant] = {
         product_key=None,
         firmware="bios",
         disk_gb=40,
+        install_timeout_s=2400.0,
         default_name="windows-2022",
     ),
     "11": WindowsOsVariant(
@@ -96,6 +100,7 @@ WINDOWS_OS_VARIANTS: dict[str, WindowsOsVariant] = {
         product_key="VK7JG-NPHTM-C97JM-9MPGT-3V66T",  # the documented generic Pro edition-selection key
         firmware="uefi-secure",
         disk_gb=64,  # the Windows 11 storage floor
+        install_timeout_s=4800.0,  # the multi-edition client WIM alone outruns the server bound (measured)
         default_name="windows-11",
     ),
 }
@@ -106,9 +111,6 @@ DEFAULT_ADMIN_PASSWORD = DEFAULT_WINDOWS_ADMIN_PASSWORD
 
 INSTALL_CID = 2900
 """The installer VM's vsock CID: `install-daemon.ps1` verifies the viosock driver BINDS (not merely stages), which needs a live device during install. Below 3000 per the realizer CID partition (batteries at 3000+, the channel harness below), high enough to dodge the harness's own fixtures."""
-
-INSTALL_TIMEOUT_S = 2400.0
-"""Bound on the unattended install (the win-guest spike measured ~190 s plus guest-tools and the daemon compile; eval media on slow storage can take far longer)."""
 
 
 _INSTALL_UNATTEND_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -330,7 +332,7 @@ def install_windows_golden(
     admin_password: str = DEFAULT_ADMIN_PASSWORD,
     artifact_dir: Path | None = None,
     daemon_sha256: str | None = None,
-    timeout_s: float = INSTALL_TIMEOUT_S,
+    timeout_s: float | None = None,
 ) -> tuple[ImageMetadata, bool]:
     """Install a sysprep'd Windows golden into the cache from digest-pinned media.
 
@@ -353,6 +355,8 @@ def install_windows_golden(
         )
     if name is None:
         name = variant.default_name
+    if timeout_s is None:
+        timeout_s = variant.install_timeout_s
     expected_iso = iso_sha256.removeprefix("sha256:").lower()
     expected_virtio = virtio_sha256.removeprefix("sha256:").lower()
     for path, expected, label in (
