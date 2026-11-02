@@ -6,11 +6,13 @@ The origin stamped into the attack-box record carries the pin's contents, not it
 """
 
 import hashlib
+import http.client
 import json
 import os
 import re
 import tarfile
 import tempfile
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -62,9 +64,18 @@ class ProgramPin:
             raise ValueError(
                 f"{self.name} sha256 {self.sha256!r} is not 64 lowercase hex digits"
             )
+        # refused at pin load, not at the first fetch: urlopen answers a
+        # scheme-less url with a bare ValueError, not a typed refusal
+        if urllib.parse.urlsplit(self.url).scheme not in ("http", "https", "file"):
+            raise ValueError(
+                f"{self.name} url {self.url!r} is not an http(s) or file URL"
+            )
         entry = Path(self.entry)
-        if entry.is_absolute() or ".." in entry.parts:
-            raise ValueError(f"{self.name} entry {self.entry!r} leaves the release")
+        if not entry.parts or entry.is_absolute() or ".." in entry.parts:
+            raise ValueError(
+                f"{self.name} entry {self.entry!r} is not a relative path "
+                "inside the release"
+            )
 
     @property
     def origin(self) -> str:
@@ -177,7 +188,7 @@ def _download_verified(pin: ProgramPin, root: Path) -> None:
     """Download the release tarball, verify its SHA-256, and only then extract it into `root/<release_dir>` with one atomic rename.
 
     Raises:
-        ExternalBoxError: The download failed, the digest does not match, the tarball does not extract safely, or its layout is not one top-level directory. Nothing is cached on any of these.
+        ExternalBoxError: The download failed, the digest does not match, the tarball does not extract safely, its layout is not one top-level directory, or it carries no file at the pin's `entry`. Nothing is cached on any of these.
     """
     root.mkdir(parents=True, exist_ok=True)
     # staged inside the cache root so the final rename never crosses a filesystem
@@ -195,7 +206,9 @@ def _download_verified(pin: ProgramPin, root: Path) -> None:
                 while chunk := response.read(1 << 20):
                     digest.update(chunk)
                     sink.write(chunk)
-        except OSError as error:
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            # OSError alone misses urlopen's refusals: a malformed url is a
+            # bare ValueError, a truncated body an IncompleteRead
             raise ExternalBoxError(
                 f"downloading {pin.name} {pin.tag} from {pin.url} failed: {error}",
                 remedy=f"set {PROGRAM_ENV} to an installed {pin.name} program",
@@ -218,9 +231,18 @@ def _download_verified(pin: ProgramPin, root: Path) -> None:
             ) from error
         tops = list(tree.iterdir())
         if len(tops) != 1 or not tops[0].is_dir():
+            found = ", ".join(sorted(top.name for top in tops)) or "nothing"
             raise ExternalBoxError(
                 f"{pin.name} {pin.tag} from {pin.url} does not hold exactly one "
-                f"top-level directory ({len(tops)} entries)"
+                f"top-level directory (found: {found})"
+            )
+        # refused before anything is cached: a cached tree with no entry would
+        # otherwise re-download on every verb and fail with a bare OSError
+        if not (tops[0] / pin.entry).is_file():
+            raise ExternalBoxError(
+                f"{pin.name} {pin.tag} from {pin.url} has no file at the pin's "
+                f"entry {pin.entry!r}; nothing was cached",
+                remedy="fix the pin's entry to the program's path inside the release",
             )
         target = root / pin.release_dir
         try:
@@ -241,7 +263,7 @@ def pinned_attack_box(context: AttackBoxContext) -> AttackBoxBackend:
     """The `AttackBoxFactory` for a pinned release. Cheap: it neither downloads nor runs anything.
 
     Raises:
-        ValueError: The config is not `<name>/<tag>@sha256:<hex>`, or names no pinned provider.
+        ValueError: The config is absent, or names no loadable pin (`pin_from_config`).
     """
     provider = _provider(pin_from_config(context.config))
     return AttackBoxBackend(provider=provider, doctor_probe=provider.doctor_probe)

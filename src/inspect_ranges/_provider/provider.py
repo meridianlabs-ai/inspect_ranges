@@ -112,11 +112,14 @@ async def _prepare_attack_box(runtime: ProviderRuntime, spec: RangeSpec) -> None
         return
     if origin in runtime.attack_box_probed:
         return
-    try:
-        await asyncio.to_thread(prepare_attack_box, origin)
-    except ExternalBoxError as error:
-        raise prerequisite_error(str(error)) from error
-    runtime.attack_box_probed.add(origin)
+    async with runtime.attack_box_probe_lock:
+        if origin in runtime.attack_box_probed:
+            return
+        try:
+            await asyncio.to_thread(prepare_attack_box, origin)
+        except ExternalBoxError as error:
+            raise prerequisite_error(str(error)) from error
+        runtime.attack_box_probed.add(origin)
 
 
 def _default_guest(spec: RangeSpec) -> str:

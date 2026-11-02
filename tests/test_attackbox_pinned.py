@@ -10,7 +10,7 @@ import os
 import sys
 import tarfile
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict
 from ipaddress import IPv4Address
 from pathlib import Path
@@ -155,14 +155,15 @@ def attachment(tap_fd: int) -> FootholdAttachment:
 
 @contextmanager
 def tap_pipe(payload: bytes) -> Generator[int]:
-    """A real fd standing in for a tap: its read end, with `payload` waiting in it."""
+    """A real fd standing in for a tap: its read end, with `payload` waiting in it. The provider owns the fd from `boot` on and closes it, so cleanup tolerates a closed fd."""
     read_end, write_end = os.pipe()
     os.write(write_end, payload)
     os.close(write_end)
     try:
         yield read_end
     finally:
-        os.close(read_end)
+        with suppress(OSError):
+            os.close(read_end)
 
 
 def selected_backend(tmp_path: Path) -> AttackBoxBackend:
@@ -178,6 +179,8 @@ def test_boot_passes_tap_fds_and_builds_the_handle(stub: Stub, tmp_path: Path) -
     backend = selected_backend(tmp_path)
     with tap_pipe(b"frames-for-the-box") as fd:
         handle = asyncio.run(backend.provider.boot(attachment(fd)))
+        with pytest.raises(OSError):
+            os.fstat(fd)  # boot closed its own copy; the program's dup is the box's
     assert handle.exec_endpoint == HybridEndpoint(
         Path("/run/glovebox/attacker.sock"), 1234
     )
@@ -347,6 +350,20 @@ def test_a_bad_pin_file_refuses_at_selection(
         attack_box_origin()
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("url", "github.com/x/archive.tar.gz"), ("url", ""), ("entry", "")],
+    ids=["schemeless-url", "empty-url", "empty-entry"],
+)
+def test_a_pin_field_the_fetch_would_choke_on_refuses_at_selection(
+    stub: Stub, field: str, value: str
+) -> None:
+    """`url` and `entry` refuse at pin load like every other field, not at the first download."""
+    stub.pin_file.write_text(json.dumps({**asdict(stub.pin), field: value}))
+    with pytest.raises(ValueError, match="is not a pin"):
+        attack_box_origin()
+
+
 # -- the pin, the download, and the cache -----------------------------------------------
 
 
@@ -391,6 +408,20 @@ def test_a_hash_mismatch_refuses_and_caches_nothing(tmp_path: Path) -> None:
     cache = tmp_path / "cache"
     with pytest.raises(ExternalBoxError, match="nothing was cached"):
         ensure_program(pin, cache_root=cache)
+    assert not list((cache / "glovebox").glob("v9.9.9*"))
+
+
+def test_a_wrong_entry_refuses_and_caches_nothing(tmp_path: Path) -> None:
+    """A pin whose entry is not in the release refuses with the entry named, on every use alike (a cached entry-less tree would re-download and die on the cache rename instead)."""
+    url, digest = release(tmp_path)
+    pin = ProgramPin(
+        name="glovebox", tag="v9.9.9", url=url, sha256=digest, entry="bin/missing"
+    )
+    cache = tmp_path / "cache"
+    for _ in range(2):
+        with pytest.raises(ExternalBoxError, match="entry 'bin/missing'") as raised:
+            ensure_program(pin, cache_root=cache)
+        assert raised.value.remedy is not None
     assert not list((cache / "glovebox").glob("v9.9.9*"))
 
 

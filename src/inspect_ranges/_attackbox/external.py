@@ -1,10 +1,14 @@
 """An attack-box provider that is a separate program: `<program> attackbox boot|teardown|probe`, protocol version 1.
 
 The program owns the box. This side imports none of its code: each verb is one subprocess whose stdin carries one JSON request and whose stdout carries one JSON reply, and the tap fds cross through `pass_fds` at the numbers the request names. Every reply is untrusted input, so anything but exactly one JSON object carrying `"protocol": 1` refuses.
+
+The reply is read to stdout's EOF, so stdout reaching EOF when the verb's work is done is part of the protocol: a boot program that lets a spawned VMM inherit its stdout never ends the reply, and the verb burns its whole bound before failing.
 """
 
 import asyncio
+import contextlib
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -108,8 +112,8 @@ def _error_from(reply: dict[str, Any], verb: str) -> ExternalBoxError:
             remedy=_optional_str(error, "remedy"),
             report_url=_optional_str(error, "report_url"),
         )
-    except ExternalBoxError as malformed:
-        return malformed
+    except ExternalBoxError as bad_field:
+        return bad_field
 
 
 class ExternalProgramProvider:
@@ -130,7 +134,7 @@ class ExternalProgramProvider:
         self._timeout_s = timeout_s
 
     async def boot(self, attachment: FootholdAttachment) -> AttackBoxHandle:
-        """Boot the box behind the attachment's taps; the program owns the fds from this call on.
+        """Boot the box behind the attachment's taps; the program owns the fds from this call on, and this side closes its own copies when the verb returns, success or failure alike.
 
         Raises:
             ExternalBoxError: The program is unavailable, refused, or replied outside the protocol; the message ends with the way back to the built-in box.
@@ -170,6 +174,13 @@ class ExternalProgramProvider:
             return _handle_from(reply)
         except ExternalBoxError as error:
             raise error.with_hint(self._builtin_hint) from error
+        finally:
+            # the program's dups (and its VMM's) are the box's from exec on;
+            # this side's copies would otherwise leak one fd per interface per
+            # sample in the long-lived driver and hold the taps open from here
+            for fd in fds:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
 
     async def teardown(self, project: str, reclaim_token: str) -> None:
         """Tear down every box of `project`; a box that is absent is success.

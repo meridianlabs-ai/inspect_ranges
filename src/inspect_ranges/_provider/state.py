@@ -3,6 +3,7 @@
 `ProviderRuntime` lives on Inspect's `SandboxLifecycleState` (keyed by class, default-constructed on first use), the one registry visible across `task_init`, every sample, and `task_cleanup` of a batch; a `ContextVar` bound in `sample_init` would never reach `task_cleanup`. The up/down/render/channel seams are mutable attributes defaulting to the real functions (the `runner=` pattern), so lifecycle tests inject fakes by mutating the scope's instance.
 """
 
+import asyncio
 import logging
 import os
 from collections.abc import Callable
@@ -180,6 +181,8 @@ class ProviderRuntime:
         self.registry: dict[str, SampleHandle] = {}
         self.attack_box_probed: set[str] = set()
         """The pinned attack-box origins whose release eval init fetched and whose host probe passed in this run."""
+        self.attack_box_probe_lock = asyncio.Lock()
+        """Serializes the fetch-and-probe, so concurrent task inits pay the cold download once."""
         self.host_backend = os.environ.get("INSPECT_RANGES_HOST", "local")
         self._admission: WeightedAdmission | None = None
         self._allocator: CidAllocator | None = None
