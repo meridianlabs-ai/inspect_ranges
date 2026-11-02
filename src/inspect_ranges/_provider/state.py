@@ -119,6 +119,8 @@ class SampleHandle:
     """The seed the sample's draws derive from, recorded with the values on the `draws` evidence stream; `None` when nothing draws."""
     opaque_guests: frozenset[str] = frozenset()
     """Opaque guest names for plan-less handles (oracle attach reads them from the recorded `boot.json`); when `plan` is set it is the authority and this is ignored."""
+    vmm_alive: "Callable[[str], bool] | None" = None
+    """Driver-side VMM-process liveness (`_runtime.up.vmm_liveness`), injected by whichever path constructed the handle (provider, oracle attach, the build's proof boot); the oracle's `alive()` reads it. `None` means the seam is absent (unit fixtures) and `alive()` refuses."""
 
 
 def ensure_pulled(spec: "RangeSpec", *, image_cache: Path) -> None:

@@ -143,10 +143,22 @@ def test_attach_yields_oracle_logs_loudly_and_detaches(
     state_dir: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """The lifecycle: a running project yields a `RangeOracle` with one loud attach line, and verbs after exit refuse as detached before any dial."""
+    docker = FakeDocker()
     with caplog.at_level(logging.WARNING, logger="inspect_ranges.oracle"):
-        with attach_oracle(PROJECT, state_dir=state_dir, runner=FakeDocker()) as oracle:
+        with attach_oracle(PROJECT, state_dir=state_dir, runner=docker) as oracle:
             assert isinstance(oracle, RangeOracle)
             assert oracle.project == PROJECT
+            # unknown names refuse before the seam is consulted
+            with pytest.raises(OracleSetupError, match="not part of this sample"):
+                asyncio.run(oracle.alive("ghost"))
+            # the attach injects the VMM-liveness seam with ITS runner: a live
+            # probe of a known guest walks the ps + exec legs through this
+            # FakeDocker (round 2: the ghost refusal alone never reached the
+            # seam, so injection was unpinned)
+            before = len(docker.calls)
+            assert asyncio.run(oracle.alive("web")) is True
+            seam_calls = [argv[:2] for argv in docker.calls[before:]]
+            assert seam_calls == [["docker", "ps"], ["docker", "exec"]]
     loud = [record for record in caplog.records if "out-of-band" in record.message]
     assert loud and loud[0].levelno == logging.WARNING
     assert PROJECT in loud[0].getMessage()

@@ -566,6 +566,8 @@ async def run_behavioral_checks(
         label="build-behavioral",
         channel_budget_s=10.0,
     )
+    from .._runtime.up import run_command, vmm_liveness
+
     handle = SampleHandle(
         project=project,
         task_name=f"build-{spec.meta.name}",
@@ -577,6 +579,7 @@ async def run_behavioral_checks(
         evidence=session,
         plan=plan,
         spec=spec,
+        vmm_alive=vmm_liveness(run_command, project),
         draws=draws or {},
         draw_seed=draw_seed,
     )
