@@ -471,6 +471,26 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                             hint="declare ip: on every interface of a content-carrying Windows host; its captured disk bakes the addresses, so the build key must see them",
                         )
                     )
+        if host.os.type == "windows" and host.os.version == "11":
+            # Windows 11 verifies its hardware floor at setup and measures it
+            # at boot (secure boot under the Microsoft keys, a TPM 2.0
+            # device): its golden installs under that contract, and a clone
+            # declared without it would boot a shape the disk never saw —
+            # refuse at plan time, explicitly rather than by injected default
+            declared_hw = host.hardware
+            if (
+                declared_hw is None
+                or declared_hw.firmware != "uefi-secure"
+                or not declared_hw.tpm
+            ):
+                issues.append(
+                    Issue(
+                        code="windows11-hardware-required",
+                        path=("hosts", index, "hardware"),
+                        message=f"host {host.name!r} declares Windows 11 without its hardware contract",
+                        hint="declare hardware: { firmware: uefi-secure, tpm: true } on every Windows 11 guest (the shape its golden installs under)",
+                    )
+                )
         if host.nested_virtualization and options.cpu_model != "host-passthrough":
             # a named CPU model (checkpointed fleets) does not carry the
             # virtualization flag into the guest; the declaration would boot

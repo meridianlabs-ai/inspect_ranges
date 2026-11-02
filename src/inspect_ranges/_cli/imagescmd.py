@@ -112,7 +112,20 @@ def derive(
     required=True,
     help="Required digest pin for the virtio-win ISO.",
 )
-@click.option("--name", default="windows-2022", show_default=True, help="Golden name.")
+@click.option(
+    "--os",
+    "os_variant",
+    type=click.Choice(["server-2022", "11"]),
+    default="server-2022",
+    show_default=True,
+    help="The Windows OS the media installs; keys the driver directory, image selection, disk layout, and the installer VM's firmware shape (Windows 11 installs under secure boot + TPM).",
+)
+@click.option(
+    "--name",
+    default=None,
+    show_default="the variant's default (windows-2022, windows-11)",
+    help="Golden name.",
+)
 @click.option(
     "--admin-password",
     "admin_password",
@@ -144,7 +157,8 @@ def derive_windows(
     iso_sha256: str,
     virtio_iso: Path,
     virtio_sha256: str,
-    name: str,
+    os_variant: str,
+    name: str | None,
     admin_password: str | None,
     image_cache: Path | None,
     daemon_bundle: Path | None,
@@ -166,6 +180,7 @@ def derive_windows(
             virtio_sha256,
             image_cache,
             name=name,
+            os_variant=os_variant,
             admin_password=(
                 admin_password if admin_password is not None else DEFAULT_ADMIN_PASSWORD
             ),

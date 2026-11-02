@@ -17,6 +17,7 @@ from inspect_ranges._compiler.plan import spec_sha256
 from inspect_ranges._runtime.rangeimage import range_image_context
 from inspect_ranges.types import (
     Attacker,
+    Hardware,
     Host,
     Interface,
     IssueError,
@@ -709,6 +710,52 @@ attacker:
     assert by_name["attacker"]["injector"] == "cloud-init"
 
 
+def test_windows_11_guest_renders_the_full_contract(
+    cache: Path, tmp_path: Path
+) -> None:
+    """windows11-client-v1: one domain carries the whole Windows 11 shape at once — the MS-key secure loader with SMM, per-guest nvram from the enrolled VARS template, the tpm-crb emulator, the shared libvirt-qemu principal, and the Windows seed stanza (virtio-scsi cdrom, VNC + VGA) — and boot.json records unattend + daemon beside the firmware facts."""
+    (cache / "windows-11.qcow2").write_bytes(b"fake windows golden")
+    spec = RangeSpec(
+        meta=RangeMeta(name="win11r", description="one windows 11 client"),
+        networks=[Network(name="corp", cidr="10.30.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="client",
+                os=Os(type="windows", version="11"),
+                image="windows-11",
+                hardware=Hardware(firmware="uefi-secure", tpm=True),
+                interfaces=[Interface(network="corp", ip="10.30.0.10")],
+            )
+        ],
+        attacker=Attacker(
+            image="ubuntu-noble",
+            vmm="qemu",
+            interfaces=[Interface(network="corp")],
+            entry="external",
+        ),
+    )
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, options(cache))
+    domain = (out / "guests" / "client" / "domain.xml").read_text()
+    assert (
+        "<loader readonly='yes' secure='yes' type='pflash'>"
+        "/usr/share/OVMF/OVMF_CODE_4M.ms.fd</loader>" in domain
+    )
+    assert "/scratch/nvram/client_VARS.fd" in domain
+    assert "<smm state='on'/>" in domain
+    assert (
+        "<tpm model='tpm-crb'>" in domain and "type='emulator' version='2.0'" in domain
+    )
+    assert "<label>libvirt-qemu:kvm</label>" in domain
+    assert "virtio-scsi" in domain and "device='cdrom'" in domain
+    assert "type='vnc'" in domain and "<model type='vga'" in domain
+    assert (out / "guests" / "client" / "seed" / "unattend.xml").exists()
+    boot = json.loads((out / "boot.json").read_text())
+    entry = next(g for g in boot["guests"] if g["name"] == "client")
+    assert (entry["injector"], entry["readiness"]) == ("unattend", "daemon")
+    assert (entry["firmware"], entry["tpm"]) == ("uefi-secure", True)
+
+
 def test_boot_overlay_clamps_to_the_backing_virtual_size(
     cache: Path, tmp_path: Path
 ) -> None:
@@ -817,6 +864,51 @@ def test_windows_content_host_requires_explicit_ips(cache: Path) -> None:
     free.hosts[0].provisioning = []
     free.hosts[0].interfaces = [Interface(network="lab")]
     assert resolve_plan(free, options(cache)).guests[0].os == "windows"
+
+
+@pytest.mark.parametrize(
+    "hardware",
+    [
+        None,
+        Hardware(firmware="uefi-secure"),  # no tpm
+        Hardware(firmware="uefi", tpm=True),  # not the secure loader
+    ],
+    ids=["absent", "no-tpm", "not-secure"],
+)
+def test_windows_11_requires_its_hardware_contract(
+    cache: Path, hardware: Hardware | None
+) -> None:
+    """A Windows 11 host without `hardware: { firmware: uefi-secure, tpm: true }` refuses at planning: its golden installs under that contract, and a clone booted outside it is a shape the disk never saw (windows11-client-v1)."""
+    spec = RangeSpec(
+        meta=RangeMeta(name="win11hw", description="windows 11 hardware gate"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="client",
+                os=Os(type="windows", version="11"),
+                image="windows-11",
+                hardware=hardware,
+                interfaces=[Interface(network="lab")],
+            )
+        ],
+        attacker=Attacker(interfaces=[Interface(network="lab")], entry="external"),
+    )
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(spec, options(cache))
+    issue = next(
+        issue
+        for issue in excinfo.value.issues
+        if issue.code == "windows11-hardware-required"
+    )
+    assert issue.path == ("hosts", 0, "hardware")
+    # the declared contract plans; server versions stay free of the gate
+    spec.hosts[0].hardware = Hardware(firmware="uefi-secure", tpm=True)
+    plan = resolve_plan(spec, options(cache))
+    assert (plan.guests[0].firmware, plan.guests[0].tpm) == ("uefi-secure", True)
+    server = spec.model_copy(deep=True)
+    server.hosts[0].os = Os(type="windows", version="server-2022")
+    server.hosts[0].hardware = None
+    assert resolve_plan(server, options(cache)).guests[0].os == "windows"
 
 
 def test_windows_netbios_truncation_collides_at_planning(cache: Path) -> None:

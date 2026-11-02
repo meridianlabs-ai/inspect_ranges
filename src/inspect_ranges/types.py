@@ -347,7 +347,7 @@ class Os(_StrictModel):
     """Linux distribution, e.g. `ubuntu-20.04`."""
 
     version: str | None = None
-    """Windows version, e.g. `server-2019`."""
+    """Windows version, e.g. `server-2019`. `11` declares a Windows 11 client, which requires `hardware: { firmware: uefi-secure, tpm: true }` (the contract its golden installs under; planning refuses `windows11-hardware-required` without it)."""
 
 
 class Resources(_StrictModel):
