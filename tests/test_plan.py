@@ -901,8 +901,24 @@ def test_windows_11_requires_its_hardware_contract(
         if issue.code == "windows11-hardware-required"
     )
     assert issue.path == ("hosts", 0, "hardware")
-    # the declared contract plans; server versions stay free of the gate
-    spec.hosts[0].hardware = Hardware(firmware="uefi-secure", tpm=True)
+
+
+def test_windows_11_contract_plans_and_server_stays_free(cache: Path) -> None:
+    """The declared contract plans a Windows 11 host (firmware and tpm land on the planned guest); server versions never see the gate."""
+    spec = RangeSpec(
+        meta=RangeMeta(name="win11ok", description="windows 11 contract accepted"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="client",
+                os=Os(type="windows", version="11"),
+                image="windows-11",
+                hardware=Hardware(firmware="uefi-secure", tpm=True),
+                interfaces=[Interface(network="lab")],
+            )
+        ],
+        attacker=Attacker(interfaces=[Interface(network="lab")], entry="external"),
+    )
     plan = resolve_plan(spec, options(cache))
     assert (plan.guests[0].firmware, plan.guests[0].tpm) == ("uefi-secure", True)
     server = spec.model_copy(deep=True)

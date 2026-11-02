@@ -67,6 +67,16 @@ def test_the_os_variant_enters_the_derivation_key() -> None:
     assert len(keys) == len(WINDOWS_OS_VARIANTS)
 
 
+def test_cli_os_choices_track_the_variant_table() -> None:
+    """`images derive-windows --os` offers exactly the variant table's keys (the CLI re-encodes them as a literal to keep the module import light; this pin turns drift into a failure)."""
+    import click
+    from inspect_ranges._cli.imagescmd import derive_windows
+
+    param = next(p for p in derive_windows.params if p.name == "os_variant")
+    assert isinstance(param.type, click.Choice)
+    assert sorted(param.type.choices) == sorted(WINDOWS_OS_VARIANTS)
+
+
 def test_unknown_os_variant_refuses_before_touching_media(tmp_path: Path) -> None:
     """An unknown variant names the supported set and fails before any media check (the paths here do not exist)."""
     with pytest.raises(DeriveError, match="unknown Windows OS variant"):

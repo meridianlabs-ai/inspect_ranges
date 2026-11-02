@@ -607,13 +607,16 @@ def _install_locked(
                 )
                 if variant.firmware == "uefi-secure":
                     # the install media's UEFI bootloader waits on "Press any
-                    # key to boot from CD or DVD": cover the whole firmware
-                    # window with keypresses (BIOS boots the cdrom unprompted;
-                    # after WinPE's reboot the ESP boots first, so the prompt
-                    # never recurs)
+                    # key to boot from CD or DVD": cover the firmware window
+                    # with keypresses (BIOS boots the cdrom unprompted; after
+                    # WinPE's reboot the ESP boots first, so the prompt never
+                    # recurs). 90 s of coverage: a prompt that appears later
+                    # than this falls through to the EFI shell and the install
+                    # burns its whole timeout, so the window is deliberately
+                    # generous (battery watch item, mid-slice review)
                     _exec(
                         container,
-                        "for i in $(seq 1 20); do "
+                        "for i in $(seq 1 45); do "
                         "virsh -c qemu:///system send-key wininstall "
                         "--codeset linux KEY_SPACE >/dev/null 2>&1 || true; "
                         "sleep 2; done",
