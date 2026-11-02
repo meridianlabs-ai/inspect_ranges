@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shlex
 import subprocess
 import time
@@ -252,6 +253,7 @@ def verify_bundle(bundle: Path, expected_digest: str | None = None) -> dict[str,
 
 
 _SAFE_NAME = r"^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+_SAFE_NAME_RE = re.compile(_SAFE_NAME)
 
 
 class BootInterface(BaseModel):
@@ -651,19 +653,41 @@ def project_containers(
 
 
 def vmm_liveness(runner: Runner, project: str) -> "Callable[[str], bool]":
-    """A driver-side VMM-process liveness probe for the project's guests, by compose label alone (no bundle needed, so the provider, the oracle attach, and the build's proof boot all construct it the same way).
+    """A driver-side VMM-process liveness probe for the project's guests, resolved by compose labels alone (no bundle needed, so the provider, the oracle attach, and the build's proof boot all construct it the same way).
 
-    The returned callable answers "does the guest's VMM process run right now": `virsh domstate` reports `running` for QEMU guests, and a Cloud Hypervisor guest's recorded pidfile names a live process. Any failure (range container gone, domain undefined, stale pidfile) is `False`, never an exception: liveness is a scoring observation, and an unobservable guest is honestly not-alive.
+    The returned callable answers "does the guest's VMM process run right now". For QEMU guests that is `virsh domstate` in a VMM-process-running state: `running`, `paused`, `pmsuspended`, and `in shutdown` all count as ALIVE (a suspended or pausing guest is a reversible nap, deliberately not a denial of service; an in-guest `rtcwake` must never score as a kill). For Cloud Hypervisor guests the recorded pidfile must name a live process whose comm IS cloud-hypervisor (bare `kill -0` would read alive-when-dead once the pid recycles). The probe execs the RANGE service container specifically: capture and probe sidecars share the project label and would otherwise shadow it.
+
+    Any failure to observe (range container gone, domain undefined, stale or malformed pidfile, docker itself wedged past the bound or absent) is `False`, never an exception: liveness is a scoring observation, and an unobservable guest is honestly not-alive.
     """
 
     def alive(guest: str) -> bool:
-        containers = project_containers(runner, project, running_only=True)
-        if not containers:
+        if _SAFE_NAME_RE.fullmatch(guest) is None:
+            return False  # defense in depth: callers gate on known names already
+        try:
+            listed = runner(
+                [
+                    "docker",
+                    "ps",
+                    "-q",
+                    "--filter",
+                    f"label=com.docker.compose.project={project}",
+                    "--filter",
+                    "label=com.docker.compose.service=range",
+                ],
+                timeout=15,
+            )
+        except FileNotFoundError:
+            return False  # no docker here: unobservable is not-alive
+        containers = [line for line in listed.stdout.splitlines() if line.strip()]
+        if listed.returncode != 0 or not containers:
             return False
+        # /proc comm is truncated to 15 chars, hence the cloud-hyperviso prefix
         probe = (
-            f"state=$(virsh -c qemu:///system domstate {guest} 2>/dev/null) && "
-            f'[ "$state" = running ] || '
-            f"kill -0 $(cat /scratch/ch/{guest}.pid 2>/dev/null) 2>/dev/null"
+            f"state=$(virsh -c qemu:///system domstate {guest} 2>/dev/null); "
+            f'case "$state" in running|paused|pmsuspended|"in shutdown") exit 0;; esac; '
+            f"pid=$(cat /scratch/ch/{guest}.pid 2>/dev/null); "
+            'case "$pid" in ""|*[!0-9]*) exit 1;; esac; '
+            'grep -q "^cloud-hyperviso" "/proc/$pid/comm" 2>/dev/null'
         )
         result = runner(
             ["docker", "exec", containers[0], "bash", "-c", probe], timeout=30

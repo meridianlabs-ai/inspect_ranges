@@ -147,6 +147,10 @@ def test_attach_yields_oracle_logs_loudly_and_detaches(
         with attach_oracle(PROJECT, state_dir=state_dir, runner=FakeDocker()) as oracle:
             assert isinstance(oracle, RangeOracle)
             assert oracle.project == PROJECT
+            # the attach injects the VMM-liveness seam with ITS runner, so
+            # alive() works out of band (and refuses unknown names first)
+            with pytest.raises(OracleSetupError, match="not part of this sample"):
+                asyncio.run(oracle.alive("ghost"))
     loud = [record for record in caplog.records if "out-of-band" in record.message]
     assert loud and loud[0].levelno == logging.WARNING
     assert PROJECT in loud[0].getMessage()

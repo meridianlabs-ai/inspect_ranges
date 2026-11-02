@@ -1813,36 +1813,68 @@ def test_up_verifies_extra_disk_bases_and_their_vendor_edges(
         up(out, options(cache, tmp_path / "gone"), runner=FakeDocker())
 
 
-def test_vmm_liveness_probes_by_label_and_answers_false_safely() -> None:
-    """The driver-side liveness callable: resolves the range container by compose label (no bundle needed), asks virsh-domstate-or-CH-pidfile in one probe, and answers False (never raises) when the container is gone or the probe fails."""
+def test_vmm_liveness_probes_the_range_service_and_answers_false_safely() -> None:
+    """The driver-side liveness callable: resolves the RANGE service container specifically (capture/probe sidecars share the project label; review round 1 B1), bounds both docker legs, treats paused/pmsuspended as alive (a reversible nap is not a kill), verifies CH pidfiles against the process comm, and answers False (never raises) on absence, failure, timeout, or a hostile name."""
     import subprocess
 
     from inspect_ranges._runtime.up import vmm_liveness
 
-    calls: list[list[str]] = []
+    def runner_factory(domstate: str, probe_rc: int | None = None):
+        def runner(
+            argv: list[str], **kwargs: Any
+        ) -> "subprocess.CompletedProcess[str]":
+            if argv[:2] == ["docker", "ps"]:
+                assert "label=com.docker.compose.service=range" in argv
+                assert kwargs.get("timeout") == 15
+                return subprocess.CompletedProcess(
+                    argv, 0, stdout="cid-range\n", stderr=""
+                )
+            assert argv[:3] == ["docker", "exec", "cid-range"]
+            script = argv[-1]
+            assert (
+                'case "$state" in running|paused|pmsuspended|"in shutdown")' in script
+            )
+            assert "cloud-hyperviso" in script and "/scratch/ch/router.pid" in script
+            if probe_rc is not None:
+                return subprocess.CompletedProcess(argv, probe_rc)
+            alive_states = ("running", "paused", "pmsuspended", "in shutdown")
+            return subprocess.CompletedProcess(
+                argv, 0 if domstate in alive_states else 1
+            )
 
-    def runner(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
-        calls.append(argv)
-        if argv[:2] == ["docker", "ps"]:
-            return subprocess.CompletedProcess(argv, 0, stdout="cid123\n", stderr="")
-        assert argv[:3] == ["docker", "exec", "cid123"]
-        assert "virsh" in argv[-1] and "/scratch/ch/router.pid" in argv[-1]
+        return runner
+
+    for state, expected in (
+        ("running", True),
+        ("paused", True),
+        ("pmsuspended", True),
+        ("shut off", False),
+        ("crashed", False),
+    ):
+        assert vmm_liveness(runner_factory(state), "ir-proj")("router") is expected
+
+    # the exec leg's timeout contract: rc 124 reads not-alive
+    assert (
+        vmm_liveness(runner_factory("running", probe_rc=124), "ir-proj")("router")
+        is False
+    )
+
+    # no range-service container (even with sidecars running): not-alive
+    def no_range(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
         return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
 
-    assert vmm_liveness(runner, "ir-proj")("router") is True
+    assert vmm_liveness(no_range, "ir-proj")("router") is False
 
-    def dead_runner(
+    # docker absent entirely: not-alive, never an exception
+    def no_docker(argv: list[str], **kwargs: Any) -> "subprocess.CompletedProcess[str]":
+        raise FileNotFoundError("docker")
+
+    assert vmm_liveness(no_docker, "ir-proj")("router") is False
+
+    # a name outside the safe grammar never reaches the probe
+    def must_not_run(
         argv: list[str], **kwargs: Any
     ) -> "subprocess.CompletedProcess[str]":
-        if argv[:2] == ["docker", "ps"]:
-            return subprocess.CompletedProcess(argv, 0, stdout="cid123\n", stderr="")
-        return subprocess.CompletedProcess(argv, 1, stdout="", stderr="")
+        raise AssertionError("probe ran for a hostile name")
 
-    assert vmm_liveness(dead_runner, "ir-proj")("router") is False
-
-    def no_container(
-        argv: list[str], **kwargs: Any
-    ) -> "subprocess.CompletedProcess[str]":
-        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
-
-    assert vmm_liveness(no_container, "ir-proj")("router") is False
+    assert vmm_liveness(must_not_run, "ir-proj")("router; reboot") is False

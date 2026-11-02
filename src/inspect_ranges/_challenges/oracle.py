@@ -5,6 +5,7 @@ The oracle is the surface goal types run against (`challenges-v1.md`): it binds 
 Residue rule, enforced here by construction: plant VALUES never ride argv, env, stdin of oracle execs, any log line, or evidence in the clear. File content travels only as `write_file` bulk; the owner flow is write-0600-then-chown so only the path appears in argv.
 """
 
+import asyncio
 import logging
 import secrets
 from contextlib import contextmanager
@@ -407,8 +408,6 @@ class RangeOracle:
                 "this handle carries no VMM liveness seam; alive() needs the "
                 "provider, attach, or proof-boot construction path"
             )
-        import asyncio
-
         return await asyncio.to_thread(probe, guest)
 
     async def console(self, guest: str) -> list[bytes]:
