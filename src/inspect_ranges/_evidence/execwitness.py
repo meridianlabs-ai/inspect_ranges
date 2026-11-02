@@ -34,6 +34,7 @@ class _GuestState:
     def __init__(self) -> None:
         self.cursor = 0
         self.drops_seen = 0
+        self.session: str | None = None
         self.terminal = False
         self.failing = False
         self.meta: list[dict[str, object]] = []
@@ -179,11 +180,19 @@ class ExecWitnessPoller:
             if state.failing:
                 state.failing = False
                 self._meta(name, {"outcome": "recovered"})
-            if reply.next_seq < state.cursor:
-                # the daemon restarted: the seq space reset under us (the
-                # packer reports its true head, never clamped up to the
-                # cursor), so an unknown number of post-restart events are
-                # gone and "quiet guest" must not be the record's story
+            restarted = (
+                reply.session is not None
+                and state.session is not None
+                and reply.session != state.session
+            ) or reply.next_seq < state.cursor
+            if restarted:
+                # the daemon restarted. The robust signal is a change in the
+                # boot session; `next_seq < cursor` is the fallback for a daemon
+                # predating the session field (and the masking case #31 #2 flags,
+                # where the new seq already passed the cursor, is caught by the
+                # session change). Either way the seq space reset under us, so an
+                # unknown number of post-restart events are gone and "quiet
+                # guest" must not be the record's story.
                 await self._writer.gap(
                     f"exec/{name}",
                     span=self._span(start),
@@ -196,12 +205,20 @@ class ExecWitnessPoller:
                         "host_ts": time.time(),
                         "cursor": state.cursor,
                         "next_seq": reply.next_seq,
+                        "session": reply.session,
                     },
                 )
-                state.cursor = reply.next_seq
                 state.drops_seen = 0
+                # the post-restart events this same reply already carries are in
+                # hand — ship them (below) rather than fold them into the
+                # unknown-size restart gap. Reset the cursor to their first seq so
+                # they ship with no spurious overflow gap; the loss *across* the
+                # restart is the gap recorded above. (#31 #2)
+                state.cursor = reply.events[0].seq if reply.events else reply.next_seq
                 await self._flush_meta(name, force=True)
-                continue
+                # fall through to the normal shipping path (no `continue`)
+            if reply.session is not None:
+                state.session = reply.session
             if reply.events:
                 lost = reply.events[0].seq - state.cursor
                 if lost > 0:
@@ -220,11 +237,22 @@ class ExecWitnessPoller:
                 await self._writer.append(f"exec/{name}", lines, span=self._span(start))
             drops_delta = reply.drops - state.drops_seen
             if drops_delta > 0:
+                # kernel-overflow (ENOBUFS): `drops` counts overflow EPISODES,
+                # not events — one episode loses an unknown number — so the gap
+                # is recorded unknown-size (no `dropped` count); the episode
+                # delta rides the meta stream for diagnostics only (#31 #3)
                 await self._writer.gap(
                     f"exec/{name}",
                     span=self._span(start),
                     cause="exec-subscriber-loss",
-                    dropped=drops_delta,
+                )
+                self._meta(
+                    name,
+                    {
+                        "outcome": "subscriber-loss",
+                        "host_ts": time.time(),
+                        "overflow_episodes": drops_delta,
+                    },
                 )
             state.drops_seen = reply.drops
             # the daemon clips replies on its BYTE budget long before the

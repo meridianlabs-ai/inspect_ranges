@@ -40,7 +40,7 @@ const (
 	KillGrace      = 5 * time.Second // SIGTERM, then SIGKILL after grace
 	WaitDelay      = 5 * time.Second // bound on reaping pipe copiers after exit (cmd.WaitDelay)
 	MaxConnActive  = 512             // resource bound against floods; polls must outlive held exec slots
-	DaemonVersion  = "vsockd 3.4.0 (go)"
+	DaemonVersion  = "vsockd 3.5.0 (go)"
 	// exec must not PATH-resolve a privilege boundary: a range-writable PATH
 	// entry could shadow runuser, so the daemon invokes it absolutely
 	RunuserPath    = "/usr/sbin/runuser"
@@ -515,7 +515,7 @@ func (d *Daemon) dispatch(request *Message, bulk []byte) *storedReply {
 	case "exec_events":
 		// pre-store like diag: polling the witness ring is a read, never
 		// charged to the durable store; the first poll arms the subscriber
-		return d.witness.handle(request)
+		return d.witness.handle(request, d.session)
 	}
 	// durable kinds: dedupe, tombstones, and attach-to-in-flight in ONE
 	// atomic acquire (exactly-once per id, immune to the completion race)

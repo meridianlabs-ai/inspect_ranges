@@ -1479,6 +1479,7 @@ class FakeGuest:
                     next_seq=next_seq,
                     drops=self.exec_events_drops,
                     restarts=self.exec_events_restarts,
+                    session=self.session,
                 ),
                 None,
             )

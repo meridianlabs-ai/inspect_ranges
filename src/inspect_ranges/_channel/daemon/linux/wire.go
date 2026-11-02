@@ -512,7 +512,7 @@ var kindFields = map[string]kindSpec{
 	"diag_result": {optional: []string{"entries", "listener_restarts"}},
 	"exec_events_result": {
 		required: []string{"next_seq"},
-		optional: []string{"events", "drops", "restarts"},
+		optional: []string{"events", "drops", "restarts", "session"},
 	},
 	"error":     {required: []string{"errno", "message"}, optional: []string{"layer", "partial"}},
 	"realize":   {required: []string{"bundle_digest"}, optional: []string{"grants"}},
@@ -919,6 +919,9 @@ func (m *Message) validate() error {
 	case "exec_events_result":
 		if m.NextSeq == nil || *m.NextSeq < 0 || *m.NextSeq > MaxWireInt {
 			return decodeErrf("exec_events_result: next_seq out of bounds")
+		}
+		if m.Session != "" && !sessionRe.MatchString(m.Session) {
+			return decodeErrf("exec_events_result: session must be 32 lowercase hex chars")
 		}
 		for _, bounded := range []*int64{m.Drops, m.Restarts} {
 			if bounded != nil && (*bounded < 0 || *bounded > MaxWireInt) {

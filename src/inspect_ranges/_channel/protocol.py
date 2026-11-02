@@ -326,7 +326,7 @@ class DiagReply(_MessageBase):
 class ExecEvent(_WireModel):
     """One witnessed `execve` (execve-witness-v1).
 
-    `seq`/`ts_ms`/`pid` come from the ring and the connector and are always present; `ppid`/`uid`/`comm`/`argv` come from `/proc/<pid>` reads that can race process exit and go null or empty rather than dropping the event (a short-lived process still leaves a timestamped pid record). `argv` is lossy-UTF-8 sanitized (cmdline is arbitrary bytes; wire strings must be valid UTF-8 in three codecs), so byte-exact argv is not a claim this record makes.
+    `seq`/`pid` come from the ring and the connector and are always present. `ts_ms` is the host-ingest wall-clock time the daemon recorded the event, NOT the connector's `timestamp_ns` (which is monotonic-since-boot): it reflects when the daemon ingested the event, carrying queueing/scheduling delay, and is comparable to the rest of the evidence record's wall clock. `ppid`/`uid`/`comm`/`argv` come from `/proc/<pid>` reads that can race process exit and go null or empty rather than dropping the event (a short-lived process still leaves a timestamped pid record). `argv` is lossy-UTF-8 sanitized (cmdline is arbitrary bytes; wire strings must be valid UTF-8 in three codecs), so byte-exact argv is not a claim this record makes.
     """
 
     seq: int = Field(ge=0, le=MAX_WIRE_INT)
@@ -351,7 +351,7 @@ class ExecEvent(_WireModel):
 class ExecEventsReply(_MessageBase):
     """Reply to `exec_events`: retained events from `since_seq` on, packed under `EXEC_REPLY_BUDGET` (the daemon stops early and `next_seq` carries the remainder).
 
-    Loss is never silent: a first event with `seq > since_seq` means the ring overwrote (the difference is the lost count), and `drops` is the cumulative kernel-side loss count (ENOBUFS) since arm. `restarts` counts subscriber resubscriptions, the `listener_restarts` idiom.
+    Loss is never silent: a first event with `seq > since_seq` means the ring overwrote (the difference is the exact lost count), and `drops` is the cumulative count of kernel-side overflow EPISODES (ENOBUFS) since arm — one episode can lose any number of events, so a `drops` increase is an unknown-size loss, not a per-event count. `restarts` counts subscriber resubscriptions, the `listener_restarts` idiom. `session` is the daemon's boot session: a change across polls means the daemon restarted (the robust restart signal, vs fragile sequence ordering); omitted by a daemon predating the field.
     """
 
     kind: Literal["exec_events_result"] = "exec_events_result"
@@ -361,6 +361,8 @@ class ExecEventsReply(_MessageBase):
     next_seq: int = Field(ge=0, le=MAX_WIRE_INT)
     drops: int = Field(default=0, ge=0, le=MAX_WIRE_INT)
     restarts: int = Field(default=0, ge=0, le=MAX_WIRE_INT)
+    session: SessionHex | None = None
+    """The daemon's boot session; a change across polls signals a restart. Optional: a daemon predating this field omits it, and the poller falls back to sequence-based detection."""
 
 
 def pack_exec_events(
