@@ -100,6 +100,7 @@ type Message struct {
 	Daemon   string `json:"daemon,omitempty"`
 	Protocol *int64 `json:"protocol,omitempty"`
 	Session  string `json:"session,omitempty"`
+	Identity string `json:"identity,omitempty"`
 
 	// exec_result / file_data
 	Rc              *int64 `json:"rc,omitempty"`
@@ -494,7 +495,7 @@ type kindSpec struct {
 
 var kindFields = map[string]kindSpec{
 	"ping":        {},
-	"pong":        {required: []string{"daemon", "session"}, optional: []string{"protocol"}},
+	"pong":        {required: []string{"daemon", "session"}, optional: []string{"protocol", "identity"}},
 	"exec":        {required: []string{"cmd"}, optional: []string{"cwd", "env", "user", "budget"}},
 	"read_file":   {required: []string{"path"}, optional: []string{"max_bytes", "budget"}},
 	"write_file":  {required: []string{"path"}, optional: []string{"budget", "mode"}},
@@ -716,13 +717,14 @@ var guestStateLiterals = map[string]bool{
 }
 
 const (
-	maxDaemonLen  = 128
-	maxMessageLen = 4096
-	maxDetailLen  = 4096
-	maxEventLen   = 128
-	maxDiagDetail = 2048
-	maxReqIDLen   = 64
-	maxCommandMs  = DefaultUntimedMs
+	maxDaemonLen   = 128
+	maxIdentityLen = 32 // a username; the Linux login-name limit
+	maxMessageLen  = 4096
+	maxDetailLen   = 4096
+	maxEventLen    = 128
+	maxDiagDetail  = 2048
+	maxReqIDLen    = 64
+	maxCommandMs   = DefaultUntimedMs
 
 	// execve-witness-v1: mirrors protocol.EXEC_EVENTS_MAX / EXEC_ARGV_BYTES /
 	// EXEC_REPLY_BUDGET; the budget is a PACKING bound (the reply builder
@@ -875,6 +877,9 @@ func (m *Message) validate() error {
 		}
 		if !sessionRe.MatchString(m.Session) {
 			return decodeErrf("pong: session must be 32 lowercase hex chars")
+		}
+		if len(m.Identity) > maxIdentityLen {
+			return decodeErrf("pong: identity too long")
 		}
 	case "stage":
 		if !stageLiterals[m.Stage] {

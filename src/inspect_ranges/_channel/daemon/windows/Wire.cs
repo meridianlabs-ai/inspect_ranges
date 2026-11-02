@@ -38,6 +38,7 @@ namespace VsockD
         // strict-side-wins caps and literal sets, adopted from the Python
         // schema and pinned by the shared rejection table
         public const int MaxDaemonLen = 128;
+        public const int MaxIdentityLen = 32;  // a username; the Linux login-name limit
         public const int MaxMessageLen = 4096;
         public const int MaxStageDetailLen = 4096;
         public const int MaxEventLen = 128;
@@ -518,7 +519,7 @@ namespace VsockD
         static readonly Dictionary<string, string[]> OptionalFields = new Dictionary<string, string[]>
         {
             { "ping", new string[0] },
-            { "pong", new[] { "protocol" } },
+            { "pong", new[] { "protocol", "identity" } },
             { "exec", new[] { "cwd", "env", "user", "budget" } },
             { "read_file", new[] { "max_bytes", "budget" } },
             { "write_file", new[] { "budget", "mode" } },
@@ -727,6 +728,9 @@ namespace VsockD
                         throw new DecodeException("pong: protocol must be " + ProtocolVersion);
                     if (!SessionRe.IsMatch(GetString(m, "session")))
                         throw new DecodeException("pong: session must be 32 lowercase hex chars");
+                    string pongIdentity = GetString(m, "identity");
+                    if (pongIdentity != null && Encoding.UTF8.GetByteCount(pongIdentity) > MaxIdentityLen)
+                        throw new DecodeException("pong: identity too long");
                     break;
                 case "forward_ok":
                     GetString(m, "handle");

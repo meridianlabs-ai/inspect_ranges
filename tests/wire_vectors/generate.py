@@ -44,6 +44,7 @@ def _cases() -> list[tuple[str, p.Message, bytes | None]]:
                 id=_rid(1),
                 daemon="vsockd 3.1.0",
                 session="ffffffffffffffffffffffffffffffff",
+                identity="agent",
             ),
             None,
         ),
@@ -588,6 +589,16 @@ def _rejects() -> list[dict[str, str]]:
                 kind="pong",
                 daemon="x" * 200,
                 session="ffffffffffffffffffffffffffffffff",
+            ),
+        ),
+        (
+            "pong-identity-overlong",
+            d(
+                **base,
+                kind="pong",
+                daemon="d",
+                session="ffffffffffffffffffffffffffffffff",
+                identity="x" * 33,
             ),
         ),
         (
