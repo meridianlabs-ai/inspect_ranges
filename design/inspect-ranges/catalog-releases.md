@@ -205,3 +205,13 @@ SUPERSEDES `sha256:740fa0d2a6797286ee72147353ad5c5e0d0f98ded3791fc48cf6e9686d0ec
 The accidental-private warning realized: the earlier `inspect-ranges-defender-ops` hub repo had been deleted at some point since 2026-10-28 (every other org repo still serves anonymously), so this push auto-created it under the org's current default visibility, which is PRIVATE. Verified post-push with the publishing credential (fresh caches): the new spec hash resolved to the root above and materialized 13 artifacts, 0 already present, fully verified; `images pin --from` wrote exactly the three image pins with digests unchanged (`attack` 626b43aa…, `ubuntu-noble` 80282f62…, `ubuntu-focal` e85b3f39…). Anonymous verification completed the same day, after the user made the repo public in the Hub UI (visibility is a UI act under the user's credentials): from fresh caches with an empty `DOCKER_CONFIG`, the spec hash resolved credential-free to the root above and materialized 13 artifacts, 0 already present, fully verified.
 
 Proof behind the push: the build at the publishing commit verified all 10 declarations against the live guests and scored the behavioral trios 6/6 valid (`sabotage` and `cleanup`, each reference 1.00 / insufficient 0.00 / forged 0.00).
+
+## 2026-11-03: range image v0.2.13 (swtpm)
+
+Published from main commit `1bea7cf` (the 0.2.13 release point plus its docs fixup) to `docker.io/meridianlabsai/inspect-ranges-range:v0.2.13`, in-session under the standing republish authorization, immediately after the 0.2.13 PyPI release.
+
+Pin digest: `sha256:84bbef41c30ec5eb7541e5fbc4abd859f9fdcbd97d4b3da7aa887026131512fa`
+
+Why a republish: 0.2.13 realizes `tpm: true`, and the range container's libvirt manages the per-guest swtpm, so the image gains `swtpm`/`swtpm-tools`, the in-place qemu.conf swtpm identity pins (`swtpm_user`/`swtpm_group` to `libvirt-qemu:kvm`, build-time self-asserted), and the local-CA statedir ownership. A pinned deployment on the previous image fails TPM-bearing bundles at domain start, so fleets move their `INSPECT_RANGES_RANGE_IMAGE` pin to the digest above.
+
+Content verified pre-push (swtpm present, qemu.conf pins active in the built image); anonymous pullability verified post-push with a credential-free registry token (HTTP 200 on the manifest; the repo predates the org's private-by-default change and stays public). Pushed via skopeo per the runbook (org tokens cannot grant docker push's cross-repo mount scope).
