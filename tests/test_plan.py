@@ -698,6 +698,10 @@ attacker:
     )
     assert "<DhcpEnabled>false</DhcpEnabled>" in unattend
     assert "RangeAdm" in unattend  # the documented default password answers OOBE
+    # the Skip pair: a client clone must never boot into the live OOBE wizard
+    # (its phase restarts kill the control channel mid-recipe, measured)
+    assert "<SkipMachineOOBE>true</SkipMachineOOBE>" in unattend
+    assert "<SkipUserOOBE>true</SkipUserOOBE>" in unattend
     assert not (out / "guests" / "dc_one" / "seed" / "user-data").exists()
     domain = (out / "guests" / "dc_one" / "domain.xml").read_text()
     assert "virtio-scsi" in domain and "device='cdrom'" in domain
