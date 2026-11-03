@@ -206,7 +206,7 @@ Host(
 ```
 :::
 
-- `firmware`: `bios` (default) or `uefi` (OVMF with a per-guest nvram copy). `uefi-secure` is declared vocabulary that refuses until Secure Boot lands with the Windows 11 hardware work, as does `tpm: true`.
+- `firmware`: `bios` (default), `uefi` (OVMF with a per-guest nvram copy), or `uefi-secure` (the MS-key-enrolled OVMF build with SMM, q35 only: the Windows 11 contract). `tpm: true` adds an emulated TPM 2.0 (a per-guest swtpm libvirt manages; its state is per-boot, so images must not seal disk secrets to it, and the guest's VMM runs as the shared `libvirt-qemu` principal rather than a per-VM uid: libvirt holds the swtpm control socket at 0600 to its owner. The plain consequence: TPM guests are not isolated from one another at the VMM layer, so prefer one TPM guest per range). Windows guests take exactly these two knobs; the rest of the block stays the Windows tier's own.
 
 - `machine`: `q35` (default) or `pc` (i440fx), for images built against the older chipset.
 

@@ -46,7 +46,8 @@ fi
 nft -f /render/netns/range.nft
 
 # serial consoles land here from first boot; the boot script pre-creates each
-# log owned by its guest's per-VM uid (issue #5), so the directory itself only
+# log owned by its guest principal (per-VM uid; TPM guests share
+# libvirt-qemu, issue #5), so the directory itself only
 # needs traversal, never VMM writes
 mkdir -p /scratch/console
 chown root:kvm /scratch/console

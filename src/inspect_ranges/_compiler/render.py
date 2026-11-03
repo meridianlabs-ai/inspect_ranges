@@ -56,7 +56,7 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
     <type arch='x86_64' machine='{machine}'>hvm</type>
 {loader}    <boot dev='hd'/>
   </os>
-  <features><acpi/><apic/><vmport state='off'/></features>
+  <features><acpi/><apic/><vmport state='off'/>{smm}</features>
   {cpu}
   <clock offset='utc'>
     <timer name='hpet' present='no'/>
@@ -67,10 +67,11 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
   <!-- per-guest DAC principal (issue #5): sVirt AppArmor cannot load profiles
        inside the hardened container (CAP_MAC_ADMIN + securityfs are denied by
        the outer jail), so per-VM confinement is per-VM IDENTITY instead: each
-       QEMU runs as its own uid, the same scheme Cloud Hypervisor guests use;
+       QEMU runs as its own uid (TPM guests as the shared libvirt-qemu, the
+       swtpm socket contract), the same scheme Cloud Hypervisor guests use;
        relabel stays off because the boot script pre-owns the guest's files -->
   <seclabel type='static' model='dac' relabel='no'>
-    <label>+{uid}:kvm</label>
+    <label>{seclabel}</label>
   </seclabel>
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
@@ -79,7 +80,7 @@ _DOMAIN_XML = """<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domai
       <source file='/scratch/{name}.qcow2'/>
       <target dev='vda' bus='virtio'/>
     </disk>
-{seed_stanza}{extra_disks}{interfaces}{video}    <vsock model='virtio'>
+{seed_stanza}{extra_disks}{interfaces}{video}{tpm}    <vsock model='virtio'>
       <cid auto='no' address='{cid}'/>
     </vsock>
     <serial type='file'>
@@ -122,6 +123,24 @@ _MACHINE_QUIRKS_PC = """\
 _LOADER_UEFI = """\
     <loader readonly='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.fd</loader>
     <nvram>/scratch/nvram/{name}_VARS.fd</nvram>
+"""
+
+# Secure Boot: the MS-key-enrolled OVMF build; SMM holds the variable store
+# (the {smm} feature pairs with this loader), and each guest's nvram copies
+# the enrolled VARS template
+_LOADER_UEFI_SECURE = """\
+    <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.ms.fd</loader>
+    <nvram>/scratch/nvram/{name}_VARS.fd</nvram>
+"""
+
+_SMM_ON = "<smm state='on'/>"
+
+# a per-guest swtpm libvirt spawns and reaps with the domain; TPM state is
+# per-boot (ranges are cold-boot), so images must not seal secrets to it
+_TPM_CRB = """\
+    <tpm model='tpm-crb'>
+      <backend type='emulator' version='2.0'/>
+    </tpm>
 """
 
 # the VNC listener binds the range container's loopback, which no guest
@@ -445,12 +464,26 @@ def render_bundle(
                     cpus=guest.cpus,
                     cpu=cpu,
                     cid=guest.cid,
-                    uid=guest_uid(guest.cid),
                     machine=guest.machine,
                     loader=(
                         _LOADER_UEFI.format(name=guest.name)
                         if guest.firmware == "uefi"
+                        else _LOADER_UEFI_SECURE.format(name=guest.name)
+                        if guest.firmware == "uefi-secure"
                         else ""
+                    ),
+                    smm=_SMM_ON if guest.firmware == "uefi-secure" else "",
+                    tpm=_TPM_CRB if guest.tpm else "",
+                    # a TPM guest's VMM runs as the shared libvirt-qemu
+                    # principal: libvirt hardcodes the swtpm control socket to
+                    # 0600 owned by swtpm_user, and with the MAC slot disabled
+                    # nothing re-chowns it, so the only principal that can
+                    # open it is that owner. Every other guest keeps its
+                    # per-VM uid (the issue #5 isolation scheme)
+                    seclabel=(
+                        "libvirt-qemu:kvm"
+                        if guest.tpm
+                        else f"+{guest_uid(guest.cid)}:kvm"
                     ),
                     machine_quirks=(
                         _MACHINE_QUIRKS_Q35
@@ -629,6 +662,8 @@ def _boot_guest(
         entry["readiness_ip"] = str(guest.interfaces[0].ip)
     if guest.readiness_timeout is not None:
         entry["readiness_timeout"] = guest.readiness_timeout
+    if guest.tpm:
+        entry["tpm"] = True
     if guest.extra_disks:
         entry["extra_disks"] = [
             {

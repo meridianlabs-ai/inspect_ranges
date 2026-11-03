@@ -389,7 +389,7 @@ class Hardware(_StrictModel):
     """The guest's machine shape, for images built against particular virtual hardware (appliances). Every default reproduces the engine's standard shape exactly, so an absent block changes nothing."""
 
     firmware: Literal["bios", "uefi", "uefi-secure"] = "bios"
-    """Boot firmware. `bios` is today's SeaBIOS behavior; `uefi` boots OVMF with a per-guest nvram copy; `uefi-secure` (Secure Boot + SMM + TPM groundwork) is declared vocabulary that refuses `hardware-not-realized` until the Windows 11 work lands."""
+    """Boot firmware. `bios` is today's SeaBIOS behavior; `uefi` boots OVMF with a per-guest nvram copy; `uefi-secure` boots the MS-key-enrolled OVMF build with SMM enabled (Secure Boot verified chain; q35 only, refused `hardware-secure-requires-q35` otherwise)."""
 
     machine: Literal["q35", "pc"] = "q35"
     """Virtual chipset generation. `pc` (i440fx) serves appliance images built for the older machine type."""
@@ -401,7 +401,7 @@ class Hardware(_StrictModel):
     """A video device, when the image needs one; omitted means none. Load-bearing beyond graphics: a VGA device occupies a PCI slot, and some images' network configs depend on the resulting NIC slot ordering."""
 
     tpm: bool = False
-    """An emulated TPM 2.0. Declared vocabulary that refuses `hardware-not-realized` until the Windows 11 work lands."""
+    """An emulated TPM 2.0 (a per-guest swtpm instance libvirt manages; state is per-boot, so nothing may seal disk secrets to it)."""
 
     disks: list[HardwareDisk] = []
     """Extra disks after the root, in order."""
@@ -1325,25 +1325,21 @@ def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
                     seen_macs[canonical_mac] = f"{section}[{guest.name}]"
     for index, host in enumerate(spec.hosts):
         if host.hardware is not None:
-            if host.hardware.firmware == "uefi-secure":
+            if (
+                host.hardware.firmware == "uefi-secure"
+                and host.hardware.machine != "q35"
+            ):
+                # Secure Boot's SMM requirement is a q35 feature
                 issues.append(
                     Issue(
-                        code="hardware-not-realized",
+                        code="hardware-secure-requires-q35",
                         path=("hosts", index, "hardware", "firmware"),
                         message=(
-                            "firmware uefi-secure is declared vocabulary that "
-                            "is not yet realized"
+                            f"guest {host.name!r} declares firmware uefi-secure "
+                            f"on machine {host.hardware.machine!r}; Secure "
+                            "Boot's SMM lockbox exists on q35 only"
                         ),
-                        hint="Secure Boot lands with the Windows 11 hardware work; use bios or uefi for now",
-                    )
-                )
-            if host.hardware.tpm:
-                issues.append(
-                    Issue(
-                        code="hardware-not-realized",
-                        path=("hosts", index, "hardware", "tpm"),
-                        message="tpm is declared vocabulary that is not yet realized",
-                        hint="the emulated TPM lands with the Windows 11 hardware work",
+                        hint="set machine: q35 (the default), or use plain uefi",
                     )
                 )
             if host.hardware.machine != "pc" and any(

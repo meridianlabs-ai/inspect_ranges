@@ -310,7 +310,9 @@ class BootGuest(BaseModel):
     readiness_timeout: int | None = Field(default=None, ge=30, le=7200)
     """The guest's declared boot budget in seconds (`TcpReadiness.timeout`): the probe waits at least this long for this guest, extending the deployment's shared window (never shrinking it)."""
     injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
-    firmware: Literal["bios", "uefi"] = "bios"
+    firmware: Literal["bios", "uefi", "uefi-secure"] = "bios"
+    tpm: bool = False
+    """The guest carries an emulated TPM: its VMM runs as the shared libvirt-qemu principal (the swtpm socket contract), so the boot script owns its files to that user instead of the per-guest uid."""
     opaque: bool = False
     extra_disks: list[BootDisk] = []
     nested_virtualization: bool = False
@@ -427,15 +429,23 @@ def boot_script(boot: BootPlan, skip: frozenset[str] = frozenset()) -> str:
         # injector "none" (opaque guests): the imported image boots as-is
         if guest.vmm == "qemu":
             # the DAC seclabel runs this QEMU as its own uid with relabel off
-            # (issue #5): root pre-owns the files the unprivileged VMM opens
-            uid = guest_uid(guest.cid)
-            if guest.firmware == "uefi":
+            # (issue #5): root pre-owns the files the unprivileged VMM opens.
+            # A TPM guest's VMM is the shared libvirt-qemu principal instead
+            # (the swtpm socket contract; see the renderer's seclabel note)
+            uid = "libvirt-qemu" if guest.tpm else guest_uid(guest.cid)
+            if guest.firmware in ("uefi", "uefi-secure"):
                 # OVMF code is read-only and shared; the nvram copy is this
-                # guest's own, owned before the domain starts
+                # guest's own, owned before the domain starts. Secure Boot
+                # guests start from the MS-key-enrolled VARS template
+                vars_template = (
+                    "/usr/share/OVMF/OVMF_VARS_4M.ms.fd"
+                    if guest.firmware == "uefi-secure"
+                    else "/usr/share/OVMF/OVMF_VARS_4M.fd"
+                )
                 lines.append("install -d -m 0755 /scratch/nvram")
                 lines.append(
                     f"install -o {uid} -g kvm -m 0640 "
-                    "/usr/share/OVMF/OVMF_VARS_4M.fd "
+                    f"{vars_template} "
                     f"/scratch/nvram/{name}_VARS.fd"
                 )
             lines.append(f"chown {uid}:kvm {' '.join(guest_files)}")

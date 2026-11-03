@@ -1569,7 +1569,7 @@ def test_hardware_refuses_on_cloud_hypervisor_and_windows(cache: Path) -> None:
                 name="win",
                 os=Os(type="windows", version="server-2022"),
                 image="win-img",
-                hardware=Hardware(machine="pc"),
+                hardware=Hardware(video="vga"),
                 interfaces=[Interface(network="lan", ip="10.9.1.10")],
             )
         ],
@@ -1580,6 +1580,11 @@ def test_hardware_refuses_on_cloud_hypervisor_and_windows(cache: Path) -> None:
     assert any(
         issue.code == "hardware-windows-not-supported" for issue in excinfo.value.issues
     )
+    # ...but the Windows 11 contract knobs are exactly what the tier takes
+    windows.hosts[0].hardware = Hardware(firmware="uefi-secure", tpm=True)
+    plan = resolve_plan(windows, PlanOptions(image_cache=cache))
+    win_guest = next(g for g in plan.guests if g.name == "win")
+    assert win_guest.firmware == "uefi-secure" and win_guest.tpm is True
 
     opaque_ch = _appliance_spec()
     opaque_ch.hosts[1].hardware = None

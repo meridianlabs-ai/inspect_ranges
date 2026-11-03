@@ -139,8 +139,10 @@ class PlannedGuest(BaseModel):
     cpus: int
     memory_mb: int
     disk_gb: int
-    firmware: Literal["bios", "uefi"] = "bios"
-    """Boot firmware (uefi carries a per-guest nvram copy; uefi-secure refused upstream until realized)."""
+    firmware: Literal["bios", "uefi", "uefi-secure"] = "bios"
+    """Boot firmware (uefi and uefi-secure carry a per-guest nvram copy; uefi-secure is the MS-key-enrolled build with SMM)."""
+    tpm: bool = False
+    """An emulated TPM 2.0 rides the domain (a libvirt-managed per-guest swtpm; the guest's VMM runs as the shared libvirt-qemu principal, see the renderer's seclabel note)."""
     machine: Literal["q35", "pc"] = "q35"
     nic_model: Literal["virtio", "e1000"] = "virtio"
     video: Literal["vga"] | None = None
@@ -378,18 +380,26 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                             hint="run this guest on qemu, or drop the hardware block",
                         )
                     )
-                if getattr(guest_decl, "os", None) is not None and (
+                windows_decl = getattr(guest_decl, "os", None) is not None and (
                     guest_decl.os.type == "windows"  # type: ignore[union-attr]
-                ):
+                )
+                declared_knobs = declared_hardware.model_dump(exclude_defaults=True)
+                if windows_decl and set(declared_knobs) - {"firmware", "tpm"}:
                     # the Windows tier carries its own measured device model
-                    # (virtio-scsi seed, VNC+VGA); mixing declared hardware
-                    # into it is unvalidated until the Windows 11 work
+                    # (virtio-scsi seed, VNC+VGA): it takes exactly the
+                    # firmware and tpm knobs (the Windows 11 contract) and
+                    # nothing else
                     issues.append(
                         Issue(
                             code="hardware-windows-not-supported",
                             path=(section, index, "hardware"),
-                            message=f"Windows guest {guest_decl.name!r} declares hardware, which the Windows tier does not take yet",
-                            hint="the Windows hardware work (Secure Boot, TPM) lands in its own phase",
+                            message=(
+                                f"Windows guest {guest_decl.name!r} declares "
+                                "hardware beyond firmware/tpm "
+                                f"({', '.join(sorted(set(declared_knobs) - {'firmware', 'tpm'}))}); "
+                                "the Windows tier owns its device model"
+                            ),
+                            hint="Windows guests take firmware and tpm only (the verified Windows 11 shape is uefi-secure + tpm)",
                         )
                     )
     if options.cpu_model != "host-passthrough":
@@ -787,11 +797,8 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 cpus=resources.cpus if resources else DEFAULT_GUEST_CPUS,
                 memory_mb=resources.memory_mb if resources else DEFAULT_GUEST_MEMORY_MB,
                 disk_gb=(resources.disk_gb if resources and resources.disk_gb else 10),
-                firmware=(
-                    "uefi"
-                    if hardware is not None and hardware.firmware == "uefi"
-                    else "bios"
-                ),
+                firmware=(hardware.firmware if hardware is not None else "bios"),
+                tpm=(hardware.tpm if hardware is not None else False),
                 machine=hardware.machine if hardware is not None else "q35",
                 nic_model=hardware.nic_model if hardware is not None else "virtio",
                 video=hardware.video if hardware is not None else None,
@@ -875,7 +882,7 @@ def realized_sidecar_file_name(file: str) -> str:
 
 
 GUEST_UID_BASE = 1_000_000
-"""Every guest VMM runs as its own uid, `GUEST_UID_BASE + cid`: CIDs are leased host-unique, so no two VMM processes (QEMU via the DAC seclabel, Cloud Hypervisor via setpriv) share a uid, and none shares `libvirt-qemu` or root."""
+"""Every guest VMM runs as its own uid, `GUEST_UID_BASE + cid`: CIDs are leased host-unique, so no two VMM processes (QEMU via the DAC seclabel, Cloud Hypervisor via setpriv) share a uid, and none shares root. One carve-out: TPM-carrying guests all run as `libvirt-qemu` (the swtpm socket contract), so the per-VM bound does not hold between them."""
 
 
 def guest_uid(cid: int) -> int:
