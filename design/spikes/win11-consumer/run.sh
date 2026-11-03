@@ -3,7 +3,7 @@
 # fixture consumer. The content host builds through the PRODUCTION pipeline
 # (recipe as SYSTEM, activity verified, capture), an unchanged rebuild is a
 # cached no-op, and a consumer boots the captured disk with the recipe's
-# state intact. Usage: ./run.sh [down]. CID bands 4190/4195.
+# state intact. Usage: ./run.sh [down]. CID bands 4220/4225.
 set -euo pipefail
 cd "$(dirname "$0")"
 SPIKE="$PWD"
@@ -21,7 +21,7 @@ IR="uv run inspect-ranges"
 IRBIN="$ROOT/.venv/bin/inspect-ranges"
 CACHE="$SPIKE/tmp/cache"
 BUILDS="$SPIKE/tmp/builds"
-FLAGS=(--image-cache "$CACHE" --build-cache "$BUILDS" --cid-base 4190 --readiness-timeout 900)
+FLAGS=(--image-cache "$CACHE" --build-cache "$BUILDS" --cid-base 4220 --readiness-timeout 900)
 
 if [[ "${1:-}" == "down" ]]; then
   (cd "$ROOT" && $IR down --all) || true
@@ -66,7 +66,7 @@ fi
 grep -q "recipe=w11.endpoint" "$SPIKE/tmp/c2.txt" \
   && ok "C2b the endpoint recipe realized (SYSTEM over the daemon)" \
   || bad "C2b recipe line missing"
-VOK=$(grep -c '^verify    ok' "$SPIKE/tmp/c2.txt" || true)
+VOK=$(grep -cE '^verify +ok +activity' "$SPIKE/tmp/c2.txt" || true)
 [[ "$VOK" -ge 1 ]] && ok "C2c the activity declaration verified ($VOK ok)" \
   || bad "C2c verify (got: $VOK)"
 REALIZED=$(ls "$CACHE" | { grep -c '^win11-consumer-.*\.realized\.json$' || true; })
@@ -81,8 +81,9 @@ echo "=== C3 an unchanged rebuild is a cached no-op ==="
 
 echo "=== C4 a consumer boots the captured client ==="
 export INSPECT_RANGES_BUILD_CACHE="$BUILDS"
-$IR render "$RANGE" -o "$SPIKE/tmp/consumer" --image-cache "$CACHE" --cid-base 4195 >/dev/null 2>&1 \
-  && ok "C4 render consumed the manifest" || { bad "C4 render"; exit 1; }
+$IR render "$RANGE" -o "$SPIKE/tmp/consumer" --image-cache "$CACHE" --cid-base 4225 >"$SPIKE/tmp/c4-render.txt" 2>&1 \
+  && ok "C4 render consumed the manifest" \
+  || { bad "C4 render"; tail -8 "$SPIKE/tmp/c4-render.txt"; exit 1; }
 if $IR up "$SPIKE/tmp/consumer" --image-cache "$CACHE" --readiness-timeout 900 >"$SPIKE/tmp/c4.txt" 2>&1; then
   ok "C4b up: the captured client booted to daemon readiness"
 else
@@ -100,11 +101,16 @@ done
 [[ "$MARKER" == "w11-endpoint-realized" ]] \
   && ok "C4c the recipe's marker rode the captured disk ($MARKER)" \
   || bad "C4c marker (got: $MARKER)"
-ACCOUNT=$($CHEXEC 'net user user' 2>&1 | { grep -c "User name" || true; })
-[[ "$ACCOUNT" -ge 1 ]] && ok "C4d the low-privilege operator account exists on the booted disk" \
+# capture-then-grep: chexec propagates the guest command's rc, so a missing
+# account/task would otherwise abort the battery under pipefail instead of
+# recording the FAIL these checks exist for (slice-2 review)
+ACCOUNT_OUT=$($CHEXEC 'net user user' 2>&1 || true)
+[[ "$(printf '%s' "$ACCOUNT_OUT" | grep -c "User name")" -ge 1 ]] \
+  && ok "C4d the low-privilege operator account exists on the booted disk" \
   || bad "C4d account"
-TASK=$($CHEXEC 'schtasks /query /tn Reboot' 2>&1 | { grep -c "Reboot" || true; })
-[[ "$TASK" -ge 1 ]] && ok "C4e the SYSTEM maintenance task is registered" \
+TASK_OUT=$($CHEXEC 'schtasks /query /tn Reboot' 2>&1 || true)
+[[ "$(printf '%s' "$TASK_OUT" | grep -c "Reboot")" -ge 1 ]] \
+  && ok "C4e the SYSTEM maintenance task is registered" \
   || bad "C4e task"
 
 $IR down --all >/dev/null 2>&1 || true

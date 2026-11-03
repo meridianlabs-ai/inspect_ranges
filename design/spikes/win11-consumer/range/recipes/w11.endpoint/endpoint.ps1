@@ -3,12 +3,13 @@ $ErrorActionPreference = 'Stop'
 # -- the declared low-privilege operator (users:) ------------------------------
 if (-not (Get-LocalUser -Name 'user' -ErrorAction SilentlyContinue)) {
     net user user 'users@drool' /add /y | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "net user add failed: $LASTEXITCODE" }
 }
 Add-LocalGroupMember -Group 'Users' -Member 'user' -ErrorAction SilentlyContinue
 Set-LocalUser -Name 'user' -PasswordNeverExpires $true
 
-# -- an on-demand SYSTEM maintenance task (client scenarios restart services
-# -- through it; registered here so the captured disk carries it) --------------
+# -- an on-demand SYSTEM reboot task (client scenarios bounce the machine,
+# -- and so their services, through it; the captured disk carries it) ----------
 $action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c shutdown /r /t 5'
 Register-ScheduledTask -TaskName 'Reboot' -Action $action `
     -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
