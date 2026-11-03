@@ -147,7 +147,7 @@ Failure modes, each stage-named:
 
 - an interrupted derive: self-healing on the next run.
 
-On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with `images derive-windows` from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned) and are never published to the public catalog; a deployment that pushes a Windows-backed build to its own registry ships the installed golden alone, never the media; the Windows examples’ READMEs ([goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light), [splunk_detection](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection)) cover the specifics.
+On Linux, Ubuntu noble is the supported vendor image for derivation. Windows goldens derive locally with `images derive-windows` from user-supplied evaluation media (install ISO + virtio-win ISO, both sha256-pinned); `--os` selects the OS shape (`server-2022`, the default, or `11`, whose installer VM boots the secure-boot + TPM contract Windows 11 setup verifies and whose guests must declare it). They are never published to the public catalog; a deployment that pushes a Windows-backed build to its own registry ships the installed golden alone, never the media; the Windows examples’ READMEs ([goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light), [splunk_detection](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_splunk_detection)) cover the specifics.
 
 ### Imported Images
 

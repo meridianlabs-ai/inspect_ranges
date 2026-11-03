@@ -70,9 +70,9 @@ The origin stamped into the attack-box record carries the pin file’s contents,
 
 ## Registering a Provider
 
-Registration works like `INSPECT_RANGES_HOST`: the value `<module>.<factory>[:<config>]` names an `AttackBoxFactory`, imported and called at resolution, and the value splits on the first colon, so a config may itself contain colons. The same value persists as the project’s attack-box origin, so any later process (`inspect-ranges down`, the reaper) can resolve teardown from disk; the provider’s package just has to be installed where that process runs. Factories must be cheap and must not dial anything; remote work belongs in the provider’s `boot`.
+Registration works like `INSPECT_RANGES_HOST`: the value `<module>.<factory>[:<config>]` names an [AttackBoxFactory](./reference/attackbox.html.md#attackboxfactory), imported and called at resolution, and the value splits on the first colon, so a config may itself contain colons. The same value persists as the project’s attack-box origin, so any later process (`inspect-ranges down`, the reaper) can resolve teardown from disk; the provider’s package just has to be installed where that process runs. Factories must be cheap and must not dial anything; remote work belongs in the provider’s `boot`.
 
-The factory returns an `AttackBoxBackend` bundle:
+The factory returns an [AttackBoxBackend](./reference/attackbox.html.md#attackboxbackend) bundle:
 
 ``` python
 from inspect_ranges.attackbox import (
@@ -89,9 +89,9 @@ def factory(ctx: AttackBoxContext) -> AttackBoxBackend:
 
 ## Provider Contract
 
-`boot(attachment)` receives a `FootholdAttachment` and returns an `AttackBoxHandle`; `teardown(project, reclaim_token)` must be idempotent and tolerate a token from a half-completed boot.
+`boot(attachment)` receives a [FootholdAttachment](./reference/attackbox.html.md#footholdattachment) and returns an [AttackBoxHandle](./reference/attackbox.html.md#attackboxhandle); `teardown(project, reclaim_token)` must be idempotent and tolerate a token from a half-completed boot.
 
-**Attachment in.** The realizer creates one tap per attacker interface inside the range container’s network namespace and hands over the open fds; it never creates a bridge or veth leg in the host namespace, which must stay free of range state ([Security](./security.html.md)). Each `AttachedInterface` carries the tap fd plus the facts the box must present on that segment: the MAC and address the range’s ACLs and scoring treat as this guest. The provider owns the fds from the moment `boot` is called: pass them to the VMM, close them at teardown. The taps are non-persistent (they die with the last fd, and with the range container regardless) and carry `IFF_VNET_HDR`, matching what QEMU and Cloud Hypervisor request when creating taps themselves.
+**Attachment in.** The realizer creates one tap per attacker interface inside the range container’s network namespace and hands over the open fds; it never creates a bridge or veth leg in the host namespace, which must stay free of range state ([Security](./security.html.md)). Each [AttachedInterface](./reference/attackbox.html.md#attachedinterface) carries the tap fd plus the facts the box must present on that segment: the MAC and address the range’s ACLs and scoring treat as this guest. The provider owns the fds from the moment `boot` is called: pass them to the VMM, close them at teardown. The taps are non-persistent (they die with the last fd, and with the range container regardless) and carry `IFF_VNET_HDR`, matching what QEMU and Cloud Hypervisor request when creating taps themselves.
 
 **Exec surface out.** `AttackBoxHandle.exec_endpoint` is a unix socket plus the uid its peer must have (`SO_PEERCRED`-checked at every dial), serving the Cloud Hypervisor hybrid-vsock shape: the `CONNECT <port>` / `OK <port>` preamble, then one guest-control request per connection in the daemon wire protocol. The protocol includes the [exec witness](./evidence.html.md#the-exec-witness) (`exec_events`), and the witness is part of the bar: the evidence poller reads the box’s process timeline through this surface every two seconds, and the battery requires the stream to work (a typed `ENOSYS`/`EPROTO` refusal is fine for ordinary guests but fails `attackbox verify`). The simplest conformant implementation is the standard in-guest daemon; a shim passes exactly when the battery passes it. Readiness at boot is daemon liveness: the realizer pings the surface and fails the sample if it never answers.
 

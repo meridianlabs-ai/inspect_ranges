@@ -186,7 +186,7 @@ Host(
 )
 ```
 
-- `firmware`: `bios` (default) or `uefi` (OVMF with a per-guest nvram copy). `uefi-secure` is declared vocabulary that refuses until Secure Boot lands with the Windows 11 hardware work, as does `tpm: true`.
+- `firmware`: `bios` (default), `uefi` (OVMF with a per-guest nvram copy), or `uefi-secure` (the MS-key-enrolled OVMF build with SMM, q35 only: the Windows 11 contract). `tpm: true` adds an emulated TPM 2.0 (a per-guest swtpm libvirt manages; its state is per-boot, so images must not seal disk secrets to it, and the guest’s VMM runs as the shared `libvirt-qemu` principal rather than a per-VM uid: libvirt holds the swtpm control socket at 0600 to its owner. The plain consequence: TPM guests are not isolated from one another at the VMM layer, so prefer one TPM guest per range). Windows guests take exactly these two knobs; the rest of the block stays the Windows tier’s own.
 
 - `machine`: `q35` (default) or `pc` (i440fx), for images built against the older chipset.
 
@@ -196,7 +196,7 @@ Host(
 
 - `disks`: extra disks after the root, each a blank volume (`size_gb`) or a copy-on-write overlay of a cache image (`source`, which resolves like any image reference and must be in the cache at render). The guest sees virtio extras from `vdc` (`vda` is the root, `vdb` stays reserved for the seed slot so device names never shift) and ide extras from `hda`. The `ide` bus requires `machine: pc` (q35 has no IDE controller; refused `hardware-ide-requires-pc`).
 
-The block parameterizes the QEMU domain only: cloud-hypervisor guests refuse it (`hardware-vmm-not-supported`), and Windows guests keep their own measured device model until the Windows 11 hardware work (`hardware-windows-not-supported`).
+The block parameterizes the QEMU domain only: cloud-hypervisor guests refuse it (`hardware-vmm-not-supported`), and Windows guests take `firmware` and `tpm` alone, with the rest of their measured device model owned by the Windows tier (`hardware-windows-not-supported`). A Windows 11 host (`os: { type: windows, version: "11" }`) must declare the full contract, `hardware: { firmware: uefi-secure, tpm: true }` (the shape its golden installs under), and refuses `windows11-hardware-required` without it.
 
 ## Appliances
 
@@ -1092,3 +1092,5 @@ windows_host = RangeSpec(
     ),
 )
 ```
+
+Windows 11 clients ride the same tier: `os: { type: windows, version: "11" }` with `image: windows-11` and the hardware contract declared (`hardware: { firmware: uefi-secure, tpm: true }`). The golden installs through `images derive-windows --os 11` from the same two user-supplied, sha256-pinned ISOs, under the contract itself: the installer VM boots the MS-key secure loader with SMM and an emulated TPM 2.0, lays the disk out GPT with an ESP, and selects the Pro image with the documented edition-selection key. Everything else behaves exactly as on server goldens: the unattend specialize seed, daemon readiness, and exec as SYSTEM are proven on a Windows 11 clone, and recipes and plants ride that same daemon channel.

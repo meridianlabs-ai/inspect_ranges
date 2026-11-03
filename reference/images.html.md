@@ -63,7 +63,8 @@ inspect-ranges images derive-windows [OPTIONS] ISO
 | `--sha256` | text | Required digest pin for the Windows install ISO (hex or sha256:-prefixed). | `Sentinel.UNSET` |
 | `--virtio-iso` | path | The virtio-win driver ISO (viostor for WinPE, guest tools, the viosock driver). | `Sentinel.UNSET` |
 | `--virtio-sha256` | text | Required digest pin for the virtio-win ISO. | `Sentinel.UNSET` |
-| `--name` | text | Golden name. | `windows-2022` |
+| `--os` | choice (`server-2022` \| `11`) | The Windows OS the media installs; keys the driver directory, image selection, disk layout, and the installer VM’s firmware shape (Windows 11 installs under secure boot + TPM). | `server-2022` |
+| `--name` | text | Golden name. | None |
 | `--admin-password` | text | The golden’s built-in Administrator password (scenario content; the control plane is the vsock daemon as SYSTEM). Defaults to the documented constant. | None |
 | `--image-cache` | path | Image cache the golden is installed into. | None |
 | `--daemon-bundle` | path | Directory holding the daemon-bundle artifact (its windows/ sources compile in-guest). | None |
