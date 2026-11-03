@@ -132,8 +132,13 @@ def conventional_range_image(runner: DockerRunner) -> str | None:
     except json.JSONDecodeError:
         logger.warning("range image %s: unreadable RepoDigests; building locally", ref)
         return None
-    digests = [
-        d for d in (listed or []) if d.startswith(f"{repo_only}@sha256:")
+    if not isinstance(listed, list):
+        logger.warning("range image %s: unreadable RepoDigests; building locally", ref)
+        return None
+    digests: list[str] = [
+        d
+        for d in listed
+        if isinstance(d, str) and d.startswith(f"{repo_only}@sha256:")
     ]
     if not digests:
         logger.warning(
