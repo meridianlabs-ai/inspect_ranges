@@ -11,6 +11,7 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from .. import __version__
 
@@ -137,7 +138,7 @@ def conventional_range_image(runner: DockerRunner) -> str | None:
         return None
     digests: list[str] = [
         d
-        for d in listed
+        for d in cast("list[object]", listed)
         if isinstance(d, str) and d.startswith(f"{repo_only}@sha256:")
     ]
     if not digests:
