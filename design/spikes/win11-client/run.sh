@@ -41,7 +41,8 @@ rm -rf "$SPIKE/tmp" && mkdir -p "$SPIKE/tmp"
 
 echo "=== W11-1 install the Windows 11 client golden from pinned media ==="
 DB_OUT=$($IR daemon-bundle -o "$SPIKE/tmp/artifacts")
-DAEMON_SHA=$(echo "$DB_OUT" | grep -o 'bundle sha256:[0-9a-f]*' | cut -d: -f2)
+DAEMON_SHA=$(echo "$DB_OUT" | { grep -o 'bundle sha256:[0-9a-f]*' || true; } | cut -d: -f2)
+[ -n "$DAEMON_SHA" ] || { echo "FAIL  daemon-bundle output carried no sha"; exit 1; }
 WIN_SHA=$(sha256sum "$WIN_ISO" | cut -d' ' -f1)
 VIRTIO_SHA=$(sha256sum "$VIRTIO_ISO" | cut -d' ' -f1)
 if $IR images derive-windows "$WIN_ISO" --sha256 "$WIN_SHA" \
@@ -100,7 +101,8 @@ fi
 
 echo "=== W11-3 seed applied, SYSTEM exec, the contract in-guest ==="
 BOOT="$SPIKE/tmp/bundle/boot.json"
-PROJECT=$(docker ps --format '{{.Names}}' | grep -E '^ir-win11-slice1-' | head -1 | sed 's/-range-1$//')
+PROJECT=$(docker ps --format '{{.Names}}' | { grep -E '^ir-win11-slice1-' || true; } | head -1 | sed 's/-range-1$//')
+[ -n "$PROJECT" ] || { bad "W11-3 no running range container"; echo "$PASS passed, $((FAIL)) failed"; exit 1; }
 CHEXEC="uv run python design/spikes/_shared/chexec.py --boot $BOOT --project $PROJECT --guest client --shell cmd exec"
 # the first exec can race the clone's post-specialize settling (measured: the
 # daemon announces readiness a beat before the exec plane is calm); retry it,

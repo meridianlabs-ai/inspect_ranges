@@ -117,3 +117,13 @@ def test_cli_daemon_bundle(tmp_path: Path) -> None:
     assert "bundle sha256:" in result.output
     assert (tmp_path / bundle_file_name()).exists()
     assert (tmp_path / "daemon.json").exists()
+
+
+def test_daemon_version_lockstep() -> None:
+    """The bundle constant and both daemons' self-reported versions move together (drift has shipped before: the 3.5.0 entry reconciled a bundle label trailing at 3.3.0)."""
+    from inspect_ranges._channel.bundle import _WINDOWS_DIR, DAEMON_VERSION, GO_SOURCE
+
+    go = (GO_SOURCE / "daemon.go").read_text()
+    cs = (_WINDOWS_DIR / "Daemon.cs").read_text()
+    assert f'DaemonVersion  = "vsockd {DAEMON_VERSION} (go)"' in go
+    assert f'public static string Version = "vsockd {DAEMON_VERSION} (windows)";' in cs

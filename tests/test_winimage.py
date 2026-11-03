@@ -92,8 +92,15 @@ def test_cli_os_choices_track_the_variant_table() -> None:
     assert sorted(param.type.choices) == sorted(WINDOWS_OS_VARIANTS)
 
 
-def test_client_refuses_a_cmd_hostile_admin_password(tmp_path: Path) -> None:
-    """The client specialize block carries the password on a cmd line; characters cmd cannot quote refuse up front (the paths here do not exist, proving the refusal precedes any media check)."""
+@pytest.mark.parametrize(
+    "password",
+    ['has"quote', "has%percent", "has\nnewline", "has\rreturn", "trailing\\"],
+    ids=["quote", "percent", "newline", "return", "trailing-backslash"],
+)
+def test_client_refuses_a_cmd_hostile_admin_password(
+    tmp_path: Path, password: str
+) -> None:
+    """The client specialize block carries the password on a cmd line; characters cmd cannot quote, and a trailing backslash (which escapes the closing quote in the child's argv parse), refuse up front (the paths here do not exist, proving the refusal precedes any media check)."""
     with pytest.raises(DeriveError, match="cmd line"):
         install_windows_golden(
             tmp_path / "a.iso",
@@ -102,7 +109,7 @@ def test_client_refuses_a_cmd_hostile_admin_password(tmp_path: Path) -> None:
             "0" * 64,
             tmp_path,
             os_variant="11",
-            admin_password='has"quote',
+            admin_password=password,
         )
 
 

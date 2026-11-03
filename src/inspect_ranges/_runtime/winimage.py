@@ -404,15 +404,20 @@ def install_windows_golden(
         name = variant.default_name
     if timeout_s is None:
         timeout_s = variant.install_timeout_s
-    if variant.client and any(ch in admin_password for ch in ('"', "%", "\n", "\r")):
+    if variant.client and (
+        any(ch in admin_password for ch in ('"', "%", "\n", "\r"))
+        or admin_password.endswith("\\")
+    ):
         # the client specialize block sets the password through a cmd line
         # (oobeSystem's AdministratorPassword is ignored on client Windows);
-        # cmd cannot carry these characters safely inside its quotes
+        # cmd cannot carry these characters safely inside its quotes, and a
+        # trailing backslash escapes the closing quote under the child's
+        # CommandLineToArgvW parse, silently storing a DIFFERENT password
         raise DeriveError(
             "prepare",
             "a client install sets the Administrator password via a specialize "
-            'cmd line, which cannot carry `"`, `%`, or newlines; pass '
-            "--admin-password without them",
+            'cmd line, which cannot carry `"`, `%`, newlines, or a trailing '
+            "backslash; pass --admin-password without them",
         )
     expected_iso = iso_sha256.removeprefix("sha256:").lower()
     expected_virtio = virtio_sha256.removeprefix("sha256:").lower()
@@ -713,7 +718,7 @@ def _install_locked(
                             "sh",
                             "-c",
                             "tail -c 1200 /var/log/libvirt/qemu/wininstall.log 2>/dev/null; "
-                            "printf 'domstate: '; virsh -c qemu:///system domstate wininstall",
+                            "printf 'domstate: '; virsh -c qemu:///system domstate wininstall 2>&1",
                         ],
                         capture_output=True,
                         text=True,
