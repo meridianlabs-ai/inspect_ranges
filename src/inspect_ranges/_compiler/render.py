@@ -838,6 +838,21 @@ _WINDOWS_UNATTEND_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
       <ComputerName>{hostname}</ComputerName>
       <TimeZone>UTC</TimeZone>
     </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <!-- sysprep leaves the built-in Administrator DISABLED on client
+             Windows, while the oobeSystem pass below still (re)sets its
+             password: without this activation the documented account is
+             unusable on every clone, silently (measured: a credentialed
+             logon fails with "account is currently disabled"). Idempotent
+             on server, where the account is already active. -->
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Path>cmd /c net user Administrator /active:yes</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
     <component name="Microsoft-Windows-TCPIP" processorArchitecture="amd64"
                publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <Interfaces>

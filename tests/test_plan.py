@@ -702,6 +702,10 @@ attacker:
     # (its phase restarts kill the control channel mid-recipe, measured)
     assert "<SkipMachineOOBE>true</SkipMachineOOBE>" in unattend
     assert "<SkipUserOOBE>true</SkipUserOOBE>" in unattend
+    # sysprep leaves the built-in Administrator disabled on client Windows
+    # while the oobeSystem pass above still sets its password: without the
+    # specialize activation the documented account is unusable on clones
+    assert "net user Administrator /active:yes" in unattend
     assert not (out / "guests" / "dc_one" / "seed" / "user-data").exists()
     domain = (out / "guests" / "dc_one" / "domain.xml").read_text()
     assert "virtio-scsi" in domain and "device='cdrom'" in domain
