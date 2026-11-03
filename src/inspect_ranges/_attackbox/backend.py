@@ -20,6 +20,7 @@ from .._channel.vsock import HybridEndpoint
 from .record import AttackBoxRecord
 
 ENV_VAR = "INSPECT_RANGES_ATTACK_BOX"
+"""The environment variable that selects an external attack-box provider, as `<module>.<factory>[:<config>]`."""
 
 DoctorProbe = Callable[[], str | None]
 """An optional reachability probe for `inspect-ranges doctor`: `None` when healthy, else the failure detail (the `_host/backend.py` shape, aliased here so the realizer can import this module without the host-seam dependency chain)."""

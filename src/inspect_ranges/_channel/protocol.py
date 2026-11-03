@@ -68,6 +68,7 @@ RequestId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")]
 ErrnoName = Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9]{1,15}$")]
 
 Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+"""A SHA-256 content digest as 64 lowercase hex chars."""
 
 SessionHex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")]
 """A daemon boot/session id: 32 lowercase hex chars, minted once per daemon process. Wire exactly-once holds only within one session; the provider pins it per guest and treats a change as the restart signal (`SessionChangedError`). Post-compromise a hostile daemon can lie about its session: session honesty is a pre-compromise property, like layer attribution."""

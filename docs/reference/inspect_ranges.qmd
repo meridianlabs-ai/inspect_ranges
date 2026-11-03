@@ -111,3 +111,11 @@ The package's top-level surface. The eval wiring is covered in [Challenges](../c
 ### semantic_issues
 
 ### range_json_schema
+
+## Planning
+
+### plan_totals
+
+### Totals
+
+### catalog_image_references

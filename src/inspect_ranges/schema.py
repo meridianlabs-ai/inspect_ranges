@@ -59,7 +59,6 @@ __all__ = [
     "load_range",
     "range_json_schema",
     "revalidate_range",
-    "substitute_variables",
     "semantic_issues",
     "validate_range",
 ]

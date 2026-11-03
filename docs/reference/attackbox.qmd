@@ -1,0 +1,49 @@
+---
+title: inspect_ranges.attackbox
+description: "The attack-box extension point: implement and register an external provider for INSPECT_RANGES_ATTACK_BOX."
+reference: inspect_ranges.attackbox
+---
+
+The attack-box extension point: an `AttackBoxFactory` named by `INSPECT_RANGES_ATTACK_BOX=<module>.<factory>[:<config>]` returns an `AttackBoxBackend` bundle, and the foothold attachment and resolution machinery it builds on are public here. The provider boots a range's dedicated attack box from a `FootholdAttachment` and returns an `AttackBoxHandle` whose `exec_endpoint` serves the daemon wire protocol.
+
+See [Registering a Provider](../attackbox.qmd#registering-a-provider) for the grammar and the registration walkthrough, and [Provider Contract](../attackbox.qmd#provider-contract) for the proof obligations an implementation is held to.
+
+## Registration
+
+### AttackBoxFactory
+
+### AttackBoxContext
+
+### AttackBoxBackend
+
+### AttackBoxReclaimFn
+
+### DoctorProbe
+
+### ENV_VAR
+
+## Provider Seam
+
+### AttackBoxProvider
+
+### AttackBoxCapabilities
+
+### AttackBoxHandle
+
+## Foothold
+
+### FootholdAttachment
+
+### AttachedInterface
+
+### HybridEndpoint
+
+## Resolution and Records
+
+### resolve_attack_box
+
+### parse_attack_box
+
+### attack_box_origin
+
+### AttackBoxRecord

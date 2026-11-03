@@ -58,7 +58,13 @@ The range-host extension point: a `HostBackendFactory` named by `INSPECT_RANGES_
 
 ### Transport
 
+### HOST_APPLIER
+
 ### ByteStream
+
+### DEFAULT_BULK_CAP
+
+### Sha256Hex
 
 ### ExecRequest
 
