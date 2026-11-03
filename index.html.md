@@ -280,13 +280,13 @@ Inspect Ranges includes eight examples: two originals (the dmz-pivot above and d
 | [splunk_detection](./examples/splunk_detection.html.md) | Splunk attack_range | LSASS dump on an instrumented endpoint, detection and evasion scored from the exported Splunk stream |
 | [defender_ops](./examples/defender_ops.html.md) | original | king-of-the-hill sabotage (deface, degrade, crash-by-address) with the entry gate kept up, then a quiet patch-and-cleanup scored from the exec witness and ops log |
 
-The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with `-T per_example=all`. It is the one command that proves a deployment can pull, boot, score, and tear down ranges end to end.
+The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with `-T per_example=all`. It exercises a deployment end to end: pull, boot, score, and tear down.
 
 ## Architecture
 
-Each range runs in a single unprivileged Docker container, which provides the packaged virtualization stack, the network namespace that keeps range state off the host, and one-step teardown. Every guest, including the attack box, is a KVM virtual machine inside that container. Bridges and firewall rules exist only in the container’s network namespace, so the host’s own networking carries no range state. Removing the container destroys every VM, bridge, firewall rule, and disk overlay. A host needs only Docker and KVM; libvirt and QEMU ship inside the container image.
+Each range runs in a single unprivileged Docker container, which provides the packaged virtualization stack, the network namespace that keeps range state off the host, and one-step teardown. Every guest, including the attack box, is a KVM virtual machine inside that container. Bridges and firewall rules exist only in the container’s network namespace, so the host’s own networking carries no range state. Removing the container destroys every VM, bridge, firewall rule, and disk overlay. A host needs only Docker and KVM. The container image ships libvirt and QEMU.
 
-Guests boot from shared, read-only golden images. Each VM writes its changes to a small private overlay, so every sample starts from a pristine disk and full images are never copied. Images are published as stacks of layers, each fetched once and verified by digest. Ranges with heavy cross-host state (such as Active Directory) are provisioned once at build time; each sample then cold-boots the captured disks:
+Guests boot from shared, read-only golden images. Each VM writes its changes to a small private overlay, so every sample starts from a pristine disk and full images are never copied. Images are published as stacks of layers, each fetched once and verified by digest. Ranges with heavy cross-host state (such as Active Directory) are provisioned once at build time. Each sample then cold-boots the captured disks:
 
 [![The image layer stack: a shared read-only upstream base image at the bottom, a narrower golden-additions layer (control daemon and settings) on top of it, and small per-VM copy-on-write overlays for web, db, and agent fanning out above.](diagrams/image-layers.excalidraw.png)](diagrams/image-layers.excalidraw.png)
 
@@ -300,6 +300,6 @@ Evidence streams off the instance as it is generated, so an agent that later esc
 
 - **Building Ranges**: [Authoring](./building.html.md) a range, from the definition language ([Ranges](./ranges.html.md), [Guests](./guests.html.md), [Networks](./networks.html.md)) to the build that realizes declared content into captured, verified images.
 
-- **Evaluation**: [Challenges](./challenges.html.md) covers defining what an agent is asked to do and how success is verified; [Custom Goals](./goals.html.md) covers creating new goal types; [Evidence](./evidence.html.md) covers the tamper-evident record scoring relies on.
+- **Evaluation**: [Challenges](./challenges.html.md) covers defining what an agent is asked to do and how success is verified, [Custom Goals](./goals.html.md) covers creating new goal types, and [Evidence](./evidence.html.md) covers the tamper-evident record scoring relies on.
 
 - **Running Ranges**: the [Images](./images.html.md) guide and [Distribution](./distribution.html.md) mechanics that move built ranges between machines, the [Security](./security.html.md) model, the [Range Host](./topology.html.md) topologies, the [Range Sandbox](./provider.html.md) that runs Inspect evals against ranges, and the [Operations](./cli.html.md) command inventory (render, up, down, applier, reaper, doctor).
