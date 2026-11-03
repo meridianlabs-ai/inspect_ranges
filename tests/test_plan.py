@@ -1740,3 +1740,34 @@ def test_hardware_rekeys_the_projection_only_when_declared(cache: Path) -> None:
     declared = base.model_copy(deep=True)
     declared.hardware = Hardware(machine="pc")
     assert spec_projection(declared) != bare
+
+
+def test_windows_seed_activates_the_built_in_administrator(
+    cache: Path, tmp_path: Path
+) -> None:
+    """The seed's specialize pass re-activates the built-in Administrator: sysprep leaves it disabled on client Windows while the seed still sets its password, so without the activation the documented account is unusable on every clone."""
+    (cache / "windows-11.qcow2").write_bytes(b"fake windows golden")
+    spec = RangeSpec(
+        meta=RangeMeta(name="winadmin", description="the seed activates Administrator"),
+        networks=[Network(name="corp", cidr="10.30.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="client",
+                os=Os(type="windows", version="11"),
+                image="windows-11",
+                hardware=Hardware(firmware="uefi-secure", tpm=True),
+                interfaces=[Interface(network="corp", ip="10.30.0.10")],
+            )
+        ],
+        attacker=Attacker(
+            image="ubuntu-noble",
+            vmm="qemu",
+            interfaces=[Interface(network="corp")],
+            entry="external",
+        ),
+    )
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, options(cache))
+    seed = (out / "guests" / "client" / "seed" / "unattend.xml").read_text()
+    ElementTree.fromstring(seed)  # still well-formed
+    assert "net user Administrator /active:yes" in seed
