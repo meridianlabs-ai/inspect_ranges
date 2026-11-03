@@ -2095,9 +2095,9 @@ def _settle_oobe(
     hybrid_sockets: "HybridSockets | None" = None,
     timeout_s: float = 1200.0,
 ) -> float:
-    """Block until Windows setup declares the image complete (`IMAGE_STATE_COMPLETE`); returns the wait.
+    r"""Block until Windows setup declares the image complete (`IMAGE_STATE_COMPLETE`); returns the wait.
 
-    On a client's first boot from a sysprepped golden the control daemon answers readiness while setup's OOBE machinery still runs in the background for minutes, and setup's completion step mutates exactly the state recipes write: it clears the LSA `DefaultPassword` secret (setup's own inter-pass autologon storage) and resets account and logon material, silently undoing recipe work before capture (measured on Windows 11 26200: OOBE ended ten minutes after readiness). The gate reads `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State` and is instant on realized images and servers, whose state is already complete.
+    On a client's first boot from a sysprepped golden the control daemon answers readiness while setup's OOBE machinery still runs in the background for minutes, and setup's completion step mutates exactly the state recipes write: it clears the LSA `DefaultPassword` secret (setup's own inter-pass autologon storage) and resets account and logon material, silently undoing recipe work before capture (measured on Windows 11 26200: OOBE ended ten minutes after readiness). The gate reads `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State` and is instant on realized images and servers, whose state is already complete.
 
     Raises:
         BuildError: stage `oobe-settle` when setup does not complete within the bound.
