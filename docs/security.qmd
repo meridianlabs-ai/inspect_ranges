@@ -1,7 +1,7 @@
 ---
 title: "Security"
 description: "How untrusted agents stay contained while they attack the range. Covers the threat model, the layered boundaries, and how containment is proven."
-llms-description: "The security model: everything in-range is hostile; three nested boundaries (minimal-device VMs with per-guest unprivileged uids and a Cloud Hypervisor attack box, the unprivileged range container, a dedicated instance per sample); the VMM defaults and opt-ins (`vmm:`) with the Cloud Hypervisor planning refusals; the vsock-only control plane rules; the three network containment authorities; the build's conformance stage; detection-over-prevention score integrity via streamed evidence; topology and credential guidance."
+llms-description: "How untrusted agents stay contained: the threat model, the three nested boundaries, per-guest identity, the control plane, network containment, and score integrity."
 ---
 
 ## Threat Model
@@ -17,7 +17,7 @@ The agent sits behind three boundaries, each independent of the last:
 ![](diagrams/containment.excalidraw.png){fig-alt="The containment stack: an EC2 Nitro instance (one sample per instance) contains an unprivileged range container holding the router and target VMs under QEMU and the agent VM under Cloud Hypervisor, connected by Linux bridges; a sandbox-control port on the instance boundary reaches the agent VM over a virtio-vsock channel without touching the network, and evidence streams off-instance."}
 
 1. **The VM boundary.** Every guest, including the attack box, is a hardware virtual machine. The escape surface is kept small and declared: virtual hardware is compiled explicitly per role, and the attack box sees only virtio disk, network, vsock, serial console, and entropy devices.
-2. **The range container.** Nearly all historical VM escapes break out through the device-emulation process and land here: an unprivileged container holding no credentials, with Docker's default capabilities dropped (eight at the floor: `NET_ADMIN` plus the file-ownership and user-switching set that lets the VMMs run as non-root users; plans serving DHCP or search domains add `NET_BIND_SERVICE`, and DHCP adds `NET_RAW`), four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`), and the standard seccomp and AppArmor profiles. The range's bridges and firewall rules exist only inside this container's network namespace, and teardown is the container lifecycle.
+2. **The range container.** Nearly all historical VM escapes break out through the device-emulation process and land here: an unprivileged container holding no credentials, with Docker's default capabilities dropped (eight at the floor; plans serving DHCP or search domains add `NET_BIND_SERVICE` or `NET_RAW`), four device nodes (`/dev/kvm`, `/dev/net/tun`, `/dev/vhost-net`, `/dev/vhost-vsock`), and the standard seccomp and AppArmor profiles. The range's bridges and firewall rules exist only inside this container's network namespace, and teardown is the container lifecycle.
 3. **The instance.** Reaching the host from the container requires a second, unrelated exploit, and the host is a dedicated machine: even full compromise yields only the sample context, with the cloud hypervisor between it and everything else.
 
 ## Per-Guest Identity
@@ -33,7 +33,7 @@ Boundary strength orders rust-vmm above QEMU/KVM, which has a long device-emulat
 
 Hosts and routers run under QEMU via libvirt by default; the dedicated attack box defaults to Cloud Hypervisor (declare `attacker.vmm: qemu` to keep QEMU), and any host or router may opt in with `vmm: cloud-hypervisor`. Each Cloud Hypervisor VMM gets the same per-guest uid treatment as the attack box ([Per-Guest Identity](#per-guest-identity)); none shares QEMU's `libvirt-qemu`.
 
-Cloud Hypervisor guests have no `AF_VSOCK` listener on the host: the control plane reaches them through the VMM's hybrid-vsock Unix socket (Cloud Hypervisor's vsock transport: a host-side Unix socket the VMM bridges to the guest's vsock device), and every dialer checks the socket peer's credentials (`SO_PEERCRED`) against the VMM's uid before sending a byte, refusing anything else without retry. The sockets live in a private per-user host directory that `up` prepares and `down` removes.
+Cloud Hypervisor guests have no `AF_VSOCK` listener on the host: the control plane reaches them through the VMM's hybrid-vsock Unix socket, and every dialer checks the socket peer's credentials (`SO_PEERCRED`) against the VMM's uid before sending a byte. The sockets live in a private per-user host directory that `up` prepares and `down` removes.
 
 Two planning refusals bound the opt-in: a Cloud Hypervisor guest cannot carry guest content yet (`cloud-hypervisor-content-unsupported`: the build captures provisioned guests through libvirt, which cannot see CH guests), and a pinned `cpu_model` refuses (`cloud-hypervisor-cpu-model`: CH guests always see the host CPU).
 

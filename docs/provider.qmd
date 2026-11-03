@@ -1,12 +1,12 @@
 ---
 title: "Range Sandbox"
 description: "Running Inspect evals against ranges with the range sandbox provider. Covers configuration, retries, and cleanup."
-llms-description: "The range Inspect sandbox provider: configuration (range.yaml path or typed RangeSpec), foothold-only sandbox registration (the agent/target wall), the retry contract and its idempotency caveat, cleanup semantics including interrupted samples and recovery commands, and the environment variable reference."
+llms-description: "Running Inspect evals against ranges with the range sandbox provider: configuration, the retry contract, cleanup, and concurrency."
 ---
 
 ## Overview
 
-Installing `inspect_ranges` registers the `range` sandbox provider with Inspect. A task that names it gets a freshly booted range per sample: the attacker box (or the foothold host: the declared in-range host the agent starts on when a range has no dedicated attacker box) is the sample's sandbox, and the whole range is torn down when the sample ends. By default only the foothold is registered as a sandbox (the agent/target wall: the agent's tool calls reach only this one host, and targets are reachable solely over the range network); see [Challenges](challenges.qmd#scoring-lifecycle) for the wall and its consequences.
+Installing `inspect_ranges` registers the `range` sandbox provider with Inspect. A task that names it gets a freshly booted range per sample: the attacker box (or the foothold host, when a range has no dedicated attacker box) is the sample's sandbox, and the whole range is torn down when the sample ends. By default only the foothold is registered as a sandbox — the agent/target wall: tool calls reach only this host, and targets are reachable only over the range network. See [Challenges](challenges.qmd#scoring-lifecycle) for its consequences.
 
 ``` {.python .fragment}
 from inspect_ai import Task, task
@@ -96,7 +96,7 @@ Commands run as the unprivileged `agent` user by default (home `/home/agent`, wh
 
 - **Normal completion**: each sample's range is destroyed at sample end; the eval's remaining ranges are swept at task end.
 - **Interrupted samples** (Ctrl-C): teardown is deferred to task end, the Docker provider's convention, so cancellation never stalls on a slow teardown. The range stays booted but hypervisor-isolated and egress-controlled until the run finishes: containment does not depend on teardown having happened.
-- **`--no-sandbox-cleanup`**: ranges stay up, and the log names the removal commands per project. On the default local topology that is `inspect-ranges down <project>` or `inspect sandbox cleanup range <project>`. On the separated (`uds:`) topology use `INSPECT_RANGES_HOST=uds:<socket> inspect sandbox cleanup range <project>` or the reaper (the standalone cleanup process; see [Range Host](topology.qmd#operating-the-reaper)), never a direct `inspect-ranges down`: the env prefix routes the teardown through the applier, and a direct down leaks the applier's admission charge (the CPUs and memory it counted against the host; see [Concurrency and Admission](#concurrency-and-admission)) until the lease expires (see [Range Host](topology.qmd#operating-the-applier)).
+- **`--no-sandbox-cleanup`**: ranges stay up, and the log names the removal commands per project. On the default local topology that is `inspect-ranges down <project>` or `inspect sandbox cleanup range <project>`. On the separated (`uds:`) topology use `INSPECT_RANGES_HOST=uds:<socket> inspect sandbox cleanup range <project>` or the reaper, not a direct `inspect-ranges down`: the env prefix routes teardown through the applier, and a direct down leaks the applier's admission charge until the lease expires.
 - **Crash recovery**: `inspect sandbox cleanup range` (no project argument) removes every provider-origin project found in on-disk state (the CID (vsock context id) lease registry plus provider-marked ownership records), from any shell, after any crash. It does not touch ranges booted by the CLI or other tools.
 
 A destroyed range releases its CID lease, ownership record, staging, and admission charge only after the teardown actually succeeded, so a failed teardown stays visible and recoverable rather than leaking.

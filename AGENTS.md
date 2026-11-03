@@ -52,6 +52,19 @@ Directory: `src/inspect_ranges/`
 ### Common Pitfalls
 - Use the venv for all Python commands: either reference `.venv/bin/` directly or run `source .venv/bin/activate`
 
+## Documentation
+
+Docs live in `docs/` (Quarto `.qmd`). They should read like the sibling `inspect_petri` and `inspect_scout` packages: **simple, direct language**. Match that voice when writing or revising any page.
+
+- **One idea per sentence.** Break semicolon-chained compound sentences into separate sentences; prose semicolons should be rare.
+- **Cut reflexive counterfactuals.** Drop "X, never Y" when the positive statement already implies it. Keep the negative only when it is a genuine security or scoring-integrity guarantee.
+- **State the rule, then stop.** Give the rule and (only if it is unclear without one) a short example. Cut edge cases and single-case caveats, or move a genuinely important one to a short "Current boundaries" callout at the end of the section (see `cli.qmd`). Prefer cutting over callout-ing.
+- **No puffery or tics.** Avoid "the worked example/reference", "the asymmetry is deliberate", "one rule governs everything", and similar. Say the thing plainly; show a copy-pasteable example instead of characterizing it.
+- **Collapse parentheticals.** Real content becomes its own sentence; minor content is cut. Avoid nested parentheticals.
+- **Table cells are phrases, not paragraphs.** Move any detail that needs sentences into prose beneath the table.
+- **`llms-description` is one short sentence**, like petri/scout (e.g. "Installation and tutorial on running your first audit."), not a contents dump.
+- Keep every page's structure: `## Overview` first, "Learning More" links last, paired YAML+Python and bash+Python examples, and existing tables. Do not change a heading that forms an anchor without updating every inbound `page.qmd#anchor` link.
+
 ## Internal References
 
 This is a public repository. Nothing that identifies internal or partner infrastructure may be committed, in any file or in commit message text:

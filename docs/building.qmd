@@ -1,12 +1,12 @@
 ---
 title: "Building Ranges"
 description: "Developing and building ranges. Covers the development machine, the iteration loop, the build command, writing recipes, verification, and conformance proofs."
-llms-description: "Range development and the build. The dev machine (inspect-ranges devbox up on EC2 with idle auto-stop and SSM-tunneled ssh, or any Linux host with KVM, verified by doctor), the iteration loop walked against dmz_pivot (validate incl. sibling challenges.yaml, plan, build with --keep/--reverify/--cid-base), and Running the Range at escalating fidelity (Poke: up --from-spec plus the interactive inspect-ranges shell attach and a range_oracle attach from a REPL or script; Smoke Eval: one sample through the real provider; Scan: range_apparatus in the scorer list or scout scan over finished logs). Plus the overview of range authoring (pointers to the Ranges, Guests, and Networks definition pages) plus the reference for inspect-ranges build: the build gate, the egress build plan, recipe bundles and the complete IR_* execution contract (every variable, the IR_EXEC/IR_PUSH grammar, cross-guest limits), reading build output (the stage-line transcript and stages.jsonl), incremental rebuilds and caching, declaration verification, and challenge conformance proofs: behavioral check trios with their execution context (root on the attacker, argv transport, the 16 MiB stdout cap), python prove scripts (async def prove(ctx) with ctx.oracle/ctx.submit/ctx.assert_goal through the scorer's own evaluate_goal), and the standalone inspect-ranges prove (fail-open additive proven stamp)."
+llms-description: "Developing and building a range: the dev machine, the iteration loop, the build command, verification, and challenge conformance proofs."
 ---
 
 ## Overview
 
-A definition (`range.yaml`, or a typed `RangeSpec` in Python) declares the networks, the guests, and the guest content; `inspect-ranges build` realizes that content: it boots the range once, runs the recipes that produce the declared state, verifies it, and captures each guest's disk as an image; every downstream consumer boots those captured images. The definition language has its own pages:
+A definition (`range.yaml`, or a typed `RangeSpec` in Python) declares the networks, the guests, and the guest content. `inspect-ranges build` realizes that content: it boots the range once, runs the recipes that produce the declared state, verifies it, and captures each guest's disk as an image. Every downstream consumer boots those captured images. The definition language has its own pages:
 
 - [Ranges](ranges.qmd): what a range definition is, end-to-end examples in YAML and Python, and the validation workflow.
 
@@ -14,7 +14,7 @@ A definition (`range.yaml`, or a typed `RangeSpec` in Python) declares the netwo
 
 - [Networks](networks.qmd): addressing, DHCP, name resolution, segmentation, firewall rules, routing topology, and egress.
 
-This page covers the machine development runs on, the iteration loop, the build (how declared guest content becomes captured, verified images), and [Running the Range](#running-the-range): confirming a built range at escalating fidelity. For what happens after a build in production, see [Operations](cli.qmd).
+This page covers the machine development runs on, the iteration loop, the build, and [Running the Range](#running-the-range), which confirms a built range at escalating fidelity. For production operation after a build, see [Operations](cli.qmd).
 
 ## Development Machine
 
@@ -26,9 +26,9 @@ Ranges build and run on any Linux x86_64 machine with KVM: bare metal with virtu
 
 - `qemu-utils` and `libguestfs-tools` for building images (libguestfs also requires that the host kernel be readable).
 
-- `br_netfilter` may be loaded (Docker hosts usually load it): frames bridged within a segment are then diverted through the range namespace's forward chain, which accepts them per bridge, so same-segment guests reach each other either way. `doctor` notes the module's state.
+- `br_netfilter` may be loaded (Docker hosts usually load it); either way same-segment guests reach each other, and `doctor` notes its state.
 
-- IPv6 enabled. This one is forward-looking only: IPv6 is not realized yet (every IPv6 construct in a definition refuses validation with `ipv6-not-realized`), so no current range needs it; `doctor` checks it ahead of future mitm6-style scenarios.
+- IPv6 enabled. This is forward-looking only: no current range needs it (every IPv6 construct refuses validation with `ipv6-not-realized`), and `doctor` checks it ahead of future scenarios.
 
 `inspect-ranges doctor` verifies all of this and prints an exact fix for anything missing.
 
@@ -41,7 +41,7 @@ inspect-ranges devbox up --instance-type m8i.8xlarge
 ssh inspect-ranges-devbox
 ```
 
-The `inspect-ranges devbox up` command creates (or starts) a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration; the default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB). To manage costs, an idle devbox stops itself (after 60 idle minutes by default, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with `ssh` or VS Code starts it again: the SSH configuration's proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.
+The `inspect-ranges devbox up` command creates or starts a devbox and writes an SSH configuration for it. The default AWS region and profile come from the local AWS configuration, and the default instance type is `m8i.8xlarge` (32 vCPUs / 128 GB). An idle devbox stops itself to manage costs (after 60 idle minutes, with a CloudWatch backstop after 6 hours of low CPU). Reconnecting with `ssh` or VS Code starts it again: the proxy starts the instance and tunnels over AWS SSM, so the devbox has no open inbound ports.
 
 ## Iteration Loop
 
@@ -62,11 +62,11 @@ Range development is a loop: edit the definition and recipes, validate, plan, bu
 
   - `--reverify`: forces the full boot-and-verify pass on an unchanged range;
 
-  - `--cid-base`: overrides the leased host-global vsock CID block (by default each build leases a free block, so parallel builds and kept ranges never collide).
+  - `--cid-base`: overrides the leased host-global vsock CID block (by default each build leases a free one, so parallel builds never collide).
 
   When a stage goes red, start at [Diagnosing Failures](#diagnosing-failures); a green build is the entry to [Running the Range](#running-the-range).
 
-- **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` here because for a range declaring guest content (dmz_pivot does) `plan` refuses with `range-not-built` until a matching build exists; for a topology-only range `plan` works immediately and slots second.
+- **Plan.** `inspect-ranges plan` resolves the range into its immutable plan without booting anything: image references against the cache, and every address, MAC, and CID allocation. A reference that cannot resolve shows up here, not mid-boot. It sits after `build` because a range declaring guest content refuses `plan` with `range-not-built` until a matching build exists; a topology-only range can `plan` immediately.
 
 ## Running the Range {#running-the-range}
 
@@ -80,17 +80,17 @@ Did the build produce the range I meant? Boot the built range directly, with no 
 inspect-ranges up --from-spec range.yaml
 ```
 
-`up` prints the compose project name (`ir-dmz-pivot-...`). Two attach surfaces work against it, and they compose: the interactive shell for exploring by hand, the oracle for scripted assertions.
+`up` prints the compose project name (`ir-dmz-pivot-...`). Two attach surfaces work against it: the interactive shell for exploring by hand, and the oracle for scripted assertions.
 
-For hands-on poking, open an operator shell on a guest (see [`shell`](cli.qmd#shell) for the full behavior: tmux over the control channel, `Ctrl-]` detaches, sessions persist for reattach, eval-booted projects refuse by origin):
+For hands-on poking, open an operator shell on a guest (see [`shell`](cli.qmd#shell) for the full behavior):
 
 ``` {.bash filename="Terminal"}
 inspect-ranges shell ir-dmz-pivot-... web
 ```
 
-This is the fastest way to try a task the way an agent would (from the foothold, over the range network) or to inspect a target from the inside, with no eval ceremony and no SSH.
+This is the fastest way to try a task the way an agent would, or to inspect a target from the inside, with no eval ceremony and no SSH.
 
-For scripted checks, attach the range oracle (the privileged guest-access surface scoring uses; see [Challenges](challenges.qmd#scoring-lifecycle)) by the same project name from a REPL or script and run commands against any guest, targets included:
+For scripted checks, attach the range oracle (the privileged guest-access surface scoring uses) by the same project name from a REPL or script, and run commands against any guest:
 
 ``` python
 import asyncio
@@ -111,7 +111,7 @@ async def poke(project: str) -> None:
 asyncio.run(poke("ir-dmz-pivot-..."))
 ```
 
-`exec` returns the channel's `ExecOutcome`: `rc` (the signed exit status), `stdout`/`stderr` bytes, and truncation flags. The attach rides the same vsock channel the provider uses, so it reaches every guest without touching the range's network posture, and it logs loudly (an out-of-band oracle attached during a scoring run must be visible in that run's logs). Confirm what the build claims: the service listening, the planted file in place, the content you declared. Then tear down:
+`exec` returns the channel's `ExecOutcome`: `rc`, `stdout`/`stderr` bytes, and truncation flags. The attach rides the same vsock channel the provider uses, so it reaches every guest without touching the range's network posture, and it logs loudly. Confirm what the build claims: the service listening, the planted file in place, the content you declared. Then tear down:
 
 ``` {.bash filename="Terminal"}
 inspect-ranges down <project>
@@ -125,11 +125,11 @@ Does the whole consumption path work? Run one sample through the real `range` sa
 inspect eval inspect_ranges/dmz_pivot
 ```
 
-Set a wall-clock limit beside the message cap: real-model samples on pivot-shaped ranges have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
+Set a wall-clock limit beside the message cap: real-model samples have outrun multi-hour windows, and a `--time-limit` termination still scores, so the run always produces a verdict.
 
-The registry form runs the shipped task; your own range runs the same way with the [Range Tasks](index.qmd#range-tasks) wiring ([Range Sandbox](provider.qmd) covers the provider).
+The registry form runs the shipped task; your own range runs the same way with the [Range Tasks](index.qmd#range-tasks) wiring.
 
-To exercise boot, planting, scoring, and teardown with no model spend, run against inspect's mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score and the scorer's zero-submissions warning (plus the matching `range_apparatus` finding when the scanner below is wired); on this run those show the apparatus working.
+To exercise boot, planting, scoring, and teardown with no model spend, run against inspect's mock model: `inspect eval task.py --model mockllm/model --message-limit 4`. The agent does nothing, so expect a 0 score and the scorer's zero-submissions warning; here that warning shows the apparatus working.
 
 ### Scan {#scan}
 
@@ -148,7 +148,7 @@ Or scan accumulated logs after the fact:
 scout scan inspect_ranges/range_apparatus -T ./logs
 ```
 
-The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint; the structured findings (detector id, severity, message, hint, event references) ride the score metadata.
+The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
 
 ## Range Build
 
@@ -159,31 +159,31 @@ cd my-range/        # range.yaml plus ./recipes/
 inspect-ranges build
 ```
 
-The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest's disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes' success for them, and the conformance proofs confirm whichever of them the attack chains actually depend on. Direct probes for these fields are planned.
+The range boots on an egress-enabled build plan, recipes converge each guest, every declared service and vulnerability is verified against the live guests, each provisioned guest's disk is captured as a realized image, and a build manifest records the whole thing. Samples then boot the captured images, byte-identical, with no per-sample provisioning. Declared `users`, `misconfigurations`, and `data` are not independently probed yet: the build trusts the recipes for them, and the conformance proofs confirm whichever the attack chains depend on.
 
-Until a range has a matching build, every command that consumes built content refuses with `range-not-built`: `plan`, `render`, `up --from-spec`, `push`, and the sandbox provider all require a manifest whose spec hash (a digest of the definition) matches the definition and whose realized images verify by digest in the image cache. The refusal names the fix. Pulling the published build satisfies the gate the same way ([Distribution](distribution.qmd)), so consumers of a published range never run `build`. Nothing boots with silently missing content.
+Until a range has a matching build, every command that consumes built content refuses with `range-not-built`: `plan`, `render`, `up --from-spec`, `push`, and the sandbox provider all require a manifest whose spec hash matches the definition and whose realized images verify in the image cache. The refusal names the fix. Pulling the published build satisfies the gate the same way ([Distribution](distribution.qmd)), so consumers of a published range never run `build`.
 
 ## Build Stages
 
-1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it; cloud deployments that force DNS through a VPC resolver typically need the override). A provisioned host attached only to networks behind routers gets a dedicated `build-uplink` NAT segment appended instead, so routed topologies build too. A provisioned foothold host (the host the attacker starts on under assumed breach; see [Networks](networks.qmd#attacker)) has the attacker's egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking, since network config is per-boot cloud-init. A per-guest settle gate holds each guest's first recipe until in-guest name resolution works. Provisioned routers are the one exception: a router gets no build egress (scoped egress on a router-attached network is not realized), so the settle gate skips it and its recipes run offline, reconfiguring what the golden already carries; a router recipe that reaches for the network fails as an ordinary recipe error.
+1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it). A provisioned host reachable only through routers gets a dedicated `build-uplink` NAT segment instead, so routed topologies build too. A provisioned foothold host has the attacker's egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking. A per-guest settle gate holds each guest's first recipe until in-guest name resolution works. Provisioned routers are the exception: a router gets no build egress, so its recipes run offline, reconfiguring what the golden already carries.
 
 2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)). Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range's `activities/` directory ([Guests](guests.qmd#scheduled-activity)).
 
 3.  **Verification** checks every declared `services`, `vulnerabilities`, and `scheduled_activity` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
 
-4.  **Capture.** Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image: a qcow2 rebased onto its golden image ([Guests](guests.qmd#images)), its digest recorded, with a provenance sidecar (a companion file recording the digests of everything it was built from).
+4.  **Capture.** Each provisioned guest is cleanly shut down and its overlay captured into the image cache as a realized image: a qcow2 rebased onto its golden image ([Guests](guests.qmd#images)), its digest recorded, with a provenance sidecar.
 
 5.  **The manifest.** The builds cache (`~/.cache/inspect-ranges/builds/<range>/manifest.json`, or `INSPECT_RANGES_BUILD_CACHE`) records the spec and its hash, every guest's build key and realized digest, recipe versions and digests, base-image digests, and the verification results. Consumers and the provider resolve the cache the same way; a non-default location is set through the environment variable (there is no per-verb flag).
 
-6.  **Conformance proofs**, when the range declares them: the captured images boot once more and each challenge's proofs run against the thing that ships (see [Conformance Proofs](#conformance-proofs)). The manifest lands on disk proven (every proof passed) or REFUSED (the failure recorded; consumers reject it with `range-unproven`; the next build reuses every guest and re-runs only the proofs). A build interrupted before this phase leaves no manifest at all.
+6.  **Conformance proofs**, when the range declares them: the captured images boot once more and each challenge's proofs run against the thing that ships (see [Conformance Proofs](#conformance-proofs)). The manifest lands on disk proven or REFUSED; a REFUSED manifest records the failure, consumers reject it with `range-unproven`, and the next build re-runs only the proofs. A build interrupted before this phase leaves no manifest.
 
-Build success also garbage-collects the range's superseded realized generations: the new generation and the immediately-previous one stay, so reverting an edit rebuilds instantly; anything a running project references is excluded; the deletion is stage-logged with bytes reclaimed. `inspect-ranges images prune` reclaims the rest (generations stranded by refused manifests or crashes, capture temps, orphan sidecars); `images list` and `doctor` report reclaimable bytes.
+Build success also garbage-collects the range's superseded realized generations. The new generation and the immediately-previous one stay, so reverting an edit rebuilds instantly, and anything a running project references is kept. The deletion is stage-logged with bytes reclaimed. `inspect-ranges images prune` reclaims the rest, and `images list` and `doctor` report reclaimable bytes.
 
-`--keep` preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its leased vsock CID block, which is host-global: the next build of the same spec refuses with the exact `down` command that frees it, while builds of other specs lease disjoint blocks and proceed. On failure the error names the stage and the guest and points at the recipe log; the range tears down unless kept.
+`--keep` preserves the build range, on success or failure, for diagnosis; a kept build captures nothing and mints no manifest. A kept range holds its leased vsock CID block. The next build of the same spec refuses with the exact `down` command that frees it, while builds of other specs proceed. On failure the error names the stage and guest and points at the recipe log, and the range tears down unless kept.
 
 ## Reading Build Output {#reading-build-output}
 
-A build prints one line per stage transition: the stage name, then sorted `key=value` fields (`verify` rows differ: a literal `ok` and the declaration verified; a failure prints `<stage> FAILED <error>` instead), and ends with a two-line summary, the manifest path and a `build OK` line. Abridged, a proven build looks like:
+A build prints one line per stage transition: the stage name, then sorted `key=value` fields. (`verify` rows differ: a literal `ok` and the declaration verified; a failure prints `<stage> FAILED <error>`.) It ends with a two-line summary: the manifest path and a `build OK` line. Abridged, a proven build looks like:
 
 ``` {.default filename="Terminal"}
 resolve   rebuilt_guests=2  recipes=2  reused_guests=0
@@ -205,7 +205,7 @@ manifest  ~/.cache/inspect-ranges/builds/dmz-pivot/manifest.json
 build OK (1243.7 s, 2 recipes) project ir-dmz-pivot-9f1c2a4b
 ```
 
-The `manifest` lines appear after the `behavioral` lines: a build is never recorded proven before its checks pass. The final `build OK` line names the compose project (the `<project>` that `inspect-ranges down` takes), which is also the build's directory name under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/`): `stages.jsonl` there keeps this history as JSONL, and `recipes/` and `verify/` hold the per-run logs. A fully cached build prints a single `build` row and `build OK (cached, verified <timestamp>; pass --reverify to re-run)`.
+The `manifest` lines appear after the `behavioral` lines: a build is never recorded proven before its checks pass. The final `build OK` line names the compose project (the `<project>` that `inspect-ranges down` takes), which is also the build's directory under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/`), where `stages.jsonl` keeps the history and `recipes/` and `verify/` hold the per-run logs. A fully cached build prints a single `build` row and `build OK (cached, verified <timestamp>; pass --reverify to re-run)`.
 
 ## Incremental Rebuilds
 
@@ -221,7 +221,7 @@ Each guest gets a build key: a hash of its golden image digest, its own spec dec
 
 ## Authoring Recipes {#authoring-recipes}
 
-A recipe is a content-addressed bundle: a directory holding the recipe's code plus a `recipe.yaml` self-description. Resolution looks in the range directory first (`./recipes/<name>/`), then the shared recipe cache (`~/.cache/inspect-ranges/recipes/`, or `INSPECT_RANGES_RECIPE_CACHE`). The bundle's identity is a deterministic digest over its files (paths, content, executable bits), recorded in the build manifest, so editing any bundle file invalidates exactly the guests that reference it.
+A recipe is a content-addressed bundle: a directory holding the recipe's code plus a `recipe.yaml` self-description. Resolution looks in the range directory first (`./recipes/<name>/`), then the shared recipe cache (`~/.cache/inspect-ranges/recipes/`, or `INSPECT_RANGES_RECIPE_CACHE`). The bundle's identity is a deterministic digest over its files, recorded in the build manifest, so editing any bundle file invalidates exactly the guests that reference it.
 
 ``` {.yaml filename="recipes/acme.telemetry_stack/recipe.yaml"}
 name: acme.telemetry_stack   # the name provisioning steps reference
@@ -236,7 +236,7 @@ inputs:
     default: false           # optional; no default makes it required
 ```
 
-The entrypoint runs **on the host**, with the bundle directory as working directory and the step's validated `vars` as environment variables: every value arrives as a string, booleans rendered lowercase (`true`/`false`) and integers decimal, and an `IR_*` name always wins a collision with a `vars` name. Guest access goes through the `IR_*` contract:
+The entrypoint runs **on the host**, with the bundle directory as working directory and the step's validated `vars` as environment variables: every value arrives as a string (booleans lowercase, integers decimal), and an `IR_*` name always wins a collision with a `vars` name. Guest access goes through the `IR_*` contract:
 
 | Variable | Contents |
 |------------------------------------|------------------------------------|
@@ -259,11 +259,11 @@ The wrappers' whole grammar:
 "$IR_PUSH" LOCAL REMOTE [--mode 644]
 ```
 
-`IR_EXEC` runs as root by default (`--user` switches principal) and passes the in-guest exit status through; 124 is budget expiry, 125 a channel failure, 2 a usage error. `--script` uploads a local file and runs it (as root or the agent user only) and is mutually exclusive with trailing argv. `IR_PUSH` installs the file root-owned at the given `--mode`, creating parent directories, bounded at 60 s per promote; a file over the chunk size (half the daemon's inbound cap) streams in chunks and reassembles in-guest under a sha256 check with a size-scaled promote budget, so pushes of any size work and host memory stays bounded regardless; the guest's temp space briefly holds about twice the payload during the promote. There is no ownership flag, so a recipe needing another owner chowns through `IR_EXEC` afterward (the [dmz-pivot](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot) and [equifax](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_equifax) recipes both do).
+`IR_EXEC` runs as root by default (`--user` switches principal) and passes the in-guest exit status through: 124 is budget expiry, 125 a channel failure, 2 a usage error. `--script` uploads a local file and runs it (as root or the agent user only), and is mutually exclusive with trailing argv. `IR_PUSH` installs the file root-owned at the given `--mode`, creating parent directories. A file over the chunk size streams in chunks and reassembles in-guest under a sha256 check, so pushes of any size work with bounded host memory. There is no ownership flag, so a recipe needing another owner chowns through `IR_EXEC` afterward.
 
-These two wrappers are the entire surface. Nothing fetches a file back from a guest: a recipe that must read guest state reads `IR_EXEC` stdout. Both wrappers reach only `IR_GUEST`, so a recipe cannot provision another guest; state shared across guests is committed material duplicated into each bundle (dmz-pivot writes the same database password into both of its recipes, and equifax commits its pivot keypair's public half into every bundle that authorizes it).
+These two wrappers are the entire surface. To read guest state, a recipe reads `IR_EXEC` stdout; nothing fetches a file back. Both wrappers reach only `IR_GUEST`, so a recipe cannot provision another guest. State shared across guests is committed material duplicated into each bundle.
 
-Exit status 0 is demanded and is never sufficient: verification of the declared state happens independently, after all recipes. The whole entrypoint is bounded by `--recipe-budget` (default 1800 s) and killed as a process group on expiry, so stray children cannot hold the build.
+Exit status 0 is required but not sufficient: verification of the declared state happens independently, after all recipes. The whole entrypoint is bounded by `--recipe-budget` (default 1800 s) and killed as a process group on expiry.
 
 ### Entrypoint Conventions
 
@@ -301,7 +301,7 @@ rm -f /tmp/host.$$
 
 ### Period Software
 
-Ranges reproducing dated CVEs usually need software their golden's distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists exactly for this), compile or unpack on the guest, and run it under a real systemd unit. [vulhub-zabbix](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix) is the worked reference: MySQL 5.7.44 from Oracle's archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball, each recipe's provenance recorded in the range's `notes.md`. Be version-exact only where the vulnerability demands it; supporting infrastructure (the database, the interpreter) only needs to be plausible for the CVE's era. The two provenance files split by subject: `notes.md` carries period-software provenance (archive URLs, hashes, version rationale), while upstream design provenance (the published range or scenario this one derives from) lives in `source.md` beside it.
+Ranges reproducing dated CVEs usually need software their golden's distro archives no longer carry. The pattern: fetch the canonical source or vendor tarball from its archive at build time (build egress exists for this), compile or unpack on the guest, and run it under a real systemd unit. [vulhub-zabbix](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_vulhub_zabbix) is the reference example: MySQL 5.7.44 from Oracle's archive tarball, zabbix 3.0.3 compiled from the canonical SourceForge tarball. Be version-exact only where the vulnerability demands it; supporting infrastructure only needs to be plausible for the CVE's era. Two provenance files split by subject: `notes.md` carries period-software provenance (archive URLs, hashes, version rationale), and `source.md` carries the upstream range or scenario this one derives from.
 
 ## Verification {#verification}
 
@@ -309,25 +309,25 @@ After all recipes, every declared `services` and `vulnerabilities` entry is chec
 
 - A service with a `port` must have a TCP or UDP socket listening on it in-guest.
 
-- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright, naming the listener's owning package when one exists so the correct declaration is in the failure itself. With no `package`, attribution tries the listener's process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; the chain is the right default for anything that listens, so omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`; a pre-release observation (`~`) never satisfies a release declaration. A declared version that cannot be attributed fails, naming the paths tried.
+- A service with a `version` must match the observed version. A declared `package` (a dpkg name) is authoritative: its installed version is the observation, and a declared package that is not installed fails outright. With no `package`, attribution tries the listener's process chain (port → pid → exe → owning package), then an exact-name dpkg lookup; omit `package` unless attribution needs forcing. Declared versions match as a component prefix of the upstream version, epochs stripped, so `"3.0"` matches `1:3.0.3+dfsg-1`. A declared version that cannot be attributed fails, naming the paths tried.
 
 - A vulnerability with a `service` reference verifies exactly when its service verifies; one without a reference verifies vacuously and is recorded as such. Exploitability proof lives in [conformance proofs](#conformance-proofs), not here.
 
-- A `scheduled_activity` entry must have its installed unit or task present and enabled (`systemctl is-enabled` on Linux, the scheduled task's state on Windows); a failure is `activity-not-verified`. The unit is verified, never run: an activity may legitimately run long, and the first run happens on the consumer boot's schedule.
+- A `scheduled_activity` entry must have its installed unit or task present and enabled (`systemctl is-enabled` on Linux, the task's state on Windows); a failure is `activity-not-verified`. The unit is verified, not run: the first run happens on the consumer boot's schedule.
 
 Failures produce coded refusals (`service-not-verified`, `vulnerability-not-verified`) with the declared-versus-observed delta and the probe log path, and the build fails. Software installed from tarballs has no dpkg identity: declare its service by port alone and record the version in the range's notes.
 
 ## Conformance Proofs {#conformance-proofs}
 
-A range that carries challenges ([Challenges](challenges.qmd)) can prove them at build time. The build discovers proofs beside `range.yaml`: a `challenges.yaml`, plus a `conformance/<challenge-id>/` directory per challenge holding the behavioral trio (`{reference,insufficient,forged}.sh`), one or more python prove scripts (`*.py`), or both. Proofs run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. Before them, the same boot runs the `conformance` containment stage (an unrelated use of the name: that stage proves defender-to-agent containment, [Security](security.qmd#proving-containment)); a containment finding refuses the manifest exactly like a failed proof.
+A range that carries challenges ([Challenges](challenges.qmd)) can prove them at build time. The build discovers proofs beside `range.yaml`: a `challenges.yaml`, plus a `conformance/<challenge-id>/` directory per challenge holding the behavioral trio (`{reference,insufficient,forged}.sh`), one or more python prove scripts (`*.py`), or both. Proofs run against the **captured** realized images, in a second boot after capture, through the same consumption path samples use, so they prove the artifact that ships. That boot also runs the `conformance` containment stage (a separate check; see [Security](security.qmd#proving-containment)), and a containment finding refuses the manifest like a failed proof.
 
-Per challenge the trio runs first, then prove scripts in name order; challenges run in declaration order, and the first failure ends the run. A declared conformance tree must be complete, since proof that silently does not run is indistinguishable from proof: a partial trio, a challenge directory with neither kind, a stray file at the conformance root, a `.py` without a top-level `async def prove`, or a directory naming no declared challenge each refuse the build before anything boots. A failing proof saves a REFUSED manifest: consumers refuse it with `range-unproven`, while the next build reuses every guest and re-runs only the proof, so fixing a proof costs a boot-and-prove cycle, not a rebuild. The build reports a `behavioral` stage line per proof and records the results in the manifest.
+Per challenge the trio runs first, then prove scripts in name order; challenges run in declaration order, and the first failure ends the run. A declared conformance tree must be complete, since a proof that silently does not run is indistinguishable from one that passed: a partial trio, a challenge directory with neither kind, a stray file at the conformance root, a `.py` without a top-level `async def prove`, or a directory naming no declared challenge each refuse the build before anything boots. A failing proof saves a REFUSED manifest, and the next build re-runs only the proof, so fixing one costs a boot-and-prove cycle, not a rebuild. The build reports a `behavioral` stage line per proof.
 
 Custom goal types parse at build time: the build loads the `inspect_ai` entry-point registrations, and a loose `task.py` beside the range, before parsing `challenges.yaml` ([Custom Goals](goals.qmd#registration)).
 
 ### Behavioral Checks {#behavioral-checks}
 
-The trio is three bash chains per challenge: `conformance/<challenge-id>/{reference,insufficient,forged}.sh`. Each script runs on the attacker guest as a plain root bash with a 900 s budget per chain (chains legitimately wait for convergence and run full scans). `IR_ATTACKER_IP` is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, never copied onto the attacker's filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content to land on (the containment sweep runs before the checks, so a check's own listener never trips it). Submissions are `SUBMIT <goal-id> <value>` lines on stdout, one per submission, the value running to the end of the line; a value that contains an `exfiltrate` canary passes, so single-line excerpts of multi-line content work. Chain stdout is capped at 16 MiB and truncation is a hard check failure, since `SUBMIT` lines may be lost. A failing chain's output lands in the build's stage log (`stages.jsonl` under the project state directory; the failing `behavioral` row carries the chain's exit status and the tail of its stderr). Each check runs against fresh per-sample plants, removed afterward; nothing a check planted survives as a valid secret at runtime. The shipped [dmz-pivot conformance tree](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/conformance) is the worked example. The contract:
+The trio is three bash chains per challenge: `conformance/<challenge-id>/{reference,insufficient,forged}.sh`. Each runs on the attacker guest as plain root bash with a 900 s budget per chain. `IR_ATTACKER_IP` is the only contract variable; target addresses come from the range definition. The script text travels as the command itself, not copied onto the attacker's filesystem, so the shebang and executable bit are inert and the working directory is unspecified: use absolute paths. A check owns the attack box, including starting listeners for beacons or exfiltrated content (the containment sweep runs before the checks, so a check's own listener never trips it). Submissions are `SUBMIT <goal-id> <value>` lines on stdout, one per submission, the value running to end of line; a value containing an `exfiltrate` canary passes, so single-line excerpts work. Chain stdout is capped at 16 MiB and truncation is a hard failure, since `SUBMIT` lines may be lost. A failing chain's output lands in the build's stage log. Each check runs against fresh per-sample plants, removed afterward. The shipped [dmz-pivot conformance tree](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_dmz_pivot/conformance) is the reference example. The contract:
 
 | Chain | Must |
 |------------------------------------|------------------------------------|
@@ -335,26 +335,26 @@ The trio is three bash chains per challenge: `conformance/<challenge-id>/{refere
 | `insufficient.sh` | Do real but incomplete work and score 0.0 with validity `valid` and at least one submission. |
 | `forged.sh` | Submit plausible fakes and score 0.0 with validity `valid` and at least one submission. A chain that submits nothing, or a scorer that never reached a verdict, would otherwise pass vacuously. |
 
-The scores are exact, which pins down "incomplete" for a multi-goal challenge: scoring is a weighted fraction, so any genuinely achieved goal makes the insufficient chain's score nonzero and fails the check. Keep that chain to real work that achieves nothing (recon, partial access, a plausible wrong submission). Corroboration gates the reference chain only where a goal declares `beacon_segment`. An `exfiltrate` goal's `segment` does not gate the trio: an uncorroborated pass records `corroborated: false` rather than failing.
+The scores are exact, which pins down "incomplete" for a multi-goal challenge: scoring is a weighted fraction, so any genuinely achieved goal makes the insufficient chain's score nonzero and fails the check. Keep that chain to real work that achieves nothing. Corroboration gates the reference chain only where a goal declares `beacon_segment`; an `exfiltrate` goal's `segment` does not gate the trio.
 
-The one-submission floor applies only when the challenge has submission-consuming goals: a challenge scored purely by observation (`detection`, `evade`) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0 with validity `valid` (the splunk-detection checks are the worked example). Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal's `window_s` is covered ([Challenges](challenges.qmd#goal-types)).
+The one-submission floor applies only when the challenge has submission-consuming goals. A challenge scored purely by observation (`detection`, `evade`) has nothing to submit, so its insufficient and forged chains need only exit 0 and score 0.0. Prober-backed goals score in the trio too: each check runs its own prober, and the chain must keep running until the goal's `window_s` is covered.
 
-Model-graded (`judge`) goals are exempt from the trio's scoring: the build has no model, so each check scores the challenge over its non-model-graded goals (the weighted mean renormalizes over that share, and the floor reads it too) and records the exemption as `judge-exempt=<goal ids>` in the check's stage line and manifest detail. A challenge whose goals are all model-graded has no provable share and refuses with `challenge-not-provable`.
+Model-graded (`judge`) goals are exempt from the trio's scoring: the build has no model, so each check scores the challenge over its non-model-graded goals and records the exemption as `judge-exempt=<goal ids>`. A challenge whose goals are all model-graded has no provable share and refuses with `challenge-not-provable`.
 
-Beacons corroborate once they cross the wire: scoring flushes the still-active capture chunk before reading, so a beacon no longer waits for its chunk to rotate. Only the separated (uds) capture topology, where the flush is a recorded follow-up, still depends on the chunk rotating before scoring. The build's proof boot (the post-capture boot that runs the checks) defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons (the vulhub chain is the worked example).
+Beacons corroborate once they cross the wire: scoring flushes the active capture chunk before reading, so a beacon no longer waits for its chunk to rotate. The build's proof boot defaults to 1 MB capture chunks, and the reference chain pushes filler traffic after its beacons.
 
 ### Prove Scripts {#prove-scripts}
 
-A proof that needs more than a chain-and-submit shape (staged payloads, protocol clients, mid-run verdicts) is a python script: `conformance/<challenge-id>/<name>.py` defining `async def prove(ctx)`. Scripts run on the operator side, inside the proof boot, after the challenge's own setup; the exploit still reaches the range over the network through the oracle (the privileged guest-access surface scoring uses, [Challenges](challenges.qmd#scoring-lifecycle)).
+A proof that needs more than a chain-and-submit shape (staged payloads, protocol clients, mid-run verdicts) is a python script: `conformance/<challenge-id>/<name>.py` defining `async def prove(ctx)`. Scripts run on the operator side, inside the proof boot, after the challenge's own setup; the exploit reaches the range over the network through the oracle.
 
-The context carries three things. `ctx.oracle` is the live range oracle. `ctx.submit(goal_id, value)` records a submission exactly as an agent's `verify_goal` would. `await ctx.assert_goal(goal_id, achieved=..., partial=...)` evaluates the goal immediately through the scorer's own candidate semantics (the same `evaluate_goal` live scoring runs, so a proof can never pass under semantics scoring would not apply) and fails the proof unless the verdict matches, carrying the verdict's reason so a failing proof reads like a scoring diagnosis. A script must assert at least one verdict (a proof that demonstrates nothing is vacuous and fails), and asserting a model-graded goal refuses: the build has no model, the same rule as the trio's judge exemption.
+The context carries three things. `ctx.oracle` is the live range oracle. `ctx.submit(goal_id, value)` records a submission exactly as an agent's `verify_goal` would. `await ctx.assert_goal(goal_id, achieved=..., partial=...)` evaluates the goal immediately through the scorer's own `evaluate_goal` and fails the proof unless the verdict matches, carrying the reason so a failing proof reads like a scoring diagnosis. A script must assert at least one verdict, and asserting a model-graded goal refuses, since the build has no model.
 
-Scripts get the trio's isolation: fresh plants per script, a per-script prober over the challenge's own targets (force-flushed before every `assert_goal`, so a verdict reads the proof's own probes), and the per-check evidence floor. Only top-level `.py` files without a leading underscore run as proofs: a `_name.py` sibling is a helper module a script may import, and other artifacts (wheels, payloads) belong in subdirectories such as `assets/`. Everything a script imports from inside its challenge directory stays private to that script, so two challenges' same-named helpers never collide. Trio chains, helpers, and prove scripts all participate in the build's cached fast path through the conformance digest, so editing one re-proves without rebuilding. Proof artifacts are working exploits: they must never sit inside `recipes/`, where they would ride the bundle guest-ward (`validate` warns).
+Scripts get the trio's isolation: fresh plants per script, a per-script prober over the challenge's own targets, and the per-check evidence floor. Only top-level `.py` files without a leading underscore run as proofs: a `_name.py` sibling is a helper module a script may import, and other artifacts (wheels, payloads) belong in subdirectories such as `assets/`. Everything a script imports from inside its challenge directory stays private to it, so two challenges' same-named helpers never collide. Trio chains, helpers, and prove scripts all join the build's cached fast path through the conformance digest, so editing one re-proves without rebuilding. Proof artifacts are working exploits, so they must never sit inside `recipes/`, where they would ride the bundle guest-ward (`validate` warns).
 
 ### Standalone Prove {#standalone-prove}
 
-The build already refuses unproven ranges, so `inspect-ranges prove` exists for the consumer side: re-demonstrate a built or pulled artifact's scoring post hoc, against the exact realized images its manifest names, through the same proof boot the build runs. The asymmetry is deliberate. The build is fail-closed (a failing proof lands a REFUSED manifest), while standalone prove is fail-open and additive: a passing run stamps the manifest's `proven` record with every goal assertion demonstrated, a failing one exits nonzero and changes nothing on disk, and `verification` is never touched either way. Standalone proving refuses up front when no manifest exists, when the range directory's spec or conformance tree differs from what the recorded build proved (rebuild instead; the rebuild re-proves from cache), or when the manifest is REFUSED (the build is where refusals are earned and cleared). `--keep` holds a failed proof boot up for diagnosis.
+The build already refuses unproven ranges, so `inspect-ranges prove` exists for the consumer side: re-demonstrate a built or pulled artifact's scoring post hoc, against the exact realized images its manifest names, through the same proof boot the build runs. The build is fail-closed (a failing proof lands a REFUSED manifest); standalone prove is fail-open and additive. A passing run stamps the manifest's `proven` record with every goal assertion demonstrated, a failing one exits nonzero and changes nothing on disk, and `verification` is untouched either way. Standalone proving refuses up front when no manifest exists, when the range's spec or conformance tree differs from what the recorded build proved, or when the manifest is REFUSED. `--keep` holds a failed proof boot for diagnosis.
 
 ## Diagnosing Failures {#diagnosing-failures}
 
-Every failure names its stage (`recipe`, `activity`, `verify`, `capture`, `manifest`, `behavioral`, `teardown`) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory (`~/.local/state/inspect-ranges/projects/<project>/recipes/`); the error carries the path and a tail, and `stages.jsonl` in the same directory records every stage transition with its error field. `--keep` holds the failed range up for inspection (`inspect-ranges down <project>` when done). `inspect-ranges doctor` checks the build surface up front: cache writability, recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.
+Every failure names its stage (`recipe`, `activity`, `verify`, `capture`, `manifest`, `behavioral`, `teardown`) and, where it has one, the guest. Recipe output lands in one log per run under the project state directory; the error carries the path and a tail, and `stages.jsonl` records every stage transition with its error field. `--keep` holds the failed range for inspection (`inspect-ranges down <project>` when done). `inspect-ranges doctor` checks the build surface up front: cache writability, that recorded manifests and cached recipe bundles still parse, and whether a build nameserver is derivable from this host.

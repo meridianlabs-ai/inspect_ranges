@@ -1,7 +1,7 @@
 ---
 title: "Inspect Ranges"
 description: "Inspect AI extension for cyber range evaluations."
-llms-description: "What Inspect Ranges is and the end-to-end shape of using it: the dmz-pivot range definition (networks, router ACL, hosts, attacker), challenges.yaml with typed goals (execute, exfiltrate, flag), the eval task wiring (challenge_dataset, challenge_setup, verify_goal, challenge_scorer, range sandbox, with the range_apparatus scanner as the range developer's diagnostic), the terminal tool as the react default (persistent tmux sessions on the foothold, evidence-recorded with asciicast playback), the SWE-agent variant (inspect_swe claude_code with bridged_tools; those scaffolds keep their own shell tooling, so no terminal there), the goal-type table, the examples table (dmz-pivot through the Windows AD and detection ranges, each with a README in its directory), the architecture (one unprivileged range container per sample, golden images with copy-on-write overlays, the containment stack), and getting started with doctor and the image catalog."
+llms-description: "What Inspect Ranges is and the end-to-end shape of using it: defining a range, writing challenges, running an eval, and the architecture underneath."
 ---
 
 ## Overview
@@ -14,7 +14,7 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 3.  Attacker agents run inside a dedicated VM under Cloud Hypervisor and are further contained by an outer unprivileged container and the cloud provider's hypervisor (e.g. AWS Nitro).
 
-4.  Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle (scoring's privileged view from outside the range) can see everything.
+4.  Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated. In-range defenders see only what the agent transmits, while the scoring oracle sees everything from outside the range.
 
 ## Getting Started
 
@@ -115,7 +115,7 @@ attacker:
   entry: external
 ```
 
-At boot, networks become private Linux bridges, guests become VMs booted from their images, and the `acl` becomes the router's firewall. Images resolve by name from the published [image catalog](images.qmd): `ubuntu-noble` is a published golden image, a shared read-only base disk, and the attacker declares no image, so it boots the standard kali-class attack box. The `provisioning`, `users`, `services`, `vulnerabilities`, and `data` entries declare the guest content that makes the range solvable, realized and verified by [`inspect-ranges build`](building.qmd).
+At boot, networks become private Linux bridges, guests become VMs booted from their images, and the `acl` becomes the router's firewall. Images resolve by name from the published [image catalog](images.qmd): `ubuntu-noble` is a shared read-only golden image, and the attacker declares no image, so it boots the standard kali-class attack box. The `provisioning`, `users`, `services`, `vulnerabilities`, and `data` entries declare the guest content that makes the range solvable, realized and verified by [`inspect-ranges build`](building.qmd).
 
 ## Range Tasks
 
@@ -273,7 +273,7 @@ Inspect Ranges includes eight examples: two originals (the dmz-pivot above and d
 | [defender_ops](examples/defender_ops.md) | original | king-of-the-hill sabotage (deface, degrade, crash-by-address) with the entry gate kept up, then a quiet patch-and-cleanup scored from the exec witness and ops log |
 : {tbl-colwidths=[20,20,60]}
 
-The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example's range: the first challenge of each by default, every challenge with `-T per_example=all`. It is the one-command proof that a deployment pulls, boots, scores, and tears down ranges end to end.
+The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example's range: the first challenge of each by default, every challenge with `-T per_example=all`. It is the one command that proves a deployment can pull, boot, score, and tear down ranges end to end.
 
 ## Architecture
 
