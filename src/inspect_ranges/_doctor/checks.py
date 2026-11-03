@@ -304,7 +304,7 @@ def check_provider(state_dir: Path, image_cache: Path) -> list[CheckResult]:
     # recipe: installed (Windows) goldens follow the Windows install recipe,
     # and imported images have no recipe to compare against at all.
     current: list[str] = []
-    other_recipe: list[tuple[str, str, str]] = []
+    other_recipe: list[tuple[str, str, str, bool]] = []
     missing_file: list[str] = []
     for sidecar in sorted(image_cache.glob("*.json")) if image_cache.is_dir() else []:
         try:
@@ -315,7 +315,9 @@ def check_provider(state_dir: Path, image_cache: Path) -> list[CheckResult]:
             continue
         expected = WIN_RECIPE_VERSION if meta.installed else RECIPE_VERSION
         if meta.recipe_version != expected:
-            other_recipe.append((meta.file, meta.recipe_version, expected))
+            other_recipe.append(
+                (meta.file, meta.recipe_version, expected, meta.installed)
+            )
         elif not (image_cache / meta.file).is_file():
             missing_file.append(meta.file)
         else:
@@ -335,12 +337,15 @@ def check_provider(state_dir: Path, image_cache: Path) -> list[CheckResult]:
         )
     elif other_recipe:
         details: list[str] = []
-        for name, version, expected in other_recipe:
+        for name, version, expected, installed in other_recipe:
             try:
                 older = int(version) < int(expected)
             except ValueError:
                 older = None
-            if older and expected == RECIPE_VERSION:
+            # the two recipe lines version independently and can collide
+            # numerically, so the split is on the sidecar's kind, never on
+            # comparing the expected versions to each other
+            if older and not installed:
                 details.append(
                     f"{name} (recipe v{version}: its daemon predates the required "
                     "pong session field, so this host fails the boot ping tamper-shaped)"
