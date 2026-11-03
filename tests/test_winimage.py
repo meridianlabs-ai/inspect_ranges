@@ -61,6 +61,17 @@ def test_variant_answer_files_pin_the_install_contract() -> None:
     )
     assert "<ProductKey>" in win11
 
+    # the client specialize facts (measured: no-network OOBE parks without
+    # BypassNRO, device encryption auto-arms against the TPM, the built-in
+    # Administrator starts disabled and takes its password here); servers
+    # carry none of them
+    assert "BypassNRO" in win11 and "BypassNRO" not in server
+    assert win11.count("/v PreventDeviceEncryption /t REG_DWORD") == 2
+    assert "net user Administrator /active:yes" in win11
+    assert 'net user Administrator "pw"' in win11
+    assert "PreventDeviceEncryption" not in server
+    assert "net user" not in server
+
 
 def test_the_os_variant_enters_the_derivation_key() -> None:
     """Same media, daemon, and password: one OS variant must never cache-hit another's golden."""
@@ -79,6 +90,20 @@ def test_cli_os_choices_track_the_variant_table() -> None:
     param = next(p for p in derive_windows.params if p.name == "os_variant")
     assert isinstance(param.type, click.Choice)
     assert sorted(param.type.choices) == sorted(WINDOWS_OS_VARIANTS)
+
+
+def test_client_refuses_a_cmd_hostile_admin_password(tmp_path: Path) -> None:
+    """The client specialize block carries the password on a cmd line; characters cmd cannot quote refuse up front (the paths here do not exist, proving the refusal precedes any media check)."""
+    with pytest.raises(DeriveError, match="cmd line"):
+        install_windows_golden(
+            tmp_path / "a.iso",
+            "0" * 64,
+            tmp_path / "v.iso",
+            "0" * 64,
+            tmp_path,
+            os_variant="11",
+            admin_password='has"quote',
+        )
 
 
 def test_unknown_os_variant_refuses_before_touching_media(tmp_path: Path) -> None:

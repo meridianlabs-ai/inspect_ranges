@@ -73,6 +73,9 @@ class WindowsOsVariant:
     disk_gb: int
     """The golden's virtual disk size (sparse; setup checks a per-OS storage floor)."""
 
+    client: bool
+    """Client Windows (vs server): OOBE demands a network and hides none of its wizard without the skip pair, device encryption auto-arms against the TPM, and the built-in Administrator starts disabled — the client specialize block handles all of it."""
+
     install_timeout_s: float
     """Bound on this variant's unattended install, a fact of the media like the disk floor (the win-guest spike measured ~190 s for Server Core before guest-tools and the daemon compile; the multi-edition client WIM alone outruns that shape's whole bound)."""
 
@@ -89,6 +92,7 @@ WINDOWS_OS_VARIANTS: dict[str, WindowsOsVariant] = {
         product_key=None,
         firmware="bios",
         disk_gb=40,
+        client=False,
         install_timeout_s=2400.0,
         default_name="windows-2022",
     ),
@@ -100,6 +104,7 @@ WINDOWS_OS_VARIANTS: dict[str, WindowsOsVariant] = {
         product_key="VK7JG-NPHTM-C97JM-9MPGT-3V66T",  # the documented generic Pro edition-selection key
         firmware="uefi-secure",
         disk_gb=64,  # the Windows 11 storage floor
+        client=True,
         install_timeout_s=4800.0,  # the multi-edition client WIM alone outruns the server bound (measured)
         default_name="windows-11",
     ),
@@ -154,7 +159,7 @@ __DISK_AND_IMAGE__
                publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>WINGOLD</ComputerName>
       <TimeZone>UTC</TimeZone>
-    </component>
+    </component>__SPECIALIZE_CLIENT__
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64"
@@ -204,6 +209,42 @@ __DISK_AND_IMAGE__
   </settings>
 </unattend>
 """
+
+_SPECIALIZE_CLIENT = """
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <!-- the client-OS facts, each measured: OOBE demands a network the
+             installer VM deliberately lacks (BypassNRO); device encryption
+             auto-arms against the TPM and sysprep refuses an encrypting
+             volume (PreventDeviceEncryption, both registry points); the
+             built-in Administrator is DISABLED on client Windows and
+             oobeSystem's AdministratorPassword is silently ignored there,
+             so the account activates and takes its password here, before
+             the AutoLogon that runs FirstLogonCommands -->
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Path>cmd /c reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OOBE /v BypassNRO /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <Path>cmd /c reg add HKLM\\SYSTEM\\CurrentControlSet\\Control\\BitLocker /v PreventDeviceEncryption /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <Path>cmd /c reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\FVE /v PreventDeviceEncryption /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <Path>cmd /c net user Administrator /active:yes</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <Path>cmd /c net user Administrator "__ADMIN_PASSWORD__"</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>"""
+"""The specialize additions a client OS needs; servers render an empty slot."""
 
 _DISK_AND_IMAGE_BIOS = """\
       <DiskConfiguration>
@@ -289,6 +330,7 @@ def render_install_unattend(variant: WindowsOsVariant, admin_password: str) -> s
     )
     return (
         _INSTALL_UNATTEND_TEMPLATE.replace("__DISK_AND_IMAGE__", disk_and_image)
+        .replace("__SPECIALIZE_CLIENT__", _SPECIALIZE_CLIENT if variant.client else "")
         .replace("__DRIVER_DIR__", variant.driver_dir)
         .replace("__PRODUCT_KEY__", product_key)
         .replace("__ADMIN_PASSWORD__", escape(admin_password))
@@ -362,6 +404,16 @@ def install_windows_golden(
         name = variant.default_name
     if timeout_s is None:
         timeout_s = variant.install_timeout_s
+    if variant.client and any(ch in admin_password for ch in ('"', "%", "\n", "\r")):
+        # the client specialize block sets the password through a cmd line
+        # (oobeSystem's AdministratorPassword is ignored on client Windows);
+        # cmd cannot carry these characters safely inside its quotes
+        raise DeriveError(
+            "prepare",
+            "a client install sets the Administrator password via a specialize "
+            'cmd line, which cannot carry `"`, `%`, or newlines; pass '
+            "--admin-password without them",
+        )
     expected_iso = iso_sha256.removeprefix("sha256:").lower()
     expected_virtio = virtio_sha256.removeprefix("sha256:").lower()
     for path, expected, label in (
