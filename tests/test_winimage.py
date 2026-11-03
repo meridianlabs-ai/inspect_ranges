@@ -61,6 +61,12 @@ def test_variant_answer_files_pin_the_install_contract() -> None:
     )
     assert "<ProductKey>" in win11
 
+    # Windows Update is baked off on clients (variable-time auto-restarts
+    # killed builds mid-recipe; servers keep their stock behavior)
+    assert "NoAutoUpdate" in win11 and "NoAutoUpdate" not in server
+    assert win11.count("/v Start /t REG_DWORD /d 4") == 2
+    assert "wuauserv" not in server
+
     # the client specialize facts (measured: no-network OOBE parks without
     # BypassNRO, device encryption auto-arms against the TPM, the built-in
     # Administrator starts disabled and takes its password here); servers
