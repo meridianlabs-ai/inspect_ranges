@@ -98,12 +98,22 @@ def scrub_guest(
             "if ($LASTEXITCODE -ne 0) "
             "{ Write-Error ('clearing ' + $log + ' exited ' + $LASTEXITCODE); exit 1 } }; "
         )
+        # the daemon's named-user credential file is build-time material (a
+        # recipe writes it so `user=` exec can run under a local account): a
+        # plaintext credential file must never ride a captured disk, so the
+        # scrub removes it unconditionally and asserts the removal
+        drop_users = (
+            "Remove-Item -Force -ErrorAction SilentlyContinue 'C:\\guestd\\users.txt'; "
+            "if (Test-Path 'C:\\guestd\\users.txt') "
+            "{ Write-Error 'the daemon credential file survived the scrub'; exit 1 }; "
+        )
         script = (
             "$ErrorActionPreference='Stop'; "
             + strip_ns
             + "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue 'C:\\Windows\\Temp\\.ir-*'; "
             + "if (Test-Path 'C:\\Windows\\Temp\\.ir-*') "
             + "{ Write-Error 'staged temp files survived the scrub'; exit 1 }; "
+            + drop_users
             + clear_ps_logs
             + "exit 0"
         )

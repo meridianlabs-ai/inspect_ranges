@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Named-user exec on Windows is a documented production path. The daemon reads `C:\guestd\users.txt` (one `name:password` line per account) to run an explicit `user=` exec under that account's own logon; a recipe that wants it creates the account and writes the file. The pre-capture scrub now deletes the file unconditionally and asserts the removal: the daemon credential file never rides a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot.
+
 - The Windows clone seed re-activates the built-in Administrator in its specialize pass. Sysprep leaves the account disabled on client Windows while the seed still sets its password every boot, so the documented account (deliberate scenario content: ranges authenticate in-guest with it) was silently unusable on client clones; a credentialed logon failed with "account is currently disabled". Idempotent on server, where the account is already active. Seeds render per boot, so golden-backed clones pick the fix up on their next boot; a realized image captured from a client golden before this fix keeps the disabled account (specialize does not re-run on consumer boots) and needs a rebuild.
 
 - `doctor` reads installed (Windows) goldens against the Windows install recipe version instead of misreading them as stale against the Linux recipe version, gives a stale Windows golden its own re-derive guidance, and skips imported images, which have no recipe to compare against.
