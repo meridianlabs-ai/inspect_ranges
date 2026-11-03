@@ -1,0 +1,40 @@
+---
+type: document
+title: "Decision: Windows 11 Client v1"
+audience: inspect-ranges development
+status: draft
+tags: [inspect-ranges, windows, windows11, client, secure-boot, tpm, phase-plan, decision]
+timestamp: 2026-11-02
+---
+
+# Decision: Windows 11 Client v1
+
+*Extends the managed Windows tier ([windows-ad-v1](windows-ad-v1.md)) from Server 2022 to Windows 11 client guests. The windows-ad non-goal ("no Windows client-OS media this phase") lifts here, on the hardware substrate the uefi-secure/tpm slice realized: Secure Boot with the Microsoft keys enrolled, SMM, and an emulated TPM 2.0 — the contract a Windows 11 install verifies at setup and a client-endpoint range wants measured for realism. Exit criterion: a Windows 11 golden installs through `images derive-windows` from digest-pinned user-supplied media, and a clone boots on the production pipeline with Secure Boot and the TPM live in-guest, daemon exec as SYSTEM, provisioning via recipes, plants via the oracle's Windows shape.*
+
+## Ratified inputs (user, 2026-11-02)
+
+- **Windows 11 client guests ride the managed tier**, not opaque imports: daemon readiness/exec, recipes for software, the plant store for per-sample content. Everything windows-ad-v1 proved carries; this phase adds the client OS, not a new mechanism.
+- **The media posture is unchanged**: user-supplied, digest-pinned at derive, local-only goldens, recipes-not-images, nothing published (the windows-ad ratification stands verbatim).
+- **Hardware contract**: a Windows 11 guest declares `hardware: { firmware: uefi-secure, tpm: true }` explicitly; the plan refuses a Windows 11 guest without them rather than injecting defaults silently (declared-is-authoritative, consistent with the explicit-ip rule for Windows content hosts).
+- **NVRAM**: per-guest nvram seeds from the stock `OVMF_VARS_4M.ms.fd` template (the uefi-secure slice's mechanism); a freshly specialized clone boots via the UEFI fallback path. MEASURED 2026-11-02: a sysprepped Windows 11 Pro clone (independently built reference template) booted twice from fresh stock vars under the full contract and reported `Confirm-SecureBootUEFI` True and `Get-Tpm` ready in-guest, so the companion-VARS fallback is closed, not parked.
+
+## The slices
+
+**Slice 1: the Windows 11 golden and clone.** `images derive-windows` grows a client shape, version-keyed rather than forked: the hardcoded Server 2022 facts (virtio driver directories `2k22`, `--osinfo win2k22`, the answer file's image selection) become parameters of one install flow, server semantics preserved (the shared oobeSystem additionally gains the OOBE skip pair, which servers ignore; the next server derive under the bumped recipe version is the live proof of that, a watch item). The Windows 11 variant: `--osinfo win11`, virtio `w11` directories (threaded into the WinPE driver paths and `install-daemon.ps1`'s viosock probe), image selection by index with the documented edition-selection key, and the installer VM itself presents the Windows 11 contract — the uefi-secure loader stanza, SMM, and the swtpm-backed TPM the hardware slice realized (the installer inherits that slice's shared `libvirt-qemu` principal; it is a one-guest VM, so the single-TPM-guest guidance holds by construction). The golden's sidecar writes `kind="installed"` explicitly (today the Windows golden resolves `installed` only through the `.iso`-suffix legacy fallback — fragile, fixed here). Plan: `os: { type: windows, version: "11" }` plans exactly like server with the hardware gate above (`windows11-hardware-required`). Render: the deferred windows-render contract pin lands — a Windows 11 render fixture asserting the full shape (secure loader + SMM + ms-vars nvram, tpm-crb, virtio-scsi seed cdrom, VNC+VGA, the shared principal's seclabel). Battery (win11 spike, the win-build W1-W4 shape): derive from digest-pinned media, re-derive is a cache hit on the full key; a clone boots production render/up, specializes (hostname, MAC-keyed static address), daemon-only readiness, exec as SYSTEM; the contract proven **in-guest** (`Confirm-SecureBootUEFI` true, `Get-Tpm` ready); teardown clean.
+
+**Slice 2: client endpoint proven as a fixture consumer.** A client-shaped example exercises the golden the way deployments will: a recipe installs local software and a low-privilege user, a challenge plants via the Windows plant shape, a trio proves it, capture/rebase and the cached no-op hold for the client disk. Rides entirely on windows-ad machinery; this slice is verification breadth, not new substrate. Scope decided at slice time: if slice 1's battery plus an existing-fixture spot-check cover it, this collapses into slice 1's exit.
+
+## Non-goals
+
+No Windows artifact publication (standing); no client-OS additions to the AD fixtures (goad-light and attack-range-windows stay Server 2022 as proven); no execve-witness analog for Windows (the declared `os-windows` unsupported record stands); no admin-password rotation (windows-ad followups, unchanged); no Windows attacker foothold (refusal stands); no second client version — Windows 11 is the only client shape until a fixture needs another.
+
+## Parked for the user
+
+- Edition/index defaults: slice 1 pins Pro (index 6 on current multi-edition media) as the documented default; whether the engine should verify the media's WIM catalog against the requested index (vs. failing deep in setup) is a nice-to-have decided by how the first wrong-index failure presents.
+
+## Ledger
+
+| Slice | Status |
+|---|---|
+| 1 Windows 11 golden and clone | done 2026-11-03: battery green ([win11-client](../spikes/win11-client/README.md) 13/13, clean cache): the client golden installs through `images derive-windows --os 11` in ~25 min (secure-boot + TPM installer VM, GPT/ESP, w11 drivers, Pro by index + the documented edition key, sysprep'd, daemon baked), re-deriving is a cache hit on the variant-carrying key, the sidecar records `kind: installed` explicitly, and a clone boots the PRODUCTION pipeline: unattend specialize (hostname, MAC-keyed static address), daemon-only readiness, exec as SYSTEM over vsock, and the CONTRACT proven from the guest's own view (`Confirm-SecureBootUEFI` true, `Get-Tpm` ready, Windows 11 Pro), outbound L3, clean teardown. Six install rounds of measured client-OS facts, each now in the code: blind boot-prompt keys press setup's Cancel (a quit-confirm modal blocks the restart), so coverage gates on the install cdrom's read counter; the multi-edition client WIM outruns the server install bound (`install_timeout_s` is a variant fact, 11 at 4800 s); the OOBE wizard survives the Hide* flags (country screen) and takes `SkipMachineOOBE`/`SkipUserOOBE`; a no-NIC install parks on the network screen without `BypassNRO`; device encryption auto-arms against the TPM and sysprep refuses an encrypting volume (`PreventDeviceEncryption`, both registry points); the built-in Administrator is DISABLED on client Windows and oobeSystem's `AdministratorPassword` is silently ignored, so the account activates and takes its password at specialize (cmd-hostile passwords refuse up front); the install-timeout diagnostics keep the domain state (the QEMU cmdline alone overran the error slice); the first post-readiness exec can race the clone's settling (battery retries it). The daemon bundle's Windows installer picks its viosock directory by ProductType (w11/2k22), version lockstep 3.6.0. The stock-VARS clone-boot question closed earlier the same arc (ratified inputs). |
+| 2 client endpoint as fixture consumer | pending |

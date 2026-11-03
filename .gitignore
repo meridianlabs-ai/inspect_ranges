@@ -238,3 +238,4 @@ src/inspect_ranges/examples/*/logs/
 docs/**/*.html
 docs/site_libs/
 docs/**/*_files/
+.artifacts/

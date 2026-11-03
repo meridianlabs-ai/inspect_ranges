@@ -8,15 +8,18 @@
 $ProgressPreference = 'SilentlyContinue'
 $ErrorActionPreference = 'Stop'
 
+# the virtio-win CD signs drivers per OS: client installs (ProductType 1,
+# e.g. Windows 11) take w11, servers take 2k22
+$winDir = if ((Get-CimInstance Win32_OperatingSystem).ProductType -eq 1) { 'w11' } else { '2k22' }
 $cds = Get-Volume | Where-Object DriveType -eq 'CD-ROM' | ForEach-Object { $_.DriveLetter }
 $payload = $cds | Where-Object { Test-Path "${_}:\Wire.cs" } | Select-Object -First 1
-$virtio  = $cds | Where-Object { Test-Path "${_}:\viosock\2k22\amd64\viosock.inf" } | Select-Object -First 1
+$virtio  = $cds | Where-Object { Test-Path "${_}:\viosock\$winDir\amd64\viosock.inf" } | Select-Object -First 1
 if (-not $payload) { throw 'payload CD not found' }
 if (-not $virtio)  { throw 'virtio-win CD not found' }
 
 # viosock driver (WHQL-signed; judge success by device binding, since pnputil
 # may exit 3010 for success-reboot-advised)
-& pnputil.exe /add-driver "${virtio}:\viosock\2k22\amd64\viosock.inf" /install | Out-Null
+& pnputil.exe /add-driver "${virtio}:\viosock\$winDir\amd64\viosock.inf" /install | Out-Null
 Start-Sleep -Seconds 3
 $dev = Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'DEV_1053' } | Select-Object -First 1
 if ($dev.Status -ne 'OK') { throw "viosock device not OK: $($dev.Status)" }
