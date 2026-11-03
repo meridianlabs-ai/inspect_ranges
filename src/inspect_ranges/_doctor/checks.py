@@ -240,6 +240,7 @@ def check_provider(state_dir: Path, image_cache: Path) -> list[CheckResult]:
     import importlib.metadata as metadata
 
     from .._runtime.images import RECIPE_VERSION, ImageMetadata
+    from .._runtime.winimage import WIN_RECIPE_VERSION
 
     results: list[CheckResult] = []
 
@@ -299,17 +300,22 @@ def check_provider(state_dir: Path, image_cache: Path) -> list[CheckResult]:
 
     # a current-recipe golden must exist as both sidecar AND image file;
     # older-recipe goldens carry a pre-3.1.0 daemon whose session-less pong
-    # the host rejects tamper-shaped at boot
+    # the host rejects tamper-shaped at boot. Each tier versions its own
+    # recipe: installed (Windows) goldens follow the Windows install recipe,
+    # and imported images have no recipe to compare against at all.
     current: list[str] = []
-    other_recipe: list[tuple[str, str]] = []
+    other_recipe: list[tuple[str, str, str]] = []
     missing_file: list[str] = []
     for sidecar in sorted(image_cache.glob("*.json")) if image_cache.is_dir() else []:
         try:
             meta = ImageMetadata.model_validate_json(sidecar.read_text())
         except (OSError, ValueError):
             continue
-        if meta.recipe_version != RECIPE_VERSION:
-            other_recipe.append((meta.file, meta.recipe_version))
+        if meta.resolved_kind == "imported":
+            continue
+        expected = WIN_RECIPE_VERSION if meta.installed else RECIPE_VERSION
+        if meta.recipe_version != expected:
+            other_recipe.append((meta.file, meta.recipe_version, expected))
         elif not (image_cache / meta.file).is_file():
             missing_file.append(meta.file)
         else:
@@ -329,22 +335,27 @@ def check_provider(state_dir: Path, image_cache: Path) -> list[CheckResult]:
         )
     elif other_recipe:
         details: list[str] = []
-        for name, version in other_recipe:
+        for name, version, expected in other_recipe:
             try:
-                older = int(version) < int(RECIPE_VERSION)
+                older = int(version) < int(expected)
             except ValueError:
                 older = None
-            if older:
+            if older and expected == RECIPE_VERSION:
                 details.append(
                     f"{name} (recipe v{version}: its daemon predates the required "
                     "pong session field, so this host fails the boot ping tamper-shaped)"
                 )
+            elif older:
+                details.append(
+                    f"{name} (recipe v{version}: the Windows install recipe is at "
+                    f"v{expected}; re-derive)"
+                )
             elif older is None:
-                details.append(f"{name} (recipe v{version}, not v{RECIPE_VERSION})")
+                details.append(f"{name} (recipe v{version}, not v{expected})")
             else:
                 details.append(
                     f"{name} (recipe v{version} is NEWER than this package's "
-                    f"v{RECIPE_VERSION}: upgrade inspect_ranges or re-derive)"
+                    f"v{expected}: upgrade inspect_ranges or re-derive)"
                 )
         results.append(
             CheckResult(

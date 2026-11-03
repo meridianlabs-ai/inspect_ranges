@@ -1271,10 +1271,17 @@ def up(
     states = asyncio.run(_readiness())
     failed = [state.name for state in states if not state.ready]
     if failed:
+        # name each failed guest's OWN window: a declared boot budget extends
+        # the shared one, and reporting only the shared number misstates how
+        # long a slow guest was actually given
+        windows = {
+            guest.name: max(options.readiness_timeout, guest.readiness_timeout or 0.0)
+            for guest in guests
+        }
+        failed_detail = ", ".join(f"{name} ({windows[name]:.0f}s)" for name in failed)
         raise fail(
             "readiness",
-            "guests not ready within their windows "
-            f"(shared {options.readiness_timeout:.0f}s): {', '.join(failed)} "
+            f"guests not ready within their windows: {failed_detail} "
             f"(console logs under {project_dir(options.state_dir, project) / 'consoles'})",
             guest=failed[0],
             consoles=[

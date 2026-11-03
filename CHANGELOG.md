@@ -1,5 +1,9 @@
 ## Unreleased
 
+- `doctor` reads installed (Windows) goldens against the Windows install recipe version instead of misreading them as stale against the Linux recipe version, gives a stale Windows golden its own re-derive guidance, and skips imported images, which have no recipe to compare against.
+
+- The readiness failure names each failed guest's own probe window. A guest's declared boot budget extends the shared window, so reporting only the shared number misstated how long a slow guest was actually given.
+
 - The range container image can draft off the configured registry: with `INSPECT_RANGES_RANGE_IMAGE` unset and `INSPECT_RANGES_REGISTRY` explicitly set, `up` resolves the location's convention name `range` at the engine-version tag (a tag inside a single-repository location, the hub form's `<name-prefix>-range` repository (exactly the catalog's published name), or `<prefix>/range` elsewhere) and uses the digest it resolves to, never the mutable tag, so the no-mutable-tag posture holds end to end. The explicit pin always wins; the default search path never drafts (a pin-less dev host keeps building locally); a missing convention ref logs the attempt and falls back to the local build. One registry value now configures a fleet completely.
 
 ## 0.2.14 (03 November 2026)
