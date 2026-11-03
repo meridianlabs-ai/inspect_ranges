@@ -4,11 +4,14 @@ Per the realizer-v1 Decisions, `up` always runs the hardened profile (non-root Q
 """
 
 import hashlib
+import json
+import logging
 import os
 import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from .. import __version__
 
@@ -58,6 +61,95 @@ def range_image_context() -> Path:
 
 CONTENT_LABEL = "inspect-ranges.range-image-content"
 
+logger = logging.getLogger("inspect_ranges.rangeimage")
+
+RANGE_IMAGE_CONVENTION_NAME = "range"
+"""The name the range container image takes inside a registry location when a fleet drafts it off `INSPECT_RANGES_REGISTRY` instead of pinning, spelled by the location's own rules: a tag in a single-repository location (`<repo>:<prefix>--range--v<version>`), the name-prefixed repository on the hub form (`<org>/<name-prefix>-range`, exactly the public catalog's published name), a plain `<prefix>/range` elsewhere; always at the engine-version tag."""
+
+
+def conventional_range_image(runner: DockerRunner) -> str | None:
+    """The registry-drafted range image, resolved to a digest, or `None`.
+
+    Drafting happens only when `INSPECT_RANGES_REGISTRY` is explicitly set (the default public-org search path never drafts: a pin-less dev host keeps building locally), and only off the FIRST configured location. The version-coupled convention tag is a lookup, never what runs: it resolves to a digest here, so the no-mutable-tag posture holds end to end; a fleet that wants one digest across engine upgrades keeps setting `INSPECT_RANGES_RANGE_IMAGE`, which always wins. A missing or unpullable convention ref logs the attempt and yields the local build, exactly today's default.
+    """
+    from .._dist.errors import DistError
+    from .._dist.location import REGISTRY_ENV, registry_locations
+
+    raw = os.environ.get(REGISTRY_ENV)
+    if raw is None or not raw.strip():
+        return None
+    try:
+        locations = registry_locations(raw)
+    except DistError as error:
+        logger.warning("range image drafting skipped: %s", error)
+        return None
+    # the first REGISTRY-form location drafts (directory mirrors hold builds,
+    # not docker images); none in the path means no drafting
+    location = next((loc for loc in locations if not loc.is_directory), None)
+    if location is None:
+        return None
+    base, prefix = location.registry_base_and_prefix()
+    # the docker CLI takes no scheme: an http:// (non-localhost) registry that
+    # serves builds fine will fail the pull here and fall back to local builds
+    host = base.split("://", 1)[1]
+    version_tag = f"v{__version__}"
+    if location.tag_prefix:
+        # _split_tag_prefix refuses an empty repository with a tag prefix, so
+        # prefix is always non-empty here
+        ref = f"{host}/{prefix}:{location.tag_prefix}--{RANGE_IMAGE_CONVENTION_NAME}--{version_tag}"
+    else:
+        spelled = (
+            f"{location.name_prefix}-{RANGE_IMAGE_CONVENTION_NAME}"
+            if location.name_prefix
+            else RANGE_IMAGE_CONVENTION_NAME
+        )
+        repo = f"{prefix}/{spelled}" if prefix else spelled
+        ref = f"{host}/{repo}:{version_tag}"
+        # NOTE: the hub form deliberately keeps the registry-1.docker.io host:
+        # docker does not normalize it, so RepoDigests retain the full host and
+        # the repository filter below still matches; canonicalizing to
+        # docker.io would normalize the digest refs hostless and break it
+    pull = runner(["docker", "pull", ref])
+    if pull.returncode != 0:
+        logger.info(
+            "no registry range image at %s (%s); building locally "
+            "(publish the convention ref there, or set %s)",
+            ref,
+            pull.stderr.strip()[-120:],
+            RANGE_IMAGE_ENV,
+        )
+        return None
+    inspect = runner(
+        ["docker", "image", "inspect", ref, "--format", "{{json .RepoDigests}}"]
+    )
+    if inspect.returncode != 0:
+        logger.warning("range image %s pulled but uninspectable; building locally", ref)
+        return None
+    # both construction branches above always end the ref in :tag, so the
+    # LAST colon is the tag separator even when the host carries a port
+    repo_only = ref.rsplit(":", 1)[0]
+    try:
+        listed = json.loads(inspect.stdout)
+    except json.JSONDecodeError:
+        logger.warning("range image %s: unreadable RepoDigests; building locally", ref)
+        return None
+    if not isinstance(listed, list):
+        logger.warning("range image %s: unreadable RepoDigests; building locally", ref)
+        return None
+    digests: list[str] = [
+        d
+        for d in cast("list[object]", listed)
+        if isinstance(d, str) and d.startswith(f"{repo_only}@sha256:")
+    ]
+    if not digests:
+        logger.warning(
+            "range image %s carries no digest for its own repository; building locally",
+            ref,
+        )
+        return None
+    logger.info("range image drafted off the registry: %s -> %s", ref, digests[0])
+    return digests[0]
+
 
 def _content_hash() -> str:
     """Hash of the package version and the build context, so a stale or substituted image rebuilds."""
@@ -70,7 +162,7 @@ def _content_hash() -> str:
 def ensure_range_image(
     runner: DockerRunner | None = None, tag: str = RANGE_IMAGE_TAG
 ) -> str:
-    """Resolve the hardened range image: the `INSPECT_RANGES_RANGE_IMAGE` pin (pulled once) when set, else the local content-labeled tag, built unless this host has one whose label matches.
+    """Resolve the hardened range image: the `INSPECT_RANGES_RANGE_IMAGE` pin (pulled once) when set; else, with `INSPECT_RANGES_REGISTRY` explicitly configured, the registry's convention ref resolved to a digest (`conventional_range_image`); else the local content-labeled tag, built unless this host has one whose label matches.
 
     Tag presence alone is not trusted: the image must carry the content label for the current package version and build context, so `docker tag` substitution or an edited Dockerfile within one version both trigger a rebuild.
 
@@ -93,6 +185,9 @@ def ensure_range_image(
                     f"{pull.stderr.strip()[-300:]}"
                 )
         return pinned
+    conventional = conventional_range_image(run)
+    if conventional:
+        return conventional
     content = _content_hash()
     inspect = run(
         [
