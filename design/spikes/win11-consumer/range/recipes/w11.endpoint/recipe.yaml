@@ -1,0 +1,4 @@
+name: w11.endpoint
+version: "1"
+entrypoint: run.sh
+mode: online

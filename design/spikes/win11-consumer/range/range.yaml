@@ -1,0 +1,35 @@
+range:
+  name: win11-consumer
+  schema_version: "0.3"
+  description: a windows 11 client endpoint consumed through the build pipeline, the slice-2 proof
+
+networks:
+  - name: corp
+    cidr: 10.24.0.0/24
+    mode: isolated
+
+hosts:
+  - name: client
+    os: { type: windows, version: "11" }
+    image: windows-11
+    hardware: { firmware: uefi-secure, tpm: true }
+    resources: { cpus: 2, memory_mb: 4096 }
+    interfaces: [{ network: corp, ip: 10.24.0.10 }]
+    users:
+      - name: user
+        password: users@drool
+        groups: [Users]
+        note: the endpoint's low-privilege operator; realized by the endpoint recipe
+    provisioning:
+      - recipe: w11.endpoint
+    scheduled_activity:
+      - script: benign-admin.ps1
+        schedule: every 10m
+        note: >
+          Routine endpoint housekeeping so the client shows ordinary activity;
+          also the build's verify declaration for this host.
+
+attacker:
+  image: ubuntu-noble
+  interfaces: [{ network: corp }]
+  entry: external
