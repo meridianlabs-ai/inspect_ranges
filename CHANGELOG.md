@@ -1,3 +1,7 @@
+## Unreleased
+
+- The range container image can draft off the configured registry: with `INSPECT_RANGES_RANGE_IMAGE` unset and `INSPECT_RANGES_REGISTRY` explicitly set, `up` resolves the location's convention name `range` at the engine-version tag (a tag inside a single-repository location, the hub form's `<name-prefix>-range` repository — exactly the catalog's published name — or `<prefix>/range` elsewhere) and uses the digest it resolves to, never the mutable tag, so the no-mutable-tag posture holds end to end. The explicit pin always wins; the default search path never drafts (a pin-less dev host keeps building locally); a missing convention ref logs the attempt and falls back to the local build. One registry value now configures a fleet completely.
+
 ## 0.2.14 (03 November 2026)
 
 - The per-boot Windows unattend seed skips the OOBE wizard outright (`SkipMachineOOBE`/`SkipUserOOBE`, the pair the Windows 11 installer's answer file already carries): without it a CLIENT clone boots into the live wizard on its console, and the wizard's own phase restarts kill the control channel at variable times while build recipes run against the guest (measured as intermittent first-contact failures that spared some builds and killed others). Server clones ignore the pair; no spec hash moves.

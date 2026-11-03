@@ -684,6 +684,100 @@ def test_range_image_rebuilds_on_content_mismatch() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "location,expected_ref",
+    [
+        (
+            "registry.example.net/eval-images/inspect-ranges:ranges",
+            "registry.example.net/eval-images/inspect-ranges:ranges--range--v{v}",
+        ),
+        (
+            "docker.io/acme/inspect-ranges",
+            "registry-1.docker.io/acme/inspect-ranges-range:v{v}",
+        ),
+    ],
+    ids=["single-repository", "prefix"],
+)
+def test_range_image_drafts_off_the_configured_registry(
+    monkeypatch: pytest.MonkeyPatch, location: str, expected_ref: str
+) -> None:
+    """With no pin and `INSPECT_RANGES_REGISTRY` set, the image drafts off the location by convention (a tag inside a single-repository location, the sibling repository otherwise) and resolves to a digest before use; the digest filter picks the ref's own repository even when the local image is known under others."""
+    import json
+    import subprocess as sp
+
+    from inspect_ranges import __version__
+    from inspect_ranges._dist.location import REGISTRY_ENV
+    from inspect_ranges._runtime.rangeimage import RANGE_IMAGE_ENV, ensure_range_image
+
+    monkeypatch.delenv(RANGE_IMAGE_ENV, raising=False)
+    monkeypatch.setenv(REGISTRY_ENV, location)
+    ref = expected_ref.format(v=__version__)
+    repo = ref.rsplit(":", 1)[0]
+    digest_ref = f"{repo}@sha256:{'a' * 64}"
+    calls: list[list[str]] = []
+
+    def scripted(argv: list[str]) -> "sp.CompletedProcess[str]":
+        calls.append(argv)
+        if argv[:2] == ["docker", "pull"]:
+            assert argv[2] == ref
+            return sp.CompletedProcess(argv, 0, "", "")
+        if argv[:3] == ["docker", "image", "inspect"]:
+            digests = [f"unrelated.example/other@sha256:{'b' * 64}", digest_ref]
+            return sp.CompletedProcess(argv, 0, json.dumps(digests), "")
+        raise AssertionError(f"unexpected docker call: {argv}")
+
+    assert ensure_range_image(scripted) == digest_ref
+    assert not any(argv[:2] == ["docker", "build"] for argv in calls)
+
+
+def test_range_image_drafting_falls_back_and_defers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing convention ref falls back to the local build; an unset registry never drafts (the default search path keeps dev hosts building locally); the explicit pin wins over drafting without touching the registry."""
+    import subprocess as sp
+
+    from inspect_ranges._dist.location import REGISTRY_ENV
+    from inspect_ranges._runtime.rangeimage import RANGE_IMAGE_ENV, ensure_range_image
+
+    monkeypatch.delenv(RANGE_IMAGE_ENV, raising=False)
+    monkeypatch.setenv(REGISTRY_ENV, "registry.example.net/mirror:ranges")
+    calls: list[list[str]] = []
+
+    def missing(argv: list[str]) -> "sp.CompletedProcess[str]":
+        calls.append(argv)
+        if argv[:2] == ["docker", "pull"]:
+            return sp.CompletedProcess(argv, 1, "", "manifest unknown")
+        if argv[:3] == ["docker", "image", "inspect"]:
+            return sp.CompletedProcess(argv, 0, "stale\n", "")
+        return sp.CompletedProcess(argv, 0, "", "")
+
+    ensure_range_image(missing)
+    assert any(argv[:2] == ["docker", "build"] for argv in calls), (
+        "a registry without the convention ref must fall back to the local build"
+    )
+
+    monkeypatch.delenv(REGISTRY_ENV, raising=False)
+    calls.clear()
+    ensure_range_image(missing)
+    assert not any(argv[:2] == ["docker", "pull"] for argv in calls), (
+        "the default search path must never draft"
+    )
+
+    monkeypatch.setenv(REGISTRY_ENV, "registry.example.net/mirror:ranges")
+    pin = f"registry.example.net/pinned@sha256:{'c' * 64}"
+    monkeypatch.setenv(RANGE_IMAGE_ENV, pin)
+
+    def pinned_local(argv: list[str]) -> "sp.CompletedProcess[str]":
+        calls.append(argv)
+        return sp.CompletedProcess(argv, 0, "ok\n", "")
+
+    calls.clear()
+    assert ensure_range_image(pinned_local) == pin
+    assert not any(argv[:2] == ["docker", "pull"] for argv in calls), (
+        "the explicit pin wins without consulting the registry"
+    )
+
+
 def test_range_image_pin_uses_the_published_image_verbatim(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

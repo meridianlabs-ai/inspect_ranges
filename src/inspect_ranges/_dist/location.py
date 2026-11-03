@@ -57,6 +57,11 @@ class Location:
         return self._tag_prefix
 
     @property
+    def name_prefix(self) -> str:
+        """The hub form's repository name prefix; empty for every other form."""
+        return self._name_prefix
+
+    @property
     def is_directory(self) -> bool:
         return self._directory is not None
 
