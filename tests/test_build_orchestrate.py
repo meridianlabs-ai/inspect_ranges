@@ -184,6 +184,7 @@ class Fakes:
 
 def options_for(tmp_path: Path, cache: Path, **overrides: Any) -> BuildOptions:
     overrides.setdefault("settle_probe", None)
+    overrides.setdefault("oobe_settle", False)
     overrides.setdefault("build_cache", tmp_path / "builds")
     # hermetic tests pin the CID base; the default-lease path has its own test
     overrides.setdefault("cid_base", 3)
@@ -444,6 +445,67 @@ def test_settle_failure_tears_down(tmp_path: Path, cache: Path) -> None:
             settle_fn=settle,
         )
     assert excinfo.value.stage == "network-settle"
+    assert len(fakes.down_calls) == 1 and fakes.recipe_calls == []
+
+
+def test_oobe_settle_gates_windows_guests_only(tmp_path: Path, cache: Path) -> None:
+    """Each Windows guest's first recipe waits for setup completion exactly once; Linux guests never enter the gate."""
+    spec, range_dir = windows_build_fixture(tmp_path, cache)
+    fakes = Fakes(["dc", "db", "attacker"])
+    gated: list[str] = []
+
+    def oobe_settle(
+        cids: dict[str, int],
+        guest: str,
+        hybrid_sockets: Any = None,
+        timeout_s: float = 0.0,
+    ) -> float:
+        assert "dc" in cids and timeout_s > 0
+        gated.append(guest)
+        return 1.5
+
+    build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache, oobe_settle=True),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+        quiesce_fn=fakes.quiesce_fn,
+        oobe_settle_fn=oobe_settle,
+    )
+    assert gated == ["dc"]
+
+
+def test_oobe_settle_failure_tears_down(tmp_path: Path, cache: Path) -> None:
+    """A guest whose setup never completes fails the build at the gate, before any recipe runs on it."""
+    spec, range_dir = windows_build_fixture(tmp_path, cache)
+    fakes = Fakes(["dc", "db", "attacker"])
+
+    def oobe_settle(
+        cids: dict[str, int],
+        guest: str,
+        hybrid_sockets: Any = None,
+        timeout_s: float = 0.0,
+    ) -> float:
+        raise BuildError("oobe-settle", "never completed", guest=guest)
+
+    with pytest.raises(BuildError) as excinfo:
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache, oobe_settle=True),
+            up_fn=fakes.up_fn,
+            down_fn=fakes.down_fn,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+            quiesce_fn=fakes.quiesce_fn,
+            oobe_settle_fn=oobe_settle,
+        )
+    assert excinfo.value.stage == "oobe-settle"
     assert len(fakes.down_calls) == 1 and fakes.recipe_calls == []
 
 

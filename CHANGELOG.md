@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Builds gate each Windows guest's first recipe on setup completion (a new `oobe-settle` stage beside `network-settle`). On a client's first boot from a sysprepped golden, OOBE keeps running about ten minutes past daemon readiness, and its completion step silently undoes exactly the work recipes do in that window: it clears the LSA `DefaultPassword` secret and resets account and logon material, so an autologon or account a recipe set up vanished before capture (measured). The gate polls `ImageState` until `IMAGE_STATE_COMPLETE` (20-minute bound, `oobe_settle` and `oobe_settle_timeout_s` build options) and is instant on realized images and servers, whose state is already complete.
+
 - `doctor` reads installed (Windows) goldens against the Windows install recipe version instead of misreading them as stale against the Linux recipe version, gives a stale Windows golden its own re-derive guidance, and skips imported images, which have no recipe to compare against.
 
 - The readiness failure names each failed guest's own probe window. A guest's declared boot budget extends the shared window, so reporting only the shared number misstated how long a slow guest was actually given.

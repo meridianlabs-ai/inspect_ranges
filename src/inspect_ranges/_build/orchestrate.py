@@ -202,6 +202,10 @@ SettleFn = Callable[
 """The network-settle seam: `(cids, guest, probe, timeout_s, hybrid_sockets, windows_resolver, resolvers) -> seconds waited` (the map dials Cloud Hypervisor guests through their hybrid-vsock sockets; a non-None `windows_resolver` picks the Windows probe shape, querying that build resolver directly; `resolvers` is the guest's build-plan resolver list, named in the failure message so a dead resolver indicts itself)."""
 
 
+OobeSettleFn = Callable[[dict[str, int], str, "HybridSockets", float], float]
+"""The Windows OOBE-settle seam: `(cids, guest, hybrid_sockets, timeout_s) -> seconds waited` until setup declares the image complete."""
+
+
 HybridSockets = dict[str, HybridEndpoint]
 """Guest name to the hybrid-vsock endpoint of its Cloud Hypervisor VMM; empty for all-QEMU ranges. Collected from `UpResult.guests` and threaded through every build-side channel (recipes, settle, verify, capture, behavioral), since CH guests have no `AF_VSOCK` listener."""
 
@@ -366,6 +370,12 @@ class BuildOptions(BaseModel):
 
     settle_timeout_s: float = 90.0
     """Per-guest bound on the network-settle gate."""
+
+    oobe_settle: bool = True
+    """Gate each Windows guest's first recipe on setup completion (`IMAGE_STATE_COMPLETE`): on a client's first boot from a sysprepped golden, OOBE runs minutes past daemon readiness and its completion step silently undoes account and logon work recipes did in the window. Instant on realized images and servers."""
+
+    oobe_settle_timeout_s: float = 1200.0
+    """Per-guest bound on the Windows OOBE-settle gate (measured: OOBE runs about ten minutes past daemon readiness on a client's first boot from a sysprepped golden)."""
 
 
 class BuildResult(BaseModel):
@@ -622,6 +632,7 @@ def build_range(
     recipe_fn: RecipeFn = run_recipe,
     ensure_uplink: Callable[[str], None] | None = None,
     settle_fn: SettleFn | None = None,
+    oobe_settle_fn: OobeSettleFn | None = None,
     activity_fn: "ActivityFn | None" = None,
     verify_fn: VerifyFn = verify_range,
     capture_fn: CaptureFn | None = None,
@@ -1014,6 +1025,7 @@ def build_range(
         log_dir = project_dir(state_dir, project) / "recipes"
         runs: list[RecipeRun] = []
         settle = settle_fn if settle_fn is not None else _settle_network
+        oobe_settle = oobe_settle_fn if oobe_settle_fn is not None else _settle_oobe
         router_names = frozenset(router.name for router in spec.routers)
         # the guest's build-plan resolver list, in netplan order, for the
         # settle failure message: the defender-ops brick surfaced as channel
@@ -1033,6 +1045,7 @@ def build_range(
             for guest in plan.guests
         }
         settled: set[str] = set()
+        oobe_settled: set[str] = set()
         try:
             for step in run_steps:
                 if step.guest in router_names and step.guest not in settled:
@@ -1066,6 +1079,26 @@ def build_range(
                         seconds=round(seconds, 1),
                     )
                     settled.add(step.guest)
+                if (
+                    options.oobe_settle
+                    and step.guest in windows_hosts
+                    and step.guest not in oobe_settled
+                ):
+                    # recipes racing OOBE have their account and logon work
+                    # silently undone by setup's completion step (it clears
+                    # the LSA DefaultPassword secret and resets accounts);
+                    # instant on realized images and servers, whose state is
+                    # already complete
+                    seconds = oobe_settle(
+                        cids, step.guest, hybrid, options.oobe_settle_timeout_s
+                    )
+                    tee.log(
+                        "oobe-settle",
+                        "ok",
+                        guest=step.guest,
+                        seconds=round(seconds, 1),
+                    )
+                    oobe_settled.add(step.guest)
                 run = recipe_fn(
                     step.recipe,
                     step_vars=step.vars,
@@ -2050,6 +2083,66 @@ def _settle_network(
         raise BuildError(
             "network-settle",
             f"guest cannot resolve {probe!r} within {timeout_s:.0f} s ({resolver_note}last cause: {last_cause}); build-time egress is not usable",
+            guest=guest,
+        )
+
+    return asyncio.run(wait())
+
+
+def _settle_oobe(
+    cids: dict[str, int],
+    guest: str,
+    hybrid_sockets: "HybridSockets | None" = None,
+    timeout_s: float = 1200.0,
+) -> float:
+    """Block until Windows setup declares the image complete (`IMAGE_STATE_COMPLETE`); returns the wait.
+
+    On a client's first boot from a sysprepped golden the control daemon answers readiness while setup's OOBE machinery still runs in the background for minutes, and setup's completion step mutates exactly the state recipes write: it clears the LSA `DefaultPassword` secret (setup's own inter-pass autologon storage) and resets account and logon material, silently undoing recipe work before capture (measured on Windows 11 26200: OOBE ended ten minutes after readiness). The gate reads `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State` and is instant on realized images and servers, whose state is already complete.
+
+    Raises:
+        BuildError: stage `oobe-settle` when setup does not complete within the bound.
+    """
+    cmd = [
+        "powershell",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$ErrorActionPreference='Stop'; (Get-ItemProperty "
+        "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State').ImageState",
+    ]
+
+    async def wait() -> float:
+        channel = MessageChannel(
+            VsockTransport(cids, hybrid_sockets=hybrid_sockets), label="build-settle"
+        )
+        started = time.monotonic()
+        deadline = started + timeout_s
+        last_state = "never read"
+        while time.monotonic() < deadline:
+            try:
+                outcome = await channel.exec(
+                    guest,
+                    ExecRequest(
+                        id=request_id(),
+                        cmd=cmd,
+                        budget=Budget(command_ms=15_000),
+                    ),
+                )
+                if outcome.rc == 0:
+                    state = outcome.stdout.decode(errors="replace").strip()
+                    if state == "IMAGE_STATE_COMPLETE":
+                        return time.monotonic() - started
+                    last_state = state or "<empty>"
+                else:
+                    last_state = f"query exited {outcome.rc}"
+            except Exception as error:  # transient channel noise during early boot
+                last_state = f"{type(error).__name__}: {error}"
+            await asyncio.sleep(5.0)
+        raise BuildError(
+            "oobe-settle",
+            f"windows setup never reached IMAGE_STATE_COMPLETE within {timeout_s:.0f} s "
+            f"(last: {last_state}); recipes that run before setup completes have their "
+            "account and logon work silently undone",
             guest=guest,
         )
 
