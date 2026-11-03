@@ -64,6 +64,7 @@ def test_variant_answer_files_pin_the_install_contract() -> None:
     # Windows Update is baked off on clients (variable-time auto-restarts
     # killed builds mid-recipe; servers keep their stock behavior)
     assert "NoAutoUpdate" in win11 and "NoAutoUpdate" not in server
+    assert "wuauserv" in win11 and "UsoSvc" in win11
     assert win11.count("/v Start /t REG_DWORD /d 4") == 2
     assert "wuauserv" not in server
 

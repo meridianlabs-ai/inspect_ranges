@@ -244,10 +244,7 @@ _SPECIALIZE_CLIENT = """
         </RunSynchronousCommand>
         <!-- Windows Update off, baked into the golden: on client media WU
              patches and auto-restarts at variable times, which kills builds
-             mid-recipe and makes clone content drift with the patch cadence;
-             the reference deployment posture is updates-off (measured: WU
-             restarts were one of three distinct killers behind an
-             intermittent build failure) -->
+             mid-recipe and makes clone content drift with the patch cadence -->
         <RunSynchronousCommand wcm:action="add">
           <Order>6</Order>
           <Path>cmd /c reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f</Path>
