@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.15 (03 November 2026)
 
 - Named-user exec on Windows is a documented production path. The daemon reads `C:\guestd\users.txt` (one `name:password` line per account) to run an explicit `user=` exec under that account's own logon; a recipe that wants it creates the account and writes the file. The pre-capture scrub now deletes the file unconditionally and asserts the removal: the daemon credential file never rides a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot.
 
