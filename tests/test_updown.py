@@ -695,8 +695,16 @@ def test_range_image_rebuilds_on_content_mismatch() -> None:
             "docker.io/acme/inspect-ranges",
             "registry-1.docker.io/acme/inspect-ranges-range:v{v}",
         ),
+        (
+            "registry.example.net/mirror",
+            "registry.example.net/mirror/range:v{v}",
+        ),
+        (
+            "http://127.0.0.1:5056/ranges",
+            "127.0.0.1:5056/ranges/range:v{v}",
+        ),
     ],
-    ids=["single-repository", "prefix"],
+    ids=["single-repository", "hub-name-prefix", "plain-prefix", "url-with-port"],
 )
 def test_range_image_drafts_off_the_configured_registry(
     monkeypatch: pytest.MonkeyPatch, location: str, expected_ref: str
@@ -762,6 +770,17 @@ def test_range_image_drafting_falls_back_and_defers(
     assert not any(argv[:2] == ["docker", "pull"] for argv in calls), (
         "the default search path must never draft"
     )
+
+    # a directory first entry defers to the first REGISTRY location
+    monkeypatch.setenv(
+        REGISTRY_ENV, "/nonexistent-mirror-dir,registry.example.net/mirror:ranges"
+    )
+    calls.clear()
+    ensure_range_image(missing)
+    assert any(
+        argv[:2] == ["docker", "pull"] and "registry.example.net/mirror:" in argv[2]
+        for argv in calls
+    ), "drafting must use the first REGISTRY-form location, skipping directories"
 
     monkeypatch.setenv(REGISTRY_ENV, "registry.example.net/mirror:ranges")
     pin = f"registry.example.net/pinned@sha256:{'c' * 64}"

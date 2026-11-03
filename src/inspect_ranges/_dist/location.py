@@ -126,7 +126,11 @@ class Location:
         if not self._tag_prefix or not ref.startswith(marker):
             return None
         name = ref.removeprefix(marker)
-        return None if "--spec-" in name else name
+        # `--` inside the remainder marks machinery, never an artifact: build
+        # tags (`--spec-`) and the range container image's version-coupled
+        # convention tag (`range--v<version>`, rangeimage drafting) must not
+        # enumerate as publishable names
+        return None if "--" in name else name
 
     def describe(self) -> str:
         return self.raw

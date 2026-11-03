@@ -72,25 +72,30 @@ def conventional_range_image(runner: DockerRunner) -> str | None:
     Drafting happens only when `INSPECT_RANGES_REGISTRY` is explicitly set (the default public-org search path never drafts: a pin-less dev host keeps building locally), and only off the FIRST configured location. The version-coupled convention tag is a lookup, never what runs: it resolves to a digest here, so the no-mutable-tag posture holds end to end; a fleet that wants one digest across engine upgrades keeps setting `INSPECT_RANGES_RANGE_IMAGE`, which always wins. A missing or unpullable convention ref logs the attempt and yields the local build, exactly today's default.
     """
     from .._dist.errors import DistError
-    from .._dist.location import REGISTRY_ENV, parse_location
+    from .._dist.location import REGISTRY_ENV, registry_locations
 
     raw = os.environ.get(REGISTRY_ENV)
     if raw is None or not raw.strip():
         return None
-    first = raw.split(",")[0].strip()
     try:
-        location = parse_location(first)
+        locations = registry_locations(raw)
     except DistError as error:
         logger.warning("range image drafting skipped: %s", error)
         return None
-    if location.is_directory:
+    # the first REGISTRY-form location drafts (directory mirrors hold builds,
+    # not docker images); none in the path means no drafting
+    location = next((loc for loc in locations if not loc.is_directory), None)
+    if location is None:
         return None
     base, prefix = location.registry_base_and_prefix()
+    # the docker CLI takes no scheme: an http:// (non-localhost) registry that
+    # serves builds fine will fail the pull here and fall back to local builds
     host = base.split("://", 1)[1]
     version_tag = f"v{__version__}"
     if location.tag_prefix:
-        repo = f"{host}/{prefix}" if prefix else host
-        ref = f"{repo}:{location.tag_prefix}--{RANGE_IMAGE_CONVENTION_NAME}--{version_tag}"
+        # _split_tag_prefix refuses an empty repository with a tag prefix, so
+        # prefix is always non-empty here
+        ref = f"{host}/{prefix}:{location.tag_prefix}--{RANGE_IMAGE_CONVENTION_NAME}--{version_tag}"
     else:
         spelled = (
             f"{location.name_prefix}-{RANGE_IMAGE_CONVENTION_NAME}"
@@ -99,6 +104,10 @@ def conventional_range_image(runner: DockerRunner) -> str | None:
         )
         repo = f"{prefix}/{spelled}" if prefix else spelled
         ref = f"{host}/{repo}:{version_tag}"
+        # NOTE: the hub form deliberately keeps the registry-1.docker.io host:
+        # docker does not normalize it, so RepoDigests retain the full host and
+        # the repository filter below still matches; canonicalizing to
+        # docker.io would normalize the digest refs hostless and break it
     pull = runner(["docker", "pull", ref])
     if pull.returncode != 0:
         logger.info(
@@ -115,9 +124,16 @@ def conventional_range_image(runner: DockerRunner) -> str | None:
     if inspect.returncode != 0:
         logger.warning("range image %s pulled but uninspectable; building locally", ref)
         return None
+    # both construction branches above always end the ref in :tag, so the
+    # LAST colon is the tag separator even when the host carries a port
     repo_only = ref.rsplit(":", 1)[0]
+    try:
+        listed = json.loads(inspect.stdout)
+    except json.JSONDecodeError:
+        logger.warning("range image %s: unreadable RepoDigests; building locally", ref)
+        return None
     digests = [
-        d for d in json.loads(inspect.stdout) if d.startswith(f"{repo_only}@sha256:")
+        d for d in (listed or []) if d.startswith(f"{repo_only}@sha256:")
     ]
     if not digests:
         logger.warning(
