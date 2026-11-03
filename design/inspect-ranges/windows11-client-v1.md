@@ -2,7 +2,7 @@
 type: document
 title: "Decision: Windows 11 Client v1"
 audience: inspect-ranges development
-status: accepted
+status: draft
 tags: [inspect-ranges, windows, windows11, client, secure-boot, tpm, phase-plan, decision]
 timestamp: 2026-11-02
 ---
