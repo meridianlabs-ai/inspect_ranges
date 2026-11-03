@@ -33,11 +33,40 @@ By default the realizer renders and boots the attack box like any guest. The pro
 The deployment selects the provider, not the range definition: `range.yaml` has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it.
 
 ``` bash
-INSPECT_RANGES_ATTACK_BOX=glovebox_ranges.provider.factory:cell-pool-a \
+INSPECT_RANGES_ATTACK_BOX=example_ranges.provider.factory:cell-pool-a \
   inspect eval my_task.py
 ```
 
 The variable is read where realization runs: the eval process under the `local` host backend, the applier’s own environment under a separated one (see [Range Host](./topology.html.md)).
+
+## Pinned Provider Programs
+
+A provider can also be a separate program that inspect-ranges pins, rather than a Python package you install. inspect-ranges then takes no Python dependency on the provider. It runs one pinned release of the program as `<program> attackbox boot|teardown|probe` and speaks a versioned JSON protocol with it over stdin and stdout. The tap fds cross at the numbers the request names, and a reply that is not exactly one JSON object with `"protocol": 1` is refused. The reply is read to stdout’s end, so ending stdout when the verb’s work is done is part of the protocol.
+
+Each such provider is data: a pin file the deployment writes names one release. Select it by pointing the variable at the file:
+
+    /etc/inspect-ranges/example-box.pin.json
+
+``` json
+{"name": "example-box", "tag": "v1.0.0", "entry": "bin/example-box",
+ "url": "https://example.com/attack-box/releases/v1.0.0.tar.gz",
+ "sha256": "<the tarball's SHA-256>"}
+```
+
+``` bash
+INSPECT_RANGES_ATTACK_BOX=inspect_ranges._attackbox.pinned.pinned_attack_box:/etc/inspect-ranges/example-box.pin.json \
+  inspect eval my_task.py
+```
+
+`name` names the provider in messages and in the cache, and `entry` is the program’s path inside the tarball’s one top-level directory. Every field is required.
+
+The first eval on a host downloads the release’s source tarball and checks its SHA-256 before it extracts anything. A mismatch refuses, and nothing is cached. The extracted release moves into `~/.cache/inspect-ranges/programs/<name>/<tag>-<digest prefix>` with one atomic rename, so later evals start from the cache. `INSPECT_RANGES_NEVER_PULL=1` refuses the download. On an offline or air-gapped host, set `INSPECT_RANGES_ATTACK_BOX_PROGRAM` to an installed copy of the program instead. The override is used as given, with nothing checked against the pin’s name or digest: the deployment vouches that the installed program is the pinned release, and keeps the variable set where `down` and the reaper run.
+
+A release that predates the protocol does not know the `attackbox` command. It refuses it, and its own message becomes the cause the eval prints.
+
+The download and a `<program> attackbox probe` run at eval init, beside the catalog image pull, and only where this process boots the box. When the download or probe fails, the eval refuses with the cause, the remedy, and the way back to the built-in box. Paths with no eval init, such as the applier under a `uds:` backend, fetch the release at the first verb and refuse the same way. `inspect-ranges doctor` runs the same fetch and probe in its backend-probe row.
+
+The origin stamped into the attack-box record carries the pin file’s contents, not its path, so `inspect-ranges down` and the reaper tear a box down with the release that booted it, even after the file changes or moves. A release that predates the protocol never booted a box, so its teardown has nothing to do. Teardown fetches the release like any verb, so a reclaiming host whose cache was cleared and that cannot download refuses with the override as the remedy, and teardown stays deny-first: the range’s own resources are untouched until the box is reclaimed.
 
 ## Registering a Provider
 

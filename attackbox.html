@@ -1359,6 +1359,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#boot-defaults" id="toc-boot-defaults" class="nav-link" data-scroll-target="#boot-defaults">Boot Defaults</a></li>
   <li><a href="#custom-images" id="toc-custom-images" class="nav-link" data-scroll-target="#custom-images">Custom Images</a></li>
   <li><a href="#external-providers" id="toc-external-providers" class="nav-link" data-scroll-target="#external-providers">External Providers</a></li>
+  <li><a href="#pinned-provider-programs" id="toc-pinned-provider-programs" class="nav-link" data-scroll-target="#pinned-provider-programs">Pinned Provider Programs</a></li>
   <li><a href="#registering-a-provider" id="toc-registering-a-provider" class="nav-link" data-scroll-target="#registering-a-provider">Registering a Provider</a></li>
   <li><a href="#provider-contract" id="toc-provider-contract" class="nav-link" data-scroll-target="#provider-contract">Provider Contract</a></li>
   <li><a href="#evidence-and-doctor" id="toc-evidence-and-doctor" class="nav-link" data-scroll-target="#evidence-and-doctor">Evidence and Doctor</a></li>
@@ -1423,24 +1424,44 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="external-providers">External Providers</h2>
 <p>By default the realizer renders and boots the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an attachment point on the foothold’s segment and routes <span class="element-type-name ref-interlink"><a href="https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandbox">sandbox()</a></span> operations to the surface the provider returns; the provider supplies the machine and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.</p>
 <p>The deployment selects the provider, not the range definition: <code>range.yaml</code> has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSPECT_RANGES_ATTACK_BOX</span><span class="op">=</span>glovebox_ranges.provider.factory:cell-pool-a <span class="dt">\</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSPECT_RANGES_ATTACK_BOX</span><span class="op">=</span>example_ranges.provider.factory:cell-pool-a <span class="dt">\</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="ex">inspect</span> eval my_task.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The variable is read where realization runs: the eval process under the <code>local</code> host backend, the applier’s own environment under a separated one (see <a href="./topology.html">Range Host</a>).</p>
+</section>
+<section id="pinned-provider-programs" class="level2">
+<h2 class="anchored" data-anchor-id="pinned-provider-programs">Pinned Provider Programs</h2>
+<p>A provider can also be a separate program that inspect-ranges pins, rather than a Python package you install. inspect-ranges then takes no Python dependency on the provider. It runs one pinned release of the program as <code>&lt;program&gt; attackbox boot|teardown|probe</code> and speaks a versioned JSON protocol with it over stdin and stdout. The tap fds cross at the numbers the request names, and a reply that is not exactly one JSON object with <code>"protocol": 1</code> is refused. The reply is read to stdout’s end, so ending stdout when the verb’s work is done is part of the protocol.</p>
+<p>Each such provider is data: a pin file the deployment writes names one release. Select it by pointing the variable at the file:</p>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>/etc/inspect-ranges/example-box.pin.json</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-filename="/etc/inspect-ranges/example-box.pin.json"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">"name"</span><span class="fu">:</span> <span class="st">"example-box"</span><span class="fu">,</span> <span class="dt">"tag"</span><span class="fu">:</span> <span class="st">"v1.0.0"</span><span class="fu">,</span> <span class="dt">"entry"</span><span class="fu">:</span> <span class="st">"bin/example-box"</span><span class="fu">,</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a> <span class="dt">"url"</span><span class="fu">:</span> <span class="st">"https://example.com/attack-box/releases/v1.0.0.tar.gz"</span><span class="fu">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a> <span class="dt">"sha256"</span><span class="fu">:</span> <span class="st">"&lt;the tarball's SHA-256&gt;"</span><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSPECT_RANGES_ATTACK_BOX</span><span class="op">=</span>inspect_ranges._attackbox.pinned.pinned_attack_box:/etc/inspect-ranges/example-box.pin.json <span class="dt">\</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="ex">inspect</span> eval my_task.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>name</code> names the provider in messages and in the cache, and <code>entry</code> is the program’s path inside the tarball’s one top-level directory. Every field is required.</p>
+<p>The first eval on a host downloads the release’s source tarball and checks its SHA-256 before it extracts anything. A mismatch refuses, and nothing is cached. The extracted release moves into <code>~/.cache/inspect-ranges/programs/&lt;name&gt;/&lt;tag&gt;-&lt;digest prefix&gt;</code> with one atomic rename, so later evals start from the cache. <code>INSPECT_RANGES_NEVER_PULL=1</code> refuses the download. On an offline or air-gapped host, set <code>INSPECT_RANGES_ATTACK_BOX_PROGRAM</code> to an installed copy of the program instead. The override is used as given, with nothing checked against the pin’s name or digest: the deployment vouches that the installed program is the pinned release, and keeps the variable set where <code>down</code> and the reaper run.</p>
+<p>A release that predates the protocol does not know the <code>attackbox</code> command. It refuses it, and its own message becomes the cause the eval prints.</p>
+<p>The download and a <code>&lt;program&gt; attackbox probe</code> run at eval init, beside the catalog image pull, and only where this process boots the box. When the download or probe fails, the eval refuses with the cause, the remedy, and the way back to the built-in box. Paths with no eval init, such as the applier under a <code>uds:</code> backend, fetch the release at the first verb and refuse the same way. <code>inspect-ranges doctor</code> runs the same fetch and probe in its backend-probe row.</p>
+<p>The origin stamped into the attack-box record carries the pin file’s contents, not its path, so <code>inspect-ranges down</code> and the reaper tear a box down with the release that booted it, even after the file changes or moves. A release that predates the protocol never booted a box, so its teardown has nothing to do. Teardown fetches the release like any verb, so a reclaiming host whose cache was cleared and that cannot download refuses with the override as the remedy, and teardown stays deny-first: the range’s own resources are untouched until the box is reclaimed.</p>
 </section>
 <section id="registering-a-provider" class="level2">
 <h2 class="anchored" data-anchor-id="registering-a-provider">Registering a Provider</h2>
 <p>Registration works like <code>INSPECT_RANGES_HOST</code>: the value <code>&lt;module&gt;.&lt;factory&gt;[:&lt;config&gt;]</code> names an <code>AttackBoxFactory</code>, imported and called at resolution, and the value splits on the first colon, so a config may itself contain colons. The same value persists as the project’s attack-box origin, so any later process (<code>inspect-ranges down</code>, the reaper) can resolve teardown from disk; the provider’s package just has to be installed where that process runs. Factories must be cheap and must not dial anything; remote work belongs in the provider’s <code>boot</code>.</p>
 <p>The factory returns an <code>AttackBoxBackend</code> bundle:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges.attackbox <span class="im">import</span> (</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    AttackBoxBackend, AttackBoxContext, AttackBoxHandle,</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    FootholdAttachment, HybridEndpoint,</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> factory(ctx: AttackBoxContext) <span class="op">-&gt;</span> AttackBoxBackend:</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> AttackBoxBackend(</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        provider<span class="op">=</span>CellProvider(ctx.config, ctx.state_dir),</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        doctor_probe<span class="op">=</span><span class="kw">lambda</span>: <span class="va">None</span>,   <span class="co"># None when healthy, else detail</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inspect_ranges.attackbox <span class="im">import</span> (</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    AttackBoxBackend, AttackBoxContext, AttackBoxHandle,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    FootholdAttachment, HybridEndpoint,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> factory(ctx: AttackBoxContext) <span class="op">-&gt;</span> AttackBoxBackend:</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> AttackBoxBackend(</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        provider<span class="op">=</span>CellProvider(ctx.config, ctx.state_dir),</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        doctor_probe<span class="op">=</span><span class="kw">lambda</span>: <span class="va">None</span>,   <span class="co"># None when healthy, else detail</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="provider-contract" class="level2">
 <h2 class="anchored" data-anchor-id="provider-contract">Provider Contract</h2>
@@ -1457,8 +1478,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="attackbox-verify" class="level2">
 <h2 class="anchored" data-anchor-id="attackbox-verify"><code>attackbox verify</code></h2>
 <p>A provider is ready when the conformance battery passes. The battery realizes a range through the registered provider and reports every obligation as a row:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSPECT_RANGES_ATTACK_BOX</span><span class="op">=</span>their.pkg.factory:cfg <span class="dt">\</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="ex">inspect-ranges</span> attackbox verify <span class="at">--spec</span> dmz_pivot/range.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="va">INSPECT_RANGES_ATTACK_BOX</span><span class="op">=</span>their.pkg.factory:cfg <span class="dt">\</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="ex">inspect-ranges</span> attackbox verify <span class="at">--spec</span> dmz_pivot/range.yaml</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li><strong>capabilities</strong>: the bundle declares honestly (<code>console_stream=False</code>).</li>
 <li><strong>realize</strong>: attach, boot, and strict readiness through the real <code>up</code>.</li>

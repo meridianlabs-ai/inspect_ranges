@@ -10,7 +10,7 @@ Inspect Ranges is an [Inspect AI](https://inspect.aisi.org.uk) extension for eva
 
 3.  Attacker agents run inside a dedicated VM under Cloud Hypervisor and are further contained by an outer unprivileged container and the cloud provider’s hypervisor (e.g. AWS Nitro).
 
-4.  Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle (scoring’s privileged view from outside the range) can see everything.
+4.  Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated. In-range defenders see only what the agent transmits, while the scoring oracle sees everything from outside the range.
 
 ## Getting Started
 
@@ -115,7 +115,7 @@ attacker:
   entry: external
 ```
 
-At boot, networks become private Linux bridges, guests become VMs booted from their images, and the `acl` becomes the router’s firewall. Images resolve by name from the published [image catalog](./images.html.md): `ubuntu-noble` is a published golden image, a shared read-only base disk, and the attacker declares no image, so it boots the standard kali-class attack box. The `provisioning`, `users`, `services`, `vulnerabilities`, and `data` entries declare the guest content that makes the range solvable, realized and verified by [`inspect-ranges build`](./building.html.md).
+At boot, networks become private Linux bridges, guests become VMs booted from their images, and the `acl` becomes the router’s firewall. Images resolve by name from the published [image catalog](./images.html.md): `ubuntu-noble` is a shared read-only golden image, and the attacker declares no image, so it boots the standard kali-class attack box. The `provisioning`, `users`, `services`, `vulnerabilities`, and `data` entries declare the guest content that makes the range solvable, realized and verified by [`inspect-ranges build`](./building.html.md).
 
 ## Range Tasks
 
@@ -280,7 +280,7 @@ Inspect Ranges includes eight examples: two originals (the dmz-pivot above and d
 | [splunk_detection](./examples/splunk_detection.html.md) | Splunk attack_range | LSASS dump on an instrumented endpoint, detection and evasion scored from the exported Splunk stream |
 | [defender_ops](./examples/defender_ops.html.md) | original | king-of-the-hill sabotage (deface, degrade, crash-by-address) with the entry gate kept up, then a quiet patch-and-cleanup scored from the exec witness and ops log |
 
-The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with `-T per_example=all`. It is the one-command proof that a deployment pulls, boots, scores, and tears down ranges end to end.
+The `inspect_ranges/examples_smoke` task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with `-T per_example=all`. It is the one command that proves a deployment can pull, boot, score, and tear down ranges end to end.
 
 ## Architecture
 

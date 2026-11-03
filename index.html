@@ -1415,7 +1415,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>Cyber ranges are defined in a YAML format (<code>range.yaml</code>) covering networks, routers, hosts, attacker foothold, declared randomization variables, defenders, and attack-path definitions.</p></li>
 <li><p>Ranges run on any Linux host with KVM (bare metal, or cloud instances with nested virtualization). Windows guests are supported, including Active Directory networks.</p></li>
 <li><p>Attacker agents run inside a dedicated VM under Cloud Hypervisor and are further contained by an outer unprivileged container and the cloud provider’s hypervisor (e.g.&nbsp;AWS Nitro).</p></li>
-<li><p>Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated: in-range defenders see only what the agent transmits, while the scoring oracle (scoring’s privileged view from outside the range) can see everything.</p></li>
+<li><p>Evidence (pcaps, consoles, artifacts) streams off-instance as it is generated. In-range defenders see only what the agent transmits, while the scoring oracle sees everything from outside the range.</p></li>
 </ol>
 </section>
 <section id="getting-started" class="level2">
@@ -1526,7 +1526,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">interfaces</span><span class="kw">:</span><span class="at"> </span><span class="kw">[{</span><span class="at"> </span><span class="fu">network</span><span class="kw">:</span><span class="at"> dmz</span><span class="kw">,</span><span class="at"> </span><span class="fu">ip</span><span class="kw">:</span><span class="at"> </span><span class="fl">10.80.10.2</span><span class="at"> </span><span class="kw">}]</span></span>
 <span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">entry</span><span class="kw">:</span><span class="at"> external</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>At boot, networks become private Linux bridges, guests become VMs booted from their images, and the <code>acl</code> becomes the router’s firewall. Images resolve by name from the published <a href="./images.html">image catalog</a>: <code>ubuntu-noble</code> is a published golden image, a shared read-only base disk, and the attacker declares no image, so it boots the standard kali-class attack box. The <code>provisioning</code>, <code>users</code>, <code>services</code>, <code>vulnerabilities</code>, and <code>data</code> entries declare the guest content that makes the range solvable, realized and verified by <a href="./building.html"><code>inspect-ranges build</code></a>.</p>
+<p>At boot, networks become private Linux bridges, guests become VMs booted from their images, and the <code>acl</code> becomes the router’s firewall. Images resolve by name from the published <a href="./images.html">image catalog</a>: <code>ubuntu-noble</code> is a shared read-only golden image, and the attacker declares no image, so it boots the standard kali-class attack box. The <code>provisioning</code>, <code>users</code>, <code>services</code>, <code>vulnerabilities</code>, and <code>data</code> entries declare the guest content that makes the range solvable, realized and verified by <a href="./building.html"><code>inspect-ranges build</code></a>.</p>
 </section>
 <section id="range-tasks" class="level2">
 <h2 class="anchored" data-anchor-id="range-tasks">Range Tasks</h2>
@@ -1777,7 +1777,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p>The <code>inspect_ranges/examples_smoke</code> task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with <code>-T per_example=all</code>. It is the one-command proof that a deployment pulls, boots, scores, and tears down ranges end to end.</p>
+<p>The <code>inspect_ranges/examples_smoke</code> task spans the Linux examples with published builds (dmz_pivot, vulhub_zabbix, kypo_demo, cyris_basic, equifax) in one eval, each sample booting its own example’s range: the first challenge of each by default, every challenge with <code>-T per_example=all</code>. It is the one command that proves a deployment can pull, boot, score, and tear down ranges end to end.</p>
 </section>
 <section id="architecture" class="level2">
 <h2 class="anchored" data-anchor-id="architecture">Architecture</h2>

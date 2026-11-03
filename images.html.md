@@ -10,7 +10,7 @@ When a name is needed, it resolves in a fixed order:
 
 2.  the locations listed in `INSPECT_RANGES_REGISTRY`, in order, which defaults to the public catalog (`docker.io/meridianlabsai/inspect-ranges`). On a host with a pin file configured, the pin binds this download step and `images refresh`, never the cache (see [Pinned Fleet](#pinned-fleet)).
 
-A location can be a Docker Hub org, a private registry (or one repository of it, with the names in the tags), or a plain directory, and the same artifacts work from all of them because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it; nothing quietly falls through to the next entry.
+A location can be a Docker Hub org, a private registry, or a plain directory, and the same artifacts work from all of them because every download verifies against its digest. A location that cannot be reached stops resolution with an error naming it, rather than quietly falling through to the next entry.
 
 Two behaviors to know before the recipes below:
 
@@ -56,7 +56,7 @@ export INSPECT_RANGES_REGISTRY=registry.example.net/ranges,\
 docker.io/meridianlabsai/inspect-ranges
 ```
 
-One command carries everything the org publishes: the catalog images and the published example builds (the catalog list records each name with its kind, `image` or `range`, and whole-location enumeration takes every entry). A mirrored root carries its transitive closure, so `images pull` and spec-driven `pull` work identically from the mirror; prepending your registry shadows catalog names deterministically, with the org as the fallback for anything not mirrored. The hub does not expose org enumeration, but the catalog publishes its machine-readable list (the reserved `catalog` ref, updated by every image publish and rewritten by `publish --list`), so the whole-org mirror above enumerates through it; a hub location that has not published a list still takes explicit names. Pin files stay image-only through all of this: a published range pins via the consuming clone’s spec hash instead, so it never appears in `pins.json`. Mechanics: [Distribution](./distribution.html.md).
+One command carries everything the org publishes: the catalog images and the published example builds. A mirrored root carries its transitive closure, so `images pull` and spec-driven `pull` work identically from the mirror. The hub does not expose org enumeration, but the catalog publishes a machine-readable list (the reserved `catalog` ref), so the whole-org mirror enumerates through it; a hub location that has not published a list still takes explicit names. Pin files stay image-only: a published range pins via the consuming clone’s spec hash, so it never appears in `pins.json`. Mechanics: [Distribution](./distribution.html.md).
 
 ### Private Registry for Your Own Ranges
 
