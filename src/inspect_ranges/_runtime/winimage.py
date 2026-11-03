@@ -41,7 +41,7 @@ from .rangeimage import ensure_range_image
 
 logger = logging.getLogger("inspect_ranges.winimage")
 
-WIN_RECIPE_VERSION = "4"
+WIN_RECIPE_VERSION = "5"
 """Bumps re-key every Windows golden (the derive-recipe discipline)."""
 
 
@@ -241,6 +241,21 @@ _SPECIALIZE_CLIENT = """
         <RunSynchronousCommand wcm:action="add">
           <Order>5</Order>
           <Path>cmd /c net user Administrator "__ADMIN_PASSWORD__"</Path>
+        </RunSynchronousCommand>
+        <!-- Windows Update off, baked into the golden: on client media WU
+             patches and auto-restarts at variable times, which kills builds
+             mid-recipe and makes clone content drift with the patch cadence -->
+        <RunSynchronousCommand wcm:action="add">
+          <Order>6</Order>
+          <Path>cmd /c reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>7</Order>
+          <Path>cmd /c reg add HKLM\\SYSTEM\\CurrentControlSet\\Services\\wuauserv /v Start /t REG_DWORD /d 4 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>8</Order>
+          <Path>cmd /c reg add HKLM\\SYSTEM\\CurrentControlSet\\Services\\UsoSvc /v Start /t REG_DWORD /d 4 /f</Path>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>"""
