@@ -1,6 +1,6 @@
 ## Unreleased
 
-- Named-user exec on Windows is a documented production path. The daemon reads `C:\guestd\users.txt` (one `name:password` line per account) to run an explicit `user=` exec under that account's own logon; a recipe that wants it creates the account and writes the file. The pre-capture scrub now deletes the file unconditionally and asserts the removal: plaintext credentials never ride a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot.
+- Named-user exec on Windows is a documented production path. The daemon reads `C:\guestd\users.txt` (one `name:password` line per account) to run an explicit `user=` exec under that account's own logon; a recipe that wants it creates the account and writes the file. The pre-capture scrub now deletes the file unconditionally and asserts the removal: the daemon credential file never rides a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot.
 
 - `doctor` reads installed (Windows) goldens against the Windows install recipe version instead of misreading them as stale against the Linux recipe version, gives a stale Windows golden its own re-derive guidance, and skips imported images, which have no recipe to compare against.
 
