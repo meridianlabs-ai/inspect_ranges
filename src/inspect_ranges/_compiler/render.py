@@ -866,6 +866,13 @@ _WINDOWS_UNATTEND_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
         <ProtectYourPC>3</ProtectYourPC>
+        <!-- without the Skip pair a CLIENT clone boots into the live OOBE
+             wizard on its console (measured: the account screen), and the
+             wizard's own phase restarts kill the control channel at variable
+             times while recipes run; the installer's answer file carries the
+             same pair for the same reason. Server ignores them. -->
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
       <UserAccounts>
         <AdministratorPassword>
