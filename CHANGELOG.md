@@ -1,5 +1,7 @@
 ## Unreleased
 
+- The Windows clone seed re-activates the built-in Administrator in its specialize pass. Sysprep leaves the account disabled on client Windows while the seed still sets its password every boot, so the documented account (deliberate scenario content: ranges authenticate in-guest with it) was silently unusable on client clones; a credentialed logon failed with "account is currently disabled". Idempotent on server, where the account is already active. Seeds render per boot, so golden-backed clones pick the fix up on their next boot; a realized image captured from a client golden before this fix keeps the disabled account (specialize does not re-run on consumer boots) and needs a rebuild.
+
 - `doctor` reads installed (Windows) goldens against the Windows install recipe version instead of misreading them as stale against the Linux recipe version, gives a stale Windows golden its own re-derive guidance, and skips imported images, which have no recipe to compare against.
 
 - The readiness failure names each failed guest's own probe window. A guest's declared boot budget extends the shared window, so reporting only the shared number misstated how long a slow guest was actually given.
