@@ -102,7 +102,13 @@ echo "=== W11-3 seed applied, SYSTEM exec, the contract in-guest ==="
 BOOT="$SPIKE/tmp/bundle/boot.json"
 PROJECT=$(docker ps --format '{{.Names}}' | grep -E '^ir-win11-slice1-' | head -1 | sed 's/-range-1$//')
 CHEXEC="uv run python design/spikes/_shared/chexec.py --boot $BOOT --project $PROJECT --guest client --shell cmd exec"
-HOSTOUT=$($CHEXEC 'hostname' 2>&1 | tail -1 | tr -d '\r' | tr '[:upper:]' '[:lower:]')
+# the first exec can race the clone's post-specialize settling (measured: the
+# daemon announces readiness a beat before the exec plane is calm); retry it,
+# then every later probe runs on a proven channel
+HOSTOUT=""
+for attempt in 1 2 3 4; do
+  HOSTOUT=$($CHEXEC 'hostname' 2>&1 | tail -1 | tr -d '\r' | tr '[:upper:]' '[:lower:]') && break || sleep 15
+done
 [[ "$HOSTOUT" == "client" ]] && ok "W11-3 the per-boot unattend set the hostname ($HOSTOUT)" || bad "W11-3 hostname (got: $HOSTOUT)"
 IPOUT=$($CHEXEC 'ipconfig' 2>&1 | grep -c "10.22.0.10" || true)
 [[ "$IPOUT" -ge 1 ]] && ok "W11-3b the MAC-keyed static address applied (10.22.0.10)" || bad "W11-3b static ip"
