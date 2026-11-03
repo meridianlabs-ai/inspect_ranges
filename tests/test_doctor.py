@@ -932,3 +932,84 @@ def test_check_build_parses_nested_slashed_name_manifests(tmp_path: Path) -> Non
     by_name = {r.name: r for r in results}
     assert by_name["manifests"].status == "fail"
     assert "payroll" in by_name["manifests"].detail
+
+
+def test_check_provider_reads_windows_goldens_against_the_windows_recipe(
+    tmp_path: Path,
+) -> None:
+    """An installed (Windows) golden is current at `WIN_RECIPE_VERSION`, not misread as stale against the Linux recipe version."""
+    from inspect_ranges._runtime.images import DaemonPin, ImageMetadata
+    from inspect_ranges._runtime.winimage import WIN_RECIPE_VERSION
+
+    cache = tmp_path / "img"
+    cache.mkdir(parents=True)
+    meta = ImageMetadata(
+        name="windows-11",
+        file="windows-11.qcow2",
+        kind="installed",
+        recipe_version=WIN_RECIPE_VERSION,
+        derivation_key="k",
+        vendor_file="win.iso",
+        vendor_sha256="0" * 64,
+        daemon=DaemonPin(name="guestd", version="1.0.0", sha256="0" * 64),
+        golden_sha256="0" * 64,
+        created="2026-11-01T00:00:00+00:00",
+    )
+    (cache / "windows-11.json").write_text(meta.model_dump_json())
+    (cache / "windows-11.qcow2").write_bytes(b"disk")
+    results = check_provider(state_dir=tmp_path / "state", image_cache=cache)
+    golden = next(result for result in results if result.name == "golden image")
+    assert golden.status == "ok" and "windows-11.qcow2" in golden.detail
+
+
+def test_check_provider_gives_stale_windows_goldens_their_own_guidance(
+    tmp_path: Path,
+) -> None:
+    """A stale installed golden points at the Windows install recipe version; the Linux daemon-pong rationale does not apply to it."""
+    from inspect_ranges._runtime.images import DaemonPin, ImageMetadata
+
+    cache = tmp_path / "img"
+    cache.mkdir(parents=True)
+    meta = ImageMetadata(
+        name="windows-11",
+        file="windows-11.qcow2",
+        kind="installed",
+        recipe_version="1",
+        derivation_key="k",
+        vendor_file="win.iso",
+        vendor_sha256="0" * 64,
+        daemon=DaemonPin(name="guestd", version="1.0.0", sha256="0" * 64),
+        golden_sha256="0" * 64,
+        created="2026-11-01T00:00:00+00:00",
+    )
+    (cache / "windows-11.json").write_text(meta.model_dump_json())
+    (cache / "windows-11.qcow2").write_bytes(b"disk")
+    results = check_provider(state_dir=tmp_path / "state", image_cache=cache)
+    golden = next(result for result in results if result.name == "golden image")
+    assert golden.status == "warn"
+    assert "Windows install recipe" in golden.detail
+    assert "tamper-shaped" not in golden.detail
+
+
+def test_check_provider_skips_imported_images(tmp_path: Path) -> None:
+    """An imported image has no recipe to compare against and never satisfies the golden need."""
+    from inspect_ranges._runtime.images import ImageMetadata
+
+    cache = tmp_path / "img"
+    cache.mkdir(parents=True)
+    meta = ImageMetadata(
+        name="router",
+        file="router.qcow2",
+        kind="imported",
+        recipe_version="imported",
+        derivation_key="k",
+        vendor_file="router-vendor.qcow2",
+        vendor_sha256="0" * 64,
+        golden_sha256="0" * 64,
+        created="2026-11-01T00:00:00+00:00",
+    )
+    (cache / "router.json").write_text(meta.model_dump_json())
+    (cache / "router.qcow2").write_bytes(b"disk")
+    results = check_provider(state_dir=tmp_path / "state", image_cache=cache)
+    golden = next(result for result in results if result.name == "golden image")
+    assert golden.status == "warn" and "no goldens" in golden.detail

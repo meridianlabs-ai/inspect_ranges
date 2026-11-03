@@ -2,6 +2,12 @@
 
 - The Windows clone seed re-activates the built-in Administrator in its specialize pass. Sysprep leaves the account disabled on client Windows while the seed still sets its password every boot, so the documented account (deliberate scenario content: ranges authenticate in-guest with it) was silently unusable on client clones; a credentialed logon failed with "account is currently disabled". Idempotent on server, where the account is already active. Seeds render per boot, so golden-backed clones pick the fix up on their next boot; a realized image captured from a client golden before this fix keeps the disabled account (specialize does not re-run on consumer boots) and needs a rebuild.
 
+- `doctor` reads installed (Windows) goldens against the Windows install recipe version instead of misreading them as stale against the Linux recipe version, gives a stale Windows golden its own re-derive guidance, and skips imported images, which have no recipe to compare against.
+
+- The readiness failure names each failed guest's own probe window. A guest's declared boot budget extends the shared window, so reporting only the shared number misstated how long a slow guest was actually given.
+
+- Client Windows goldens bake Windows Update off at install: the `NoAutoUpdate` policy plus disabled `wuauserv`/`UsoSvc` start. On client media WU patches and auto-restarts at variable times, which kills builds mid-recipe and makes clone content drift with the patch cadence. The Windows install recipe version moves to 5 (existing goldens re-derive on next use); servers keep their stock behavior.
+
 - The range container image can draft off the configured registry: with `INSPECT_RANGES_RANGE_IMAGE` unset and `INSPECT_RANGES_REGISTRY` explicitly set, `up` resolves the location's convention name `range` at the engine-version tag (a tag inside a single-repository location, the hub form's `<name-prefix>-range` repository (exactly the catalog's published name), or `<prefix>/range` elsewhere) and uses the digest it resolves to, never the mutable tag, so the no-mutable-tag posture holds end to end. The explicit pin always wins; the default search path never drafts (a pin-less dev host keeps building locally); a missing convention ref logs the attempt and falls back to the local build. One registry value now configures a fleet completely.
 
 ## 0.2.14 (03 November 2026)
