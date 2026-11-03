@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.14 (03 November 2026)
 
 - The per-boot Windows unattend seed skips the OOBE wizard outright (`SkipMachineOOBE`/`SkipUserOOBE`, the pair the Windows 11 installer's answer file already carries): without it a CLIENT clone boots into the live wizard on its console, and the wizard's own phase restarts kill the control channel at variable times while build recipes run against the guest (measured as intermittent first-contact failures that spared some builds and killed others). Server clones ignore the pair; no spec hash moves.
 
