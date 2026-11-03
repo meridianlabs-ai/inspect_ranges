@@ -650,6 +650,9 @@ def _install_locked(
                     time.sleep(15)
                 else:
                     # the container is gone once we raise: capture what it knew
+                    # domstate LAST: the VMM log's tail alone can exceed the
+                    # error's 2000-char slice (the QEMU cmdline is longer than
+                    # that), and the state is the one line that must survive
                     diagnostics = subprocess.run(
                         [
                             "docker",
@@ -657,8 +660,8 @@ def _install_locked(
                             container,
                             "sh",
                             "-c",
-                            "virsh -c qemu:///system domstate wininstall; "
-                            "tail -c 2000 /var/log/libvirt/qemu/wininstall.log 2>/dev/null",
+                            "tail -c 1200 /var/log/libvirt/qemu/wininstall.log 2>/dev/null; "
+                            "printf 'domstate: '; virsh -c qemu:///system domstate wininstall",
                         ],
                         capture_output=True,
                         text=True,
@@ -666,7 +669,7 @@ def _install_locked(
                     raise DeriveError(
                         "install",
                         f"the unattended install did not finish within {timeout_s:.0f} s; "
-                        f"last domain state and VMM log:\n{diagnostics[-2000:]}",
+                        f"VMM log tail and last domain state:\n{diagnostics[-2000:]}",
                     )
                 # compact in-container (root reads the libvirt-qemu-owned disk;
                 # the host user cannot, by design) and hand the result back
