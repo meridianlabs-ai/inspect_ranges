@@ -14,8 +14,13 @@ from inspect_ranges import (
 )
 
 # importing the module registers the custom `lotl` goal type with the engine
-# (and with challenges.yaml parsing) before anything reads the challenges file
-from . import goals as goals  # noqa: PLC0414
+# (and with challenges.yaml parsing) before anything reads the challenges file.
+# The absolute package import deliberately: the build's conformance loader
+# executes this file standalone (no parent package, so a relative import
+# refuses), and a bare `import goals` would execute the module a second time
+# and trip the registry's shadow guard; the package form resolves to the one
+# already-registered module in both contexts.
+from inspect_ranges.examples._defender_ops import goals as goals  # noqa: PLC0414
 
 _DIR = Path(__file__).parent
 
