@@ -1,3 +1,7 @@
+## Unreleased
+
+- The defender_ops example's custom goal registration survives a rebuild. Its `task.py` imported `goals` relatively, which the build's conformance loader (it executes the file standalone, with no parent package) has never supported; the published build rode its cache, so the first cache miss failed with an import error. The absolute package import resolves to the one registered module in both contexts (the eval registry and the loader). Found by a full example-range rebuild sweep; proven with `build --reverify`.
+
 ## 0.2.15 (03 November 2026)
 
 - Named-user exec on Windows is a documented production path. The daemon reads `C:\guestd\users.txt` (one `name:password` line per account) to run an explicit `user=` exec under that account's own logon; a recipe that wants it creates the account and writes the file. The pre-capture scrub now deletes the file unconditionally and asserts the removal: the daemon credential file never rides a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot.
