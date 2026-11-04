@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.16 (04 November 2026)
 
 - The defender_ops example's custom goal registration survives a rebuild. Its `task.py` imported `goals` relatively, which the build's conformance loader (it executes the file standalone, with no parent package) has never supported; the published build rode its cache, so the first cache miss failed with an import error. The absolute package import resolves to the one registered module in both contexts (the eval registry and the loader). Found by a full example-range rebuild sweep; proven with `build --reverify`.
 
