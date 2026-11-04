@@ -1,6 +1,6 @@
 ## Unreleased
 
-- A Windows guest's build key now includes the seed template's content digest, so an edit to what the specialize pass bakes re-keys the guest and forces the rebuild that picks it up. Windows is asymmetric with Linux here: the scrub resets cloud-init so a Linux guest re-runs it at consumer boot and render changes propagate on their own, while specialize never runs again, which left recent seed fixes (the OOBE skip pair, the built-in Administrator activation) unable to reach images captured before them through any supported command. Upgrading re-keys every Windows guest once: their next build rebuilds from the golden and captures the current seed behavior.
+- A Windows guest's build key now includes the seed template's content digest, so an edit to what the specialize pass bakes re-keys the guest and forces the rebuild that picks it up. Windows is asymmetric with Linux here: the scrub resets cloud-init so a Linux guest re-runs it at consumer boot and render changes propagate on their own, while specialize never runs again, which left recent seed fixes (the OOBE skip pair, the built-in Administrator activation) unable to reach images captured before them through any supported command. Upgrading re-keys every Windows guest once: their next build rebuilds from the golden and captures the current seed behavior, and because any range holding a Windows guest is converged, that first build also rebuilds the range's Linux content guests and re-runs its proofs.
 
 ## 0.2.16 (04 November 2026)
 

@@ -878,18 +878,19 @@ def test_respec_rerecords_a_build_of_the_same_spec_and_refuses_any_other() -> No
         respec_manifest(stale, renamed)
 
 
-def test_windows_projection_keys_on_the_seed_template() -> None:
+def test_windows_projection_keys_on_the_seed_template(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A seed-template edit re-keys Windows guests: specialize never re-runs for consumers, so a template change alters what a realized image holds while every plan-resolved fact stays identical, and only the template digest can force the rebuild that picks it up. Linux hosts are unaffected."""
     import inspect_ranges._compiler.render as render_mod
 
     windows = make_host(os=Os(type="windows"))
     linux = make_host()
     before, linux_before = win_projection(windows), spec_projection(linux)
-    original = render_mod.WINDOWS_SEED_TEMPLATE_SHA256
-    try:
-        render_mod.WINDOWS_SEED_TEMPLATE_SHA256 = "f" * 64
-        assert win_projection(windows) != before
-        assert spec_projection(linux) == linux_before
-    finally:
-        render_mod.WINDOWS_SEED_TEMPLATE_SHA256 = original
+    # the projection resolves the digest off the module at call time, so
+    # patching the attribute is what a real seed edit looks like to it
+    monkeypatch.setattr(render_mod, "WINDOWS_SEED_TEMPLATE_SHA256", "f" * 64)
+    assert win_projection(windows) != before
+    assert spec_projection(linux) == linux_before
+    monkeypatch.undo()
     assert win_projection(windows) == before

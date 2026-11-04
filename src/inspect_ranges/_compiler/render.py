@@ -899,14 +899,6 @@ _WINDOWS_UNATTEND_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 </unattend>
 """
 
-WINDOWS_SEED_TEMPLATE_SHA256 = hashlib.sha256(
-    _WINDOWS_UNATTEND_TEMPLATE.encode()
-).hexdigest()
-"""Content digest of the per-boot Windows seed template, a Windows guest's build-key input.
-
-The seed is build input that lands IN the disk: specialize applies it on the build boot and, unlike Linux cloud-init (which the scrub resets so it re-runs for consumers), it never runs again. So a template edit changes what a realized image holds while every plan-resolved fact stays identical, and without this digest nothing re-keys: the fix ships but existing images keep the old behavior with no supported way to pick it up.
-"""
-
 _TCPIP_INTERFACE = """\
         <Interface wcm:action="add">
           <Identifier>{mac}</Identifier>
@@ -939,6 +931,35 @@ _DNS_INTERFACE = """\
 {domain}          <DNSServerSearchOrder>
 {servers}          </DNSServerSearchOrder>
         </Interface>
+"""
+
+_TCPIP_ROUTE_METRIC = "              <Metric>{metric}</Metric>\n"
+
+_DNS_SERVER_ADDRESS = (
+    '            <IpAddress wcm:action="add" wcm:keyValue="{index}">'
+    "{address}</IpAddress>\n"
+)
+
+_DNS_SEARCH_DOMAIN = "          <DNSDomain>{domain}</DNSDomain>\n"
+
+_WINDOWS_SEED_FRAGMENTS = (
+    _WINDOWS_UNATTEND_TEMPLATE,
+    _TCPIP_INTERFACE,
+    _TCPIP_ROUTES_WRAPPER,
+    _TCPIP_ROUTE,
+    _TCPIP_ROUTE_METRIC,
+    _DNS_INTERFACE,
+    _DNS_SERVER_ADDRESS,
+    _DNS_SEARCH_DOMAIN,
+)
+"""Every literal the per-boot seed is assembled from. A new fragment must be added here, which is the point: the digest below is only honest if it covers the whole document."""
+
+WINDOWS_SEED_TEMPLATE_SHA256 = hashlib.sha256(
+    "\0".join(_WINDOWS_SEED_FRAGMENTS).encode()
+).hexdigest()
+"""Content digest of the per-boot Windows seed, a Windows guest's build-key input.
+
+The seed is build input that lands IN the disk: specialize applies it on the build boot and, unlike Linux cloud-init (which the pre-capture scrub resets so it re-runs for consumers), it never runs again. So an edit to what the seed bakes changes what a realized image holds while every plan-resolved fact stays identical, and without this digest nothing re-keys: the fix ships but existing images keep the old behavior with no supported way to pick it up.
 """
 
 
@@ -1021,7 +1042,7 @@ def _windows_unattend(
                     prefix=prefix,
                     via=via,
                     metric=(
-                        f"              <Metric>{metric}</Metric>\n"
+                        _TCPIP_ROUTE_METRIC.format(metric=metric)
                         if metric is not None
                         else ""
                     ),
@@ -1040,13 +1061,13 @@ def _windows_unattend(
         resolvers = cast("list[str]", interface_facts["resolvers"])
         if resolvers:
             servers = "".join(
-                f'            <IpAddress wcm:action="add" wcm:keyValue="{server_index + 1}">{address}</IpAddress>\n'
+                _DNS_SERVER_ADDRESS.format(index=server_index + 1, address=address)
                 for server_index, address in enumerate(resolvers)
             )
             # the connection-specific DNS suffix (AD short-name resolution
             # needs it; the Linux analogue is netplan's nameservers.search)
             domain = (
-                f"          <DNSDomain>{interface_facts['search']}</DNSDomain>\n"
+                _DNS_SEARCH_DOMAIN.format(domain=interface_facts["search"])
                 if interface_facts["search"] is not None
                 else ""
             )
