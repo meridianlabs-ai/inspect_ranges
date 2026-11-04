@@ -296,6 +296,8 @@ def spec_projection(
                 f"guest {host.name!r}: a Windows projection needs the network state "
                 "the specialize pass bakes into the disk (windows_network_projection)"
             )
+        from .._compiler.render import WINDOWS_SEED_TEMPLATE_SHA256
+
         projected["windows_identity"] = {
             "name": host.name,
             "hostname": host.hostname,
@@ -304,6 +306,11 @@ def spec_projection(
                 interface.model_dump(mode="json") for interface in host.interfaces
             ],
             "network_state": network_state,
+            # the seed TEMPLATE, not just the facts it is filled with: an edit
+            # to what specialize bakes (an account activation, an OOBE answer)
+            # must re-key, or the realized image keeps the old behavior with no
+            # supported way to pick the change up
+            "seed_template": WINDOWS_SEED_TEMPLATE_SHA256,
         }
     return hashlib.sha256(
         json.dumps(projected, sort_keys=True, separators=(",", ":")).encode()

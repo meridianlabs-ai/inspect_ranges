@@ -899,6 +899,14 @@ _WINDOWS_UNATTEND_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 </unattend>
 """
 
+WINDOWS_SEED_TEMPLATE_SHA256 = hashlib.sha256(
+    _WINDOWS_UNATTEND_TEMPLATE.encode()
+).hexdigest()
+"""Content digest of the per-boot Windows seed template, a Windows guest's build-key input.
+
+The seed is build input that lands IN the disk: specialize applies it on the build boot and, unlike Linux cloud-init (which the scrub resets so it re-runs for consumers), it never runs again. So a template edit changes what a realized image holds while every plan-resolved fact stays identical, and without this digest nothing re-keys: the fix ships but existing images keep the old behavior with no supported way to pick it up.
+"""
+
 _TCPIP_INTERFACE = """\
         <Interface wcm:action="add">
           <Identifier>{mac}</Identifier>

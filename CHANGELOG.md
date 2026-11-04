@@ -1,3 +1,7 @@
+## Unreleased
+
+- A Windows guest's build key now includes the seed template's content digest, so an edit to what the specialize pass bakes re-keys the guest and forces the rebuild that picks it up. Windows is asymmetric with Linux here: the scrub resets cloud-init so a Linux guest re-runs it at consumer boot and render changes propagate on their own, while specialize never runs again, which left recent seed fixes (the OOBE skip pair, the built-in Administrator activation) unable to reach images captured before them through any supported command. Upgrading re-keys every Windows guest once: their next build rebuilds from the golden and captures the current seed behavior.
+
 ## 0.2.16 (04 November 2026)
 
 - The defender_ops example's custom goal registration survives a rebuild. Its `task.py` imported `goals` relatively, which the build's conformance loader (it executes the file standalone, with no parent package) has never supported; the published build rode its cache, so the first cache miss failed with an import error. The absolute package import resolves to the one registered module in both contexts (the eval registry and the loader). Found by a full example-range rebuild sweep; proven with `build --reverify`.
