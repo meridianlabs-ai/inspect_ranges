@@ -256,7 +256,7 @@ def spec_projection(
 
     A ROUTER's projection carries its provisioning alone: routers declare no `services`/`vulnerabilities`, declared `users` ride the recipes exactly as a host's do (never the projection), and the router's ACL, routes, and addressing are per-boot cloud-init that re-renders without a rebuild.
 
-    A WINDOWS host's projection also carries its name, interface addressing, and `network_state` (`windows_network_projection`; windows-ad-v1 slice 2, completed by the phase review): the unattend specialize pass runs once on the generalized golden, so the captured realized disk holds the hostname, static addresses, routes, and resolvers PERSISTENTLY — a consumer boot cannot re-apply them the way cloud-init re-seeds a Linux guest. Excluding any of it would let an edit re-render against a disk that still holds the old state, with no rebuild and no refusal; including it makes the edit an honest rebuild. A Windows host with no `network_state` refuses here, fail closed.
+    A WINDOWS host's projection also carries the seed TEMPLATE's content digest (so an edit to what specialize bakes re-keys the guest and forces the rebuild that picks it up), plus its name, interface addressing, and `network_state` (`windows_network_projection`; windows-ad-v1 slice 2, completed by the phase review): the unattend specialize pass runs once on the generalized golden, so the captured realized disk holds the hostname, static addresses, routes, and resolvers PERSISTENTLY — a consumer boot cannot re-apply them the way cloud-init re-seeds a Linux guest. Excluding any of it would let an edit re-render against a disk that still holds the old state, with no rebuild and no refusal; including it makes the edit an honest rebuild. A Windows host with no `network_state` refuses here, fail closed.
     """
     if isinstance(host, Router):
         projected: dict[str, object] = {
@@ -296,6 +296,8 @@ def spec_projection(
                 f"guest {host.name!r}: a Windows projection needs the network state "
                 "the specialize pass bakes into the disk (windows_network_projection)"
             )
+        from .._compiler.render import WINDOWS_SEED_TEMPLATE_SHA256
+
         projected["windows_identity"] = {
             "name": host.name,
             "hostname": host.hostname,
@@ -305,6 +307,12 @@ def spec_projection(
             ],
             "network_state": network_state,
         }
+        # the seed TEMPLATE, not just the facts it is filled with: an edit to
+        # what specialize bakes (an account activation, an OOBE answer) must
+        # re-key, or the realized image keeps the old behavior with no
+        # supported way to pick the change up. Global, not per-guest identity,
+        # so it sits beside the identity block rather than inside it.
+        projected["windows_seed_template"] = WINDOWS_SEED_TEMPLATE_SHA256
     return hashlib.sha256(
         json.dumps(projected, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
