@@ -214,8 +214,6 @@ def dmz_pivot() -> Task:
     )
 ```
 
-While developing a range, the [range_apparatus](building.qmd#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state. Its model-reading sibling [range_friction](building.qmd#scan) audits the same transcripts for the defects that only appear in the agent's own account, like a promised file that was not there.
-
 ### Evaluation
 
 Evaluate a packaged example by its registry name, or a `task.py` beside your own range definition:
@@ -226,6 +224,27 @@ inspect eval task.py --model anthropic/claude-opus-5
 ```
 
 Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain. Tasks that use the `challenge_scorer()` should also include the `verify_goal()` tool. The `terminal()` tool is also highly recommended (see below for details) but not required.
+
+### Scanning {#scanning}
+
+Two [scanners](reference/scanners.qmd) check the apparatus rather than the agent, so a bad range is distinguishable from a bad run.
+
+[range_apparatus](building.qmd#scan) is deterministic: post-readiness channel failures, spec-contradicting reachability, `verify_goal` wiring trouble, and scoring-integrity flags, each with a remediation hint. Add it to the scorer list and its findings land beside the challenge score, where zero is the healthy state:
+
+``` {.python filename="task.py"}
+from inspect_ranges.scanners import range_apparatus
+
+Task(..., scorer=[challenge_scorer(), range_apparatus()])
+```
+
+[range_friction](building.qmd#scan) reads the same transcripts with a model, for the defects that leave no machine signature: a file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed a newline. It costs a model call per transcript, so run it over accumulated logs instead of in a scorer list:
+
+``` {.bash filename="Terminal"}
+scout scan inspect_ranges/range_friction -T ./logs \
+  --model anthropic/claude-opus-5
+```
+
+[Running the Range](building.qmd#scan) covers both in development, and what a finding looks like.
 
 ### Terminal Sessions
 
