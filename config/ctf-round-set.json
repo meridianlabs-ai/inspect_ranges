@@ -1,0 +1,8 @@
+{
+  "comment": "Model set for the breakout CTF: exactly the three the reference harness (glovebox) chose for its breakout round set — deepseek-v4-pro, moonshotai kimi-k3.1-pro, and the Qwen flagship. glovebox names the Qwen as qwen3.8-max (a hosted/closed slug absent from OpenRouter); we use the genuinely open-weight flagship of the same family, qwen3.8-2.4t-a95b, keeping the sweep open-weight-only. The workflow fans these out as a matrix: one live white-box range run per model, in parallel. glovebox weights deepseek-v4-pro n=3; our matrix runs one leg per DISTINCT model (it dedupes), so `n` is kept only to mirror glovebox's weighting, not to replicate legs. Each slug is pre-flighted against the OpenRouter catalogue; the live range run stays authoritative.",
+  "rounds": [
+    { "model": "openrouter/deepseek/deepseek-v4-pro", "n": 3 },
+    { "model": "openrouter/moonshotai/kimi-k3.1-pro", "n": 1 },
+    { "model": "openrouter/qwen/qwen3.8-2.4t-a95b", "n": 1 }
+  ]
+}
