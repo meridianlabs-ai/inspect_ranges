@@ -142,13 +142,28 @@ from inspect_ranges.scanners import range_apparatus
 scorer = [challenge_scorer(), range_apparatus()]
 ```
 
-Or scan accumulated logs after the fact:
+The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
 
-``` bash
-scout scan inspect_ranges/range_apparatus -T ./logs
+[range_friction](reference/scanners.qmd#range_friction) covers what leaves no machine signature. A file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed a newline: these exist only as the agent saying so, so a model reads for them. Each finding carries a category, a confidence, a verbatim quote and the message it came from. An empty list is the healthy answer even for a sample that scored zero, because the scanner reports the environment breaking its promises and not the task being hard.
+
+A scanjob runs both over accumulated logs:
+
+``` {.python filename="apparatus.py"}
+from inspect_scout import ScanJob, scanjob
+
+from inspect_ranges.scanners import range_apparatus, range_friction
+
+@scanjob
+def apparatus() -> ScanJob:
+    return ScanJob(
+        scanners=[range_apparatus(), range_friction()],
+        model="anthropic/claude-opus-5",
+    )
 ```
 
-The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
+``` bash
+scout scan apparatus.py -T ./logs
+```
 
 ## Range Build
 
