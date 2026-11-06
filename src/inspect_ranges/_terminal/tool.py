@@ -137,7 +137,8 @@ def _terminal_viewer(call: ToolCall) -> ToolCallView:
     keystrokes = str(arguments.get("keystrokes", ""))
     # the execute-Enter every command carries would render as a trailing blank
     # line in the fence (viewer UX review, 2026-10-24); display drops exactly
-    # one, and what the model sent stays byte-exact
+    # one, and this edit is display-only: the keystrokes that go to the pane
+    # are untouched by it
     shown = keystrokes[:-1] if keystrokes.endswith("\n") else keystrokes
     # bash highlighting fits the dominant shell case; keystrokes driving other
     # programs (a python repl, msfconsole) highlight imperfectly and harmlessly
