@@ -51,15 +51,16 @@ def test_session_name_grammar(name: str, valid: bool) -> None:
 @pytest.mark.parametrize(
     ("keystrokes", "block", "expected_keys", "expected_blocking"),
     [
-        # a non-blocking newline is carried by the Enter key, not a literal
-        # byte: the key reaches a raw-mode pty as CR, the byte as LF, and a
-        # Windows console across an ssh session submits only on CR
-        ("ls -la\n", False, ["ls -la", "Enter"], False),
-        ("ls -la\r\n", False, ["ls -la", "Enter"], False),
-        ("ls -la\r", False, ["ls -la", "Enter"], False),
-        ("\n", False, ["Enter"], False),
-        ("one\ntwo\n", False, ["one", "Enter", "two", "Enter"], False),
-        ("a\n\nb", False, ["a", "Enter", "Enter", "b"], False),
+        # a non-blocking line break goes as CR, not LF: a raw-mode pty is
+        # handed the byte as sent, and a Windows console across an ssh
+        # session submits on CR and ignores a bare LF
+        ("ls -la\n", False, ["ls -la\r"], False),
+        ("ls -la\r\n", False, ["ls -la\r"], False),
+        ("ls -la\r", False, ["ls -la\r"], False),
+        ("\n", False, ["\r"], False),
+        ("\r\r", False, ["\r\r"], False),
+        ("one\ntwo\n", False, ["one\rtwo\r"], False),
+        ("a\n\nb", False, ["a\r\rb"], False),
         # without a newline nothing changes: key names are still looked up and
         # a bare fragment is still typed verbatim
         ("C-c", False, ["C-c"], False),
@@ -194,7 +195,7 @@ def test_send_keys_command_shape() -> None:
 
 def test_send_keys_commands_chunks_oversized_keys() -> None:
     """A tmux client command over ~16 KB fails ("command too long"), so an oversized key argument splits into literal `-l` chunks."""
-    assert send_keys_commands("s", ["ls\n"]) == [send_keys_command("s", ["ls\n"])]
+    assert send_keys_commands("s", ["ls"]) == [send_keys_command("s", ["ls"])]
     big = "x" * (SEND_CHUNK_CHARS * 2 + 5)
     commands = send_keys_commands("s", [big, "Enter"])
     assert len(commands) == 4
@@ -301,10 +302,10 @@ def test_an_interior_semicolon_keeps_the_single_command_path() -> None:
     would cost a round trip per semicolon on the most ordinary keystrokes there
     are.
     """
-    keystrokes = "clear; echo one; echo two\n"
-    assert send_keys_commands("s", [keystrokes]) == [
-        send_keys_command("s", [keystrokes])
-    ]
+    keys, _ = prepare_send("s", "clear; echo one; echo two\n", False, "ab-7")
+    commands = send_keys_commands("s", keys)
+    assert len(commands) == 1
+    assert typed_text(commands) == "clear; echo one; echo two\r"
 
 
 def test_keys_without_trailing_semicolons_keep_the_single_command_path() -> None:
@@ -312,6 +313,48 @@ def test_keys_without_trailing_semicolons_keep_the_single_command_path() -> None
     assert send_keys_commands("s", ["echo hi", "Enter"]) == [
         send_keys_command("s", ["echo hi", "Enter"])
     ]
+
+
+@pytest.mark.parametrize("word", ["up", "end", "space", "tab", "Up", "DELETE"])
+def test_a_pasted_line_that_reads_as_a_key_name_is_typed_not_pressed(
+    word: str,
+) -> None:
+    """Tmux key-name lookup is case-insensitive, so ordinary words are live keys.
+
+    A pasted line reading `up` would press the up arrow, which in a shell
+    recalls the previous line into whatever the paste was feeding. A wordlist
+    or a one-column file would be corrupted silently and the agent would read
+    the damage as its own. Any argument carrying a line break is therefore
+    typed literally, where lookup is off.
+    """
+    keystrokes = f"alpha\n{word}\nomega\n"
+    keys, _ = prepare_send("s", keystrokes, False, "ab-7")
+    for command in send_keys_commands("s", keys):
+        assert "-l" in command, f"{word!r} would be looked up as a key name"
+
+
+def test_a_multiline_paste_stays_under_the_tmux_command_limit() -> None:
+    """Tmux rejects a client command over ~16 KB, so a big paste must still chunk.
+
+    Splitting a paste into one argument per line would defeat the chunker,
+    because its budget is per argument: thousands of short lines are each
+    under the limit while the assembled command is far over it, and the send
+    fails outright with "command too long".
+    """
+    keystrokes = "".join(f"line {index} of the pasted file\n" for index in range(600))
+    assert len(keystrokes) > 16_000
+    keys, _ = prepare_send("s", keystrokes, False, "ab-7")
+    commands = send_keys_commands("s", keys)
+    assert all(sum(len(part) for part in command) < 16_000 for command in commands)
+    # and not at the cost of a round trip per line
+    assert len(commands) < 20
+
+
+def test_a_line_break_composes_with_the_semicolon_split() -> None:
+    """The two keystroke fixes meet on the most ordinary shell line there is."""
+    keys, _ = prepare_send("s", "echo hi;\n", False, "ab-7")
+    assert keys == ["echo hi;\r"]
+    assert typed_text(send_keys_commands("s", keys)) == "echo hi;\r"
 
 
 @pytest.mark.parametrize(

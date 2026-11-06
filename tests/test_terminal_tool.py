@@ -243,19 +243,58 @@ def test_a_newline_is_delivered_as_carriage_return(
 
     async def scenario() -> None:
         await tool(action="open", session=session)
-        # -A renders CR as ^M and LF as $, so the file names the byte
+        # -A renders CR as ^M and LF as $, so the file names the byte. cat
+        # writes each read straight through, so the bytes land without the
+        # reader having to exit; the send's own default duration is the wait.
         await tool(
             action="send",
             session=session,
-            keystrokes=f"stty raw -echo; timeout 3 cat -A > {captured}; stty sane\n",
+            keystrokes=f"stty raw -echo; cat -A > {captured}\n",
         )
-        await asyncio.sleep(1.0)
         await tool(action="send", session=session, keystrokes="PROBE\n")
-        await asyncio.sleep(3.5)
+        for _ in range(40):
+            if captured.is_file() and captured.read_text():
+                break
+            await asyncio.sleep(0.25)
         await tool(action="close", session=session)
 
     asyncio.run(scenario())
+    assert captured.is_file(), "the raw-mode reader never started"
     assert captured.read_text().startswith("PROBE^M")
+
+
+def test_a_pasted_wordlist_is_not_read_as_key_presses(
+    armed: tuple[Any, Store, str], tmp_path: Path
+) -> None:
+    """Pasted lines must land as text even when they spell tmux key names.
+
+    tmux key-name lookup is case-insensitive, so `up`, `end`, `space` and
+    `tab` are live keys. Typing a paste line by line with lookup on presses
+    them: `up` recalls the previous shell line into the paste. The corruption
+    is silent and reaches the agent as its own mistake, which is the same
+    failure shape as a dropped character at a chunk boundary.
+    """
+    tool, _, session = armed
+    written = tmp_path / "wordlist.txt"
+    words = ["alpha", "up", "end", "space", "tab", "home", "enter", "omega"]
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        body = "\n".join(words)
+        await tool(
+            action="send",
+            session=session,
+            keystrokes=f"cat > {written} <<'WLEOF'\n{body}\nWLEOF\n",
+        )
+        for _ in range(40):
+            if written.is_file() and written.read_text().endswith("omega\n"):
+                break
+            await asyncio.sleep(0.25)
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())
+    assert written.is_file(), "the heredoc never wrote a file"
+    assert written.read_text().splitlines() == words
 
 
 def test_semicolons_survive_a_chunk_boundary(armed: tuple[Any, Store, str]) -> None:

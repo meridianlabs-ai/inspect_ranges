@@ -166,18 +166,21 @@ def _send_key_commands(session: str, key: str) -> list[list[str]]:
 def send_keys_commands(session: str, keys: list[str]) -> list[list[str]]:
     r"""The argv sequence sending the prepared key arguments, splitting oversized ones and semicolon-terminated ones.
 
-    Keys at most `SEND_CHUNK_CHARS` long, none of them semicolon-terminated, go through `send_keys_command` in one command with key names honored. A longer key is never a tmux key name, so it splits into literal (`-l`) chunks that each fit tmux's client command limit; a 100 KB paste types through where a single `send-keys` would fail with "command too long".
+    Short keys that carry no line break and no trailing semicolon go through `send_keys_command` in one command with key names honored. A longer key is never a tmux key name, so it splits into literal (`-l`) chunks that each fit tmux's client command limit; a 100 KB paste types through where a single `send-keys` would fail with "command too long".
+
+    A key carrying a line break is typed literally too, whatever its length. It cannot be a key name, and leaving key-name lookup switched on for it would be actively harmful: lookup is case-insensitive, so a pasted line reading `up`, `end`, `space` or `tab` would be pressed as that key rather than typed. Pasting a wordlist or a one-column file would corrupt it silently, and the agent would read the damage as its own.
 
     A key ending in `;` cannot ride an ordinary argument at all, because tmux's client reads that semicolon as a command separator even after `--` (measured on tmux 3.4). Alone at the end of a command it costs one character silently: `send-keys -l -- 'x;'` types `x`. Followed by another argument it costs everything, because tmux rejects the command list before typing any of it: `send-keys -l -- 'echo x;' Enter` reports `unknown command: Enter`, and neither `echo x` nor the Enter reaches the pane.
 
     Fixed chunking manufactures the first case out of ordinary keystrokes: a 2000-character boundary landing just after a semicolon turns `int n=0;` into `int n=0` in the middle of a heredoc, and the pane reports it as the agent's own syntax error. So every trailing semicolon, at a chunk boundary or at the end of the agent's own keystrokes, goes as its hex byte. A `\;` is covered by the same split: tmux would otherwise eat the semicolon, then read the exposed trailing `\` as an escape and type a bare `;`.
     """
     chunked = any(len(key) > SEND_CHUNK_CHARS for key in keys)
-    if not chunked and not any(key.endswith(";") for key in keys):
+    literal = any(_LINE_BREAK.search(key) for key in keys)
+    if not chunked and not literal and not any(key.endswith(";") for key in keys):
         return [send_keys_command(session, keys)]
     commands: list[list[str]] = []
     for key in keys:
-        if len(key) <= SEND_CHUNK_CHARS:
+        if len(key) <= SEND_CHUNK_CHARS and not _LINE_BREAK.search(key):
             commands.extend(_send_key_commands(session, key))
         else:
             for i in range(0, len(key), SEND_CHUNK_CHARS):
@@ -224,28 +227,19 @@ def _executes(keystrokes: str) -> bool:
     return _is_enter_key(keystrokes) or bool(re.search(r"[\r\n]$", keystrokes))
 
 
-_NEWLINE_RUN = re.compile(r"\r\n|\r|\n")
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
 
 
-def newline_keys(keystrokes: str) -> list[str]:
-    r"""`keystrokes` as send-keys arguments, with each newline carried by the `Enter` key.
+def carriage_returns(keystrokes: str) -> str:
+    r"""`keystrokes` with every line break as CR, the byte a terminal sends when Enter is pressed.
 
-    A newline typed as a literal byte reaches the pane as LF, while the `Enter` key reaches it as CR. Inside the pane's own pty that is the same thing, because the line discipline translates CR to LF, so a local shell cannot tell them apart. A program that puts the terminal in raw mode can: `ssh` does, and forwards the byte it was given.
+    A line break typed as a literal byte reaches the pane as LF. Inside the pane's own pty that is indistinguishable from CR, because the line discipline translates CR to LF before any program sees it, which is why a local shell behaves identically either way. A program that puts the terminal in raw mode is handed the byte as sent: `ssh` does, and forwards it.
 
-    That is the difference between a command running and nothing happening at all. A Windows console on the far side of an `ssh` session submits on CR and ignores a bare LF, so keystrokes ending in a literal newline sat unexecuted at the prompt and the next send typed itself onto the same line. Three Windows sessions in one eval run wedged this way, each ending with the agent unable even to `exit`; no Linux pane did, because readline accepts both.
+    That is the difference between a command running and nothing happening at all. A Windows console on the far side of an `ssh` session submits on CR and ignores a bare LF, so keystrokes ending in a literal newline sit unexecuted at the prompt and the next send types itself onto the same line.
 
-    Keystrokes with no newline are returned unchanged, so a key name (`C-c`) is still looked up and a bare fragment is still typed verbatim.
+    Keystrokes carrying no line break come back unchanged, so a key name as the whole value (`C-c`) is still looked up. An agent that needs a literal LF byte sends `C-j`, which is a key name and so passes through untouched.
     """
-    if not _NEWLINE_RUN.search(keystrokes):
-        return [keystrokes]
-    keys: list[str] = []
-    segments = _NEWLINE_RUN.split(keystrokes)
-    for index, segment in enumerate(segments):
-        if segment:
-            keys.append(segment)
-        if index < len(segments) - 1:
-            keys.append("Enter")
-    return keys
+    return _LINE_BREAK.sub("\r", keystrokes)
 
 
 def multiline_block(keystrokes: str) -> bool:
@@ -305,7 +299,7 @@ _COMMENT_START = re.compile(r"(?:^|[\s;&|()])#")
 def blocking_send_refusal(keystrokes: str) -> str | None:
     r"""The refusal message when a blocking command line cannot take the completion signal splice, or `None` when it can.
 
-    The signal is appended to the line as `; tmux wait -S <channel>`, so the line must be a complete command the splice extends. An unclosed quote or a trailing `\` leaves the shell reading continuation input with the signal inside it; an unquoted `#` comment absorbs the splice, so the command runs but the signal never fires; a trailing unquoted `&` backgrounds the command (nothing to wait for) and, like a trailing `&&`/`||`/`|` continuation, splices into a shell syntax error that runs nothing. Each case would stall the send to its full timeout and report "it may still be running" falsely, so it is refused with the remedy named instead. Keystrokes that do not execute (or a bare Enter) are never inspected: they fall back to non-blocking or block on what was already typed, and non-blocking sends stay byte-exact.
+    The signal is appended to the line as `; tmux wait -S <channel>`, so the line must be a complete command the splice extends. An unclosed quote or a trailing `\` leaves the shell reading continuation input with the signal inside it; an unquoted `#` comment absorbs the splice, so the command runs but the signal never fires; a trailing unquoted `&` backgrounds the command (nothing to wait for) and, like a trailing `&&`/`||`/`|` continuation, splices into a shell syntax error that runs nothing. Each case would stall the send to its full timeout and report "it may still be running" falsely, so it is refused with the remedy named instead. Keystrokes that do not execute (or a bare Enter) are never inspected: they fall back to non-blocking or block on what was already typed, and non-blocking sends are otherwise byte-exact (`carriage_returns` normalizes the line break itself, nothing else).
     """
     if not _executes(keystrokes) or _is_enter_key(keystrokes):
         return None
@@ -359,10 +353,10 @@ def prepare_send(
 
     Returns `(keys, is_blocking)`. A blocking send only makes sense when the keystrokes execute a command: the trailing Enter (key name or newline) is stripped, unescaped trailing semicolons are trimmed (they would make the signal splice a syntax error), and the per-send completion signal plus `Enter` are appended, so the whole line runs as `<command>; tmux wait -S <channel>`. Trimming the semicolons is what keeps the splice safe to send: the line ends in the channel name, so no argument ends in `;` for tmux to read as a command separator. Keystrokes that do not execute anything fall back to non-blocking even when `block` was requested; the caller refuses `multiline_block` keystrokes before calling.
 
-    A non-blocking send carries its newlines as `Enter` key presses rather than literal bytes, for the reason in `newline_keys`.
+    A non-blocking send carries its line breaks as CR rather than LF, for the reason in `carriage_returns`.
     """
     if not block or not _executes(keystrokes):
-        return newline_keys(keystrokes), False
+        return [carriage_returns(keystrokes)], False
     stripped = keystrokes
     if _is_enter_key(stripped):
         stripped = ""
