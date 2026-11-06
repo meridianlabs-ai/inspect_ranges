@@ -214,7 +214,7 @@ def dmz_pivot() -> Task:
     )
 ```
 
-While developing a range, the [range_apparatus](building.qmd#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state.
+While developing a range, the [range_apparatus](building.qmd#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state. Its model-reading sibling [range_friction](building.qmd#scan) audits the same transcripts for the defects that only appear in the agent's own account, like a promised file that was not there.
 
 ### Evaluation
 

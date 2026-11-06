@@ -8,15 +8,25 @@ Use it after the fact over eval logs (`inspect_scout.scan` or `scout scan`), or 
 from typing import Any, cast
 
 import yaml
+from inspect_ai.model import Model
 from inspect_ai.scorer import mean
-from inspect_scout import Reference, Result, Scanner, Transcript, scanner
+from inspect_scout import (
+    AnswerStructured,
+    Reference,
+    Result,
+    Scanner,
+    Transcript,
+    llm_scanner,
+    scanner,
+)
 
 from ._metadata import RANGE_SPEC_METADATA_KEY
 from ._scanners.engine import apparatus_findings
+from ._scanners.friction import QUESTION, FrictionReport
 from .schema import substitute_variables
 from .types import RangeSpec
 
-__all__ = ["range_apparatus"]
+__all__ = ["range_apparatus", "range_friction"]
 
 
 def _spec_from_yaml_text(text: str) -> RangeSpec | None:
@@ -83,3 +93,26 @@ def range_apparatus() -> Scanner[Transcript]:
         )
 
     return scan
+
+
+@scanner(messages="all", metadata=True)
+def range_friction(model: str | Model | None = None) -> Scanner[Transcript]:
+    """Read a sample's transcript for evidence that the range contradicted its own brief.
+
+    The companion to `range_apparatus`, and the half that needs a model. `range_apparatus` matches exact machine signatures and is blind to a defect that exists only as prose: a file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed output, scoring scaffolding the agent tripped over. Those appear in the transcript as the agent saying so.
+
+    The result value carries the findings (`{"findings": [...]}`), each with a category, a confidence, a verbatim quote and the `[M12]` marker it came from. An empty list is the healthy answer and the expected one for most transcripts, including most that scored zero: the prompt separates "the environment broke its promises" from "the task was hard and the agent failed", and only the former is a finding.
+
+    Costs a model call per transcript, so this is an after-the-fact audit over eval logs (`inspect_scout.scan` or `scout scan`) rather than something to put in a scorer list.
+
+    Args:
+        model: Model to read with. Defaults to the scan's model.
+
+    Returns:
+        The scanner.
+    """
+    return llm_scanner(
+        question=QUESTION,
+        answer=AnswerStructured(FrictionReport),
+        model=model,
+    )

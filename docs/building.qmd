@@ -150,6 +150,14 @@ scout scan inspect_ranges/range_apparatus -T ./logs
 
 The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
 
+[range_friction](reference/scanners.qmd#range_friction) is the companion for defects that leave no machine signature. A file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed a newline: these exist in the transcript only as the agent saying so, so a model has to read for them.
+
+``` bash
+scout scan inspect_ranges/range_friction -T ./logs --model anthropic/claude-opus-5
+```
+
+Each finding carries a category, a confidence, a verbatim quote and the message it came from. An empty list is the healthy answer, including for samples that scored zero: the scanner separates the environment breaking its promises from the task simply being hard, and only reports the first. It costs a model call per transcript, so run it over accumulated logs rather than in a scorer list.
+
 ## Range Build
 
 A definition's [guest content](guests.qmd#guest-content) describes converged state: services listening at versions, seeded vulnerabilities, provisioning steps that produce them. None of it is applied at boot. The build realizes it once:
