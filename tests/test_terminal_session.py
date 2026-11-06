@@ -522,15 +522,29 @@ _PREFIX = wait_channel_prefix("main", "b7f168f4")
 _SUFFIX = "; tmux wait -S done-main-b7f168f4-12"
 
 
-@pytest.mark.parametrize(
-    "break_at", [0, 1, 2, 10, 15, 21, 30, len(_SUFFIX) - 2, len(_SUFFIX) - 1]
-)
+def capture_pane_render(logical: str) -> str:
+    """One long logical line as `capture-pane` renders it.
+
+    The wrap at `PANE_WIDTH` is only half of it: capture-pane also trims each
+    line's trailing whitespace, so a wrap landing on a space ends that line one
+    column short and the space is gone. Modelling the wrap without the trim is
+    what hid this: the scrub's four space split points leaked into two agents'
+    transcripts while the suite stayed green.
+    """
+    lines: list[str] = []
+    while len(logical) > PANE_WIDTH:
+        lines.append(logical[:PANE_WIDTH].rstrip(" "))
+        logical = logical[PANE_WIDTH:]
+    lines.append(logical)
+    return "\n".join(lines)
+
+
+@pytest.mark.parametrize("break_at", range(len(_SUFFIX) + 1))
 def test_scrub_harness_echo_removes_wrapped_wait_suffix(break_at: int) -> None:
     """capture-pane inserts a newline where the pane wraps at 160 columns, and the wrap can fall between ANY two characters of the echoed signal (or just before it); every split point must scrub without leaking a fragment to the model (pre-ship P1-7)."""
     body = "$ echo " + "x" * (PANE_WIDTH - 7 - break_at)
-    echoed = body + _SUFFIX
     assert len(body) + break_at == PANE_WIDTH
-    text = f"{echoed[:PANE_WIDTH]}\n{echoed[PANE_WIDTH:]}\nout-42\n$ "
+    text = capture_pane_render(body + _SUFFIX) + "\nout-42\n$ "
     assert scrub_harness_echo(text, _PREFIX) == f"{body}\nout-42\n$ "
 
 
@@ -546,6 +560,33 @@ def test_scrub_harness_echo_removes_wrapped_wait_suffix(break_at: int) -> None:
 def test_scrub_harness_echo_keeps_lookalikes(text: str) -> None:
     """The scrub is anchored to our channel prefix and, for wrapped forms, to the wrap column, so text that merely resembles the signal survives byte-exact."""
     assert scrub_harness_echo(text, _PREFIX) == text
+
+
+@pytest.mark.parametrize(
+    ("break_column", "scrubbed"),
+    [
+        # a wrap at the pane width, and the one column a trimmed space eats
+        (PANE_WIDTH, True),
+        (PANE_WIDTH - 1, True),
+        # two columns short is a line break the pane did not make
+        (PANE_WIDTH - 2, False),
+    ],
+)
+def test_scrub_harness_echo_window_is_as_wide_as_the_trim(
+    break_column: int, scrubbed: bool
+) -> None:
+    """The accepted wrap column spans exactly the columns a trim can eat, and no more.
+
+    The column test is what keeps agent-authored text that resembles the
+    signal from being eaten, so its width is a contract. Without this, widening
+    the window (or deriving it wrongly) leaves the whole suite green: a trim
+    allowance of 40 columns passes every other test in this file.
+    """
+    head = "x" * (break_column - len("; tmux wait")) + "; tmux wait"
+    assert len(head) == break_column
+    text = f"{head}\n-S {_PREFIX}7\nout\n$ "
+    expected = f"{head[: -len('; tmux wait')]}\nout\n$ " if scrubbed else text
+    assert scrub_harness_echo(text, _PREFIX) == expected
 
 
 def test_scrub_harness_echo_anchored_still_removes_plain_form() -> None:
