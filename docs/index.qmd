@@ -246,8 +246,6 @@ def apparatus() -> ScanJob:
 scout scan apparatus.py -T ./logs
 ```
 
-`range_apparatus` costs no model call, so it can also ride a task's scorer list and report beside the challenge score. See [Running the Range](building.qmd#scan).
-
 ### Terminal Sessions
 
 The [terminal](reference/inspect_ranges.qmd#terminal) tool gives the agent persistent tmux sessions on its foothold: listeners that hold caught reverse shells, long-running scans in parallel sessions, msfconsole kept open across calls. It is the recommended default for react-style range tasks, and each session records to evidence with an asciicast for playback. The [tool reference](reference/inspect_ranges.qmd#terminal) covers the actions and waiting modes.
