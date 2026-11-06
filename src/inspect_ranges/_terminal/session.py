@@ -382,13 +382,19 @@ def find_new_content(previous_buffer: str | None, current_buffer: str) -> str | 
     return None
 
 
+_WRAP_TRIM = 1
+"""Columns a wrap can fall short of `PANE_WIDTH` because `capture-pane` trimmed the line's trailing whitespace. The echoed suffix separates its words with single spaces, so at most one column is ever lost."""
+
+
 @lru_cache(maxsize=32)
 def _wait_echo_patterns(
     channel_prefix: str | None,
 ) -> tuple[re.Pattern[str], re.Pattern[str]]:
-    """The unwrapped and wrapped-once forms of the blocking signal's pane echo.
+    r"""The unwrapped and wrapped-once forms of the blocking signal's pane echo.
 
     `capture-pane` inserts a newline where the pane wraps at `PANE_WIDTH`, and the wrap can fall between ANY two characters of the echoed suffix (or just before it); the suffix is far shorter than the pane width, so at most one wrap newline can land inside it. The wrapped pattern is the alternation of the suffix with a single newline at each possible split point, built once per channel prefix. With a `channel_prefix` (`wait_channel_prefix`) the channel part matches our prefix plus the send counter; without one it falls back to the generic `done-` form.
+
+    A wrap that falls on one of the suffix's spaces also loses it, because `capture-pane` trims each line's trailing whitespace: `; tmux wait -S ...` comes back as `; tmux wait\n-S ...`, not `; tmux wait \n-S ...`. Every trailing space of a split's left side is therefore optional, which is what lets the two shapes the agent sees most (a wrap before `wait` and a wrap before `-S`) match at all.
     """
     if channel_prefix is None:
         literal = "; tmux wait -S done-"
@@ -397,10 +403,14 @@ def _wait_echo_patterns(
         literal = f"; tmux wait -S {channel_prefix}"
         tail, broken_tail = r"\d+", r"\d*\n\d+"
     plain = re.compile(re.escape(literal) + tail)
-    alternatives = [
-        re.escape(literal[:split]) + "\n" + re.escape(literal[split:]) + tail
-        for split in range(len(literal))
-    ]
+    alternatives: list[str] = []
+    for split in range(len(literal)):
+        left = literal[:split]
+        kept = left.rstrip(" ")
+        trimmed = " ?" * (len(left) - len(kept))
+        alternatives.append(
+            re.escape(kept) + trimmed + "\n" + re.escape(literal[split:]) + tail
+        )
     alternatives.append(re.escape(literal) + broken_tail)
     return plain, re.compile("|".join(alternatives))
 
@@ -417,14 +427,14 @@ def wait_echo_pattern(channel_prefix: str) -> re.Pattern[str]:
 def scrub_harness_echo(text: str, channel_prefix: str | None = None) -> str:
     """Remove the blocking signal's pane echo from model-facing output.
 
-    A blocking send appends `; tmux wait -S <channel>` to the command line, and the pane echoes it back; the model should read its own command, not the harness suffix. The pane wraps at `PANE_WIDTH`, so the echoed suffix can carry one capture newline anywhere inside it; a wrapped match is removed only when its interior newline sits exactly at the wrap column, so agent-authored text that merely resembles the suffix mid-line survives. The tool threads `channel_prefix` (the session life's `wait_channel_prefix`), anchoring the match to our own channel names. Casts get the same treatment at assembly (`assemble_cast`, over the raw stream); the evidence mirror keeps the raw pane.
+    A blocking send appends `; tmux wait -S <channel>` to the command line, and the pane echoes it back; the model should read its own command, not the harness suffix. The pane wraps at `PANE_WIDTH`, so the echoed suffix can carry one capture newline anywhere inside it; a wrapped match is removed only when its interior newline sits at the wrap column, so agent-authored text that merely resembles the suffix mid-line survives. A wrap landing on a space ends the line one column short, because `capture-pane` trims the trailing whitespace, so the column test allows for that. The tool threads `channel_prefix` (the session life's `wait_channel_prefix`), anchoring the match to our own channel names. Casts get the same treatment at assembly (`assemble_cast`, over the raw stream); the evidence mirror keeps the raw pane.
     """
     plain, wrapped = _wait_echo_patterns(channel_prefix)
 
     def scrub_wrapped(match: re.Match[str]) -> str:
         newline = match.string.index("\n", match.start(), match.end())
         column = newline - (match.string.rfind("\n", 0, newline) + 1)
-        return "" if column == PANE_WIDTH else match.group(0)
+        return "" if PANE_WIDTH - _WRAP_TRIM <= column <= PANE_WIDTH else match.group(0)
 
     return plain.sub("", wrapped.sub(scrub_wrapped, text))
 

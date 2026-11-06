@@ -522,15 +522,29 @@ _PREFIX = wait_channel_prefix("main", "b7f168f4")
 _SUFFIX = "; tmux wait -S done-main-b7f168f4-12"
 
 
-@pytest.mark.parametrize(
-    "break_at", [0, 1, 2, 10, 15, 21, 30, len(_SUFFIX) - 2, len(_SUFFIX) - 1]
-)
+def capture_pane_render(logical: str) -> str:
+    """One long logical line as `capture-pane` renders it.
+
+    The wrap at `PANE_WIDTH` is only half of it: capture-pane also trims each
+    line's trailing whitespace, so a wrap landing on a space ends that line one
+    column short and the space is gone. Modelling the wrap without the trim is
+    what hid this: the scrub's four space split points leaked into two agents'
+    transcripts while the suite stayed green.
+    """
+    lines: list[str] = []
+    while len(logical) > PANE_WIDTH:
+        lines.append(logical[:PANE_WIDTH].rstrip(" "))
+        logical = logical[PANE_WIDTH:]
+    lines.append(logical)
+    return "\n".join(lines)
+
+
+@pytest.mark.parametrize("break_at", range(len(_SUFFIX) + 1))
 def test_scrub_harness_echo_removes_wrapped_wait_suffix(break_at: int) -> None:
     """capture-pane inserts a newline where the pane wraps at 160 columns, and the wrap can fall between ANY two characters of the echoed signal (or just before it); every split point must scrub without leaking a fragment to the model (pre-ship P1-7)."""
     body = "$ echo " + "x" * (PANE_WIDTH - 7 - break_at)
-    echoed = body + _SUFFIX
     assert len(body) + break_at == PANE_WIDTH
-    text = f"{echoed[:PANE_WIDTH]}\n{echoed[PANE_WIDTH:]}\nout-42\n$ "
+    text = capture_pane_render(body + _SUFFIX) + "\nout-42\n$ "
     assert scrub_harness_echo(text, _PREFIX) == f"{body}\nout-42\n$ "
 
 

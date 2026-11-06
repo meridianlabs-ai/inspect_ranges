@@ -8,6 +8,8 @@
 
   Keystrokes carrying a line break are now typed literally, with tmux key-name lookup off. Lookup is case-insensitive, so a pasted line reading `up`, `end`, `space` or `tab` would otherwise be pressed as that key rather than typed, silently corrupting a pasted wordlist or one-column file.
 
+- The blocking send's completion signal no longer leaks into what the agent reads when the pane wraps on one of its spaces. The scrub already handled a wrap falling anywhere inside `; tmux wait -S <channel>`, but it modelled the wrap as a newline inserted at column 160, and `capture-pane` also trims each line's trailing whitespace: a wrap landing on a space ends the line a column short with the space gone, so `; tmux wait -S ...` comes back as `; tmux wait\n-S ...`. Four of the suffix's split points were affected, and two agents in one eval run were shown the harness marker as if they had typed it.
+
 ## 0.2.17 (04 November 2026)
 
 - A Windows guest's build key now includes the seed template's content digest, so an edit to what the specialize pass bakes re-keys the guest and forces the rebuild that picks it up. Windows is asymmetric with Linux here: the scrub resets cloud-init so a Linux guest re-runs it at consumer boot and render changes propagate on their own, while specialize never runs again, which left recent seed fixes (the OOBE skip pair, the built-in Administrator activation) unable to reach images captured before them through any supported command. Upgrading re-keys every Windows guest once: their next build rebuilds from the golden and captures the current seed behavior, and because any range holding a Windows guest is converged, that first build also rebuilds the range's Linux content guests and re-runs its proofs.
