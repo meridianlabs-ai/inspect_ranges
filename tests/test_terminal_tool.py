@@ -20,7 +20,7 @@ from inspect_ai.tool import ToolCall
 from inspect_ai.util import ExecResult
 from inspect_ai.util._store import Store, init_subtask_store
 from inspect_ranges import terminal
-from inspect_ranges._terminal.session import sink_path
+from inspect_ranges._terminal.session import SEND_CHUNK_CHARS, sink_path
 from inspect_ranges._terminal.tool import (
     _terminal_viewer,  # pyright: ignore[reportPrivateUsage]
     discard_terminal_state,
@@ -218,6 +218,40 @@ def test_oversized_send_chunks_through(armed: tuple[Any, Store, str]) -> None:
         )
         assert "command too long" not in result
         assert "big-42" in result
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())
+
+
+def test_semicolons_survive_a_chunk_boundary(armed: tuple[Any, Store, str]) -> None:
+    """A semicolon landing on a chunk boundary must reach the pane, through real tmux.
+
+    tmux's client reads a semicolon that terminates an argument as a command
+    separator, `--` notwithstanding, and drops it with no error. Fixed-size
+    chunking manufactures exactly that out of ordinary keystrokes, which in a
+    real run corrupted C source written through a heredoc and showed up as the
+    agent's own compile error. The argv-level tests model tmux's rule; this one
+    does not have to, which is the point of having it.
+    """
+    tool, _, session = armed
+    prefix = "printf '%s' '"
+    # place a semicolon so the chunk boundary falls immediately after it
+    filler = "y" * (SEND_CHUNK_CHARS - len(prefix) - 1)
+    payload = f"{filler};int n=0; char a;{'z' * 40}"
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        result = await tool(
+            action="send",
+            session=session,
+            keystrokes=f"{prefix}{payload}' > /tmp/ir-semi.txt; wc -c < /tmp/ir-semi.txt\n",
+            block=True,
+            timeout=120,
+        )
+        assert "failed" not in result
+        # the byte count is the assertion: a dropped semicolon is one short,
+        # and nothing else about the pane rendering can forge it
+        assert str(len(payload)) in result
         await tool(action="close", session=session)
 
     asyncio.run(scenario())

@@ -55,8 +55,9 @@ def test_session_name_grammar(name: str, valid: bool) -> None:
         ("ls -la\n", False, ["ls -la\n"], False),
         ("C-c", False, ["C-c"], False),
         ("", False, [""], False),
-        # blocking strips the trailing newline and appends the signal (one
-        # argument, so no fragment can be tmux's lone-`;` command separator)
+        # blocking strips the trailing newline and appends the signal; the
+        # trimming is what keeps it sendable, since the line then ends in the
+        # channel name rather than a `;` tmux would read as a separator
         ("ls -la\n", True, ["ls -la; tmux wait -S done-s-ab-7", "Enter"], True),
         ("make\r\n", True, ["make; tmux wait -S done-s-ab-7", "Enter"], True),
         # a bare Enter key blocks on whatever was already typed
@@ -172,20 +173,18 @@ def test_send_keys_command_shape() -> None:
         "--",
         "-la\n",
     ]
-    assert send_keys_command("s", [";"]) == [
-        "tmux",
-        "send-keys",
-        "-t",
-        "=s:",
-        "-H",
-        "3b",
-    ]
+    # a semicolon-terminated argument is unsendable, not silently repaired:
+    # tmux would read it as a command separator and drop the character (or,
+    # with a key after it, reject the whole command list and type nothing)
+    with pytest.raises(ValueError, match="semicolon-terminated"):
+        send_keys_command("s", [";"])
+    with pytest.raises(ValueError, match="semicolon-terminated"):
+        send_keys_command("s", ["echo x;", "Enter"])
 
 
 def test_send_keys_commands_chunks_oversized_keys() -> None:
-    """A tmux client command over ~16 KB fails ("command too long"), so an oversized key argument splits into literal `-l` chunks while small sends keep today's single-command path exactly."""
+    """A tmux client command over ~16 KB fails ("command too long"), so an oversized key argument splits into literal `-l` chunks."""
     assert send_keys_commands("s", ["ls\n"]) == [send_keys_command("s", ["ls\n"])]
-    assert send_keys_commands("s", [";"]) == [send_keys_command("s", [";"])]
     big = "x" * (SEND_CHUNK_CHARS * 2 + 5)
     commands = send_keys_commands("s", [big, "Enter"])
     assert len(commands) == 4
@@ -195,9 +194,114 @@ def test_send_keys_commands_chunks_oversized_keys() -> None:
     assert "".join(command[-1] for command in commands[:3]) == big
     # the Enter key stays a key press, never a literal chunk
     assert commands[3] == send_keys_command("s", ["Enter"])
-    # a chunk boundary landing on a lone `;` still goes as the hex byte
-    semi = "y" * SEND_CHUNK_CHARS + ";"
-    assert send_keys_commands("s", [semi])[-1][-2:] == ["-H", "3b"]
+
+
+KEY_NAMES = ("Enter", "C-c", "Escape", "Space", "BSpace")
+
+
+def typed_text(commands: list[list[str]]) -> str:
+    r"""The characters tmux types for a command sequence, modelling its semicolon rule.
+
+    Replaying what we MEANT to send would make the headline assertion below
+    vacuous, because dropping a character is exactly the defect under test. So
+    this models the behaviour measured on tmux 3.4 instead: an argument ending
+    in `;` loses that one semicolon, and if a `\` is exposed underneath, tmux
+    reads it as an escape and types a bare `;`.
+
+    Key names are rejected rather than guessed at: tmux presses them, so no
+    string of characters is the honest answer, and a future row like `Space;`
+    must fail loudly instead of being replayed as five letters.
+    """
+    typed: list[str] = []
+    for command in commands:
+        if command[4] == "-H":
+            typed.extend(chr(int(byte, 16)) for byte in command[5:])
+            continue
+        for argument in command[command.index("--") + 1 :]:
+            if argument in KEY_NAMES:
+                raise AssertionError(
+                    f"typed_text cannot model the key name {argument!r}: tmux "
+                    "presses it rather than typing characters"
+                )
+            if argument.endswith(";"):
+                argument = argument[:-1]
+                if argument.endswith("\\"):
+                    argument = argument[:-1] + ";"
+            typed.append(argument)
+    return "".join(typed)
+
+
+@pytest.mark.parametrize(
+    "keystrokes",
+    [
+        "echo hi;",
+        ";",
+        ";;;",
+        "a" * (SEND_CHUNK_CHARS - 1) + ";",
+        "b" * SEND_CHUNK_CHARS + ";",
+        # the measured shape: a chunk boundary falling just after a semicolon
+        "c" * (SEND_CHUNK_CHARS - 1) + ";" + "d" * 50,
+        "e" * (SEND_CHUNK_CHARS * 2 - 1) + ";f",
+        # a run of semicolons straddling a boundary
+        "g" * (SEND_CHUNK_CHARS - 1) + ";;;",
+        # tmux eats the semicolon, then reads the exposed `\` as an escape
+        "printf 'a\\;'",
+        "find . -exec ls {} \\;",
+        # char slicing, not byte slicing, keeps a codepoint whole at a boundary
+        "\u00e9" * SEND_CHUNK_CHARS + ";",
+    ],
+    ids=lambda k: f"len{len(k)}",
+)
+def test_every_semicolon_reaches_the_pane(keystrokes: str) -> None:
+    """Keystrokes arrive byte-exact however the chunking falls.
+
+    tmux's client reads a semicolon that ends an argument as a command
+    separator, `--` notwithstanding, so the character is dropped. Fixed-size
+    chunking manufactures these out of ordinary input: a boundary landing just
+    after a semicolon turned `int n=0;` into `int n=0` inside a heredoc in a
+    real run, and the pane reported it as the agent's own syntax error.
+    """
+    commands = send_keys_commands("s", [keystrokes])
+    for command in commands:
+        if command[4] == "-H":
+            continue
+        # every argument, not just the last: tmux ends the command list at the
+        # first one that terminates in a semicolon
+        arguments = command[command.index("--") + 1 :]
+        assert not any(argument.endswith(";") for argument in arguments)
+    assert typed_text(commands) == keystrokes
+
+
+def test_a_semicolon_terminated_key_does_not_swallow_the_key_after_it() -> None:
+    """A key following a semicolon-terminated one must still be pressed.
+
+    `send-keys -l -- 'echo x;' Enter` reports `unknown command: Enter`, and
+    tmux rejects the command list before typing anything, so `echo x` never
+    reaches the pane either and the Enter is never pressed.
+    """
+    commands = send_keys_commands("s", ["echo x;", "Enter"])
+    assert commands[-1] == send_keys_command("s", ["Enter"])
+    assert typed_text(commands[:-1]) == "echo x;"
+
+
+def test_an_interior_semicolon_keeps_the_single_command_path() -> None:
+    """Only a TERMINATING semicolon is tmux's separator, so a command line full of them still sends as one.
+
+    Splitting on every semicolon would be the natural over-correction, and it
+    would cost a round trip per semicolon on the most ordinary keystrokes there
+    are.
+    """
+    keystrokes = "clear; echo one; echo two\n"
+    assert send_keys_commands("s", [keystrokes]) == [
+        send_keys_command("s", [keystrokes])
+    ]
+
+
+def test_keys_without_trailing_semicolons_keep_the_single_command_path() -> None:
+    """The common send is one tmux command, with key names still looked up."""
+    assert send_keys_commands("s", ["echo hi", "Enter"]) == [
+        send_keys_command("s", ["echo hi", "Enter"])
+    ]
 
 
 @pytest.mark.parametrize(
