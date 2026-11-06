@@ -297,7 +297,9 @@ def test_a_pasted_wordlist_is_not_read_as_key_presses(
     assert written.read_text().splitlines() == words
 
 
-def test_semicolons_survive_a_chunk_boundary(armed: tuple[Any, Store, str]) -> None:
+def test_semicolons_survive_a_chunk_boundary(
+    armed: tuple[Any, Store, str], tmp_path: Path
+) -> None:
     """A semicolon landing on a chunk boundary must reach the pane, through real tmux.
 
     tmux's client reads a semicolon that terminates an argument as a command
@@ -308,6 +310,7 @@ def test_semicolons_survive_a_chunk_boundary(armed: tuple[Any, Store, str]) -> N
     does not have to, which is the point of having it.
     """
     tool, _, session = armed
+    written = tmp_path / "ir-semi.txt"
     prefix = "printf '%s' '"
     # place a semicolon so the chunk boundary falls immediately after it
     filler = "y" * (SEND_CHUNK_CHARS - len(prefix) - 1)
@@ -318,14 +321,17 @@ def test_semicolons_survive_a_chunk_boundary(armed: tuple[Any, Store, str]) -> N
         result = await tool(
             action="send",
             session=session,
-            keystrokes=f"{prefix}{payload}' > /tmp/ir-semi.txt; wc -c < /tmp/ir-semi.txt\n",
+            keystrokes=f'{prefix}{payload}\' > {written}; echo "n=$(wc -c < {written})"\n',
             block=True,
             timeout=120,
         )
         assert "failed" not in result
         # the byte count is the assertion: a dropped semicolon is one short,
-        # and nothing else about the pane rendering can forge it
-        assert str(len(payload)) in result
+        # and nothing else about the pane rendering can forge it. The sentinel
+        # keeps the assertion honest: tmp_path carries digits of its own, and
+        # a bare count could also land where the echo scrub's one ambiguous
+        # column eats a digit-led output line
+        assert f"n={len(payload)}" in result
         await tool(action="close", session=session)
 
     asyncio.run(scenario())
