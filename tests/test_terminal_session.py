@@ -51,10 +51,20 @@ def test_session_name_grammar(name: str, valid: bool) -> None:
 @pytest.mark.parametrize(
     ("keystrokes", "block", "expected_keys", "expected_blocking"),
     [
-        # non-blocking passthrough, verbatim
-        ("ls -la\n", False, ["ls -la\n"], False),
+        # a non-blocking newline is carried by the Enter key, not a literal
+        # byte: the key reaches a raw-mode pty as CR, the byte as LF, and a
+        # Windows console across an ssh session submits only on CR
+        ("ls -la\n", False, ["ls -la", "Enter"], False),
+        ("ls -la\r\n", False, ["ls -la", "Enter"], False),
+        ("ls -la\r", False, ["ls -la", "Enter"], False),
+        ("\n", False, ["Enter"], False),
+        ("one\ntwo\n", False, ["one", "Enter", "two", "Enter"], False),
+        ("a\n\nb", False, ["a", "Enter", "Enter", "b"], False),
+        # without a newline nothing changes: key names are still looked up and
+        # a bare fragment is still typed verbatim
         ("C-c", False, ["C-c"], False),
         ("", False, [""], False),
+        ("partial", False, ["partial"], False),
         # blocking strips the trailing newline and appends the signal; the
         # trimming is what keeps it sendable, since the line then ends in the
         # channel name rather than a `;` tmux would read as a separator

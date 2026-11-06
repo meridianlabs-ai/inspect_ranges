@@ -224,6 +224,30 @@ def _executes(keystrokes: str) -> bool:
     return _is_enter_key(keystrokes) or bool(re.search(r"[\r\n]$", keystrokes))
 
 
+_NEWLINE_RUN = re.compile(r"\r\n|\r|\n")
+
+
+def newline_keys(keystrokes: str) -> list[str]:
+    r"""`keystrokes` as send-keys arguments, with each newline carried by the `Enter` key.
+
+    A newline typed as a literal byte reaches the pane as LF, while the `Enter` key reaches it as CR. Inside the pane's own pty that is the same thing, because the line discipline translates CR to LF, so a local shell cannot tell them apart. A program that puts the terminal in raw mode can: `ssh` does, and forwards the byte it was given.
+
+    That is the difference between a command running and nothing happening at all. A Windows console on the far side of an `ssh` session submits on CR and ignores a bare LF, so keystrokes ending in a literal newline sat unexecuted at the prompt and the next send typed itself onto the same line. Three Windows sessions in one eval run wedged this way, each ending with the agent unable even to `exit`; no Linux pane did, because readline accepts both.
+
+    Keystrokes with no newline are returned unchanged, so a key name (`C-c`) is still looked up and a bare fragment is still typed verbatim.
+    """
+    if not _NEWLINE_RUN.search(keystrokes):
+        return [keystrokes]
+    keys: list[str] = []
+    segments = _NEWLINE_RUN.split(keystrokes)
+    for index, segment in enumerate(segments):
+        if segment:
+            keys.append(segment)
+        if index < len(segments) - 1:
+            keys.append("Enter")
+    return keys
+
+
 def multiline_block(keystrokes: str) -> bool:
     """Whether a blocking send must be refused because the keystrokes span lines.
 
@@ -334,9 +358,11 @@ def prepare_send(
     """Prepare the send-keys arguments, appending the completion signal for a blocking send.
 
     Returns `(keys, is_blocking)`. A blocking send only makes sense when the keystrokes execute a command: the trailing Enter (key name or newline) is stripped, unescaped trailing semicolons are trimmed (they would make the signal splice a syntax error), and the per-send completion signal plus `Enter` are appended, so the whole line runs as `<command>; tmux wait -S <channel>`. Trimming the semicolons is what keeps the splice safe to send: the line ends in the channel name, so no argument ends in `;` for tmux to read as a command separator. Keystrokes that do not execute anything fall back to non-blocking even when `block` was requested; the caller refuses `multiline_block` keystrokes before calling.
+
+    A non-blocking send carries its newlines as `Enter` key presses rather than literal bytes, for the reason in `newline_keys`.
     """
     if not block or not _executes(keystrokes):
-        return [keystrokes], False
+        return newline_keys(keystrokes), False
     stripped = keystrokes
     if _is_enter_key(stripped):
         stripped = ""

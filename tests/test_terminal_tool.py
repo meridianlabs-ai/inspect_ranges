@@ -223,6 +223,41 @@ def test_oversized_send_chunks_through(armed: tuple[Any, Store, str]) -> None:
     asyncio.run(scenario())
 
 
+def test_a_newline_is_delivered_as_carriage_return(
+    armed: tuple[Any, Store, str], tmp_path: Path
+) -> None:
+    """A keystroke newline must reach a raw-mode pty as CR, not LF.
+
+    The pane's own line discipline translates CR to LF, so a local shell
+    cannot tell the two apart and this is invisible there. `ssh` puts the
+    terminal in raw mode and forwards whatever byte it is handed, and a
+    Windows console on the far side submits on CR and ignores a bare LF: in
+    one eval run three Windows sessions wedged with commands sitting typed
+    but unexecuted, ending with the agent unable even to `exit`.
+
+    A raw-mode reader on this host stands in for that Windows console, which
+    makes the delivered byte observable without a Windows guest.
+    """
+    tool, _, session = armed
+    captured = tmp_path / "raw-bytes.txt"
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        # -A renders CR as ^M and LF as $, so the file names the byte
+        await tool(
+            action="send",
+            session=session,
+            keystrokes=f"stty raw -echo; timeout 3 cat -A > {captured}; stty sane\n",
+        )
+        await asyncio.sleep(1.0)
+        await tool(action="send", session=session, keystrokes="PROBE\n")
+        await asyncio.sleep(3.5)
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())
+    assert captured.read_text().startswith("PROBE^M")
+
+
 def test_semicolons_survive_a_chunk_boundary(armed: tuple[Any, Store, str]) -> None:
     """A semicolon landing on a chunk boundary must reach the pane, through real tmux.
 
