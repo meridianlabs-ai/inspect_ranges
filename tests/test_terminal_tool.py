@@ -321,14 +321,17 @@ def test_semicolons_survive_a_chunk_boundary(
         result = await tool(
             action="send",
             session=session,
-            keystrokes=f"{prefix}{payload}' > {written}; wc -c < {written}\n",
+            keystrokes=f'{prefix}{payload}\' > {written}; echo "n=$(wc -c < {written})"\n',
             block=True,
             timeout=120,
         )
         assert "failed" not in result
         # the byte count is the assertion: a dropped semicolon is one short,
-        # and nothing else about the pane rendering can forge it
-        assert str(len(payload)) in result
+        # and nothing else about the pane rendering can forge it. The sentinel
+        # keeps the assertion honest: tmp_path carries digits of its own, and
+        # a bare count could also land where the echo scrub's one ambiguous
+        # column eats a digit-led output line
+        assert f"n={len(payload)}" in result
         await tool(action="close", session=session)
 
     asyncio.run(scenario())

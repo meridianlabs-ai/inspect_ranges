@@ -393,12 +393,17 @@ def _wait_echo_patterns(
 
     Each split whose left side ends in spaces captures the spaces that survived the trim, and the third element records, per capture group in pattern order, how many the untrimmed suffix carries there. `scrub_harness_echo` subtracts the survivors to learn how many columns the trim took out of the match at hand, so the wrap column it requires is exact for every split rather than a blanket allowance: only a wrap that lost spaces may sit short of `PANE_WIDTH`, and by exactly that many. A wrap at the very start of the suffix trims the command body instead, which is safe because `_trim_trailing_semicolons` has already stripped the body's trailing whitespace.
     """
+    # the signal's channel digits end their logical line (Enter follows at
+    # once), so a genuine wrap continuation carries nothing after them; the
+    # lookahead keeps a next line that merely STARTS with digits out of the
+    # broken form (the plain pattern stays unanchored: casts scrub the raw
+    # stream, where the suffix is followed by the line's own control bytes)
     if channel_prefix is None:
         literal = "; tmux wait -S done-"
-        tail, broken_tail = r"\S+", r"\S*\n\S+"
+        tail, broken_tail = r"\S+", r"\S*\n\S+(?=\n|$)"
     else:
         literal = f"; tmux wait -S {channel_prefix}"
-        tail, broken_tail = r"\d+", r"\d*\n\d+"
+        tail, broken_tail = r"\d+", r"\d*\n\d+(?=\n|$)"
     plain = re.compile(re.escape(literal) + tail)
     alternatives: list[str] = []
     group_spaces: list[int] = []
@@ -429,7 +434,7 @@ def wait_echo_pattern(channel_prefix: str) -> re.Pattern[str]:
 def scrub_harness_echo(text: str, channel_prefix: str | None = None) -> str:
     """Remove the blocking signal's pane echo from model-facing output.
 
-    A blocking send appends `; tmux wait -S <channel>` to the command line, and the pane echoes it back; the model should read its own command, not the harness suffix. The pane wraps at `PANE_WIDTH`, so the echoed suffix can carry one capture newline anywhere inside it; a wrapped match is removed only when its interior newline sits at the wrap column, so agent-authored text that merely resembles the suffix mid-line survives. A wrap landing on a space ends the line short by the spaces `capture-pane` trimmed, so the required column for each match is `PANE_WIDTH` minus exactly the spaces that match lost; a wrap that could trim nothing (inside a word, or inside the channel digits) must sit at `PANE_WIDTH` itself, so a shorter line that merely ends in the suffix keeps the output after it. The column counts characters rather than display cells, so a command line carrying double-width characters wraps earlier than this can see and keeps its match; the prefix anchoring is what makes that merely a missed scrub rather than a wrong one. An echo line that ends at exactly the pane width with the channel digits, followed by output whose first character is a digit, reads the same as a wrap inside the digits and is still over-scrubbed; the capture text alone cannot tell those apart. The tool threads `channel_prefix` (the session life's `wait_channel_prefix`), anchoring the match to our own channel names. Casts get the same treatment at assembly (`assemble_cast`, over the raw stream); the evidence mirror keeps the raw pane.
+    A blocking send appends `; tmux wait -S <channel>` to the command line, and the pane echoes it back; the model should read its own command, not the harness suffix. The pane wraps at `PANE_WIDTH`, so the echoed suffix can carry one capture newline anywhere inside it; a wrapped match is removed only when its interior newline sits at the wrap column, so agent-authored text that merely resembles the suffix mid-line survives. A wrap landing on a space ends the line short by the spaces `capture-pane` trimmed, so the required column for each match is `PANE_WIDTH` minus exactly the spaces that match lost; a wrap that could trim nothing (inside a word, or inside the channel digits) must sit at `PANE_WIDTH` itself, so a shorter line that merely ends in the suffix keeps the output after it. The column counts characters rather than display cells, so a command line carrying double-width characters wraps earlier than this can see and keeps its match; the prefix anchoring is what makes that merely a missed scrub rather than a wrong one. An echo line that ends at exactly the pane width with the channel digits, followed by an output line that is entirely digits, reads the same as a wrap inside the digits and is still over-scrubbed; the capture text alone cannot tell those apart (output with anything after its leading digits is already excluded, because a genuine continuation line ends with the channel digits). The tool threads `channel_prefix` (the session life's `wait_channel_prefix`), anchoring the match to our own channel names. Casts get the same treatment at assembly (`assemble_cast`, over the raw stream); the evidence mirror keeps the raw pane.
     """
     plain, wrapped, group_spaces = _wait_echo_patterns(channel_prefix)
 

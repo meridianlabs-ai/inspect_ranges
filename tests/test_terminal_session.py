@@ -630,6 +630,21 @@ def test_scrub_harness_echo_keeps_digit_output_after_a_short_suffix_line() -> No
     assert scrub_harness_echo(text, _PREFIX) == f"{body}\n1042\nout\n$ "
 
 
+def test_scrub_harness_echo_keeps_a_digit_led_line_after_a_full_width_suffix() -> None:
+    """Output that merely STARTS with digits survives even at the one ambiguous column.
+
+    A genuine wrap continuation line ends with the channel digits, because the
+    signal's Enter follows them at once, so a next line carrying anything after
+    its leading digits is output, not a wrap. Only an output line that is
+    entirely digits after a full-width suffix line remains indistinguishable
+    (the docstring records it).
+    """
+    suffix = f"; tmux wait -S {_PREFIX}7"
+    body = "x" * (PANE_WIDTH - len(suffix))
+    text = f"{body}{suffix}\n1042 rows\nout\n$ "
+    assert scrub_harness_echo(text, _PREFIX) == f"{body}\n1042 rows\nout\n$ "
+
+
 def test_scrub_harness_echo_anchored_still_removes_plain_form() -> None:
     echoed = f"$ ls /opt{_SUFFIX}\nguestd\n$"
     assert scrub_harness_echo(echoed, _PREFIX) == "$ ls /opt\nguestd\n$"
