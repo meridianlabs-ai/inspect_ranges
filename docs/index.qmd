@@ -227,24 +227,26 @@ Any Inspect agent can be the attacker. The agent works from the attack box, a re
 
 ### Scanning {#scanning}
 
-Two [scanners](reference/scanners.qmd) check the apparatus rather than the agent, so a bad range is distinguishable from a bad run.
+Two [scanners](reference/scanners.qmd) check the apparatus rather than the agent, so a bad range is distinguishable from a bad run. [range_apparatus](building.qmd#scan) matches machine signatures. [range_friction](building.qmd#scan) reads the transcript with a model for the defects that leave none, like a file the brief promised and the agent could not find. Zero findings is the healthy state for both.
 
-[range_apparatus](building.qmd#scan) is deterministic: post-readiness channel failures, spec-contradicting reachability, `verify_goal` wiring trouble, and scoring-integrity flags, each with a remediation hint. Add it to the scorer list and its findings land beside the challenge score, where zero is the healthy state:
+``` {.python filename="apparatus.py"}
+from inspect_scout import ScanJob, scanjob
 
-``` {.python filename="task.py"}
-from inspect_ranges.scanners import range_apparatus
+from inspect_ranges.scanners import range_apparatus, range_friction
 
-Task(..., scorer=[challenge_scorer(), range_apparatus()])
+@scanjob
+def apparatus() -> ScanJob:
+    return ScanJob(
+        scanners=[range_apparatus(), range_friction()],
+        model="anthropic/claude-opus-5",
+    )
 ```
-
-[range_friction](building.qmd#scan) reads the same transcripts with a model, for the defects that leave no machine signature: a file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed a newline. It costs a model call per transcript, so run it over accumulated logs instead of in a scorer list:
 
 ``` {.bash filename="Terminal"}
-scout scan inspect_ranges/range_friction -T ./logs \
-  --model anthropic/claude-opus-5
+scout scan apparatus.py -T ./logs
 ```
 
-[Running the Range](building.qmd#scan) covers both in development, and what a finding looks like.
+`range_apparatus` costs no model call, so it can also ride a task's scorer list and report beside the challenge score. See [Running the Range](building.qmd#scan).
 
 ### Terminal Sessions
 

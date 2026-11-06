@@ -4,13 +4,9 @@ description: Apparatus checking over sample transcripts, as inspect_scout scanne
 reference: inspect_ranges.scanners
 ---
 
-Scanners checking that the range apparatus itself behaved, built on [inspect_scout](https://meridianlabs-ai.github.io/inspect_scout/).
+Scanners checking that the range apparatus itself behaved, built on [inspect_scout](https://meridianlabs-ai.github.io/inspect_scout/). `range_apparatus` matches machine signatures and costs no model call, so it also runs online in a task's scorer list beside `challenge_scorer`, as the packaged example tasks do. `range_friction` reads the same transcripts with a model, for the defects that exist only as prose.
 
-`range_apparatus` is deterministic and cheap. The scanner form covers both consumption paths: scan finished logs with `scout scan inspect_ranges/range_apparatus -T ./logs` (or `inspect_scout.scan` from Python), or put it directly in a task's scorer list to run online beside `challenge_scorer`, as the packaged example tasks do.
-
-`range_friction` reads the same transcripts with a model, for the defects that exist only as prose. It costs a model call per transcript, so it is an after-the-fact audit rather than a scorer.
-
-See [Running the Range](../building.qmd#scan) for the development usage and what a finding looks like.
+See [Running the Range](../building.qmd#scan) for the scanjob that runs both over finished logs, and what a finding looks like.
 
 ## Scanners
 
