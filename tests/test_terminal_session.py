@@ -219,17 +219,20 @@ def typed_text(commands: list[list[str]]) -> str:
     in `;` loses that one semicolon, and if a `\` is exposed underneath, tmux
     reads it as an escape and types a bare `;`.
 
-    Key names are rejected rather than guessed at: tmux presses them, so no
-    string of characters is the honest answer, and a future row like `Space;`
-    must fail loudly instead of being replayed as five letters.
+    Key names on the lookup path are rejected rather than guessed at: tmux
+    presses them, so no string of characters is the honest answer, and a future
+    row like `Space;` must fail loudly instead of being replayed as five
+    letters. On the literal (`-l`) path lookup is off, so the same string IS
+    typed as its characters.
     """
     typed: list[str] = []
     for command in commands:
         if command[4] == "-H":
             typed.extend(chr(int(byte, 16)) for byte in command[5:])
             continue
+        lookup = command[4] == "--"
         for argument in command[command.index("--") + 1 :]:
-            if argument in KEY_NAMES:
+            if lookup and argument in KEY_NAMES:
                 raise AssertionError(
                     f"typed_text cannot model the key name {argument!r}: tmux "
                     "presses it rather than typing characters"
@@ -331,6 +334,21 @@ def test_a_pasted_line_that_reads_as_a_key_name_is_typed_not_pressed(
     keys, _ = prepare_send("s", keystrokes, False, "ab-7")
     for command in send_keys_commands("s", keys):
         assert "-l" in command, f"{word!r} would be looked up as a key name"
+
+
+@pytest.mark.parametrize("word", ["up", "home", "tab", "Enter", "C-c"])
+def test_a_semicolon_terminated_key_name_is_typed_not_pressed(word: str) -> None:
+    """A key name is honored only as the ENTIRE keystrokes value, and `up;` is not one.
+
+    The semicolon split sent the remaining body through key-name lookup, so
+    `up;` pressed the up arrow and recalled the previous shell line: the same
+    silent corruption the line-break path guards against, reachable through a
+    trailing semicolon instead.
+    """
+    commands = send_keys_commands("s", [f"{word};"])
+    assert typed_text(commands) == f"{word};"
+    for command in commands:
+        assert command[4] in ("-l", "-H"), f"{word!r} would be looked up"
 
 
 def test_a_multiline_paste_stays_under_the_tmux_command_limit() -> None:
@@ -563,30 +581,53 @@ def test_scrub_harness_echo_keeps_lookalikes(text: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("break_column", "scrubbed"),
+    ("break_column", "left_tail", "remainder", "scrubbed"),
     [
-        # a wrap at the pane width, and the one column a trimmed space eats
-        (PANE_WIDTH, True),
-        (PANE_WIDTH - 1, True),
-        # two columns short is a line break the pane did not make
-        (PANE_WIDTH - 2, False),
+        # a wrap on the suffix's space: capture-pane trims it, one column short
+        (PANE_WIDTH - 1, "; tmux wait", "-S ", True),
+        # the trimmed form at full width is a line break the pane did not make
+        # (its untrimmed line would be a column over the pane)
+        (PANE_WIDTH, "; tmux wait", "-S ", False),
+        (PANE_WIDTH - 2, "; tmux wait", "-S ", False),
+        # the space surviving means nothing was trimmed: full width only
+        (PANE_WIDTH, "; tmux wait ", "-S ", True),
+        (PANE_WIDTH - 1, "; tmux wait ", "-S ", False),
+        # a wrap inside a word can never be trimmed: full width only
+        (PANE_WIDTH, "; tmux w", "ait -S ", True),
+        (PANE_WIDTH - 1, "; tmux w", "ait -S ", False),
     ],
 )
-def test_scrub_harness_echo_window_is_as_wide_as_the_trim(
-    break_column: int, scrubbed: bool
+def test_scrub_harness_echo_requires_the_exact_wrap_column(
+    break_column: int, left_tail: str, remainder: str, scrubbed: bool
 ) -> None:
-    """The accepted wrap column spans exactly the columns a trim can eat, and no more.
+    """The accepted wrap column is the pane width minus exactly the spaces the match lost to the trim.
 
     The column test is what keeps agent-authored text that resembles the
-    signal from being eaten, so its width is a contract. Without this, widening
-    the window (or deriving it wrongly) leaves the whole suite green: a trim
-    allowance of 40 columns passes every other test in this file.
+    signal from being eaten, so its width is a contract per split, not a
+    blanket window. A window as wide as the worst split scrubs shapes no
+    capture can produce, and it eats real output (the digit test below);
+    a 40-column allowance even leaves every other test in this file green.
     """
-    head = "x" * (break_column - len("; tmux wait")) + "; tmux wait"
+    head = "x" * (break_column - len(left_tail)) + left_tail
     assert len(head) == break_column
-    text = f"{head}\n-S {_PREFIX}7\nout\n$ "
-    expected = f"{head[: -len('; tmux wait')]}\nout\n$ " if scrubbed else text
+    text = f"{head}\n{remainder}{_PREFIX}7\nout\n$ "
+    expected = f"{head[: -len(left_tail)]}\nout\n$ " if scrubbed else text
     assert scrub_harness_echo(text, _PREFIX) == expected
+
+
+def test_scrub_harness_echo_keeps_digit_output_after_a_short_suffix_line() -> None:
+    """An echo line that simply ends in the channel digits short of the pane width is no wrap, and the output after it survives.
+
+    Digits are never trimmed, so a line one column short cannot be a wrap
+    inside them. The blanket one-column window read it as one anyway and ate
+    the next line's leading digits, which is the first thing a `wc -c` or an
+    exit-status echo prints; the suffix still comes off through the plain
+    (unwrapped) form.
+    """
+    suffix = f"; tmux wait -S {_PREFIX}7"
+    body = "x" * (PANE_WIDTH - 1 - len(suffix))
+    text = f"{body}{suffix}\n1042\nout\n$ "
+    assert scrub_harness_echo(text, _PREFIX) == f"{body}\n1042\nout\n$ "
 
 
 def test_scrub_harness_echo_anchored_still_removes_plain_form() -> None:

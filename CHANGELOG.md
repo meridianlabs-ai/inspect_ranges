@@ -8,6 +8,10 @@
 
   Keystrokes carrying a line break are now typed literally, with tmux key-name lookup off. Lookup is case-insensitive, so a pasted line reading `up`, `end`, `space` or `tab` would otherwise be pressed as that key rather than typed, silently corrupting a pasted wordlist or one-column file.
 
+- The `terminal` echo scrub requires the exact wrap column for each wrapped form of the completion signal, instead of allowing every form one column of trim. Only a wrap on one of the suffix's spaces leaves the line short, because `capture-pane` trims the space, but the allowance also applied to wraps that can never be trimmed: an echo line that simply ended one column short of the pane width with the channel digits read as a wrap inside them, and the next line's leading digits (the first thing `wc -c` prints) were eaten with the match.
+
+- A `terminal` keystrokes value ending in `;` whose body spells a tmux key name (`up;`, `home;`) is typed, not pressed. The semicolon split sent the remaining body through key-name lookup, which is case-insensitive, so `up;` pressed the up arrow and recalled the previous shell line into whatever the agent was typing. A key name is honored only as the entire keystrokes value.
+
 - The blocking send's completion signal no longer leaks into what the agent reads when the pane wraps on one of its spaces. The scrub already handled a wrap falling anywhere inside `; tmux wait -S <channel>`, but it modelled the wrap as a newline inserted at column 160, and `capture-pane` also trims each line's trailing whitespace: a wrap landing on a space ends the line a column short with the space gone, so `; tmux wait -S ...` comes back as `; tmux wait\n-S ...`. Four of the suffix's split points were affected, and two agents in one eval run were shown the harness marker as if they had typed it.
 
 ## 0.2.17 (04 November 2026)
