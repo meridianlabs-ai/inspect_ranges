@@ -107,11 +107,32 @@ def list_sessions_command() -> list[str]:
 def send_keys_command(session: str, keys: list[str]) -> list[str]:
     """Argv sending key arguments to the session's pane (exact-name target).
 
-    `--` ends option parsing, so keystrokes starting with `-` are typed rather than read as `send-keys` flags. A lone `;` is the one argument tmux's client still consumes as a command separator even after `--`, so it is sent as its hex byte instead.
+    `--` ends option parsing, so keystrokes starting with `-` are typed rather than read as `send-keys` flags.
+
+    No argument may end in `;`. tmux's client reads a semicolon that terminates an argument as a command separator, `--` notwithstanding, and that is unrecoverable here: with nothing after it the character is silently dropped, and with another argument after it tmux rejects the whole command list, so nothing is typed at all. `send_keys_commands` splits those semicolons out into `semicolons_command` and is what callers should use; this raises rather than emit a command that would corrupt the agent's keystrokes.
+
+    Raises:
+        ValueError: A key argument ends in `;`.
     """
-    if keys == [";"]:
-        return ["tmux", "send-keys", "-t", target(session), "-H", "3b"]
+    offenders = [key for key in keys if key.endswith(";")]
+    if offenders:
+        raise ValueError(
+            f"send_keys_command cannot type semicolon-terminated arguments "
+            f"{offenders}: tmux would read the semicolon as a command "
+            f"separator. Use send_keys_commands, which splits them out."
+        )
     return ["tmux", "send-keys", "-t", target(session), "--", *keys]
+
+
+def semicolons_command(session: str, count: int) -> list[str]:
+    """Argv typing `count` semicolons as hex bytes (`3b`), the form tmux cannot mistake for a separator."""
+    return ["tmux", "send-keys", "-t", target(session), "-H", *(["3b"] * count)]
+
+
+def _split_trailing_semicolons(key: str) -> tuple[str, int]:
+    """`key` without its trailing semicolons, and how many there were."""
+    body = key.rstrip(";")
+    return body, len(key) - len(body)
 
 
 # tmux rejects a client command over ~16 KB ("command too long"), so larger
@@ -120,29 +141,49 @@ def send_keys_command(session: str, keys: list[str]) -> list[str]:
 SEND_CHUNK_CHARS = 2000
 
 
-def _send_literal_command(session: str, chunk: str) -> list[str]:
-    """Argv typing one chunk verbatim: `-l` disables key-name lookup, so a chunk that happens to equal a key name (`Enter`) is typed, not pressed; the lone-`;` separator still needs its hex form."""
-    if chunk == ";":
-        return ["tmux", "send-keys", "-t", target(session), "-H", "3b"]
-    return ["tmux", "send-keys", "-t", target(session), "-l", "--", chunk]
+def _send_literal_commands(session: str, chunk: str) -> list[list[str]]:
+    """The argv sequence typing one chunk verbatim: `-l` disables key-name lookup, so a chunk that happens to equal a key name (`Enter`) is typed, not pressed. Trailing semicolons split off into their hex form."""
+    body, semicolons = _split_trailing_semicolons(chunk)
+    commands: list[list[str]] = []
+    if body:
+        commands.append(["tmux", "send-keys", "-t", target(session), "-l", "--", body])
+    if semicolons:
+        commands.append(semicolons_command(session, semicolons))
+    return commands
+
+
+def _send_key_commands(session: str, key: str) -> list[list[str]]:
+    """The argv sequence typing one short key, with key-name lookup kept for the body and trailing semicolons split off into their hex form."""
+    body, semicolons = _split_trailing_semicolons(key)
+    commands: list[list[str]] = []
+    if body:
+        commands.append(send_keys_command(session, [body]))
+    if semicolons:
+        commands.append(semicolons_command(session, semicolons))
+    return commands
 
 
 def send_keys_commands(session: str, keys: list[str]) -> list[list[str]]:
-    """The argv sequence sending the prepared key arguments, splitting oversized ones.
+    r"""The argv sequence sending the prepared key arguments, splitting oversized ones and semicolon-terminated ones.
 
-    Keys at most `SEND_CHUNK_CHARS` long go through `send_keys_command` exactly as before (one command, key names honored). A longer key is never a tmux key name, so it splits into literal (`-l`) chunks that each fit tmux's client command limit; a 100 KB paste types through where a single `send-keys` would fail with "command too long".
+    Keys at most `SEND_CHUNK_CHARS` long, none of them semicolon-terminated, go through `send_keys_command` in one command with key names honored. A longer key is never a tmux key name, so it splits into literal (`-l`) chunks that each fit tmux's client command limit; a 100 KB paste types through where a single `send-keys` would fail with "command too long".
+
+    A key ending in `;` cannot ride an ordinary argument at all, because tmux's client reads that semicolon as a command separator even after `--` (measured on tmux 3.4). Alone at the end of a command it costs one character silently: `send-keys -l -- 'x;'` types `x`. Followed by another argument it costs everything, because tmux rejects the command list before typing any of it: `send-keys -l -- 'echo x;' Enter` reports `unknown command: Enter`, and neither `echo x` nor the Enter reaches the pane.
+
+    Fixed chunking manufactures the first case out of ordinary keystrokes: a 2000-character boundary landing just after a semicolon turns `int n=0;` into `int n=0` in the middle of a heredoc, and the pane reports it as the agent's own syntax error. So every trailing semicolon, at a chunk boundary or at the end of the agent's own keystrokes, goes as its hex byte. A `\;` is covered by the same split: tmux would otherwise eat the semicolon, then read the exposed trailing `\` as an escape and type a bare `;`.
     """
-    if all(len(key) <= SEND_CHUNK_CHARS for key in keys):
+    chunked = any(len(key) > SEND_CHUNK_CHARS for key in keys)
+    if not chunked and not any(key.endswith(";") for key in keys):
         return [send_keys_command(session, keys)]
     commands: list[list[str]] = []
     for key in keys:
         if len(key) <= SEND_CHUNK_CHARS:
-            commands.append(send_keys_command(session, [key]))
+            commands.extend(_send_key_commands(session, key))
         else:
-            commands.extend(
-                _send_literal_command(session, key[i : i + SEND_CHUNK_CHARS])
-                for i in range(0, len(key), SEND_CHUNK_CHARS)
-            )
+            for i in range(0, len(key), SEND_CHUNK_CHARS):
+                commands.extend(
+                    _send_literal_commands(session, key[i : i + SEND_CHUNK_CHARS])
+                )
     return commands
 
 
@@ -292,7 +333,7 @@ def prepare_send(
 ) -> tuple[list[str], bool]:
     """Prepare the send-keys arguments, appending the completion signal for a blocking send.
 
-    Returns `(keys, is_blocking)`. A blocking send only makes sense when the keystrokes execute a command: the trailing Enter (key name or newline) is stripped, unescaped trailing semicolons are trimmed (they would make the signal splice a syntax error), and the per-send completion signal plus `Enter` are appended, so the whole line runs as `<command>; tmux wait -S <channel>` (one argument, so no fragment of it can be the lone-`;` separator). Keystrokes that do not execute anything fall back to non-blocking even when `block` was requested; the caller refuses `multiline_block` keystrokes before calling.
+    Returns `(keys, is_blocking)`. A blocking send only makes sense when the keystrokes execute a command: the trailing Enter (key name or newline) is stripped, unescaped trailing semicolons are trimmed (they would make the signal splice a syntax error), and the per-send completion signal plus `Enter` are appended, so the whole line runs as `<command>; tmux wait -S <channel>`. Trimming the semicolons is what keeps the splice safe to send: the line ends in the channel name, so no argument ends in `;` for tmux to read as a command separator. Keystrokes that do not execute anything fall back to non-blocking even when `block` was requested; the caller refuses `multiline_block` keystrokes before calling.
     """
     if not block or not _executes(keystrokes):
         return [keystrokes], False
