@@ -562,6 +562,33 @@ def test_scrub_harness_echo_keeps_lookalikes(text: str) -> None:
     assert scrub_harness_echo(text, _PREFIX) == text
 
 
+@pytest.mark.parametrize(
+    ("break_column", "scrubbed"),
+    [
+        # a wrap at the pane width, and the one column a trimmed space eats
+        (PANE_WIDTH, True),
+        (PANE_WIDTH - 1, True),
+        # two columns short is a line break the pane did not make
+        (PANE_WIDTH - 2, False),
+    ],
+)
+def test_scrub_harness_echo_window_is_as_wide_as_the_trim(
+    break_column: int, scrubbed: bool
+) -> None:
+    """The accepted wrap column spans exactly the columns a trim can eat, and no more.
+
+    The column test is what keeps agent-authored text that resembles the
+    signal from being eaten, so its width is a contract. Without this, widening
+    the window (or deriving it wrongly) leaves the whole suite green: a trim
+    allowance of 40 columns passes every other test in this file.
+    """
+    head = "x" * (break_column - len("; tmux wait")) + "; tmux wait"
+    assert len(head) == break_column
+    text = f"{head}\n-S {_PREFIX}7\nout\n$ "
+    expected = f"{head[: -len('; tmux wait')]}\nout\n$ " if scrubbed else text
+    assert scrub_harness_echo(text, _PREFIX) == expected
+
+
 def test_scrub_harness_echo_anchored_still_removes_plain_form() -> None:
     echoed = f"$ ls /opt{_SUFFIX}\nguestd\n$"
     assert scrub_harness_echo(echoed, _PREFIX) == "$ ls /opt\nguestd\n$"
