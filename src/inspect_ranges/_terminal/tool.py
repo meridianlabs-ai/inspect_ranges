@@ -48,6 +48,7 @@ from .session import (
     remove_sink_command,
     scrub_harness_echo,
     send_keys_commands,
+    set_pane_hooks_commands,
     start_session_command,
     valid_session_name,
     wait_channel_prefix,
@@ -243,10 +244,14 @@ def terminal(instance: str | None = None) -> Tool:
                     if alive.success:
                         result = await _read_result(real, state)
                         return f"Session {session!r} is already open. {_open_sessions(states)}\n{result}"
-                    states.pop(session, None)
+                    dead = states.pop(session, None)
                     # the dead session's recorder is still tailing: stop it (and
-                    # write its cast) before the name starts a fresh life
+                    # write its cast) before the name starts a fresh life, then
+                    # drop the dead life's sinks so they cannot pile up on a
+                    # long-lived guest (the fresh life's hooks write new names)
                     await stop_capture(id(store()), real)
+                    if dead is not None:
+                        await _exec(remove_sink_command(real, dead.token))
                 started = await _exec(start_session_command(real))
                 if not started.success:
                     detail = (started.stderr or started.stdout).strip()[-500:]
@@ -256,6 +261,17 @@ def terminal(instance: str | None = None) -> Tool:
                 )
                 states[session] = state
                 state.markers.append((time.monotonic(), f"open {session}"))
+                # the session-scoped hooks that tap agent-created panes; a
+                # failure degrades pane capture, never the session itself
+                for hook_command in set_pane_hooks_commands(real, state.token):
+                    hooked = await _exec(hook_command)
+                    if not hooked.success:
+                        logger.info(
+                            "terminal pane hooks for %r not set: %s",
+                            session,
+                            (hooked.stderr or hooked.stdout).strip()[-200:],
+                        )
+                        break
                 store_id = id(store())
 
                 def cleanup(store_id: int = store_id) -> None:
@@ -278,9 +294,9 @@ def terminal(instance: str | None = None) -> Tool:
                 final = await _read_result(real, state)
                 await _exec(kill_session_command(real))
                 await stop_capture(id(store()), real)
-                # the recorder has drained the sink; a closed session must not
-                # leave its pipe file behind
-                await _exec(remove_sink_command(real))
+                # the recorder has drained the sinks; a closed session must not
+                # leave its pipe files (primary or per-pane) behind
+                await _exec(remove_sink_command(real, state.token))
                 states.pop(session, None)
                 return f"Closed session {session!r}. {_open_sessions(states)}\nFinal {final}"
 

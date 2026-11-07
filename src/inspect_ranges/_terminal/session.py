@@ -39,6 +39,37 @@ def sink_path(session: str) -> str:
     return f"{SINK_DIR}/{session}.pipe"
 
 
+def pane_sink_path(session: str, token: str, pane_id: str) -> str:
+    """The pipe-pane sink file for one agent-created pane of a session life.
+
+    `pane_id` is tmux's stable `%N` pane id. The name embeds the life `token` (`SessionState.token`): the hooks that write these sinks are re-set at every open with the current life's token, so a reopened name's new life can never append onto, or rediscover, a dead life's pane sinks.
+    """
+    return f"{SINK_DIR}/{session}-{token}-p{pane_id}.pipe"
+
+
+def pane_sink_glob(session: str, token: str) -> str:
+    """The shell glob matching one session life's per-pane sinks; the token keeps it exact, so another life's (or another session's) sinks never match."""
+    return f"{SINK_DIR}/{session}-{token}-p%*.pipe"
+
+
+_PANE_ID = re.compile(r"%\d+\Z")
+
+
+def pane_id_from_sink(path: str, session: str, token: str) -> str | None:
+    """The tmux pane id (`%N`) a per-pane sink path names, or `None` when the path is not one of this session life's pane sinks."""
+    prefix = f"{SINK_DIR}/{session}-{token}-p"
+    suffix = ".pipe"
+    if not (path.startswith(prefix) and path.endswith(suffix)):
+        return None
+    pane_id = path[len(prefix) : -len(suffix)]
+    return pane_id if _PANE_ID.match(pane_id) else None
+
+
+def pane_label(pane_id: str) -> str:
+    """The short pane label sibling cast and stream names carry (`%12` becomes `p12`); capture joins it to the session name with a dot, which the session grammar excludes, so a pane's names can never collide with another session's."""
+    return f"p{pane_id.lstrip('%')}"
+
+
 def wait_channel(session: str, nonce: str) -> str:
     """The per-send tmux wait channel the blocking completion signal uses.
 
@@ -94,9 +125,31 @@ def kill_session_command(session: str) -> list[str]:
     return ["tmux", "kill-session", "-t", target(session)]
 
 
-def remove_sink_command(session: str) -> list[str]:
-    """Argv removing the session's pipe-pane sink after close: a closed session must not leave its sink file behind (sessions still open at finalize keep theirs; the guest is torn down with the sample)."""
-    return ["rm", "-f", sink_path(session)]
+PANE_HOOKS = ("after-new-window", "after-split-window")
+
+
+def set_pane_hooks_commands(session: str, token: str) -> list[list[str]]:
+    """Argvs installing the session-scoped tmux hooks that tap agent-created panes.
+
+    `tmux new-window` or `split-window` typed inside the pane (the only way the agent gets more panes: send-keys bypasses client prefix handling) would otherwise leave capture on the original, now-idle pane. Each hook runs `pipe-pane` with no target, which tmux resolves to the hook's context pane, and that is the NEW pane (measured on tmux 3.4 for `new-window`, `split-window`, and the detached `new-window -d` alike; `#{hook_pane}` expands empty in these hooks there, so the context pane is the working handle). The sink name expands `#{pane_id}` at fire time and embeds the life `token`, so every pane of every life writes its own file.
+
+    The hooks are session-scoped (`-t`, never `-g`): the guest's tmux server is shared with any sessions the agent creates wholesale for itself, which must stay untouched. They never fire for the session's primary pane, whose window exists before they are set. Each argv is a separate client command rather than a splice into the open's `bash -c`, and the hook argument (itself a tmux command string, parsed by tmux's config parser) stays inside this builder's fixed grammar, with no semicolons and the format reference inside the single-quoted shell command, so none of the client's separator or escape hazards apply.
+    """
+    sink = pane_sink_path(session, token, "#{pane_id}")
+    hook_command = f"pipe-pane 'cat >> {sink}'"
+    return [
+        ["tmux", "set-hook", "-t", target(session), hook, hook_command]
+        for hook in PANE_HOOKS
+    ]
+
+
+def remove_sink_command(session: str, token: str) -> list[str]:
+    """Argv removing the session's pipe-pane sinks after close, the primary sink plus the life's per-pane sinks (token-exact glob): a closed session must not leave sink files behind (sessions still open at finalize keep theirs; the guest is torn down with the sample)."""
+    return [
+        "sh",
+        "-c",
+        f"rm -f {sink_path(session)} {pane_sink_glob(session, token)}",
+    ]
 
 
 def list_sessions_command() -> list[str]:

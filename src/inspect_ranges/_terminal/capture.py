@@ -14,11 +14,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import anyio
-from inspect_ai.util import background, sandbox
+from inspect_ai.util import SandboxEnvironment, background, sandbox
 from inspect_ai.util._sandbox.exec_remote import ExecRemoteProcess, ExecStdout
 
 from .cast import SessionOpener, assemble_cast, cast_store_cap_bytes, clip_cast
-from .session import SessionState, sink_path, wait_channel_prefix
+from .session import (
+    SessionState,
+    pane_id_from_sink,
+    pane_label,
+    pane_sink_glob,
+    sink_path,
+    wait_channel_prefix,
+)
 
 if TYPE_CHECKING:
     from .._provider.evidence import EvidenceSession
@@ -35,16 +42,33 @@ __all__ = [
 
 
 @dataclass
+class _PaneCapture:
+    """One agent-created pane's live tailer inside a session's recorder, with its own chunk buffer for the sibling cast."""
+
+    pane_id: str
+    sink: str
+    chunks: list[tuple[float, bytes]] = field(default_factory=list[tuple[float, bytes]])
+    process: ExecRemoteProcess | None = None
+    drained: anyio.Event = field(default_factory=anyio.Event)
+
+
+@dataclass
 class _Capture:
-    """One session's live recorder; `evidence` is `None` when the sample runs without an evidence session (recording and the store cast still happen)."""
+    """One session's live recorder; `evidence` is `None` when the sample runs without an evidence session (recording and the store cast still happen).
+
+    `environment` is the sandbox resolved at open time: the pane-discovery poller runs as a background task, outside the tool call's context, so it must carry the handle rather than resolve the ambient one. `panes` holds one tailer per agent-created pane the poller has discovered.
+    """
 
     session: str
     state: SessionState
     evidence: "EvidenceSession | None"
     opener: SessionOpener | None = None
+    environment: SandboxEnvironment | None = None
     process: ExecRemoteProcess | None = None
     stopped: bool = False
     drained: anyio.Event = field(default_factory=anyio.Event)
+    closed: anyio.Event = field(default_factory=anyio.Event)
+    panes: dict[str, _PaneCapture] = field(default_factory=dict[str, _PaneCapture])
 
 
 @dataclass
@@ -120,11 +144,16 @@ async def start_capture(
 
             if evidence is not None:
                 evidence.register_producer(finalize)
+        environment = sandbox()
         capture = _Capture(
-            session=session, state=state, evidence=sample.evidence, opener=opener
+            session=session,
+            state=state,
+            evidence=sample.evidence,
+            opener=opener,
+            environment=environment,
         )
         sample.captures[session] = capture
-        process = await sandbox().exec_remote(
+        process = await environment.exec_remote(
             [
                 "sh",
                 "-c",
@@ -134,6 +163,7 @@ async def start_capture(
         )
         capture.process = process
         background(_consume, capture, process)
+        background(_discover_panes, capture)
     except Exception as error:  # noqa: BLE001  (observability, never load-bearing)
         logger.info("terminal capture for %r is off: %s", session, error)
 
@@ -154,6 +184,68 @@ async def _consume(capture: _Capture, process: ExecRemoteProcess) -> None:
         capture.drained.set()
 
 
+_PANE_POLL_S = 2.0
+"""How often the recorder sweeps for per-pane sinks the session's tmux hooks created. Discovery latency costs timestamp granularity only, never content: a pane tailer reads its sink from byte one, and the sinks persist until close."""
+
+
+async def _discover_panes(capture: _Capture) -> None:
+    """Sweep for agent-created panes' sinks on a fixed cadence until the recorder stops; `stop_capture` wakes the wait so a stop never idles out the cadence."""
+    while not capture.stopped:
+        try:
+            await _sweep_pane_sinks(capture)
+        except Exception as error:  # noqa: BLE001
+            logger.info("terminal pane sweep for %r: %s", capture.session, error)
+        with anyio.move_on_after(_PANE_POLL_S):
+            await capture.closed.wait()
+
+
+async def _sweep_pane_sinks(capture: _Capture) -> None:
+    """One discovery pass: list the life's pane-sink glob and attach a tailer to every sink not yet tailed.
+
+    The glob embeds the life token, so a dead life's leftovers are invisible. An agent replacing a hooked pane's `pipe-pane` with its own (one pipe per pane is tmux's rule) merely stops the sink growing, which a `tail -F` tolerates by design.
+    """
+    if capture.environment is None:
+        return
+    glob = pane_sink_glob(capture.session, capture.state.token)
+    listed = await capture.environment.exec(
+        ["sh", "-c", f"ls {glob} 2>/dev/null || true"]
+    )
+    for line in listed.stdout.splitlines():
+        sink = line.strip()
+        pane_id = pane_id_from_sink(sink, capture.session, capture.state.token)
+        if pane_id is None or pane_id in capture.panes:
+            continue
+        pane = _PaneCapture(pane_id=pane_id, sink=sink)
+        capture.panes[pane_id] = pane
+        pane.process = await capture.environment.exec_remote(
+            ["sh", "-c", f"tail -c +1 -F {sink}"], stream=True
+        )
+        background(_consume_pane, capture, pane, pane.process)
+
+
+async def _consume_pane(
+    capture: _Capture, pane: _PaneCapture, process: ExecRemoteProcess
+) -> None:
+    """Drain one pane tailer's output events: timestamp, retain for the sibling cast, mirror to evidence (the dot joint keeps the stream clear of every session name, whose grammar has no dots)."""
+    stream = f"terminal/{capture.session}.{pane_label(pane.pane_id)}"
+    try:
+        async for event in process:
+            if isinstance(event, ExecStdout) and event.data:
+                data = event.data.encode(errors="replace")
+                pane.chunks.append((time.monotonic(), data))
+                if capture.evidence is not None:
+                    await capture.evidence.append_driver(stream, data)
+    except Exception as error:  # noqa: BLE001
+        logger.info(
+            "terminal pane capture stream for %r pane %s ended: %s",
+            capture.session,
+            pane.pane_id,
+            error,
+        )
+    finally:
+        pane.drained.set()
+
+
 async def stop_capture(store_id: int, session: str) -> None:
     """Stop one session's recorder and write its cast; idempotent.
 
@@ -165,7 +257,14 @@ async def stop_capture(store_id: int, session: str) -> None:
     capture = sample.captures.pop(session, None)
     if capture is None or capture.stopped:
         return
+    try:
+        # a final sweep catches a pane created since the poller's last pass:
+        # its tailer reads the whole sink from byte one before the kill below
+        await _sweep_pane_sinks(capture)
+    except Exception as error:  # noqa: BLE001
+        logger.info("terminal pane sweep for %r: %s", capture.session, error)
     capture.stopped = True
+    capture.closed.set()
     if capture.process is not None:
         try:
             await capture.process.kill()
@@ -173,6 +272,15 @@ async def stop_capture(store_id: int, session: str) -> None:
             pass
         with anyio.move_on_after(10):
             await capture.drained.wait()
+    for pane in capture.panes.values():
+        if pane.process is not None:
+            try:
+                await pane.process.kill()
+            except Exception:  # noqa: BLE001
+                pass
+    with anyio.move_on_after(10):
+        for pane in capture.panes.values():
+            await pane.drained.wait()
     _write_cast(sample, capture)
 
 
@@ -213,10 +321,13 @@ async def stop_all_captures(store_id: int) -> None:
 
 
 def _write_cast(sample: _SampleCaptures, capture: _Capture) -> None:
-    """Assemble the asciicast (with the blocking signal's echo scrubbed, as tool results are) and deliver it: into the sample store always (capped), and beside the sample's evidence when a local evidence location exists. The evidence mirror (`terminal/<session>`) stays raw.
+    """Assemble the session's asciicasts (with the blocking signal's echo scrubbed, as tool results are) and deliver them: into the sample store always (capped), and beside the sample's evidence when a local evidence location exists. The evidence mirrors (`terminal/<session>` and its pane streams) stay raw.
+
+    The primary cast assembles exactly as it always has, so a session with no agent-created panes records byte-identically. Each discovered pane that produced output gets a sibling cast named `<session>.p<N>` (the dot joint can never collide with another session's name, whose grammar has no dots), carrying the same `ir_session` and opener header so playback groups it under the session, and the same echo scrub (a no-op in a pane the signal never echoed in). Siblings share the session's store cap: the primary clips to the full cap as before, and each sibling takes what remains, so a many-pane session cannot blow the store.
 
     A session name can record more than one life (close then reopen, or reopen after dying), each with its own cast: later lives get a numbered suffix rather than overwriting the earlier record, in the store and on disk alike.
     """
+    channel_prefix = wait_channel_prefix(capture.session, capture.state.token)
     try:
         cast = assemble_cast(
             chunks=capture.state.chunks,
@@ -226,53 +337,84 @@ def _write_cast(sample: _SampleCaptures, capture: _Capture) -> None:
             title=f"terminal session {capture.session}",
             session=capture.session,
             opener=capture.opener,
-            channel_prefix=wait_channel_prefix(capture.session, capture.state.token),
+            channel_prefix=channel_prefix,
         )
     except Exception as error:  # noqa: BLE001
         logger.info("terminal cast for %r not assembled: %s", capture.session, error)
         return
-    _store_cast(sample, capture.session, cast)
+    cap = cast_store_cap_bytes()
+    stored = _store_cast(sample, capture.session, cast, cap)
+    _evidence_cast(capture, capture.session, cast)
+    panes = sorted(capture.panes.values(), key=lambda pane: int(pane.pane_id[1:]))
+    for pane in panes:
+        if not pane.chunks:
+            continue
+        try:
+            sibling = assemble_cast(
+                chunks=pane.chunks,
+                markers=[],
+                start_monotonic=capture.state.opened_monotonic,
+                start_wall=capture.state.opened_wall,
+                title=f"terminal session {capture.session} pane {pane.pane_id}",
+                session=capture.session,
+                opener=capture.opener,
+                channel_prefix=channel_prefix,
+            )
+        except Exception as error:  # noqa: BLE001
+            logger.info(
+                "terminal cast for %r pane %s not assembled: %s",
+                capture.session,
+                pane.pane_id,
+                error,
+            )
+            continue
+        name = f"{capture.session}.{pane_label(pane.pane_id)}"
+        stored += _store_cast(sample, name, sibling, max(cap - stored, 0))
+        _evidence_cast(capture, name, sibling)
+
+
+def _evidence_cast(capture: _Capture, name: str, cast: str) -> None:
+    """Write one cast file beside the sample's evidence when a local evidence location exists; never raises."""
     if capture.evidence is None:
         return
     location = capture.evidence.location
     if "://" in location:
-        logger.info(
-            "terminal cast for %r not written: remote evidence location",
-            capture.session,
-        )
+        logger.info("terminal cast for %r not written: remote evidence location", name)
         return
     try:
         directory = Path(location)
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / f"terminal-{capture.session}.cast"
+        path = directory / f"terminal-{name}.cast"
         serial = 2
         while path.exists():
-            path = directory / f"terminal-{capture.session}-{serial}.cast"
+            path = directory / f"terminal-{name}-{serial}.cast"
             serial += 1
         path.write_text(cast)
     except Exception as error:  # noqa: BLE001
-        logger.info("terminal cast for %r not written: %s", capture.session, error)
+        logger.info("terminal cast for %r not written: %s", name, error)
 
 
-def _store_cast(sample: _SampleCaptures, session: str, cast: str) -> None:
-    """Write the cast into the sample store under the `asciinema:<name>` convention, clipped to the store cap; never raises.
+def _store_cast(sample: _SampleCaptures, name: str, cast: str, cap_bytes: int) -> int:
+    """Write the cast into the sample store under the `asciinema:<name>` convention, clipped to `cap_bytes`, and report the bytes written (zero when skipped) so a session's sibling casts can share its cap; never raises.
 
     The key convention is what the viewer-side asciicast rendering binds to; until that lands the keys are inert store entries. The store write targets the sample's own store object (weakly held), so an interrupted sample's deferred teardown skips it rather than writing into another context's store.
     """
     try:
         sample_store = sample.store_ref() if sample.store_ref is not None else None
         if sample_store is None:
-            return
-        clipped = clip_cast(cast, cast_store_cap_bytes())
-        base = f"asciinema:terminal-{session}"
+            return 0
+        clipped = clip_cast(cast, cap_bytes)
+        base = f"asciinema:terminal-{name}"
         key = base
         serial = 2
         while sample_store.get(key) is not None:
             key = f"{base}-{serial}"
             serial += 1
         sample_store.set(key, clipped)
+        return len(clipped.encode(errors="replace"))
     except Exception as error:  # noqa: BLE001
-        logger.info("terminal cast for %r not stored: %s", session, error)
+        logger.info("terminal cast for %r not stored: %s", name, error)
+        return 0
 
 
 def captures_for_tests(store_id: int) -> dict[str, Any]:

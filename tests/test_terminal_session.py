@@ -16,10 +16,16 @@ from inspect_ranges._terminal.session import (
     is_shell,
     label_output,
     multiline_block,
+    pane_id_from_sink,
+    pane_label,
+    pane_sink_glob,
+    pane_sink_path,
     prepare_send,
+    remove_sink_command,
     scrub_harness_echo,
     send_keys_command,
     send_keys_commands,
+    set_pane_hooks_commands,
     start_session_command,
     valid_session_name,
     wait_channel,
@@ -464,6 +470,59 @@ def test_command_builders_shape() -> None:
     assert capture_pane_command("s")[-1] == "=s:"  # exact-match target
     wait = wait_done_command("s", 30.0, "ab-3")
     assert wait[:2] == ["timeout", "30.0s"] and wait[-1] == wait_channel("s", "ab-3")
+
+
+def test_pane_sink_naming_round_trip() -> None:
+    """A pane sink path carries the session, the life token, and the stable `%N` pane id; the parse recovers the id only for this life's sinks (the token discipline: a reopened name's new life must never pick up a dead life's panes)."""
+    path = pane_sink_path("s", "ab12cd34", "%7")
+    assert path == "/tmp/.guestd/s-ab12cd34-p%7.pipe"
+    assert pane_id_from_sink(path, "s", "ab12cd34") == "%7"
+    # another life's token, another session, the primary sink, and a
+    # malformed pane id all parse to None
+    assert pane_id_from_sink(path, "s", "ffffffff") is None
+    assert pane_id_from_sink(path, "other", "ab12cd34") is None
+    assert pane_id_from_sink("/tmp/.guestd/s.pipe", "s", "ab12cd34") is None
+    assert pane_id_from_sink("/tmp/.guestd/s-ab12cd34-pbad.pipe", "s", "ab12cd34") is (
+        None
+    )
+    assert pane_label("%12") == "p12"
+
+
+def test_pane_sink_glob_is_token_exact() -> None:
+    import fnmatch
+
+    glob = pane_sink_glob("s", "ab12cd34")
+    assert fnmatch.fnmatch(pane_sink_path("s", "ab12cd34", "%3"), glob)
+    # a dead life's sinks (different token) never match the new life's glob
+    assert not fnmatch.fnmatch(pane_sink_path("s", "ffffffff", "%3"), glob)
+    # nor does the primary sink, or a longer session name sharing the prefix
+    assert not fnmatch.fnmatch("/tmp/.guestd/s.pipe", glob)
+    assert not fnmatch.fnmatch(pane_sink_path("s-2", "ab12cd34", "%3"), glob)
+
+
+def test_set_pane_hooks_commands_shape() -> None:
+    """Both window-creation hooks install as separate session-scoped argv commands: the hook argument embeds the life token in the sink and expands `#{pane_id}` at fire time, and carries no semicolon for tmux's config parser to misread."""
+    commands = set_pane_hooks_commands("s", "ab12cd34")
+    hooks = [command[4] for command in commands]
+    assert hooks == ["after-new-window", "after-split-window"]
+    for command in commands:
+        assert command[:4] == ["tmux", "set-hook", "-t", "=s:"]
+        hook_command = command[5]
+        assert hook_command == (
+            "pipe-pane 'cat >> /tmp/.guestd/s-ab12cd34-p#{pane_id}.pipe'"
+        )
+        assert ";" not in hook_command
+    # a new life re-sets the hooks with its own token, so a reopened name
+    # cannot append onto a dead life's pane sink
+    assert set_pane_hooks_commands("s", "ffffffff") != commands
+
+
+def test_remove_sink_command_covers_pane_sinks() -> None:
+    """Close removes the primary sink and the life's per-pane sinks in one pass; the glob is token-exact, so a concurrently open life of another name is untouched."""
+    command = remove_sink_command("s", "ab12cd34")
+    assert command[:2] == ["sh", "-c"]
+    assert "/tmp/.guestd/s.pipe" in command[2]
+    assert pane_sink_glob("s", "ab12cd34") in command[2]
 
 
 def test_assemble_cast_orders_and_offsets_events() -> None:

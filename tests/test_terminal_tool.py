@@ -8,6 +8,7 @@ The suite skips on CI: these are real-timing tests (polling deltas, blocking wai
 import asyncio
 import os
 import shutil
+import signal
 import subprocess
 import uuid
 from collections.abc import Iterator
@@ -18,9 +19,10 @@ import inspect_ranges._terminal.tool as terminal_tool
 import pytest
 from inspect_ai.tool import ToolCall
 from inspect_ai.util import ExecResult
+from inspect_ai.util._sandbox.exec_remote import ExecStdout
 from inspect_ai.util._store import Store, init_subtask_store
 from inspect_ranges import terminal
-from inspect_ranges._terminal.session import SEND_CHUNK_CHARS, sink_path
+from inspect_ranges._terminal.session import SEND_CHUNK_CHARS, SINK_DIR, sink_path
 from inspect_ranges._terminal.tool import (
     _terminal_viewer,  # pyright: ignore[reportPrivateUsage]
     discard_terminal_state,
@@ -51,6 +53,49 @@ class HostSandbox:
         )
 
 
+class HostRemoteProcess:
+    """A host stand-in for an `exec_remote` handle: streams the subprocess's stdout as events; kill terminates the process group (the tailer is a child of its `sh`) and the iterator drains to EOF."""
+
+    def __init__(self, proc: asyncio.subprocess.Process) -> None:
+        self._proc = proc
+
+    def __aiter__(self) -> "HostRemoteProcess":
+        return self
+
+    async def __anext__(self) -> ExecStdout:
+        assert self._proc.stdout is not None
+        data = await self._proc.stdout.read(4096)
+        if not data:
+            raise StopAsyncIteration
+        return ExecStdout(data=data.decode(errors="replace"))
+
+    async def kill(self) -> None:
+        try:
+            os.killpg(os.getpgid(self._proc.pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
+class HostRemoteSandbox(HostSandbox):
+    """A host sandbox that also serves `exec_remote`, so the capture leg runs for real against host tmux."""
+
+    async def exec_remote(
+        self, cmd: list[str], stream: bool = True
+    ) -> HostRemoteProcess:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return HostRemoteProcess(proc)
+
+
+def pane_sink_files(session: str) -> list[Path]:
+    """The session's per-pane sinks on the host, any life token."""
+    return sorted(Path(SINK_DIR).glob(f"{session}-*-p%*.pipe"))
+
+
 @pytest.fixture()
 def armed(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Any, Store, str]]:
     """The tool with a host sandbox and a fresh store, plus a unique session name."""
@@ -69,6 +114,8 @@ def armed(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Any, Store, str]]:
         )
         # host hygiene even when a test fails before its close
         Path(sink_path(session)).unlink(missing_ok=True)
+        for pane_sink in pane_sink_files(session):
+            pane_sink.unlink(missing_ok=True)
 
 
 def test_open_send_read_close_flow(armed: tuple[Any, Store, str]) -> None:
@@ -162,6 +209,174 @@ def test_close_removes_the_sink_file(armed: tuple[Any, Store, str]) -> None:
         await tool(action="open", session=session)
         assert Path(sink_path(session)).exists()
         await tool(action="close", session=session)
+        assert not Path(sink_path(session)).exists()
+
+    asyncio.run(scenario())
+
+
+async def _wait_for(check: Any, tries: int = 40, pause: float = 0.25) -> None:
+    """Poll a predicate with real-timing patience; the caller asserts afterward."""
+    for _ in range(tries):
+        if check():
+            return
+        await asyncio.sleep(pause)
+
+
+def _sink_text(path: Path) -> str:
+    return path.read_text(errors="replace") if path.exists() else ""
+
+
+def test_new_window_records_to_its_own_sink(armed: tuple[Any, Store, str]) -> None:
+    """A `tmux new-window` typed inside the session gets its own per-pane sink via the open-time hook, the original sink keeps recording primary-pane activity, and close removes every sink."""
+    tool, _, session = armed
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        await tool(
+            action="send", session=session, keystrokes="tmux new-window\n", duration=1
+        )
+        # the computed marker lands in the NEW pane (it is now the active one)
+        await tool(
+            action="send",
+            session=session,
+            keystrokes="echo nw-$((40+2))\n",
+            duration=1,
+        )
+        await _wait_for(
+            lambda: any(
+                "nw-42" in _sink_text(sink) for sink in pane_sink_files(session)
+            )
+        )
+        sinks = pane_sink_files(session)
+        assert len(sinks) == 1
+        assert "nw-42" in _sink_text(sinks[0])
+        # back in the original window, the primary sink must keep recording
+        await tool(
+            action="send", session=session, keystrokes="tmux last-window\n", duration=1
+        )
+        await tool(
+            action="send",
+            session=session,
+            keystrokes="echo back-$((40+2))\n",
+            duration=1,
+        )
+        primary = Path(sink_path(session))
+        await _wait_for(lambda: "back-42" in _sink_text(primary))
+        assert "back-42" in _sink_text(primary)
+        assert "back-42" not in _sink_text(sinks[0])
+        await tool(action="close", session=session)
+        assert pane_sink_files(session) == []
+        assert not primary.exists()
+
+    asyncio.run(scenario())
+
+
+def test_split_window_records_to_its_own_sink(armed: tuple[Any, Store, str]) -> None:
+    """A `tmux split-window` typed inside the session pipes the new pane into its own sink."""
+    tool, _, session = armed
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        # a session that has not split yet has no pane sinks at all
+        assert pane_sink_files(session) == []
+        await tool(
+            action="send", session=session, keystrokes="tmux split-window\n", duration=1
+        )
+        await tool(
+            action="send",
+            session=session,
+            keystrokes="echo sp-$((40+2))\n",
+            duration=1,
+        )
+        await _wait_for(
+            lambda: any(
+                "sp-42" in _sink_text(sink) for sink in pane_sink_files(session)
+            )
+        )
+        sinks = pane_sink_files(session)
+        assert len(sinks) == 1
+        assert "sp-42" in _sink_text(sinks[0])
+        await tool(action="close", session=session)
+        assert pane_sink_files(session) == []
+
+    asyncio.run(scenario())
+
+
+def test_close_assembles_sibling_casts_live(
+    armed: tuple[Any, Store, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The full capture leg against real tmux: a session that spawns a window closes to one primary cast plus one sibling cast (file and store key), each carrying only its own pane's output, with every sink removed."""
+    import inspect_ranges._terminal.capture as capture_module
+
+    tool, store, session = armed
+
+    class LiveEvidence:
+        def __init__(self, location: str) -> None:
+            self.location = location
+            self.appended: list[tuple[str, bytes]] = []
+
+        async def append_driver(self, stream: str, data: bytes) -> None:
+            self.appended.append((stream, data))
+
+        def register_producer(self, stop: Any) -> None:
+            pass
+
+    evidence = LiveEvidence(str(tmp_path / "evidence"))
+    host = HostRemoteSandbox()
+    monkeypatch.setattr(
+        capture_module, "_capture_target", lambda: (True, evidence, "live-panes")
+    )
+    monkeypatch.setattr(capture_module, "_current_store", lambda: store)
+    monkeypatch.setattr(capture_module, "sandbox", lambda: host)
+    monkeypatch.setattr(capture_module, "_PANE_POLL_S", 0.2)
+    tasks: list[asyncio.Task[None]] = []
+
+    def run_background(fn: Any, *args: Any) -> None:
+        tasks.append(asyncio.get_event_loop().create_task(fn(*args)))
+
+    monkeypatch.setattr(capture_module, "background", run_background)
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        await tool(
+            action="send", session=session, keystrokes="tmux new-window\n", duration=1
+        )
+        await tool(
+            action="send",
+            session=session,
+            keystrokes="echo pane-$((40+2))\n",
+            duration=1,
+        )
+        await tool(
+            action="send", session=session, keystrokes="tmux last-window\n", duration=1
+        )
+        await tool(
+            action="send",
+            session=session,
+            keystrokes="echo prime-$((40+2))\n",
+            duration=1,
+        )
+        await asyncio.sleep(0.5)  # at least one discovery poll passes
+        await tool(action="close", session=session)
+        directory = Path(evidence.location)
+        primary = (directory / f"terminal-{session}.cast").read_text()
+        siblings = sorted(directory.glob(f"terminal-{session}.p*.cast"))
+        assert len(siblings) == 1
+        sibling = siblings[0].read_text()
+        # each cast carries only its own pane's output
+        assert "prime-42" in primary and "pane-42" not in primary
+        assert "pane-42" in sibling and "prime-42" not in sibling
+        # both casts land in the store under the asciinema convention
+        assert store.get(f"asciinema:terminal-{session}") is not None
+        pane_name = siblings[0].name[len("terminal-") : -len(".cast")]
+        assert store.get(f"asciinema:terminal-{pane_name}") is not None
+        # the pane's evidence mirror used its own stream
+        assert any(
+            stream.startswith(f"terminal/{session}.p")
+            for stream, _ in evidence.appended
+        )
+        # close removed every sink, primary and per-pane alike
+        assert pane_sink_files(session) == []
         assert not Path(sink_path(session)).exists()
 
     asyncio.run(scenario())
