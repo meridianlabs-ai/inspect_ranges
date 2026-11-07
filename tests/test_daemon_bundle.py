@@ -140,11 +140,14 @@ def test_install_script_locks_down_the_daemon_home() -> None:
     lockdown = script.index("icacls.exe C:\\guestd /inheritance:r")
     work = script.index("icacls.exe C:\\guestd\\work /inheritance:r")
     first_copy = script.index("Copy-Item")
-    compile_at = script.index("csc.exe")
+    compile_at = script.index("& $csc")  # the invocation, not the header comment
     cleanup = script.index("Remove-Item -Force C:\\guestd\\*.cs")
-    # lockdown precedes any content landing; source cleanup follows the compile
+    stop_at = script.index("sc.exe stop guestd")
+    # lockdown precedes any content landing; the live service stops before the
+    # compile (a running binary holds a mapped-image lock csc cannot replace);
+    # source cleanup follows the compile
     assert lockdown < first_copy and work < first_copy
-    assert compile_at < cleanup
+    assert stop_at < compile_at < cleanup
     # grants are SIDs, with Authenticated Users write-less outside work
     for grant in (
         "'*S-1-5-18:(OI)(CI)F'",

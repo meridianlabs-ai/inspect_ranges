@@ -170,18 +170,22 @@ def test_live_project_files_reads_boot_json(tmp_path: Path) -> None:
 
 
 def test_windows_scrub_acl_guard_pins_the_lockdown_contract() -> None:
-    r"""The guard must check broad principals by SID, use a write-class mask that includes the generic bits, cover both the daemon home and the binary, and fail closed.
+    r"""A tripwire over the guard's contract, not its spelling: no PowerShell runs in CI, so the live gates are the golden derive and the first Windows build, and this test exists to make an edit that narrows the contract a deliberate act.
 
-    This is the build-time half of the daemon-home lockdown (install-daemon.ps1 is the other): a regression re-opening write access for Everyone, Authenticated Users, or BUILTIN\\Users must fail the build rather than ship a harness-made privesc.
+    The contract: broad principals checked by SID (names vary by locale), the home and the binary refused all write-class access including the generic bits, work refused only ownership-class bits (its Modify grant is the deliberate exec-home exception), and the failure naming the re-derive remedy, because the common trip is a build on a pre-lockdown golden.
     """
     from inspect_ranges._build.capture import GUESTD_ACL_GUARD
 
     for sid in ("S-1-1-0", "S-1-5-11", "S-1-5-32-545"):
         assert sid in GUESTD_ACL_GUARD, sid
-    # write-class bits plus GENERIC_WRITE and GENERIC_ALL
+    # write-class plus GENERIC_WRITE and GENERIC_ALL for the home and binary;
+    # ownership-class only for work
     assert "0x500D0156" in GUESTD_ACL_GUARD
-    assert "C:\\guestd" in GUESTD_ACL_GUARD
-    assert "C:\\guestd\\guestd.exe" in GUESTD_ACL_GUARD
-    assert "exit 1" in GUESTD_ACL_GUARD
-    # only Allow ACEs count: a broad Deny must not trip the guard
-    assert "-ne 'Allow'" in GUESTD_ACL_GUARD
+    assert "0x100C0000" in GUESTD_ACL_GUARD
+    for path, mask in (
+        ("'C:\\guestd'", "$writeMask"),
+        ("'C:\\guestd\\guestd.exe'", "$writeMask"),
+        ("'C:\\guestd\\work'", "$ownMask"),
+    ):
+        assert f"@({path}, {mask})" in GUESTD_ACL_GUARD, path
+    assert "derive-windows" in GUESTD_ACL_GUARD  # the remedy rides the error

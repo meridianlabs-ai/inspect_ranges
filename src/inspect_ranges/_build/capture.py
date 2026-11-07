@@ -63,20 +63,29 @@ def default_capture_runner(argv: list[str]) -> str:
 # Modify over the SYSTEM service binary, a harness-made local privesc on the
 # exact machines whose task is local privesc (verified live, 2026-11-07; the
 # golden install now locks the tree down, and this guard fails the build if
-# write-class access ever returns). The work dir is the deliberate exception:
-# it is the exec home for profile-less user= accounts. SIDs, not names, so
-# the check holds on non-English Windows; the mask is the write-class bits
-# (file/dir write, attribute/EA write, delete, delete-child, WriteDacl,
-# WriteOwner) plus GENERIC_WRITE and GENERIC_ALL.
+# write-class access ever returns). Two masks: the home and the binary refuse
+# all write-class bits (file/dir write, attribute/EA write, delete,
+# delete-child, WriteDacl, WriteOwner) plus GENERIC_WRITE and GENERIC_ALL;
+# work deliberately keeps Modify (it is the exec home for profile-less user=
+# accounts) and refuses only ownership-class bits (WriteDacl, WriteOwner,
+# GENERIC_ALL), so a grant widened past Modify cannot ship. SIDs, not names,
+# so the check holds on non-English Windows. The error names the remedy for
+# the common trip: a build on a golden derived before the lockdown.
 GUESTD_ACL_GUARD = (
     "$broad = @('S-1-1-0', 'S-1-5-11', 'S-1-5-32-545'); "
-    "$mask = 0x500D0156; "
-    "foreach ($p in @('C:\\guestd', 'C:\\guestd\\guestd.exe')) { "
+    "$writeMask = 0x500D0156; "
+    "$ownMask = 0x100C0000; "
+    "foreach ($chk in @(@('C:\\guestd', $writeMask), "
+    "@('C:\\guestd\\guestd.exe', $writeMask), "
+    "@('C:\\guestd\\work', $ownMask))) { "
+    "$p = $chk[0]; $m = $chk[1]; "
     "foreach ($r in (Get-Acl $p).Access) { "
     "if ($r.AccessControlType -ne 'Allow') { continue }; "
     "$sid = $r.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value; "
-    "if ($broad -contains $sid -and (($r.FileSystemRights.value__) -band $mask) -ne 0) "
-    "{ Write-Error ('broad write access on ' + $p + ': ' + $r.IdentityReference + ' ' + $r.FileSystemRights); exit 1 } } }; "
+    "if ($broad -contains $sid -and (($r.FileSystemRights.value__) -band $m) -ne 0) "
+    "{ Write-Error ('broad write access on ' + $p + ': ' + $r.IdentityReference + ' ' "
+    "+ $r.FileSystemRights + '; a pre-lockdown golden must be re-derived: "
+    "inspect-ranges images derive-windows'); exit 1 } } }; "
 )
 """The Windows scrub's fail-closed ACL assertion over the daemon home (see `scrub_guest`)."""
 
@@ -165,10 +174,13 @@ def scrub_guest(
             ),
         )
         if outcome.rc != 0:
+            # head, not tail: PowerShell prints the Write-Error message first
+            # and its 'At line...' boilerplate after, so a tail slice would
+            # keep boilerplate and drop the diagnosis
             raise BuildError(
                 "capture",
                 f"pre-capture scrub exited {outcome.rc}: "
-                f"{outcome.stderr.decode(errors='replace')[-200:]}",
+                f"{outcome.stderr.decode(errors='replace')[:600]}",
                 guest=guest,
             )
 

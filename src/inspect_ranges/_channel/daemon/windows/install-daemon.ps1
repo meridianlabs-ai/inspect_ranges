@@ -41,6 +41,14 @@ if ($LASTEXITCODE -ne 0) { throw "icacls C:\guestd failed: $LASTEXITCODE" }
 & icacls.exe C:\guestd\work /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-11:(OI)(CI)(M)' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "icacls C:\guestd\work failed: $LASTEXITCODE" }
 
+# a reinstall must stop the live service before the compile: a running
+# guestd.exe holds a mapped-image lock that would fail csc's /out open
+if (Get-Service guestd -ErrorAction SilentlyContinue) {
+    sc.exe stop guestd | Out-Null
+    sc.exe delete guestd | Out-Null
+    Start-Sleep -Seconds 2
+}
+
 foreach ($src in 'Wire.cs', 'Store.cs', 'Exec.cs', 'Daemon.cs', 'Program.cs') {
     Copy-Item "${payload}:\$src" C:\guestd\
 }
@@ -77,11 +85,6 @@ if (Test-Path "${payload}:\busybox.exe") {
 
 # service: auto start, restart on failure (the daemon additionally supervises
 # its own listener, so a wedged accept loop recovers without any restart)
-if (Get-Service guestd -ErrorAction SilentlyContinue) {
-    sc.exe stop guestd | Out-Null
-    sc.exe delete guestd | Out-Null
-    Start-Sleep -Seconds 2
-}
 sc.exe create guestd binPath= 'C:\guestd\guestd.exe' start= auto | Out-Null
 sc.exe failure guestd reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
 sc.exe start guestd | Out-Null

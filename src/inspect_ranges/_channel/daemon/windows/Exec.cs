@@ -273,8 +273,14 @@ namespace VsockD
             {
                 // the exec identity's home: logon profile for user= execs
                 // (when it exists on disk), the daemon's work dir otherwise.
+                // SYSTEM execs get the locked daemon home instead, never
+                // work: CreateProcess resolves a bare image name from the
+                // current directories, so a user-writable cwd would let a
+                // planted binary shadow a harness exec as LocalSystem.
                 // Default cwd is the home; a relative cwd joins it.
-                string home = ProfileDirOr(token, Daemon.WorkDir);
+                string home = user == null
+                    ? Daemon.BaseDir
+                    : ProfileDirOr(token, Daemon.WorkDir);
                 cwd = cwd == null ? home : PathRules.Resolve(cwd, home);
                 ExecOutcome bad = PrecheckCwd(cwd);
                 if (bad != null) return bad;
