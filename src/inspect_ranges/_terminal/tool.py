@@ -44,11 +44,15 @@ from .session import (
     label_output,
     multiline_block,
     pane_command_command,
+    pane_hooks_supported,
     prepare_send,
     remove_sink_command,
     scrub_harness_echo,
     send_keys_commands,
+    set_pane_hooks_commands,
     start_session_command,
+    tmux_version_command,
+    unset_pane_hooks_commands,
     valid_session_name,
     wait_channel_prefix,
     wait_done_command,
@@ -154,6 +158,34 @@ async def _exec(cmd: list[str], timeout_s: float = 30.0) -> "ExecResult[str]":
     return await sandbox().exec(cmd, timeout=int(timeout_s))
 
 
+async def _install_pane_hooks(real: str, token: str, session: str) -> bool:
+    """Install the session-scoped pane-capture hooks; `False` means pane capture is off for this session life (the session itself is unaffected, and the recorder skips pane discovery).
+
+    Two gates, both logged at INFO because the agent cannot act on them. First the guest's tmux version: the hooks' untargeted `pipe-pane` is proven to tap the NEW pane on 3.4+ (`pane_hooks_supported`), and on an unproven version it could bind the OLD pane and divert the primary tap, strictly worse than no pane capture. Second, installation is both-or-none: a partial install is rolled back, since one hook silently taping only window creations but not splits (or the reverse) would misrepresent coverage.
+    """
+    version = await _exec(tmux_version_command())
+    if not version.success or not pane_hooks_supported(version.stdout):
+        reported = (version.stdout or version.stderr).strip()[-200:]
+        logger.info(
+            "terminal pane hooks for %r not set: unproven tmux version %r",
+            session,
+            reported,
+        )
+        return False
+    for hook_command in set_pane_hooks_commands(real, token):
+        hooked = await _exec(hook_command)
+        if not hooked.success:
+            for unset_command in unset_pane_hooks_commands(real):
+                await _exec(unset_command)
+            logger.info(
+                "terminal pane hooks for %r not set: %s",
+                session,
+                (hooked.stderr or hooked.stdout).strip()[-200:],
+            )
+            return False
+    return True
+
+
 def _open_sessions(states: dict[str, SessionState]) -> str:
     names = ", ".join(sorted(states)) or "none"
     return f"Open sessions: {names}."
@@ -245,8 +277,11 @@ def terminal(instance: str | None = None) -> Tool:
                         return f"Session {session!r} is already open. {_open_sessions(states)}\n{result}"
                     states.pop(session, None)
                     # the dead session's recorder is still tailing: stop it (and
-                    # write its cast) before the name starts a fresh life
+                    # write its cast) before the name starts a fresh life, then
+                    # drop the dead life's sinks so they cannot pile up on a
+                    # long-lived guest (the fresh life's hooks write new names)
                     await stop_capture(id(store()), real)
+                    await _exec(remove_sink_command(real, state.token))
                 started = await _exec(start_session_command(real))
                 if not started.success:
                     detail = (started.stderr or started.stdout).strip()[-500:]
@@ -256,12 +291,20 @@ def terminal(instance: str | None = None) -> Tool:
                 )
                 states[session] = state
                 state.markers.append((time.monotonic(), f"open {session}"))
+                pane_hooks = await _install_pane_hooks(real, state.token, session)
                 store_id = id(store())
 
                 def cleanup(store_id: int = store_id) -> None:
                     _STATES.pop(store_id, None)
 
-                await start_capture(store_id, real, state, cleanup, _current_opener())
+                await start_capture(
+                    store_id,
+                    real,
+                    state,
+                    cleanup,
+                    _current_opener(),
+                    pane_hooks=pane_hooks,
+                )
                 result = await _read_result(real, state)
                 return f"Opened session {session!r}. {_open_sessions(states)}\n{result}"
 
@@ -278,9 +321,9 @@ def terminal(instance: str | None = None) -> Tool:
                 final = await _read_result(real, state)
                 await _exec(kill_session_command(real))
                 await stop_capture(id(store()), real)
-                # the recorder has drained the sink; a closed session must not
-                # leave its pipe file behind
-                await _exec(remove_sink_command(real))
+                # the recorder has drained the sinks; a closed session must not
+                # leave its pipe files (primary or per-pane) behind
+                await _exec(remove_sink_command(real, state.token))
                 states.pop(session, None)
                 return f"Closed session {session!r}. {_open_sessions(states)}\nFinal {final}"
 

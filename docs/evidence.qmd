@@ -26,7 +26,7 @@ Evidence is on by default inside an eval: when a sample runs under Inspect, the 
 | `draws` | The per-sample variable draw seed and values (non-secret by construction), so recorded samples re-derive post-hoc. |
 | `plants` | What challenge setup planted where (tokens, flags), timestamped: the scorer's proof-contract record. |
 | `probe/<goal id>` | The nonce-bound active prober's transcript for goals that use it. |
-| `terminal/<session>` | The agent's terminal sessions when the task wires the [terminal](challenges.qmd#terminal-sessions) tool: the pane output re-encoded as UTF-8, host-timestamped. At close, an asciicast assembled from it lands beside a local evidence location as `terminal-<session>.cast` (a remote location carries the stream but gets no cast file). |
+| `terminal/<session>` | The agent's terminal sessions when the task wires the [terminal](challenges.qmd#terminal-sessions) tool: the pane output re-encoded as UTF-8, host-timestamped. A pane the agent adds with `tmux new-window` or `split-window` records to its own `terminal/<session>.p<N>` stream. At close, an asciicast assembled from each stream lands beside a local evidence location as `terminal-<session>.cast` (panes as `terminal-<session>.p<N>.cast`; a remote location carries the streams but gets no cast files). |
 | `heartbeat`, `clock` | Capture liveness and watermarks for our own collectors, and wall-clock anomaly records. |
 
 ## Storage

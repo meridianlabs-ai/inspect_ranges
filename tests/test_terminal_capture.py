@@ -9,7 +9,7 @@ from typing import Any
 
 import inspect_ranges._terminal.capture as capture_module
 import pytest
-from inspect_ai.util import Store
+from inspect_ai.util import ExecResult, Store
 from inspect_ai.util._sandbox.exec_remote import ExecStdout
 from inspect_ranges._terminal.capture import (
     captures_for_tests,
@@ -59,7 +59,37 @@ class FakeSandbox:
     def __init__(self, process: FakeProcess) -> None:
         self.process = process
 
+    async def exec(self, cmd: list[str], timeout: int | None = None) -> ExecResult[str]:
+        return ExecResult(success=True, returncode=0, stdout="", stderr="")
+
     async def exec_remote(self, cmd: list[str], stream: bool = True) -> FakeProcess:
+        return self.process
+
+
+class PaneFakeSandbox(FakeSandbox):
+    """A sandbox serving a sink directory: `panes` are tailed by their own scripted processes (the poller path), `contents` answer one-shot reads (the stop-time collect path); the primary tailer keeps the base process."""
+
+    def __init__(
+        self,
+        process: FakeProcess,
+        panes: dict[str, FakeProcess] | None = None,
+        contents: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(process)
+        self.panes = panes or {}
+        self.contents = contents or {}
+
+    async def exec(self, cmd: list[str], timeout: int | None = None) -> ExecResult[str]:
+        if cmd[-1].startswith("cat "):
+            body = self.contents.get(cmd[-1][len("cat ") :], "")
+            return ExecResult(success=True, returncode=0, stdout=body, stderr="")
+        listing = "\n".join([*self.panes, *self.contents])
+        return ExecResult(success=True, returncode=0, stdout=listing, stderr="")
+
+    async def exec_remote(self, cmd: list[str], stream: bool = True) -> FakeProcess:
+        for path, process in self.panes.items():
+            if path in cmd[-1]:
+                return process
         return self.process
 
 
@@ -423,5 +453,194 @@ def test_capture_off_outside_range_sandbox(
         await start_capture(1, "s", state, lambda: None)
         assert captures_for_tests(1) == {}
         await stop_all_captures(1)  # no-op, never raises
+
+    asyncio.run(scenario())
+
+
+def test_discovered_pane_gets_a_sibling_cast(
+    arm: tuple[FakeEvidence, FakeProcess, SessionState, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A per-pane sink the session's hooks created is discovered, tailed, mirrored to its own evidence stream, and assembled into a sibling cast beside the primary (file and store key alike), grouped under the session by its header and carrying the session's tool-call markers."""
+    from inspect_ranges._terminal.session import pane_sink_path
+
+    evidence, _, state, store_id = arm
+    pane_path = pane_sink_path("s", state.token, "%7")
+    pane_process = FakeProcess(["pane-output\n"])
+    stub = PaneFakeSandbox(FakeProcess(["primary\n"]), {pane_path: pane_process})
+    monkeypatch.setattr(capture_module, "sandbox", lambda: stub)
+    monkeypatch.setattr(capture_module, "_PANE_POLL_S", 0.02)
+
+    async def scenario() -> None:
+        await start_capture(store_id, "s", state, lambda: None)
+        await asyncio.sleep(0.1)  # the poller discovers and the tailers drain
+        state.markers.append((0.5, "send s: 'ls'"))
+        await stop_capture(store_id, "s")
+        assert pane_process.killed
+        directory = Path(evidence.location)
+        assert (directory / "terminal-s.cast").exists()
+        lines = (directory / "terminal-s.p7.cast").read_text().strip().split("\n")
+        header = json.loads(lines[0])
+        assert header["ir_session"] == "s"
+        assert header["title"] == "terminal session s pane %7"
+        events = [json.loads(line) for line in lines[1:]]
+        assert any(kind == "o" and data == "pane-output\n" for _, kind, data in events)
+        # the session's tool-call markers are session-level context, so the
+        # pane's playback carries them too
+        assert any(kind == "m" and "send s" in data for _, kind, data in events)
+        assert ("terminal/s.p7", b"pane-output\n") in evidence.appended
+        assert current_store is not None
+        assert current_store.get("asciinema:terminal-s.p7") is not None
+
+    asyncio.run(scenario())
+
+
+def test_stop_collects_a_pane_the_poller_never_saw(
+    arm: tuple[FakeEvidence, FakeProcess, SessionState, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pane created just before close still gets its sibling cast: stop lists the sinks once more and reads an undiscovered one whole in a bounded one-shot (no tailer spawned just to be killed), mirroring the read to the pane's evidence stream."""
+    from inspect_ranges._terminal.session import pane_sink_path
+
+    evidence, _, state, store_id = arm
+    pane_path = pane_sink_path("s", state.token, "%3")
+    stub = PaneFakeSandbox(
+        FakeProcess(["primary\n"]), contents={pane_path: "late-pane\n"}
+    )
+    monkeypatch.setattr(capture_module, "sandbox", lambda: stub)
+
+    async def scenario() -> None:
+        await start_capture(store_id, "s", state, lambda: None)
+        await stop_capture(store_id, "s")  # no sleep: the poller never swept
+        sibling = Path(evidence.location) / "terminal-s.p3.cast"
+        assert "late-pane" in sibling.read_text()
+        assert ("terminal/s.p3", b"late-pane\n") in evidence.appended
+
+    asyncio.run(scenario())
+
+
+def test_another_life_pane_sink_is_never_picked_up(
+    arm: tuple[FakeEvidence, FakeProcess, SessionState, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The discovery parse is token-exact: a dead life's pane sink still on disk (its close never ran) is invisible to the new life's recorder, so no sibling cast records across lives."""
+    from inspect_ranges._terminal.session import pane_sink_path
+
+    evidence, _, state, store_id = arm
+    stale_path = pane_sink_path("s", "ffffffff", "%2")
+    stub = PaneFakeSandbox(
+        FakeProcess(["primary\n"]),
+        {stale_path: FakeProcess(["stale\n"])},
+        contents={stale_path: "stale\n"},
+    )
+    monkeypatch.setattr(capture_module, "sandbox", lambda: stub)
+
+    async def scenario() -> None:
+        await start_capture(store_id, "s", state, lambda: None)
+        await asyncio.sleep(0.05)
+        await stop_capture(store_id, "s")
+        directory = Path(evidence.location)
+        assert sorted(path.name for path in directory.glob("terminal-*.cast")) == [
+            "terminal-s.cast"
+        ]
+
+    asyncio.run(scenario())
+
+
+def test_without_hooks_no_pane_discovery_runs(
+    arm: tuple[FakeEvidence, FakeProcess, SessionState, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the tool could not install the hooks (`pane_hooks=False`), no per-pane sink can exist, so the recorder runs no poller and spends no stop-time exec: even a sink-shaped file on disk produces no sibling cast."""
+    from inspect_ranges._terminal.session import pane_sink_path
+
+    evidence, _, state, store_id = arm
+    pane_path = pane_sink_path("s", state.token, "%9")
+    stub = PaneFakeSandbox(
+        FakeProcess(["primary\n"]),
+        {pane_path: FakeProcess(["orphan\n"])},
+        contents={pane_path: "orphan\n"},
+    )
+    monkeypatch.setattr(capture_module, "sandbox", lambda: stub)
+    monkeypatch.setattr(capture_module, "_PANE_POLL_S", 0.02)
+
+    async def scenario() -> None:
+        await start_capture(store_id, "s", state, lambda: None, pane_hooks=False)
+        await asyncio.sleep(0.1)
+        await stop_capture(store_id, "s")
+        directory = Path(evidence.location)
+        assert sorted(path.name for path in directory.glob("terminal-*.cast")) == [
+            "terminal-s.cast"
+        ]
+
+    asyncio.run(scenario())
+
+
+def test_sibling_casts_share_the_session_store_cap(
+    arm: tuple[FakeEvidence, FakeProcess, SessionState, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The store cap is a per-session budget: the primary clips to the full cap exactly as before, and each sibling takes only what remains, so a many-pane session cannot blow the store; a starved multi-event sibling degrades to the header-and-marker stub with none of its output leaking past the cap."""
+    from inspect_ranges._terminal.session import pane_sink_path
+
+    _, _, state, store_id = arm
+    pane_path = pane_sink_path("s", state.token, "%5")
+    stub = PaneFakeSandbox(
+        FakeProcess(["x" * 600]),
+        {pane_path: FakeProcess(["y" * 200, "y" * 200, "y" * 200])},
+    )
+    monkeypatch.setattr(capture_module, "sandbox", lambda: stub)
+    monkeypatch.setattr(capture_module, "cast_store_cap_bytes", lambda: 900)
+
+    async def scenario() -> None:
+        await start_capture(store_id, "s", state, lambda: None)
+        await asyncio.sleep(0.05)
+        await stop_capture(store_id, "s")
+        assert current_store is not None
+        primary = current_store.get("asciinema:terminal-s")
+        sibling = current_store.get("asciinema:terminal-s.p5")
+        assert isinstance(primary, str) and isinstance(sibling, str)
+        # the primary fits the cap whole, exactly as it would alone; the
+        # sibling is cut to the leftovers (a header-and-marker stub here),
+        # not given a fresh cap of its own, and none of its events survive
+        assert "clipped" not in primary and "x" * 600 in primary
+        assert "clipped" in sibling and "y" not in sibling
+        kinds = [json.loads(line)[1] for line in sibling.strip().split("\n")[1:]]
+        assert kinds == ["m"]
+
+    asyncio.run(scenario())
+
+
+def test_no_pane_session_store_cast_is_byte_identical(
+    arm: tuple[FakeEvidence, FakeProcess, SessionState, int],
+) -> None:
+    """The headline regression pin: a session that never spawned panes stores exactly the cast `assemble_cast` produces from its chunks and markers, one cast file, one store key, nothing pane-shaped anywhere."""
+    from inspect_ranges._terminal.cast import assemble_cast
+    from inspect_ranges._terminal.session import wait_channel_prefix
+
+    evidence, _, state, store_id = arm
+
+    async def scenario() -> None:
+        await start_capture(store_id, "s", state, lambda: None)
+        await asyncio.sleep(0.05)
+        state.markers.append((0.5, "send s: 'ls'"))
+        await stop_capture(store_id, "s")
+        expected = assemble_cast(
+            chunks=state.chunks,
+            markers=state.markers,
+            start_monotonic=state.opened_monotonic,
+            start_wall=state.opened_wall,
+            title="terminal session s",
+            session="s",
+            opener=None,
+            channel_prefix=wait_channel_prefix("s", state.token),
+        )
+        assert current_store is not None
+        assert current_store.get("asciinema:terminal-s") == expected
+        directory = Path(evidence.location)
+        assert sorted(path.name for path in directory.glob("terminal-*")) == [
+            "terminal-s.cast"
+        ]
+        assert (directory / "terminal-s.cast").read_text() == expected
 
     asyncio.run(scenario())

@@ -16,10 +16,16 @@ from inspect_ranges._terminal.session import (
     is_shell,
     label_output,
     multiline_block,
+    pane_id_from_sink,
+    pane_label,
+    pane_sink_glob,
+    pane_sink_path,
     prepare_send,
+    remove_sink_command,
     scrub_harness_echo,
     send_keys_command,
     send_keys_commands,
+    set_pane_hooks_commands,
     start_session_command,
     valid_session_name,
     wait_channel,
@@ -466,6 +472,65 @@ def test_command_builders_shape() -> None:
     assert wait[:2] == ["timeout", "30.0s"] and wait[-1] == wait_channel("s", "ab-3")
 
 
+def test_pane_sink_naming_round_trip() -> None:
+    """A pane sink path carries the session, the life token, and the stable `%N` pane id; the parse recovers the id only for this life's sinks (the token discipline: a reopened name's new life must never pick up a dead life's panes)."""
+    path = pane_sink_path("s", "ab12cd34", "%7")
+    assert path == "/tmp/.guestd/s-ab12cd34-p%7.pipe"
+    assert pane_id_from_sink(path, "s", "ab12cd34") == "%7"
+    # another life's token, another session, the primary sink, and a
+    # malformed pane id all parse to None
+    assert pane_id_from_sink(path, "s", "ffffffff") is None
+    assert pane_id_from_sink(path, "other", "ab12cd34") is None
+    assert pane_id_from_sink("/tmp/.guestd/s.pipe", "s", "ab12cd34") is None
+    assert pane_id_from_sink("/tmp/.guestd/s-ab12cd34-pbad.pipe", "s", "ab12cd34") is (
+        None
+    )
+    assert pane_label("%12") == "p12"
+
+
+def test_pane_sink_glob_is_token_exact() -> None:
+    import fnmatch
+
+    glob = pane_sink_glob("s", "ab12cd34")
+    assert fnmatch.fnmatch(pane_sink_path("s", "ab12cd34", "%3"), glob)
+    # a dead life's sinks (different token) never match the new life's glob
+    assert not fnmatch.fnmatch(pane_sink_path("s", "ffffffff", "%3"), glob)
+    # nor does the primary sink, or a longer session name sharing the prefix
+    assert not fnmatch.fnmatch("/tmp/.guestd/s.pipe", glob)
+    assert not fnmatch.fnmatch(pane_sink_path("s-2", "ab12cd34", "%3"), glob)
+
+
+def test_set_pane_hooks_commands_shape() -> None:
+    """Both window-creation hooks install as separate session-scoped argv commands: the hook argument embeds the life token in the sink and expands `#{pane_id}` at fire time, and carries no semicolon for tmux's config parser to misread."""
+    commands = set_pane_hooks_commands("s", "ab12cd34")
+    hooks = [command[4] for command in commands]
+    assert hooks == ["after-new-window", "after-split-window"]
+    for command in commands:
+        assert command[:4] == ["tmux", "set-hook", "-t", "=s:"]
+        hook_command = command[5]
+        assert hook_command == (
+            "pipe-pane 'cat >> /tmp/.guestd/s-ab12cd34-p#{pane_id}.pipe'"
+        )
+        assert ";" not in hook_command
+    # a new life re-sets the hooks with its own token, so a reopened name
+    # cannot append onto a dead life's pane sink
+    assert set_pane_hooks_commands("s", "ffffffff") != commands
+    # the rollback commands unset exactly the same hooks, session-scoped
+    from inspect_ranges._terminal.session import unset_pane_hooks_commands
+
+    assert unset_pane_hooks_commands("s") == [
+        ["tmux", "set-hook", "-u", "-t", "=s:", hook] for hook in hooks
+    ]
+
+
+def test_remove_sink_command_covers_pane_sinks() -> None:
+    """Close removes the primary sink and the life's per-pane sinks in one pass; the glob is token-exact, so a concurrently open life of another name is untouched."""
+    command = remove_sink_command("s", "ab12cd34")
+    assert command[:2] == ["sh", "-c"]
+    assert "/tmp/.guestd/s.pipe" in command[2]
+    assert pane_sink_glob("s", "ab12cd34") in command[2]
+
+
 def test_assemble_cast_orders_and_offsets_events() -> None:
     cast = assemble_cast(
         chunks=[(102.0, b"out-late"), (100.5, b"out-early")],
@@ -694,6 +759,62 @@ def test_clip_cast_leaves_small_casts_alone() -> None:
 
     cast = '{"version": 2}\n[0.1, "o", "hi"]'
     assert clip_cast(cast, 10_000) == cast
+
+
+@pytest.mark.parametrize("cap", [0, 50, 150])
+def test_clip_cast_exhausted_budget_keeps_only_header_and_marker(cap: int) -> None:
+    """A cap the header and marker already exhaust clips a multi-event cast to exactly those two lines.
+
+    The old tail slice used `[-max(budget, 0):]`, and `[-0:]` slices from the
+    front: an exhausted budget returned the whole event stream (measured), so
+    a sibling cast meant to be starved under the session's shared store cap
+    leaked everything instead.
+    """
+    from inspect_ranges._terminal.cast import clip_cast
+
+    header = json.dumps({"version": 2})
+    events = [json.dumps([float(i), "o", "x" * 50]) for i in range(10)]
+    cast = header + "\n" + "\n".join(events) + "\n"
+    clipped = clip_cast(cast, cap)
+    lines = clipped.strip().split("\n")
+    assert json.loads(lines[0])["version"] == 2
+    assert [json.loads(line)[1] for line in lines[1:]] == ["m"]
+    assert "x" * 50 not in clipped
+
+
+def test_clip_cast_budget_below_one_event_still_stubs() -> None:
+    """A budget that fits the marker but not even one whole event line keeps no partial line: the result is still the header-and-marker stub, never a truncated JSON event."""
+    from inspect_ranges._terminal.cast import clip_cast
+
+    header = json.dumps({"version": 2})
+    events = [json.dumps([float(i), "o", "x" * 200]) for i in range(5)]
+    cast = header + "\n" + "\n".join(events) + "\n"
+    # past the stub (~header+marker) but short of any whole 200-char event
+    clipped = clip_cast(cast, 300)
+    lines = clipped.strip().split("\n")
+    assert [json.loads(line)[1] for line in lines[1:]] == ["m"]
+    assert len(clipped.encode()) <= 300 + 200  # marker overhead only
+
+
+@pytest.mark.parametrize(
+    ("version", "supported"),
+    [
+        ("tmux 3.4", True),
+        ("tmux 3.5a", True),
+        ("tmux next-3.6", True),
+        ("tmux 10.0", True),
+        ("tmux 3.3a", False),
+        ("tmux 2.9", False),
+        ("tmux master", False),
+        ("", False),
+        ("no version here", False),
+    ],
+)
+def test_pane_hooks_supported_fails_closed(version: str, supported: bool) -> None:
+    """The hook gate: proven (3.4) and later versions pass; an older or unparseable `tmux -V` fails closed, because an unproven hook context could divert the primary tap."""
+    from inspect_ranges._terminal.session import pane_hooks_supported
+
+    assert pane_hooks_supported(version) is supported
 
 
 _SPLIT_STREAM = f"$ ls /opt{_SUFFIX}\r\nguestd\r\n$ "

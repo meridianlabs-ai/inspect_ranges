@@ -120,7 +120,7 @@ def cast_store_cap_bytes() -> int:
 def clip_cast(cast: str, cap_bytes: int) -> str:
     """Clip an asciicast document to roughly `cap_bytes`, keeping the header and the tail of the event stream (the end of a session is what gets replayed), with a marker event recording the cut.
 
-    The result stays a valid cast: whole event lines only, the marker inserted at time zero so ordering holds. Pure.
+    The result stays a valid cast: whole event lines only, the marker inserted at time zero so ordering holds. A budget the header and marker already exhaust keeps exactly those two lines: `[-budget:]` with a non-positive budget would slice from the front and return the whole event stream, which is how a sibling cast meant to be starved under the session's shared cap leaked everything (review finding, measured). Pure.
     """
     encoded = cast.encode(errors="replace")
     if len(encoded) <= cap_bytes:
@@ -135,7 +135,9 @@ def clip_cast(cast: str, cap_bytes: int) -> str:
         ]
     )
     budget = cap_bytes - len(header.encode()) - len(marker.encode()) - 2
-    tail = events.encode(errors="replace")[-max(budget, 0) :].decode(errors="replace")
+    if budget <= 0:
+        return f"{header}\n{marker}\n"
+    tail = events.encode(errors="replace")[-budget:].decode(errors="replace")
     newline = tail.find("\n")
     tail = tail[newline + 1 :] if newline >= 0 else ""
     return f"{header}\n{marker}\n{tail}"
