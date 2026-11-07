@@ -45,6 +45,7 @@ from .._runtime.ownership import (
     StageLog,
     default_state_dir,
     project_dir,
+    read_owner,
 )
 from .._runtime.up import OnStage, UpError, UpOptions, UpResult, up
 from ..schema import revalidate_range
@@ -621,6 +622,50 @@ def _resolved_cid_base(options: "BuildOptions") -> int:
     return options.cid_base
 
 
+def _pid_alive(pid: int) -> bool:
+    """Whether `pid` is a live process on this host (signal 0 probe; a pid owned by another user reads as alive)."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _reclaim_abandoned_build(
+    project: str, state_dir: Path, down_fn: DownFn, tee: "_BuildTee"
+) -> None:
+    """Tear down this exact build's previous run when no live process owns it, so fail-fix-rebuild needs no manual `down`.
+
+    A build that dies uncleanly (an interrupt, a crash, a kill mid-phase) leaves its project or its `-bx` proof boot registered, containers and CID lease included, and the rebuild would refuse at the lease or at `up`'s project check until an operator runs the `inspect-ranges down` the message names. The owner record (`up` writes it before creating any resource) carries the owning pid, so a dead owner proves abandonment and the teardown is safe to run unprompted; a LIVE owner is a genuinely concurrent run of the same spec and falls through to those refusals untouched. The pid probe is per-host, which matches the state dir and the container runtime. The teardown is FULL (`keep_state=False`, the same teardown the refusal remedy runs): a `keep_state` down retains the CID lease by design, which is exactly what blocks the rebuild; a refused manifest already carries the failure records.
+
+    Raises:
+        BuildError: stage `reclaim`, when an abandoned project's teardown fails (the retry is the manual `down` the message names).
+    """
+    for stale in (project, f"{project}-bx"):
+        owner = read_owner(state_dir, stale)
+        if owner is None or _pid_alive(owner.pid):
+            continue
+        try:
+            removed = down_fn(stale, state_dir=state_dir, keep_state=False)
+        except Exception as error:
+            tee.log("reclaim", "fail", project=stale, error=str(error))
+            raise BuildError(
+                "reclaim",
+                f"a previous run of this build (pid {owner.pid}, exited) left "
+                f"{stale!r} registered and its teardown failed: {error}; "
+                f"retry with: inspect-ranges down {stale}",
+            ) from error
+        tee.log(
+            "reclaim",
+            "ok",
+            project=stale,
+            abandoned_pid=owner.pid,
+            containers=getattr(removed, "containers", None),
+        )
+
+
 def build_range(
     spec: RangeSpec,
     range_dir: Path,
@@ -641,7 +686,7 @@ def build_range(
 ) -> BuildResult:
     """Build a range: resolve, render the egress build plan, boot, provision, tear down.
 
-    The build is an ordinary project named `ir-<range>-<build spec digest>`; a second build of the same spec while one runs refuses through `up`'s existing project check, naming the running project (known limit, round-2 review: the check sees compose containers, so the behavioral phase's `-bx` window is not covered and two same-spec builds can interleave there; the identity-guarded refused save replaces only the revision this build loaded, keeping a sibling's green manifest safe), and each run renders into its own staging directory so concurrent attempts can never destroy each other's bundles. On any failure after boot the range tears down (unless `keep`), the failure names its stage, guest, and recipe with a log path, and a teardown error is appended to the diagnosed failure, never substituted for it.
+    The build is an ordinary project named `ir-<range>-<build spec digest>`; a second build of the same spec while one RUNS refuses through `up`'s existing project check, naming the running project (known limit, round-2 review: the check sees compose containers, so the behavioral phase's `-bx` window is not covered and two same-spec builds can interleave there; the identity-guarded refused save replaces only the revision this build loaded, keeping a sibling's green manifest safe), and each run renders into its own staging directory so concurrent attempts can never destroy each other's bundles. A previous run that DIED, by contrast, is reclaimed unprompted before anything else happens (`_reclaim_abandoned_build`): its owner record's pid proves nobody is driving it, so fail-fix-rebuild needs no manual `down`. On any failure after boot the range tears down (unless `keep`), the failure names its stage, guest, and recipe with a log path, and a teardown error is appended to the diagnosed failure, never substituted for it.
 
     Raises:
         IssueError: spec, recipe-resolution, build-variant, or planning refusals (all collected, house codes).
@@ -868,6 +913,10 @@ def build_range(
         tee = _BuildTee(StageLog(state_dir, project), on_stage)
         for note in pin_warnings:
             tee.log("resolve", "warn", warning=note)
+        # a dead run of this build may still hold its boots (two running VMs
+        # leaking silently behind a green answer), so the reclaim runs on the
+        # cached path too
+        _reclaim_abandoned_build(project, state_dir, down_fn, tee)
         tee.log(
             "build",
             "ok",
@@ -915,6 +964,8 @@ def build_range(
                 guest=step.guest,
                 skipped="unchanged",
             )
+
+    _reclaim_abandoned_build(project, state_dir, down_fn, tee)
 
     staging_root = state_dir.parent / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)

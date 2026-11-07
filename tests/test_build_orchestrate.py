@@ -1,6 +1,8 @@
 """Build orchestration through the public `build_range` surface: real spec validation, real egress transformation, real render into staging, with the boot/teardown/recipe seams faked (no VMs)."""
 
 import hashlib
+import os
+import shutil
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
@@ -299,6 +301,154 @@ def test_keep_skips_teardown(tmp_path: Path, cache: Path) -> None:
     assert result.kept and fakes.down_calls == []
     # keep leaves the staging bundle: the running range mounts it
     assert fakes.up_calls[0][0].exists()
+
+
+# above any real pid_max (PID_MAX_LIMIT is 2^22 on 64-bit Linux), so the
+# recorded owner reads as exited, deterministically
+_EXITED_PID = 999_999_999
+
+
+def _register_stale(state_dir: Path, project: str, pid: int) -> None:
+    """A previous run's owner record, as `up` would have left it behind."""
+    from inspect_ranges._runtime.ownership import OwnerRecord, write_owner
+
+    write_owner(
+        state_dir,
+        OwnerRecord(
+            project=project,
+            range_name="buildme",
+            spec_sha256="0" * 64,
+            bundle="/nonexistent",
+            created="2026-11-07T00:00:00+00:00",
+            pid=pid,
+        ),
+    )
+
+
+def test_an_abandoned_previous_build_is_reclaimed_before_building(
+    tmp_path: Path, cache: Path
+) -> None:
+    """A build that died uncleanly leaves its project and its `-bx` proof boot registered (containers, CID lease), and the rebuild used to refuse until a manual `down`; a dead owner pid proves abandonment, so the rebuild reclaims both unprompted and fail-fix-rebuild is one command. The teardown is full: a `keep_state` down retains the CID lease by design, which is exactly what blocked the rebuild (proven live: containers removed, lease refusal anyway)."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    fakes = Fakes(["web", "db", "attacker"])
+    keep_states: list[bool] = []
+    state_dir = tmp_path / "state" / "projects"
+
+    def recording_down(project: str, **kwargs: Any) -> None:
+        keep_states.append(kwargs.get("keep_state", False))
+        fakes.down_fn(project, **kwargs)
+
+    # the project name is spec-digest derived, so learn it from a first green
+    # build, then register the stale pair a dead rerun would have left
+    probe = Fakes(["web", "db", "attacker"])
+    expected_project = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=probe.up_fn,
+        down_fn=probe.down_fn,
+        recipe_fn=probe.recipe_fn,
+        ensure_uplink=probe.ensure_uplink,
+        capture_fn=probe.capture_fn,
+    ).project
+    _register_stale(state_dir, expected_project, _EXITED_PID)
+    _register_stale(state_dir, f"{expected_project}-bx", _EXITED_PID)
+    # a crashed run records no manifest, so the rebuild resolves the same
+    # fresh inputs and computes the same project name; mirror that here
+    shutil.rmtree(tmp_path / "builds")
+
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=fakes.up_fn,
+        down_fn=recording_down,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    assert result.project == expected_project
+    # the abandoned pair first (full teardown, so the stale lease dies too),
+    # then the build's own post-success teardown exactly as before
+    assert fakes.down_calls == [
+        result.project,
+        f"{result.project}-bx",
+        result.project,
+    ]
+    assert keep_states[:2] == [False, False]
+
+
+def test_a_live_previous_build_is_left_alone(tmp_path: Path, cache: Path) -> None:
+    """An owner record whose pid is alive is a genuinely concurrent run of the same spec: the reclaim must not touch it (the lease and `up` project checks keep their refusals)."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    probe = Fakes(["web", "db", "attacker"])
+    state_dir = tmp_path / "state" / "projects"
+    project = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=probe.up_fn,
+        down_fn=probe.down_fn,
+        recipe_fn=probe.recipe_fn,
+        ensure_uplink=probe.ensure_uplink,
+        capture_fn=probe.capture_fn,
+    ).project
+    _register_stale(state_dir, project, os.getpid())
+    shutil.rmtree(tmp_path / "builds")
+
+    fakes = Fakes(["web", "db", "attacker"])
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    # only the build's own teardown: the live owner's project was not downed
+    assert fakes.down_calls == [result.project]
+
+
+def test_reclaim_teardown_failure_names_its_stage(tmp_path: Path, cache: Path) -> None:
+    """A failing reclaim refuses before anything boots, naming the stage and the manual retry, and the primary error stays primary."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    probe = Fakes(["web", "db", "attacker"])
+    state_dir = tmp_path / "state" / "projects"
+    project = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=probe.up_fn,
+        down_fn=probe.down_fn,
+        recipe_fn=probe.recipe_fn,
+        ensure_uplink=probe.ensure_uplink,
+        capture_fn=probe.capture_fn,
+    ).project
+    _register_stale(state_dir, project, _EXITED_PID)
+    shutil.rmtree(tmp_path / "builds")
+
+    fakes = Fakes(["web", "db", "attacker"])
+
+    def refusing_down(project: str, **kwargs: Any) -> None:
+        raise RuntimeError("docker query failed")
+
+    with pytest.raises(BuildError) as excinfo:
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache),
+            up_fn=fakes.up_fn,
+            down_fn=refusing_down,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    assert excinfo.value.stage == "reclaim"
+    assert "docker query failed" in str(excinfo.value)
+    assert f"inspect-ranges down {project}" in str(excinfo.value)
+    assert fakes.up_calls == []
 
 
 def test_recipe_failure_tears_down_and_names_everything(
