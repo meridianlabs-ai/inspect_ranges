@@ -67,7 +67,7 @@ VSOCK_CID = int(os.environ.get("IR_VSOCK_BATTERY_CID", "0"))
 LATENCY_RTT_S = 0.05
 EXCHANGES_BUDGET_PER_CHECK = 16
 """Measured: the chattiest honest check uses 10 exchanges across the whole
-44-check suite (ops at <=3 exchanges each, incl. acks and wrapper uploads);
+self-check suite (ops at <=3 exchanges each, incl. acks and wrapper uploads);
 16 leaves headroom for timing-dependent ack retries while still gating any
 per-chunk-round-trip chattiness immediately."""
 
@@ -345,7 +345,10 @@ def test_check_inventory_matches_the_installed_suite() -> None:
     """The harness runs every exported check (a new inspect-ai check shows up here as a count change)."""
     # 46 as of inspect-ai 0.3.286: test_read_file_as_user and
     # test_write_file_as_user joined (the user-enforcing file API)
-    assert len(CHECKS) == 46, (
+    # 47 as of inspect-ai 0.3.288: test_exec_timeout_not_raised_on_command_exit_124
+    # joined (UKGovernmentBEIS/inspect_ai#6183); no xfail pin, since the
+    # provider reports timeouts out of band (daemon ETIME), never from rc 124
+    assert len(CHECKS) == 47, (
         f"inspect-ai self_check now exports {len(CHECKS)} checks; "
         "review the delta and update the harness expectations"
     )
