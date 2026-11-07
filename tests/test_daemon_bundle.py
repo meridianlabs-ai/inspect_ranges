@@ -127,3 +127,31 @@ def test_daemon_version_lockstep() -> None:
     cs = (_WINDOWS_DIR / "Daemon.cs").read_text()
     assert f'DaemonVersion  = "vsockd {DAEMON_VERSION} (go)"' in go
     assert f'public static string Version = "vsockd {DAEMON_VERSION} (windows)";' in cs
+
+
+def test_install_script_locks_down_the_daemon_home() -> None:
+    r"""The install must strip C:\\'s inherited ACEs before any content lands, grant by SID (goldens install on non-English Windows), keep work usable for profile-less user= execs, and remove the sources after the compile.
+
+    C:\\'s default inheritance granted Authenticated Users Modify over the SYSTEM service binary: a harness-made local privesc on the exact machines whose task is local privesc (verified live, 2026-11-07). The capture scrub's `GUESTD_ACL_GUARD` is the other half of the contract.
+    """
+    from inspect_ranges._channel.bundle import _WINDOWS_DIR
+
+    script = (_WINDOWS_DIR / "install-daemon.ps1").read_text()
+    lockdown = script.index("icacls.exe C:\\guestd /inheritance:r")
+    work = script.index("icacls.exe C:\\guestd\\work /inheritance:r")
+    first_copy = script.index("Copy-Item")
+    compile_at = script.index("csc.exe")
+    cleanup = script.index("Remove-Item -Force C:\\guestd\\*.cs")
+    # lockdown precedes any content landing; source cleanup follows the compile
+    assert lockdown < first_copy and work < first_copy
+    assert compile_at < cleanup
+    # grants are SIDs, with Authenticated Users write-less outside work
+    for grant in (
+        "'*S-1-5-18:(OI)(CI)F'",
+        "'*S-1-5-32-544:(OI)(CI)F'",
+        "'*S-1-5-11:(RX)'",
+        "'*S-1-5-11:(OI)(CI)(M)'",
+    ):
+        assert grant in script, grant
+    # every icacls is asserted, never fire-and-forget
+    assert script.count("& icacls.exe") == script.count('throw "icacls') == 2

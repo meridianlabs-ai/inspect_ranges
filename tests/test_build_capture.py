@@ -167,3 +167,21 @@ def test_live_project_files_reads_boot_json(tmp_path: Path) -> None:
     )
     write_owner(state, owner_record("ir-live-1", "r", "0" * 64, bundle))
     assert live_project_files(state) == {"r-web-abc.qcow2", "golden.qcow2"}
+
+
+def test_windows_scrub_acl_guard_pins_the_lockdown_contract() -> None:
+    r"""The guard must check broad principals by SID, use a write-class mask that includes the generic bits, cover both the daemon home and the binary, and fail closed.
+
+    This is the build-time half of the daemon-home lockdown (install-daemon.ps1 is the other): a regression re-opening write access for Everyone, Authenticated Users, or BUILTIN\\Users must fail the build rather than ship a harness-made privesc.
+    """
+    from inspect_ranges._build.capture import GUESTD_ACL_GUARD
+
+    for sid in ("S-1-1-0", "S-1-5-11", "S-1-5-32-545"):
+        assert sid in GUESTD_ACL_GUARD, sid
+    # write-class bits plus GENERIC_WRITE and GENERIC_ALL
+    assert "0x500D0156" in GUESTD_ACL_GUARD
+    assert "C:\\guestd" in GUESTD_ACL_GUARD
+    assert "C:\\guestd\\guestd.exe" in GUESTD_ACL_GUARD
+    assert "exit 1" in GUESTD_ACL_GUARD
+    # only Allow ACEs count: a broad Deny must not trip the guard
+    assert "-ne 'Allow'" in GUESTD_ACL_GUARD

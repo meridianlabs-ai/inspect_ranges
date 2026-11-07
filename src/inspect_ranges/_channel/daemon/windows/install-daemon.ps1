@@ -25,6 +25,22 @@ $dev = Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'DEV_105
 if ($dev.Status -ne 'OK') { throw "viosock device not OK: $($dev.Status)" }
 
 New-Item -ItemType Directory -Force -Path C:\guestd, C:\guestd\work | Out-Null
+
+# C:\ grants Authenticated Users Modify by inheritance, which would leave the
+# SYSTEM service binary user-replaceable: a harness-made local privesc on the
+# exact machines whose task is local privesc (verified live, 2026-11-07).
+# Strip inheritance before anything lands. SYSTEM (S-1-5-18) and
+# Administrators (S-1-5-32-544) own the tree; Authenticated Users (S-1-5-11)
+# keep list-and-traverse on the directory itself plus Modify strictly inside
+# work, because user= execs under profile-less accounts use work as their
+# home. SIDs, not names: goldens install on non-English Windows too.
+& icacls.exe C:\guestd /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-11:(RX)' | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "icacls C:\guestd failed: $LASTEXITCODE" }
+# work's ACL is fully explicit too: it predates the parent lockdown, and NTFS
+# propagation of inherited-ACE removal is not a thing to lean on
+& icacls.exe C:\guestd\work /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-11:(OI)(CI)(M)' | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "icacls C:\guestd\work failed: $LASTEXITCODE" }
+
 foreach ($src in 'Wire.cs', 'Store.cs', 'Exec.cs', 'Daemon.cs', 'Program.cs') {
     Copy-Item "${payload}:\$src" C:\guestd\
 }
@@ -35,6 +51,11 @@ $csc = "$env:windir\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
   /r:System.ServiceProcess.dll `
   C:\guestd\Wire.cs C:\guestd\Store.cs C:\guestd\Exec.cs C:\guestd\Daemon.cs C:\guestd\Program.cs
 if ($LASTEXITCODE -ne 0) { throw "csc failed: $LASTEXITCODE" }
+
+# the sources are compile-time material: the repo ships them, the guest keeps
+# only the binary (recipes-not-images), and a readable protocol listing on a
+# target is recon material the daemon does not need to hand out
+Remove-Item -Force C:\guestd\*.cs
 
 if (Test-Path "${payload}:\busybox.exe") {
     # test-image-only pieces: local user for user= exec, busybox applets in
