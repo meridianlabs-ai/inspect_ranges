@@ -1,6 +1,8 @@
 """Build orchestration through the public `build_range` surface: real spec validation, real egress transformation, real render into staging, with the boot/teardown/recipe seams faked (no VMs)."""
 
 import hashlib
+import os
+import shutil
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
@@ -299,6 +301,214 @@ def test_keep_skips_teardown(tmp_path: Path, cache: Path) -> None:
     assert result.kept and fakes.down_calls == []
     # keep leaves the staging bundle: the running range mounts it
     assert fakes.up_calls[0][0].exists()
+
+
+# above any real pid_max (PID_MAX_LIMIT is 2^22 on 64-bit Linux), so the
+# recorded owner reads as exited, deterministically
+_EXITED_PID = 999_999_999
+
+
+def _crash_state(
+    state_dir: Path,
+    project: str,
+    *,
+    pid: int = _EXITED_PID,
+    reclaimable: bool = True,
+    lease: bool = True,
+) -> None:
+    """The artifacts a build run leaves when it dies mid-flight: reclaimable owner records for the project and its proof boot, and the CID lease its finally never released. The variants (live pid, unmarked record, released lease) are the states a reclaim must leave alone."""
+    from inspect_ranges._provider.naming import CidAllocator
+    from inspect_ranges._runtime.ownership import OwnerRecord, write_owner
+
+    for name in (project, f"{project}-bx"):
+        write_owner(
+            state_dir,
+            OwnerRecord(
+                project=name,
+                range_name="buildme",
+                spec_sha256="0" * 64,
+                bundle="/nonexistent",
+                created="2026-11-07T00:00:00+00:00",
+                pid=pid,
+                reclaimable=reclaimable,
+            ),
+        )
+    if lease:
+        CidAllocator(state_dir).lease(project, 3, origin="cli")
+
+
+def _green_project(tmp_path: Path, cache: Path) -> str:
+    """One green build, to learn the spec-digest project name; its manifest is then removed so the next run takes the full path under the same name (a crashed run records no manifest, so this mirrors the user flow)."""
+    probe = Fakes(["web", "db", "attacker"])
+    project = build_range(
+        build_spec_fixture(tmp_path)[0],
+        build_spec_fixture(tmp_path)[1],
+        options_for(tmp_path, cache),
+        up_fn=probe.up_fn,
+        down_fn=probe.down_fn,
+        recipe_fn=probe.recipe_fn,
+        ensure_uplink=probe.ensure_uplink,
+        capture_fn=probe.capture_fn,
+    ).project
+    shutil.rmtree(tmp_path / "builds")
+    return project
+
+
+def test_an_abandoned_previous_build_is_reclaimed_before_building(
+    tmp_path: Path, cache: Path
+) -> None:
+    """A build that died uncleanly leaves its project and its `-bx` proof boot registered with a held CID lease, and the rebuild used to refuse until a manual `down`; the lease, the reclaimable mark, and the dead owner pid together prove abandonment, so the rebuild reclaims both unprompted and fail-fix-rebuild is one command. The teardowns keep state (the dead run's logs stay for autopsy) and the lease is released explicitly, which is the part that unblocks the rebuild."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    project = _green_project(tmp_path, cache)
+    _crash_state(state_dir, project)
+
+    from inspect_ranges._provider.naming import CidAllocator
+
+    fakes = Fakes(["web", "db", "attacker"])
+    keep_states: list[bool] = []
+
+    def recording_down(project: str, **kwargs: Any) -> None:
+        keep_states.append(kwargs.get("keep_state", False))
+        fakes.down_fn(project, **kwargs)
+
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=fakes.up_fn,
+        down_fn=recording_down,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    assert result.project == project
+    # the abandoned pair first (state kept for autopsy), then the build's own
+    # post-success teardown exactly as before
+    assert fakes.down_calls == [project, f"{project}-bx", project]
+    assert keep_states[:2] == [True, True]
+    # the stale lease was released explicitly: the rebuild could lease (it
+    # completed), and nothing holds the name now
+    assert project not in CidAllocator(state_dir).leased_projects()
+
+
+def test_a_completed_build_is_not_reclaimed(tmp_path: Path, cache: Path) -> None:
+    """Every clean teardown keeps the owner record (`keep_state`), so a dead pid with a persisted record is the NORMAL post-success state: without the held lease it proves nothing, and the rebuild must not fire a reclaim (round-1 review: the pid-only oracle reclaimed after every green build, destroying kept diagnostics)."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    project = _green_project(tmp_path, cache)
+    # what the exited CLI leaves after a GREEN build: records persist, marked
+    # reclaimable, pid now dead -- but the finally released the lease
+    _crash_state(state_dir, project, lease=False)
+
+    fakes = Fakes(["web", "db", "attacker"])
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    # only the build's own teardown: no reclaim rows, no state deletion
+    assert fakes.down_calls == [result.project]
+
+
+def test_a_kept_or_live_previous_run_is_left_alone(tmp_path: Path, cache: Path) -> None:
+    """A `--keep` range (unmarked record) and a genuinely concurrent run (live pid) both hold their lease, and both must keep today's refusal instead of being torn down; the reclaim declines, and the build then refuses at the lease with the manual remedy."""
+    from inspect_ranges._build import BuildError
+
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+
+    for variant in (
+        dict(reclaimable=False),  # kept deliberately, owner exited
+        dict(pid=os.getpid()),  # concurrent run, owner alive
+    ):
+        project = _green_project(tmp_path, cache)
+        _crash_state(state_dir, project, **variant)  # type: ignore[arg-type]
+        fakes = Fakes(["web", "db", "attacker"])
+        with pytest.raises(BuildError) as excinfo:
+            build_range(
+                spec,
+                range_dir,
+                options_for(tmp_path, cache, cid_base=None),
+                up_fn=fakes.up_fn,
+                down_fn=fakes.down_fn,
+                recipe_fn=fakes.recipe_fn,
+                ensure_uplink=fakes.ensure_uplink,
+                capture_fn=fakes.capture_fn,
+            )
+        assert excinfo.value.stage == "resolve"
+        assert f"inspect-ranges down {project}" in str(excinfo.value)
+        assert fakes.down_calls == []
+        from inspect_ranges._provider.naming import CidAllocator
+
+        CidAllocator(state_dir).release(project)
+
+
+def test_reclaim_runs_on_the_cached_fast_path(tmp_path: Path, cache: Path) -> None:
+    """A dead run's proof boot can sit behind a green cached answer (two VMs leaking silently), so the cached path reclaims too, and still returns the cached result."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    probe = Fakes(["web", "db", "attacker"])
+    project = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=probe.up_fn,
+        down_fn=probe.down_fn,
+        recipe_fn=probe.recipe_fn,
+        ensure_uplink=probe.ensure_uplink,
+        capture_fn=probe.capture_fn,
+    ).project
+    _crash_state(state_dir, project)
+
+    fakes = Fakes(["web", "db", "attacker"])
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    assert result.cached
+    assert fakes.down_calls == [project, f"{project}-bx"]
+    assert fakes.up_calls == []
+
+
+def test_reclaim_teardown_failure_names_its_stage(tmp_path: Path, cache: Path) -> None:
+    """A failing reclaim refuses before anything boots, naming the stage and the manual retry, and the primary error stays primary."""
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    project = _green_project(tmp_path, cache)
+    _crash_state(state_dir, project)
+
+    fakes = Fakes(["web", "db", "attacker"])
+
+    def refusing_down(project: str, **kwargs: Any) -> None:
+        raise RuntimeError("docker query failed")
+
+    with pytest.raises(BuildError) as excinfo:
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache),
+            up_fn=fakes.up_fn,
+            down_fn=refusing_down,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    assert excinfo.value.stage == "reclaim"
+    assert "docker query failed" in str(excinfo.value)
+    assert f"inspect-ranges down {project}" in str(excinfo.value)
+    assert fakes.up_calls == []
 
 
 def test_recipe_failure_tears_down_and_names_everything(
