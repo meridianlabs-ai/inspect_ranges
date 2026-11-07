@@ -58,6 +58,38 @@ def default_capture_runner(argv: list[str]) -> str:
     return completed.stdout.decode(errors="replace")
 
 
+# every captured Windows disk must prove the daemon's home is not writable by
+# broad principals: C:\'s default inheritance once granted Authenticated Users
+# Modify over the SYSTEM service binary, a harness-made local privesc on the
+# exact machines whose task is local privesc (verified live, 2026-11-07; the
+# golden install now locks the tree down, and this guard fails the build if
+# write-class access ever returns). Two masks: the home and the binary refuse
+# all write-class bits (file/dir write, attribute/EA write, delete,
+# delete-child, WriteDacl, WriteOwner) plus GENERIC_WRITE and GENERIC_ALL;
+# work deliberately keeps Modify (it is the exec home for profile-less user=
+# accounts) and refuses only ownership-class bits (WriteDacl, WriteOwner,
+# GENERIC_ALL), so a grant widened past Modify cannot ship. SIDs, not names,
+# so the check holds on non-English Windows. The error names the remedy for
+# the common trip: a build on a golden derived before the lockdown.
+GUESTD_ACL_GUARD = (
+    "$broad = @('S-1-1-0', 'S-1-5-11', 'S-1-5-32-545'); "
+    "$writeMask = 0x500D0156; "
+    "$ownMask = 0x100C0000; "
+    "foreach ($chk in @(@('C:\\guestd', $writeMask), "
+    "@('C:\\guestd\\guestd.exe', $writeMask), "
+    "@('C:\\guestd\\work', $ownMask))) { "
+    "$p = $chk[0]; $m = $chk[1]; "
+    "foreach ($r in (Get-Acl $p).Access) { "
+    "if ($r.AccessControlType -ne 'Allow') { continue }; "
+    "$sid = $r.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value; "
+    "if ($broad -contains $sid -and (($r.FileSystemRights.value__) -band $m) -ne 0) "
+    "{ Write-Error ('broad write access on ' + $p + ': ' + $r.IdentityReference + ' ' "
+    "+ $r.FileSystemRights + '; a pre-lockdown golden must be re-derived: "
+    "inspect-ranges images derive-windows'); exit 1 } } }; "
+)
+"""The Windows scrub's fail-closed ACL assertion over the daemon home (see `scrub_guest`)."""
+
+
 def scrub_guest(
     cids: dict[str, int],
     guest: str,
@@ -68,7 +100,7 @@ def scrub_guest(
 ) -> None:
     """Pre-capture cleanup so the realized image is a clean golden-like artifact (parked-decisions item 2): `cloud-init clean --logs` removes the build boot's instance state (every runtime boot then seeds fresh) and the build seed's rendered netplan goes with it, so neither the build's egress nameserver (a deployment's VPC resolver IP) nor an already-run marker survives into the captured disk.
 
-    A Windows guest has no per-boot network state to clean — its unattend specialize config is PERSISTENT registry state, deliberately kept (the realized image is specialized, and specialize will not re-run at consumer boot). The Windows scrub removes exactly the build-only contamination: staged `guesttool` temp files, the PowerShell event logs, and `build_nameserver` stripped from every adapter's resolver list (the build appended it; a consumer boot would otherwise query a dead resolver first on uplinked adapters). The PowerShell logs are build logs: Windows PowerShell 5.1 automatically records signature-bearing script blocks (`ConvertTo-SecureString`, `Add-Type`, ...) to `Microsoft-Windows-PowerShell/Operational` as event 4104 even with no logging policy configured (measured live in the arw fixture's exported stream), so a recipe script's text — credential literals included — would otherwise persist in the captured disk (goad rotation review, 2026-10-20: dc02's promote carries dc01's declared credential, srv02's join carries dc02's — a cross-host answer key). Explicitly NOT sysprep: generalizing a domain-joined capture would destroy the membership the build just created.
+    A Windows guest has no per-boot network state to clean — its unattend specialize config is PERSISTENT registry state, deliberately kept (the realized image is specialized, and specialize will not re-run at consumer boot). The Windows scrub removes exactly the build-only contamination: staged `guesttool` temp files, the PowerShell event logs, and `build_nameserver` stripped from every adapter's resolver list (the build appended it; a consumer boot would otherwise query a dead resolver first on uplinked adapters). It also asserts the daemon-home ACL lockdown (`GUESTD_ACL_GUARD`), so a regression that re-opens write access for broad principals fails the build instead of shipping a harness-made privesc. The PowerShell logs are build logs: Windows PowerShell 5.1 automatically records signature-bearing script blocks (`ConvertTo-SecureString`, `Add-Type`, ...) to `Microsoft-Windows-PowerShell/Operational` as event 4104 even with no logging policy configured (measured live in the arw fixture's exported stream), so a recipe script's text — credential literals included — would otherwise persist in the captured disk (goad rotation review, 2026-10-20: dc02's promote carries dc01's declared credential, srv02's join carries dc02's — a cross-host answer key). Explicitly NOT sysprep: generalizing a domain-joined capture would destroy the membership the build just created.
 
     Raises:
         BuildError: stage `capture`, when the scrub itself fails; a dirty capture must not pass silently.
@@ -114,6 +146,7 @@ def scrub_guest(
             + "if (Test-Path 'C:\\Windows\\Temp\\.ir-*') "
             + "{ Write-Error 'staged temp files survived the scrub'; exit 1 }; "
             + drop_users
+            + GUESTD_ACL_GUARD
             + clear_ps_logs
             + "exit 0"
         )
@@ -141,10 +174,13 @@ def scrub_guest(
             ),
         )
         if outcome.rc != 0:
+            # head, not tail: PowerShell prints the Write-Error message first
+            # and its 'At line...' boilerplate after, so a tail slice would
+            # keep boilerplate and drop the diagnosis
             raise BuildError(
                 "capture",
                 f"pre-capture scrub exited {outcome.rc}: "
-                f"{outcome.stderr.decode(errors='replace')[-200:]}",
+                f"{outcome.stderr.decode(errors='replace')[:600]}",
                 guest=guest,
             )
 
