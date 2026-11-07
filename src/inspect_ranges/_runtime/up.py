@@ -115,6 +115,8 @@ class UpOptions(BaseModel):
     readiness_min_window: float = 10.0
     keep_on_failure: bool = False
     uplink_network: str | None = None
+    reclaimable: bool = False
+    """Recorded on the owner record: a rebuild may tear this project down once its owning pid is dead and its CID lease is still held. The build sets it for its own boots (minus the kept variants); a plain `up` leaves the default, so a deliberately detached range is refused, never reclaimed."""
     attack_box: str | None = None
     """An external attack-box backend origin (the `INSPECT_RANGES_ATTACK_BOX` value), consulted where `up` runs: the plan's dedicated attack box is attached (taps in the range netns, fds handed over) and booted by the registered provider instead of locally. `None` realizes the whole plan locally."""
 
@@ -956,7 +958,16 @@ def up(
         raise UpError("range-image", str(error)) from error
 
     # ownership registers before the first compose resource (cleanup registry)
-    write_owner(options.state_dir, owner_record(project, range_name, spec_sha, bundle))
+    write_owner(
+        options.state_dir,
+        owner_record(
+            project,
+            range_name,
+            spec_sha,
+            bundle,
+            reclaimable=options.reclaimable,
+        ),
+    )
     # the verified boot plan is recorded beside the owner record: the
     # out-of-band oracle attach (`range_oracle("<project>")`) rebuilds the
     # guest channel from it, and the bundle itself may be temporary

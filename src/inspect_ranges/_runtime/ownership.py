@@ -35,6 +35,8 @@ class OwnerRecord(BaseModel):
     origin: str | None = None
     sample_id: str | None = None
     cid_base: int | None = None
+    reclaimable: bool = False
+    """Declared intent for the build's reclaim: a rebuild may tear this project down once its owning pid is dead and its CID lease is still held. Set only by boots whose process is supposed to outlive them (a build's range and its proof boot, minus the kept variants); deliberately detached boots (`up`, `--keep`) leave it false, so they are refused rather than reclaimed."""
 
 
 def default_state_dir() -> Path:
@@ -116,7 +118,11 @@ def remove_project(state_dir: Path, project: str) -> None:
 
 
 def owner_record(
-    project: str, range_name: str, spec_sha256: str, bundle: Path
+    project: str,
+    range_name: str,
+    spec_sha256: str,
+    bundle: Path,
+    reclaimable: bool = False,
 ) -> OwnerRecord:
     """A fresh owner record for this process."""
     return OwnerRecord(
@@ -126,6 +132,7 @@ def owner_record(
         bundle=str(bundle),
         created=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         pid=os.getpid(),
+        reclaimable=reclaimable,
     )
 
 
