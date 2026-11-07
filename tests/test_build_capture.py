@@ -167,3 +167,25 @@ def test_live_project_files_reads_boot_json(tmp_path: Path) -> None:
     )
     write_owner(state, owner_record("ir-live-1", "r", "0" * 64, bundle))
     assert live_project_files(state) == {"r-web-abc.qcow2", "golden.qcow2"}
+
+
+def test_windows_scrub_acl_guard_pins_the_lockdown_contract() -> None:
+    r"""A tripwire over the guard's contract, not its spelling: no PowerShell runs in CI, so the live gates are the golden derive and the first Windows build, and this test exists to make an edit that narrows the contract a deliberate act.
+
+    The contract: broad principals checked by SID (names vary by locale), the home and the binary refused all write-class access including the generic bits, work refused only ownership-class bits (its Modify grant is the deliberate exec-home exception), and the failure naming the re-derive remedy, because the common trip is a build on a pre-lockdown golden.
+    """
+    from inspect_ranges._build.capture import GUESTD_ACL_GUARD
+
+    for sid in ("S-1-1-0", "S-1-5-11", "S-1-5-32-545"):
+        assert sid in GUESTD_ACL_GUARD, sid
+    # write-class plus GENERIC_WRITE and GENERIC_ALL for the home and binary;
+    # ownership-class only for work
+    assert "0x500D0156" in GUESTD_ACL_GUARD
+    assert "0x100C0000" in GUESTD_ACL_GUARD
+    for path, mask in (
+        ("'C:\\guestd'", "$writeMask"),
+        ("'C:\\guestd\\guestd.exe'", "$writeMask"),
+        ("'C:\\guestd\\work'", "$ownMask"),
+    ):
+        assert f"@({path}, {mask})" in GUESTD_ACL_GUARD, path
+    assert "derive-windows" in GUESTD_ACL_GUARD  # the remedy rides the error

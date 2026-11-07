@@ -249,9 +249,12 @@ namespace VsockD
 
         public static void ListenLoop()
         {
-            string work = WorkDir;
-            Directory.CreateDirectory(work);
-            Directory.SetCurrentDirectory(work);
+            Directory.CreateDirectory(WorkDir);
+            // the daemon's own cwd stays in the LOCKED home, never work:
+            // CreateProcess searches the parent's current directory when
+            // resolving a bare image name, so a user-writable process cwd
+            // would let a planted binary shadow a harness exec as LocalSystem
+            Directory.SetCurrentDirectory(BaseDir);
             Native.timeBeginPeriod(1);
 
             // supervision: the accept loop is watched; both exception storms
