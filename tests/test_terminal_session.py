@@ -515,6 +515,12 @@ def test_set_pane_hooks_commands_shape() -> None:
     # a new life re-sets the hooks with its own token, so a reopened name
     # cannot append onto a dead life's pane sink
     assert set_pane_hooks_commands("s", "ffffffff") != commands
+    # the rollback commands unset exactly the same hooks, session-scoped
+    from inspect_ranges._terminal.session import unset_pane_hooks_commands
+
+    assert unset_pane_hooks_commands("s") == [
+        ["tmux", "set-hook", "-u", "-t", "=s:", hook] for hook in hooks
+    ]
 
 
 def test_remove_sink_command_covers_pane_sinks() -> None:
@@ -753,6 +759,62 @@ def test_clip_cast_leaves_small_casts_alone() -> None:
 
     cast = '{"version": 2}\n[0.1, "o", "hi"]'
     assert clip_cast(cast, 10_000) == cast
+
+
+@pytest.mark.parametrize("cap", [0, 50, 150])
+def test_clip_cast_exhausted_budget_keeps_only_header_and_marker(cap: int) -> None:
+    """A cap the header and marker already exhaust clips a multi-event cast to exactly those two lines.
+
+    The old tail slice used `[-max(budget, 0):]`, and `[-0:]` slices from the
+    front: an exhausted budget returned the whole event stream (measured), so
+    a sibling cast meant to be starved under the session's shared store cap
+    leaked everything instead.
+    """
+    from inspect_ranges._terminal.cast import clip_cast
+
+    header = json.dumps({"version": 2})
+    events = [json.dumps([float(i), "o", "x" * 50]) for i in range(10)]
+    cast = header + "\n" + "\n".join(events) + "\n"
+    clipped = clip_cast(cast, cap)
+    lines = clipped.strip().split("\n")
+    assert json.loads(lines[0])["version"] == 2
+    assert [json.loads(line)[1] for line in lines[1:]] == ["m"]
+    assert "x" * 50 not in clipped
+
+
+def test_clip_cast_budget_below_one_event_still_stubs() -> None:
+    """A budget that fits the marker but not even one whole event line keeps no partial line: the result is still the header-and-marker stub, never a truncated JSON event."""
+    from inspect_ranges._terminal.cast import clip_cast
+
+    header = json.dumps({"version": 2})
+    events = [json.dumps([float(i), "o", "x" * 200]) for i in range(5)]
+    cast = header + "\n" + "\n".join(events) + "\n"
+    # past the stub (~header+marker) but short of any whole 200-char event
+    clipped = clip_cast(cast, 300)
+    lines = clipped.strip().split("\n")
+    assert [json.loads(line)[1] for line in lines[1:]] == ["m"]
+    assert len(clipped.encode()) <= 300 + 200  # marker overhead only
+
+
+@pytest.mark.parametrize(
+    ("version", "supported"),
+    [
+        ("tmux 3.4", True),
+        ("tmux 3.5a", True),
+        ("tmux next-3.6", True),
+        ("tmux 10.0", True),
+        ("tmux 3.3a", False),
+        ("tmux 2.9", False),
+        ("tmux master", False),
+        ("", False),
+        ("no version here", False),
+    ],
+)
+def test_pane_hooks_supported_fails_closed(version: str, supported: bool) -> None:
+    """The hook gate: proven (3.4) and later versions pass; an older or unparseable `tmux -V` fails closed, because an unproven hook context could divert the primary tap."""
+    from inspect_ranges._terminal.session import pane_hooks_supported
+
+    assert pane_hooks_supported(version) is supported
 
 
 _SPLIT_STREAM = f"$ ls /opt{_SUFFIX}\r\nguestd\r\n$ "

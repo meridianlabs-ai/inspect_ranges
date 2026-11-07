@@ -66,6 +66,7 @@ class _Capture:
     environment: SandboxEnvironment | None = None
     process: ExecRemoteProcess | None = None
     stopped: bool = False
+    pane_hooks: bool = True
     drained: anyio.Event = field(default_factory=anyio.Event)
     closed: anyio.Event = field(default_factory=anyio.Event)
     panes: dict[str, _PaneCapture] = field(default_factory=dict[str, _PaneCapture])
@@ -116,10 +117,11 @@ async def start_capture(
     state: SessionState,
     on_finalize: "Callable[[], None]",
     opener: SessionOpener | None = None,
+    pane_hooks: bool = True,
 ) -> None:
     """Start recording an open session; quietly a no-op outside a range sandbox.
 
-    `on_finalize` runs once at sample finalize after every recorder stops (the tool passes its state cleanup). `opener` is the agent context that opened the session, captured by the tool at open time; it rides the cast header so playback can group sessions by agent.
+    `on_finalize` runs once at sample finalize after every recorder stops (the tool passes its state cleanup). `opener` is the agent context that opened the session, captured by the tool at open time; it rides the cast header so playback can group sessions by agent. `pane_hooks=False` says the tool could not install the pane-capture hooks on this session, so no per-pane sink can ever appear and the recorder skips pane discovery entirely.
     """
     recording, evidence, project = _capture_target()
     if not recording:
@@ -151,6 +153,7 @@ async def start_capture(
             evidence=sample.evidence,
             opener=opener,
             environment=environment,
+            pane_hooks=pane_hooks,
         )
         sample.captures[session] = capture
         process = await environment.exec_remote(
@@ -163,7 +166,8 @@ async def start_capture(
         )
         capture.process = process
         background(_consume, capture, process)
-        background(_discover_panes, capture)
+        if pane_hooks:
+            background(_discover_panes, capture)
     except Exception as error:  # noqa: BLE001  (observability, never load-bearing)
         logger.info("terminal capture for %r is off: %s", session, error)
 
@@ -184,8 +188,11 @@ async def _consume(capture: _Capture, process: ExecRemoteProcess) -> None:
         capture.drained.set()
 
 
-_PANE_POLL_S = 2.0
-"""How often the recorder sweeps for per-pane sinks the session's tmux hooks created. Discovery latency costs timestamp granularity only, never content: a pane tailer reads its sink from byte one, and the sinks persist until close."""
+_PANE_POLL_S = 5.0
+"""How often the recorder sweeps for per-pane sinks the session's tmux hooks created. The cadence buys evidence-mirror timeliness and finer sibling-cast timestamps, never completeness: `stop_capture` reads any still-undiscovered sink whole, and a tailer the sweep does attach reads its sink from byte one."""
+
+_PANE_EXEC_TIMEOUT_S = 30
+"""Bound on the discovery and collection execs (the tool layer's exec convention): a wedged guest must not hang the poller, a close, or sample finalize."""
 
 
 async def _discover_panes(capture: _Capture) -> None:
@@ -199,21 +206,30 @@ async def _discover_panes(capture: _Capture) -> None:
             await capture.closed.wait()
 
 
-async def _sweep_pane_sinks(capture: _Capture) -> None:
-    """One discovery pass: list the life's pane-sink glob and attach a tailer to every sink not yet tailed.
-
-    The glob embeds the life token, so a dead life's leftovers are invisible. An agent replacing a hooked pane's `pipe-pane` with its own (one pipe per pane is tmux's rule) merely stops the sink growing, which a `tail -F` tolerates by design.
-    """
+async def _list_pane_sinks(capture: _Capture) -> list[tuple[str, str]]:
+    """The life's per-pane sinks on the guest right now, as `(pane id, sink path)` pairs; the glob embeds the life token, so a dead life's leftovers are invisible."""
     if capture.environment is None:
-        return
+        return []
     glob = pane_sink_glob(capture.session, capture.state.token)
     listed = await capture.environment.exec(
-        ["sh", "-c", f"ls {glob} 2>/dev/null || true"]
+        ["sh", "-c", f"ls {glob} 2>/dev/null || true"], timeout=_PANE_EXEC_TIMEOUT_S
     )
+    pairs: list[tuple[str, str]] = []
     for line in listed.stdout.splitlines():
         sink = line.strip()
         pane_id = pane_id_from_sink(sink, capture.session, capture.state.token)
-        if pane_id is None or pane_id in capture.panes:
+        if pane_id is not None:
+            pairs.append((pane_id, sink))
+    return pairs
+
+
+async def _sweep_pane_sinks(capture: _Capture) -> None:
+    """One discovery pass: attach a tailer to every sink not yet tailed.
+
+    A stopped capture attaches nothing (the gate is re-checked after the listing's await, so a sweep in flight when the stop lands cannot slip a tailer in). An agent replacing a hooked pane's `pipe-pane` with its own (one pipe per pane is tmux's rule) merely stops the sink growing, which a `tail -F` tolerates by design.
+    """
+    for pane_id, sink in await _list_pane_sinks(capture):
+        if pane_id in capture.panes or capture.stopped or capture.environment is None:
             continue
         pane = _PaneCapture(pane_id=pane_id, sink=sink)
         capture.panes[pane_id] = pane
@@ -221,6 +237,27 @@ async def _sweep_pane_sinks(capture: _Capture) -> None:
             ["sh", "-c", f"tail -c +1 -F {sink}"], stream=True
         )
         background(_consume_pane, capture, pane, pane.process)
+
+
+async def _collect_late_panes(capture: _Capture) -> None:
+    """Stop-time completeness: read any still-undiscovered pane sink whole, in one bounded exec per sink, rather than spawning a tailer just to kill it (deterministic beats racy at close). The read lands as one chunk, timestamped now, and mirrors to the pane's evidence stream like tailed output."""
+    if capture.environment is None:
+        return
+    for pane_id, sink in await _list_pane_sinks(capture):
+        if pane_id in capture.panes:
+            continue
+        pane = _PaneCapture(pane_id=pane_id, sink=sink)
+        capture.panes[pane_id] = pane
+        pane.drained.set()
+        read = await capture.environment.exec(
+            ["sh", "-c", f"cat {sink}"], timeout=_PANE_EXEC_TIMEOUT_S
+        )
+        if read.success and read.stdout:
+            data = read.stdout.encode(errors="replace")
+            pane.chunks.append((time.monotonic(), data))
+            if capture.evidence is not None:
+                stream = f"terminal/{capture.session}.{pane_label(pane.pane_id)}"
+                await capture.evidence.append_driver(stream, data)
 
 
 async def _consume_pane(
@@ -257,29 +294,34 @@ async def stop_capture(store_id: int, session: str) -> None:
     capture = sample.captures.pop(session, None)
     if capture is None or capture.stopped:
         return
-    try:
-        # a final sweep catches a pane created since the poller's last pass:
-        # its tailer reads the whole sink from byte one before the kill below
-        await _sweep_pane_sinks(capture)
-    except Exception as error:  # noqa: BLE001
-        logger.info("terminal pane sweep for %r: %s", capture.session, error)
     capture.stopped = True
     capture.closed.set()
+    if capture.pane_hooks:
+        try:
+            # a pane created since the poller's last pass is read whole here
+            # (the stopped flag above keeps the poller from racing new tailers
+            # in); without hooks no pane sink can exist, so no exec is spent
+            await _collect_late_panes(capture)
+        except Exception as error:  # noqa: BLE001
+            logger.info("terminal pane collect for %r: %s", capture.session, error)
     if capture.process is not None:
         try:
-            await capture.process.kill()
+            with anyio.move_on_after(30):
+                await capture.process.kill()
         except Exception:  # noqa: BLE001
             pass
         with anyio.move_on_after(10):
             await capture.drained.wait()
-    for pane in capture.panes.values():
+    panes = list(capture.panes.values())
+    for pane in panes:
         if pane.process is not None:
             try:
-                await pane.process.kill()
+                with anyio.move_on_after(30):
+                    await pane.process.kill()
             except Exception:  # noqa: BLE001
                 pass
     with anyio.move_on_after(10):
-        for pane in capture.panes.values():
+        for pane in panes:
             await pane.drained.wait()
     _write_cast(sample, capture)
 
@@ -352,7 +394,9 @@ def _write_cast(sample: _SampleCaptures, capture: _Capture) -> None:
         try:
             sibling = assemble_cast(
                 chunks=pane.chunks,
-                markers=[],
+                # the session's tool-call markers are session-level context
+                # (open/send/read), so every pane's playback carries them
+                markers=capture.state.markers,
                 start_monotonic=capture.state.opened_monotonic,
                 start_wall=capture.state.opened_wall,
                 title=f"terminal session {capture.session} pane {pane.pane_id}",

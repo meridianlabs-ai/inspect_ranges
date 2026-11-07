@@ -302,39 +302,49 @@ def test_split_window_records_to_its_own_sink(armed: tuple[Any, Store, str]) -> 
     asyncio.run(scenario())
 
 
-def test_close_assembles_sibling_casts_live(
-    armed: tuple[Any, Store, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """The full capture leg against real tmux: a session that spawns a window closes to one primary cast plus one sibling cast (file and store key), each carrying only its own pane's output, with every sink removed."""
+class LiveEvidence:
+    """The evidence surface the live capture tests need: location, append_driver, register_producer."""
+
+    def __init__(self, location: str) -> None:
+        self.location = location
+        self.appended: list[tuple[str, bytes]] = []
+
+    async def append_driver(self, stream: str, data: bytes) -> None:
+        self.appended.append((stream, data))
+
+    def register_producer(self, stop: Any) -> None:
+        pass
+
+
+def _arm_live_capture(
+    monkeypatch: pytest.MonkeyPatch, store: Store, location: str, poll_s: float
+) -> LiveEvidence:
+    """Point the capture leg at the host: real tmux and real tail processes behind a host `exec_remote`, with the discovery cadence under test control."""
     import inspect_ranges._terminal.capture as capture_module
 
-    tool, store, session = armed
-
-    class LiveEvidence:
-        def __init__(self, location: str) -> None:
-            self.location = location
-            self.appended: list[tuple[str, bytes]] = []
-
-        async def append_driver(self, stream: str, data: bytes) -> None:
-            self.appended.append((stream, data))
-
-        def register_producer(self, stop: Any) -> None:
-            pass
-
-    evidence = LiveEvidence(str(tmp_path / "evidence"))
+    evidence = LiveEvidence(location)
     host = HostRemoteSandbox()
     monkeypatch.setattr(
         capture_module, "_capture_target", lambda: (True, evidence, "live-panes")
     )
     monkeypatch.setattr(capture_module, "_current_store", lambda: store)
     monkeypatch.setattr(capture_module, "sandbox", lambda: host)
-    monkeypatch.setattr(capture_module, "_PANE_POLL_S", 0.2)
+    monkeypatch.setattr(capture_module, "_PANE_POLL_S", poll_s)
     tasks: list[asyncio.Task[None]] = []
 
     def run_background(fn: Any, *args: Any) -> None:
         tasks.append(asyncio.get_event_loop().create_task(fn(*args)))
 
     monkeypatch.setattr(capture_module, "background", run_background)
+    return evidence
+
+
+def test_close_assembles_sibling_casts_live(
+    armed: tuple[Any, Store, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The full capture leg against real tmux: a session that spawns a window closes to one primary cast plus one sibling cast (file and store key), each carrying only its own pane's output, with every sink removed."""
+    tool, store, session = armed
+    evidence = _arm_live_capture(monkeypatch, store, str(tmp_path / "evidence"), 0.2)
 
     async def scenario() -> None:
         await tool(action="open", session=session)
@@ -378,6 +388,90 @@ def test_close_assembles_sibling_casts_live(
         # close removed every sink, primary and per-pane alike
         assert pane_sink_files(session) == []
         assert not Path(sink_path(session)).exists()
+
+    asyncio.run(scenario())
+
+
+def test_close_collects_a_pane_the_poller_never_saw_live(
+    armed: tuple[Any, Store, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The stop-time one-shot path against real tmux: with the poller effectively off, a pane spawned and written just before close is still read whole and assembled into its sibling cast."""
+    tool, store, session = armed
+    evidence = _arm_live_capture(monkeypatch, store, str(tmp_path / "evidence"), 3600)
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        await tool(
+            action="send", session=session, keystrokes="tmux new-window\n", duration=1
+        )
+        await tool(
+            action="send",
+            session=session,
+            keystrokes="echo late-$((40+2))\n",
+            duration=1,
+        )
+        await tool(action="close", session=session)
+        directory = Path(evidence.location)
+        siblings = sorted(directory.glob(f"terminal-{session}.p*.cast"))
+        assert len(siblings) == 1
+        assert "late-42" in siblings[0].read_text()
+        assert pane_sink_files(session) == []
+
+    asyncio.run(scenario())
+
+
+def test_pane_hooks_skipped_on_an_unproven_tmux_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The version gate fails closed: on a tmux older than the proven 3.4 the untargeted hook pipe-pane could divert the primary tap, so no hook is even attempted."""
+    from inspect_ranges._terminal.tool import (
+        _install_pane_hooks,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    calls: list[list[str]] = []
+
+    async def scripted_exec(cmd: list[str], timeout_s: float = 30.0) -> ExecResult[str]:
+        calls.append(cmd)
+        return ExecResult(success=True, returncode=0, stdout="tmux 3.3a", stderr="")
+
+    monkeypatch.setattr(terminal_tool, "_exec", scripted_exec)
+
+    async def scenario() -> None:
+        assert await _install_pane_hooks("s", "ab12cd34", "s") is False
+        assert calls == [["tmux", "-V"]]
+
+    asyncio.run(scenario())
+
+
+def test_pane_hooks_install_is_both_or_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A partial hook installation rolls back: when the second set-hook fails, both hooks are unset, so a session never records only one pane kind."""
+    from inspect_ranges._terminal.session import unset_pane_hooks_commands
+    from inspect_ranges._terminal.tool import (
+        _install_pane_hooks,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    calls: list[list[str]] = []
+
+    async def scripted_exec(cmd: list[str], timeout_s: float = 30.0) -> ExecResult[str]:
+        calls.append(cmd)
+        if cmd == ["tmux", "-V"]:
+            return ExecResult(success=True, returncode=0, stdout="tmux 3.4", stderr="")
+        failing = "-u" not in cmd and cmd[4] == "after-split-window"
+        return ExecResult(
+            success=not failing,
+            returncode=1 if failing else 0,
+            stdout="",
+            stderr="bad hook" if failing else "",
+        )
+
+    monkeypatch.setattr(terminal_tool, "_exec", scripted_exec)
+
+    async def scenario() -> None:
+        assert await _install_pane_hooks("s", "ab12cd34", "s") is False
+        for unset_command in unset_pane_hooks_commands("s"):
+            assert unset_command in calls
 
     asyncio.run(scenario())
 
@@ -734,7 +828,12 @@ def test_reopen_of_dead_session_stops_stale_capture(
     calls: list[tuple[str, str]] = []
 
     async def fake_start(
-        store_id: int, name: str, state: Any, on_finalize: Any, opener: Any = None
+        store_id: int,
+        name: str,
+        state: Any,
+        on_finalize: Any,
+        opener: Any = None,
+        pane_hooks: bool = True,
     ) -> None:
         calls.append(("start", name))
 

@@ -128,6 +128,25 @@ def kill_session_command(session: str) -> list[str]:
 PANE_HOOKS = ("after-new-window", "after-split-window")
 
 
+def tmux_version_command() -> list[str]:
+    """Argv reporting the guest's tmux version (`tmux -V`)."""
+    return ["tmux", "-V"]
+
+
+_TMUX_VERSION = re.compile(r"(\d+)\.(\d+)")
+
+
+def pane_hooks_supported(version: str) -> bool:
+    """Whether `tmux -V` output names a version the pane-capture hooks may install on (3.4 or later).
+
+    The hooks' untargeted `pipe-pane` relies on the hook running with the NEW pane as its command context, which is measured behavior on tmux 3.4; on an unproven older version it could bind the OLD pane and divert the primary tap, strictly worse than no pane capture. So the gate fails closed: an older or unparseable version skips the hooks and keeps the primary capture exactly as it was. Later versions pass (the hook and format surface is stable API, and refusing them would turn a routine guest tmux upgrade into silent capture loss). An explicit `-t '#{pane_id}'` target is no alternative belt: tmux does not format-expand targets, so the hook's pipe-pane errors and taps nothing (measured on 3.4).
+    """
+    match = _TMUX_VERSION.search(version)
+    if match is None:
+        return False
+    return (int(match.group(1)), int(match.group(2))) >= (3, 4)
+
+
 def set_pane_hooks_commands(session: str, token: str) -> list[list[str]]:
     """Argvs installing the session-scoped tmux hooks that tap agent-created panes.
 
@@ -140,6 +159,13 @@ def set_pane_hooks_commands(session: str, token: str) -> list[list[str]]:
     return [
         ["tmux", "set-hook", "-t", target(session), hook, hook_command]
         for hook in PANE_HOOKS
+    ]
+
+
+def unset_pane_hooks_commands(session: str) -> list[list[str]]:
+    """Argvs removing the pane-capture hooks, for rolling back a partial installation: the hooks are both-or-none, since one hook silently taping only half the pane kinds would misrepresent coverage."""
+    return [
+        ["tmux", "set-hook", "-u", "-t", target(session), hook] for hook in PANE_HOOKS
     ]
 
 
