@@ -46,9 +46,25 @@ class RealizedImageMeta(BaseModel):
     created: str
 
 
+# capture commands move realized-image-sized files: a ~20 GB overlay copy at
+# IO-contended throughput, or a metadata-only qemu-img rebase stalled behind
+# another capture's writeback, both measured blowing a 300 s bound when
+# concurrent builds captured in lockstep (two otherwise-green 75-minute
+# builds died at this, their last step, 2026-11-07). The bound exists to
+# catch a HUNG command, not a slow disk, and the failure asymmetry says err
+# long: a false kill destroys a green build at its final step, while late
+# hang detection only wastes wall-clock (the reclaim cleans up the corpse).
+# An hour is ~10x the contended worst case; if it ever fires falsely, the
+# next step is a progress-aware watchdog (kill on stalled output growth),
+# not a bigger number.
+CAPTURE_COMMAND_TIMEOUT_S = 3600
+
+
 def default_capture_runner(argv: list[str]) -> str:
     """Run a host command for capture, surfacing stderr in the failure."""
-    completed = subprocess.run(argv, capture_output=True, timeout=300)
+    completed = subprocess.run(
+        argv, capture_output=True, timeout=CAPTURE_COMMAND_TIMEOUT_S
+    )
     if completed.returncode != 0:
         stderr = completed.stderr.decode(errors="replace").strip()[-300:]
         raise BuildError(

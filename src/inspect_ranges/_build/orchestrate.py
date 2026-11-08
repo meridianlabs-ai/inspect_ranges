@@ -46,8 +46,10 @@ from .._runtime.ownership import (
     OwnerRecord,
     StageLog,
     default_state_dir,
+    owner_record,
     project_dir,
     read_owner,
+    write_owner,
 )
 from .._runtime.up import OnStage, UpError, UpOptions, UpResult, up
 from ..schema import revalidate_range
@@ -646,7 +648,7 @@ def _reclaim_abandoned_build(
 
     The verdict re-checks under a per-project file lock, so two rebuilds racing serialize here and the loser re-reads the winner's fresh, live owner record before it could touch anything. The teardowns keep project state (`keep_state=True`): the dead run's stage history and console logs stay for autopsy (the proof boot's record is then rotated aside by `rotate_stale_bx_state`, its normal archival path), while the containers go and the lease is released explicitly, which is the part that unblocks the rebuild.
 
-    A lease whose owner record was never written (a death inside the few seconds between leasing and `up`'s registration) stays out of reach on purpose: nothing proves whose it is, so the lease refusal and its manual remedy stand.
+    The lease-to-boot window is covered too: `build_range` writes a provisional reclaimable owner record the moment it leases, before rendering, so a death anywhere after the lease leaves all three signals in place and nothing needs the manual remedy.
 
     Raises:
         BuildError: stage `reclaim`, when an abandoned project's teardown fails (the retry is the manual `down` the message names).
@@ -1022,6 +1024,21 @@ def build_range(
                 "or pass --cid-base",
             ) from error
         options = options.model_copy(update={"cid_base": leased.base})
+        # ownership one step earlier than up's own registration: a death in
+        # the lease-to-boot window (render, uplink) used to leave a lease
+        # nothing could prove ownership of, the one gap in the reclaim's
+        # three signals. The provisional record carries this pid and the
+        # reclaim intent; up overwrites it before creating any resource.
+        write_owner(
+            state_dir,
+            owner_record(
+                project,
+                spec.meta.name,
+                spec_sha256(build_spec),
+                staging,
+                reclaimable=not options.keep,
+            ),
+        )
     kept = False
     try:
         plan_options = PlanOptions(

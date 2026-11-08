@@ -482,6 +482,81 @@ def test_reclaim_runs_on_the_cached_fast_path(tmp_path: Path, cache: Path) -> No
     assert fakes.up_calls == []
 
 
+def test_a_death_in_the_lease_window_is_reclaimable(
+    tmp_path: Path, cache: Path
+) -> None:
+    """A kill between leasing and `up`'s registration used to leave a lease nothing could prove ownership of (the reclaim's one recorded gap): ownership now registers at lease time, so the stale lease plus the provisional record plus the dead pid reclaim like any other abandoned run."""
+    from inspect_ranges._provider.naming import CidAllocator
+    from inspect_ranges._runtime.ownership import OwnerRecord, write_owner
+
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    project = _green_project(tmp_path, cache)
+    # what the lease-window death leaves: the lease and the provisional
+    # record, no -bx record, no containers
+    CidAllocator(state_dir).lease(project, 3, origin="cli")
+    write_owner(
+        state_dir,
+        OwnerRecord(
+            project=project,
+            range_name="buildme",
+            spec_sha256="0" * 64,
+            bundle="/nonexistent",
+            created="2026-11-08T00:00:00+00:00",
+            pid=_EXITED_PID,
+            reclaimable=True,
+        ),
+    )
+
+    fakes = Fakes(["web", "db", "attacker"])
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache, cid_base=None),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    # reclaimed pair first, then the build's own teardown; the rebuild could
+    # lease, so the stale lease died with the reclaim
+    assert fakes.down_calls[:2] == [project, f"{project}-bx"]
+    assert project not in CidAllocator(state_dir).leased_projects()
+    assert result.project == project
+
+
+def test_ownership_registers_at_lease_time(tmp_path: Path, cache: Path) -> None:
+    """The provisional owner record exists by the time `up` runs (reclaim intent and this pid), so no instant after the lease is unproven."""
+    import os as _os
+
+    from inspect_ranges._runtime.ownership import read_owner
+
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    fakes = Fakes(["web", "db", "attacker"])
+    seen: list[tuple[bool, int]] = []
+
+    def observing_up(bundle: Path, options: UpOptions, **kwargs: Any) -> UpResult:
+        assert options.project is not None
+        owner = read_owner(state_dir, options.project)
+        assert owner is not None, "no ownership at boot time"
+        seen.append((owner.reclaimable, owner.pid))
+        return fakes.up_fn(bundle, options, **kwargs)
+
+    build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache, cid_base=None),
+        up_fn=observing_up,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+    )
+    assert seen and seen[0] == (True, _os.getpid())
+
+
 def test_reclaim_teardown_failure_names_its_stage(tmp_path: Path, cache: Path) -> None:
     """A failing reclaim refuses before anything boots, naming the stage and the manual retry, and the primary error stays primary."""
     spec, range_dir = build_spec_fixture(tmp_path)
