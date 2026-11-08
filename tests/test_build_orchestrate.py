@@ -528,8 +528,6 @@ def test_a_death_in_the_lease_window_is_reclaimable(
 
 def test_ownership_registers_at_lease_time(tmp_path: Path, cache: Path) -> None:
     """The provisional owner record exists by the time `up` runs (reclaim intent and this pid), so no instant after the lease is unproven."""
-    import os as _os
-
     from inspect_ranges._runtime.ownership import read_owner
 
     spec, range_dir = build_spec_fixture(tmp_path)
@@ -554,7 +552,37 @@ def test_ownership_registers_at_lease_time(tmp_path: Path, cache: Path) -> None:
         ensure_uplink=fakes.ensure_uplink,
         capture_fn=fakes.capture_fn,
     )
-    assert seen and seen[0] == (True, _os.getpid())
+    assert seen and seen[0] == (True, os.getpid())
+
+
+def test_a_pre_boot_failure_retracts_the_provisional_record(
+    tmp_path: Path, cache: Path
+) -> None:
+    """A build that dies before boot created nothing, so its provisional owner record must not linger as a phantom registered project (sweeps and the oracle would read it as real); the stage log stays for diagnosis."""
+    from inspect_ranges._build import BuildError
+    from inspect_ranges._runtime.ownership import list_projects, read_owner
+
+    spec, range_dir = build_spec_fixture(tmp_path)
+    state_dir = tmp_path / "state" / "projects"
+    fakes = Fakes(["web", "db", "attacker"])
+
+    def failing_uplink(name: str) -> None:
+        raise BuildError("uplink", "no uplink on this host")
+
+    with pytest.raises(BuildError):
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache, cid_base=None),
+            up_fn=fakes.up_fn,
+            down_fn=fakes.down_fn,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=failing_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    assert fakes.up_calls == []
+    for project in list_projects(state_dir):
+        assert read_owner(state_dir, project) is None, project
 
 
 def test_reclaim_teardown_failure_names_its_stage(tmp_path: Path, cache: Path) -> None:

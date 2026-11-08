@@ -626,6 +626,11 @@ def _resolved_cid_base(options: "BuildOptions") -> int:
     return options.cid_base
 
 
+def _retract_provisional_owner(state_dir: Path, project: str) -> None:
+    """Unlink an owner record whose build never reached boot: nothing was created, so a registered-looking project would only mislead sweeps and the oracle, while the stage log stays for diagnosis. Boot-reaching failures keep whatever `up` left, exactly as before ownership moved to lease time."""
+    (project_dir(state_dir, project) / "owner.json").unlink(missing_ok=True)
+
+
 def _pid_alive(pid: int) -> bool:
     """Whether `pid` is a live process on this host (signal 0 probe; a pid owned by another user reads as alive)."""
     try:
@@ -974,7 +979,8 @@ def build_range(
             # unchanged guests boot from their captured realized image and
             # skip their recipes; verification still covers them in full
             guest.image = reusable[guest.name].realized_file
-    project = f"{PROJECT_PREFIX}{spec.meta.name}-{spec_sha256(build_spec)[:12]}"
+    build_hash = spec_sha256(build_spec)
+    project = f"{PROJECT_PREFIX}{spec.meta.name}-{build_hash[:12]}"
     tee = _BuildTee(StageLog(state_dir, project), on_stage)
     _reclaim_abandoned_build(project, state_dir, down_fn, tee)
     run_steps = [step for step in steps if step.guest not in reusable]
@@ -1011,12 +1017,32 @@ def build_range(
         # dies in the finally below, or with `down` for a kept range. The cli
         # origin keeps provider sweeps (cli_cleanup) off operator builds.
         allocator = CidAllocator(state_dir)
+        # ownership registers BEFORE the lease, not at first boot: a death
+        # anywhere after the lease must leave all three reclaim signals in
+        # place, and record-then-lease is the order that guarantees it (a
+        # record without a lease is inert to the reclaim, whose first signal
+        # is the held lease, while a lease without a record is the unproven
+        # corpse this closes). Reclaim intent is unconditional here: the
+        # keep-detachment rationale applies to a BOOTED range, and up writes
+        # the keep-aware record before creating any resource; a --keep build
+        # dead before boot kept nothing worth protecting.
+        write_owner(
+            state_dir,
+            owner_record(
+                project,
+                spec.meta.name,
+                build_hash,
+                staging,
+                reclaimable=True,
+            ),
+        )
         try:
             leased = allocator.lease(
                 project, plan_totals(build_spec).guests, origin="cli"
             )
         except ValueError as error:
             shutil.rmtree(staging, ignore_errors=True)
+            _retract_provisional_owner(state_dir, project)
             raise BuildError(
                 "resolve",
                 f"{error}; a previous build of this spec still holds its CID "
@@ -1024,22 +1050,8 @@ def build_range(
                 "or pass --cid-base",
             ) from error
         options = options.model_copy(update={"cid_base": leased.base})
-        # ownership one step earlier than up's own registration: a death in
-        # the lease-to-boot window (render, uplink) used to leave a lease
-        # nothing could prove ownership of, the one gap in the reclaim's
-        # three signals. The provisional record carries this pid and the
-        # reclaim intent; up overwrites it before creating any resource.
-        write_owner(
-            state_dir,
-            owner_record(
-                project,
-                spec.meta.name,
-                spec_sha256(build_spec),
-                staging,
-                reclaimable=not options.keep,
-            ),
-        )
     kept = False
+    reached_boot = False
     try:
         plan_options = PlanOptions(
             image_cache=image_cache,
@@ -1065,6 +1077,7 @@ def build_range(
             raise
 
         try:
+            reached_boot = True
             result = up_fn(
                 staging,
                 UpOptions(
@@ -1592,6 +1605,11 @@ def build_range(
             shutil.rmtree(staging, ignore_errors=True)
             if allocator is not None:
                 allocator.release(project)
+        if not reached_boot:
+            # a pre-boot failure (render, uplink) created nothing: the
+            # provisional record would otherwise linger as a phantom
+            # registered project
+            _retract_provisional_owner(state_dir, project)
 
     if saved_manifest is not None and manifest is not None:
         # automatic realized-image GC at build success (parked-decisions item
