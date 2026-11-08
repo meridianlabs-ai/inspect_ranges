@@ -86,10 +86,15 @@ def prepare_ch_vsock_dir(project: str) -> Path:
 
 
 def write_owner(state_dir: Path, record: OwnerRecord) -> None:
-    """Register ownership; called before the first docker resource exists."""
+    """Register ownership; called before the first docker resource exists.
+
+    The write is atomic (tmp plus rename): a kill mid-registration must leave the previous record or none, never a partial file a reader parses to "unregistered" while resources exist.
+    """
     directory = project_dir(state_dir, record.project)
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / "owner.json").write_text(record.model_dump_json(indent=2) + "\n")
+    temp = directory / f".owner.json.{os.getpid()}"
+    temp.write_text(record.model_dump_json(indent=2) + "\n")
+    os.replace(temp, directory / "owner.json")
 
 
 def read_owner(state_dir: Path, project: str) -> OwnerRecord | None:
