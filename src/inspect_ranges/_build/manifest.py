@@ -18,7 +18,14 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, ConfigDict
 
 from .._diagnostics import Issue
-from ..types import Host, Router, has_guest_content, has_router_content
+from ..types import (
+    Attacker,
+    Host,
+    Router,
+    has_attacker_content,
+    has_guest_content,
+    has_router_content,
+)
 
 if TYPE_CHECKING:
     from ..types import RangeSpec
@@ -248,17 +255,17 @@ def windows_key_facts(
 
 
 def spec_projection(
-    host: Host | Router, *, network_state: dict[str, object] | None = None
+    host: Host | Router | Attacker, *, network_state: dict[str, object] | None = None
 ) -> str:
     """Canonical hash of the guest's realized-relevant declarations.
 
     Only the sections the build realizes participate (provisioning, services, vulnerabilities), so edits elsewhere (addresses, resources, notes on other hosts) re-render without rebuilding this guest; the projection principle from the spine's checkpoint decision, applied per guest.
 
-    A ROUTER's projection carries its provisioning alone: routers declare no `services`/`vulnerabilities`, declared `users` ride the recipes exactly as a host's do (never the projection), and the router's ACL, routes, and addressing are per-boot cloud-init that re-renders without a rebuild.
+    A ROUTER's projection carries its provisioning alone: routers declare no `services`/`vulnerabilities`, declared `users` ride the recipes exactly as a host's do (never the projection), and the router's ACL, routes, and addressing are per-boot cloud-init that re-renders without a rebuild. The ATTACK BOX's projection is the router shape for the same reasons: provisioning is its only content section, and its name, sizing, addressing, entry, and egress are per-boot renders.
 
     A WINDOWS host's projection also carries the seed TEMPLATE's content digest (so an edit to what specialize bakes re-keys the guest and forces the rebuild that picks it up), plus its name, interface addressing, and `network_state` (`windows_network_projection`; windows-ad-v1 slice 2, completed by the phase review): the unattend specialize pass runs once on the generalized golden, so the captured realized disk holds the hostname, static addresses, routes, and resolvers PERSISTENTLY — a consumer boot cannot re-apply them the way cloud-init re-seeds a Linux guest. Excluding any of it would let an edit re-render against a disk that still holds the old state, with no rebuild and no refusal; including it makes the edit an honest rebuild. A Windows host with no `network_state` refuses here, fail closed.
     """
-    if isinstance(host, Router):
+    if isinstance(host, (Router, Attacker)):
         projected: dict[str, object] = {
             "provisioning": [
                 step.model_dump(mode="json") for step in host.provisioning
@@ -320,7 +327,7 @@ def spec_projection(
 
 def guest_build_key(
     golden_digest: str,
-    host: Host | Router,
+    host: Host | Router | Attacker,
     recipes: list[tuple[ResolvedRecipe, dict[str, VarValue]]],
     *,
     range_name: str,
@@ -599,7 +606,7 @@ def apply_build_manifest(
 ) -> "tuple[RangeSpec, frozenset[str], BuildManifest | None]":
     """The build-aware runtime gate (ratified 2026-10-17): consume a matching build manifest, or refuse.
 
-    A spec with no realized-content sections passes through untouched. One with content (on hosts or routers) requires a manifest built from exactly this (normalized) spec whose realized images verify in the cache: content guests then boot their captured realized images and the manifest's sections count as realized at planning. Anything else refuses with `range-not-built`: honest-but-inert became honest-or-built.
+    A spec with no realized-content sections passes through untouched. One with content (on hosts, routers, or the attack box) requires a manifest built from exactly this (normalized) spec whose realized images verify in the cache: content guests then boot their captured realized images and the manifest's sections count as realized at planning. Anything else refuses with `range-not-built`: honest-but-inert became honest-or-built.
 
     Returns:
         The (possibly swapped) spec, the realized sections for `PlanOptions`, and the consumed manifest (None when the spec carries no content).
@@ -609,9 +616,10 @@ def apply_build_manifest(
     """
     from ..types import IssueError  # local: keep module import-light
 
-    content_guests: list[Host | Router] = [
+    content_guests: list[Host | Router | Attacker] = [
         *(host for host in spec.hosts if has_guest_content(host)),
         *(router for router in spec.routers if has_router_content(router)),
+        *([spec.attacker] if has_attacker_content(spec.attacker) else []),
     ]
     if not content_guests:
         return spec, frozenset(), None
@@ -701,7 +709,7 @@ def swap_realized_spec(
     *,
     image_cache: Path,
 ) -> "tuple[RangeSpec, frozenset[str]]":
-    """The gate's consumption step on an already-matched manifest: every content guest (host or router) boots its digest-verified realized image.
+    """The gate's consumption step on an already-matched manifest: every content guest (host, router, or attack box) boots its digest-verified realized image.
 
     Also used by the build's behavioral phase on the not-yet-saved manifest (the checks must prove the captured artifacts before any manifest becomes consumable), which is why this takes the manifest object rather than loading one.
 
@@ -727,15 +735,18 @@ def swap_realized_spec(
 
     swapped = spec.model_copy(deep=True)
     golden_digests: dict[str, str | None] = {}
-    swap_guests: list[Host | Router] = [*swapped.hosts, *swapped.routers]
+    swap_guests: list[Host | Router | Attacker] = [*swapped.hosts, *swapped.routers]
+    if swapped.attacker.host is None:
+        swap_guests.append(swapped.attacker)
     for host in swap_guests:
         record = manifest.guest(host.name)
         if record is None:
-            content = (
-                has_router_content(host)
-                if isinstance(host, Router)
-                else has_guest_content(host)
-            )
+            if isinstance(host, Attacker):
+                content = has_attacker_content(host)
+            elif isinstance(host, Router):
+                content = has_router_content(host)
+            else:
+                content = has_guest_content(host)
             if content:
                 raise refuse(
                     f"its build manifest has no record for guest {host.name!r}",

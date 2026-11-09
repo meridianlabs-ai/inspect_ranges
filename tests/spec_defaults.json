@@ -13,6 +13,7 @@
  "Attacker.image": "None",
  "Attacker.interfaces": "None",
  "Attacker.name": "'attacker'",
+ "Attacker.provisioning": "[]",
  "Attacker.resources": "None",
  "Attacker.vmm": "None",
  "DataFile.description": "None",

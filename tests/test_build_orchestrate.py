@@ -2154,6 +2154,98 @@ def test_egress_build_spec_lifts_containment_for_provisioned_footholds() -> None
     assert spec.attacker.egress == "none"
 
 
+def test_egress_build_spec_lifts_containment_for_provisioned_attack_box() -> None:
+    """A dedicated attack box carrying recipes needs build egress exactly like a provisioned foothold: the build variant lifts its containment to open, the runtime spec keeps none."""
+    from inspect_ranges.types import (
+        Attacker,
+        Host,
+        Interface,
+        Network,
+        Os,
+        ProvisioningStep,
+        RangeMeta,
+        RangeSpec,
+    )
+
+    spec = RangeSpec(
+        meta=RangeMeta(name="attack-box-build", description="provisioned attack box"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="web",
+                os=Os(type="linux"),
+                image="ubuntu-focal",
+                interfaces=[Interface(network="lab")],
+            )
+        ],
+        attacker=Attacker(
+            image="attack-golden",
+            vmm="qemu",
+            interfaces=[Interface(network="lab")],
+            entry="external",
+            provisioning=[ProvisioningStep(recipe="acme.tools")],
+        ),
+    )
+    build = egress_build_spec(spec, nameserver_ip="1.1.1.1")
+    assert build.attacker.egress == "open"
+    # the flipped lab network bears the egress; no uplink is needed
+    assert next(n for n in build.networks if n.name == "lab").mode == "nat"
+    assert not any(n.name == "build-uplink" for n in build.networks)
+    assert spec.attacker.egress == "none"
+
+
+def test_egress_build_spec_uplinks_stranded_attack_box() -> None:
+    """A provisioned attack box whose every attachment is router-attached strands like a content host and gets the build-uplink interface; the router stays uplink-free and the runtime spec is untouched."""
+    from inspect_ranges.types import (
+        Attacker,
+        Host,
+        Interface,
+        Network,
+        Os,
+        ProvisioningStep,
+        RangeMeta,
+        RangeSpec,
+        Router,
+    )
+
+    spec = RangeSpec(
+        meta=RangeMeta(name="attack-box-stranded", description="routed attack box"),
+        networks=[
+            Network(name="dmz", cidr="10.0.1.0/24", mode="isolated"),
+            Network(name="internal", cidr="10.0.2.0/24", mode="isolated"),
+        ],
+        routers=[
+            Router(
+                name="gw",
+                interfaces=[Interface(network="dmz"), Interface(network="internal")],
+            )
+        ],
+        hosts=[
+            Host(
+                name="db",
+                os=Os(type="linux"),
+                image="ubuntu-focal",
+                interfaces=[Interface(network="internal")],
+            )
+        ],
+        attacker=Attacker(
+            image="attack-golden",
+            vmm="qemu",
+            interfaces=[Interface(network="dmz")],
+            entry="external",
+            provisioning=[ProvisioningStep(recipe="acme.tools")],
+        ),
+    )
+    build = egress_build_spec(spec, nameserver_ip="1.1.1.1")
+    assert build.attacker.egress == "open"
+    assert build.attacker.interfaces is not None
+    assert [i.network for i in build.attacker.interfaces] == ["dmz", "build-uplink"]
+    assert [i.network for i in build.routers[0].interfaces] == ["dmz", "internal"]
+    assert spec.attacker.interfaces is not None
+    assert [i.network for i in spec.attacker.interfaces] == ["dmz"]
+    assert spec.attacker.egress == "none"
+
+
 def test_egress_build_spec_uplink_dodges_name_and_cidr_collisions() -> None:
     from inspect_ranges.types import (
         Attacker,
@@ -2505,6 +2597,148 @@ def test_build_refuses_router_content_without_image(
         )
     assert [(i.code, i.path) for i in excinfo.value.issues] == [
         ("router-image-required", ("routers", 0, "image"))
+    ]
+    assert fakes.up_calls == []
+
+
+# -- attack-box provisioning --------------------------------------------------
+
+
+def attack_box_spec_fixture(tmp_path: Path) -> tuple[RangeSpec, Path]:
+    """A one-segment spec with a provisioned host and a provisioned dedicated attack box, plus its range dir with recipes."""
+    range_dir = tmp_path / "range"
+    if not (range_dir / "recipes" / "acme.web").exists():
+        write_recipe(range_dir, name="acme.web", inputs={"marker": {}})
+        write_recipe(range_dir, name="acme.tools")
+    spec = RangeSpec(
+        meta=RangeMeta(name="attack-build", description="attack-box fixture"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="web",
+                os=Os(type="linux"),
+                image="tiny-golden",
+                interfaces=[Interface(network="lab")],
+                provisioning=[
+                    ProvisioningStep(recipe="acme.web", vars={"marker": "m"})
+                ],
+            )
+        ],
+        attacker=Attacker(
+            image="tiny-golden",
+            vmm="qemu",
+            interfaces=[Interface(network="lab")],
+            entry="external",
+            provisioning=[ProvisioningStep(recipe="acme.tools")],
+        ),
+    )
+    return spec, range_dir
+
+
+def test_build_provisions_the_attack_box_on_the_host_path(
+    tmp_path: Path, cache: Path
+) -> None:
+    """A provisioned attack box builds like a host, last in the recipe order (hosts, routers, attacker) and with the settle gate engaged (its recipes need egress, unlike a router's); its disk is captured, the manifest records it under its own build key, an unchanged rebuild is the cached no-op, and a host edit reuses the attacker per-guest."""
+    from inspect_ranges._build import load_manifest
+
+    spec, range_dir = attack_box_spec_fixture(tmp_path)
+    fakes = Fakes(["web", "attacker"])
+    settled: list[str] = []
+
+    def settle(
+        cids: dict[str, int],
+        guest: str,
+        probe: str,
+        timeout_s: float,
+        hybrid_sockets: Any = None,
+        windows_resolver: str | None = None,
+        resolvers: tuple[str, ...] = (),
+    ) -> float:
+        settled.append(guest)
+        return 0.5
+
+    result = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache, settle_probe="archive.ubuntu.com"),
+        up_fn=fakes.up_fn,
+        down_fn=fakes.down_fn,
+        recipe_fn=fakes.recipe_fn,
+        ensure_uplink=fakes.ensure_uplink,
+        capture_fn=fakes.capture_fn,
+        settle_fn=settle,
+    )
+    assert [(name, guest) for name, guest, _ in fakes.recipe_calls] == [
+        ("acme.web", "web"),
+        ("acme.tools", "attacker"),
+    ]
+    assert settled == ["web", "attacker"]  # the attack box IS settled
+    assert [guest for guest, _, _ in fakes.captures] == ["web", "attacker"]
+    manifest = load_manifest(tmp_path / "builds", "attack-build")
+    assert manifest is not None
+    record = manifest.guest("attacker")
+    web_record = manifest.guest("web")
+    assert record is not None and web_record is not None
+    assert record.golden_reference == "tiny-golden"
+    assert record.recipes[0].name == "acme.tools" and record.build_key
+    assert record.build_key != web_record.build_key
+    # unchanged rebuild: every key matches, nothing boots
+    second = Fakes(["web", "attacker"])
+    rebuilt = build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=second.up_fn,
+        down_fn=second.down_fn,
+        recipe_fn=second.recipe_fn,
+        ensure_uplink=second.ensure_uplink,
+        capture_fn=second.capture_fn,
+    )
+    assert rebuilt.cached and second.up_calls == [] and second.recipe_calls == []
+    assert result.project != "" and rebuilt.project == result.project
+    # a host edit rebuilds the host alone: the attacker reuses per-guest, its
+    # realized image swapped into the build spec in place of its golden
+    edited = spec.model_copy(deep=True)
+    edited.hosts[0].provisioning = [
+        ProvisioningStep(recipe="acme.web", vars={"marker": "changed"})
+    ]
+    third = Fakes(["web", "attacker"])
+    build_range(
+        edited,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=third.up_fn,
+        down_fn=third.down_fn,
+        recipe_fn=third.recipe_fn,
+        ensure_uplink=third.ensure_uplink,
+        capture_fn=third.capture_fn,
+    )
+    assert [(name, guest) for name, guest, _ in third.recipe_calls] == [
+        ("acme.web", "web")
+    ]
+    assert [guest for guest, _, _ in third.captures] == ["web"]
+
+
+def test_build_refuses_attacker_content_without_image(
+    tmp_path: Path, cache: Path
+) -> None:
+    """Provisioning on the standard attack image default refuses before anything resolves or boots, exactly as the router rule does."""
+    spec, range_dir = attack_box_spec_fixture(tmp_path)
+    spec.attacker.image = None
+    fakes = Fakes(["web", "attacker"])
+    with pytest.raises(IssueError) as excinfo:
+        build_range(
+            spec,
+            range_dir,
+            options_for(tmp_path, cache),
+            up_fn=fakes.up_fn,
+            down_fn=fakes.down_fn,
+            recipe_fn=fakes.recipe_fn,
+            ensure_uplink=fakes.ensure_uplink,
+            capture_fn=fakes.capture_fn,
+        )
+    assert [(i.code, i.path) for i in excinfo.value.issues] == [
+        ("attacker-image-required", ("attacker", "image"))
     ]
     assert fakes.up_calls == []
 

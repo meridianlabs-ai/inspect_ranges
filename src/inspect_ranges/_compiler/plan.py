@@ -402,6 +402,21 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                             hint="Windows guests take firmware and tpm only (the verified Windows 11 shape is uefi-secure + tpm)",
                         )
                     )
+    if (
+        spec.attacker.provisioning
+        and _attacker_vmm(spec.attacker) == "cloud-hypervisor"
+    ):
+        # the same capture limit the hosts/routers gate enforces above, but
+        # cloud-hypervisor is the ATTACK BOX DEFAULT: the author likely wrote
+        # no vmm at all, so the refusal names the exact declaration to add
+        issues.append(
+            Issue(
+                code="cloud-hypervisor-content-unsupported",
+                path=("attacker", "vmm"),
+                message=f"the attack box {spec.attacker.name!r} declares provisioning but runs on cloud-hypervisor (the attack box default), which the build cannot capture yet",
+                hint="declare vmm: qemu on the attacker (a provisioned attack box must run on qemu until cloud-hypervisor capture lands)",
+            )
+        )
     if options.cpu_model != "host-passthrough":
         # Cloud Hypervisor takes no CPU model: its guests always see the host
         # CPU, so a pinned model would silently not apply to them
@@ -670,6 +685,28 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                     hint="declare image: on a content-bearing router (the build key pins the golden its recipes realize on)",
                 )
             )
+    if spec.attacker.provisioning and "provisioning" not in options.realized_sections:
+        issues.append(
+            Issue(
+                code="guest-config-not-realized",
+                path=("attacker", "provisioning"),
+                message=f"the attack box {spec.attacker.name!r} declares provisioning, which only the build realizes",
+                hint=_GUEST_CONTENT_HINT,
+            )
+        )
+    if spec.attacker.provisioning and spec.attacker.image is None:
+        # the standard attack image default is a backend resolution
+        # (PlanOptions.default_attacker_image), so content on it would key
+        # against an image the spec never pinned; the router-image-required
+        # rule, extended to the attack box
+        issues.append(
+            Issue(
+                code="attacker-image-required",
+                path=("attacker", "image"),
+                message=f"the attack box {spec.attacker.name!r} declares provisioning but no image; the standard attack image default is a backend resolution its build key cannot pin",
+                hint="declare image: on a provisioned attack box (the build key pins the golden its recipes realize on)",
+            )
+        )
     if spec.defense is not None and (
         "defense" not in options.realized_sections or not spec.defense.telemetry
     ):

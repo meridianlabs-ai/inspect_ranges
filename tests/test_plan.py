@@ -274,6 +274,47 @@ def test_router_content_gates_at_planning() -> None:
     assert router.image.reference == "fw-golden"
 
 
+def test_attacker_content_gates_at_planning() -> None:
+    """Attack-box `provisioning` gates like router content: refused on the runtime path, lifted by the build's realized sections, and content pins a declared image (`attacker-image-required`)."""
+    from inspect_ranges.types import ProvisioningStep
+
+    steps = [ProvisioningStep(recipe="acme.tools")]
+    build = frozenset({"provisioning"})
+    cases: list[tuple[str, str | None, frozenset[str], str, tuple[str, ...]]] = [
+        (
+            "provisioning gates on the runtime path",
+            "attack-golden",
+            frozenset(),
+            "guest-config-not-realized",
+            ("attacker", "provisioning"),
+        ),
+        (
+            "content on the standard attack image default cannot key",
+            None,
+            build,
+            "attacker-image-required",
+            ("attacker", "image"),
+        ),
+    ]
+    for label, image, sections, code, path in cases:
+        spec = two_segment_spec()
+        spec.attacker.provisioning = steps
+        spec.attacker.image = image
+        spec.attacker.vmm = "qemu"
+        with pytest.raises(IssueError) as excinfo:
+            resolve_plan(spec, PlanOptions(realized_sections=sections))
+        assert [(i.code, i.path) for i in excinfo.value.issues] == [(code, path)], label
+    # the build path with recipes, a declared image, and qemu plans clean
+    spec = two_segment_spec()
+    spec.attacker.provisioning = steps
+    spec.attacker.image = "attack-golden"
+    spec.attacker.vmm = "qemu"
+    plan = resolve_plan(spec, PlanOptions(realized_sections=build))
+    attacker = next(g for g in plan.guests if g.kind == "attacker")
+    assert attacker.image.reference == "attack-golden"
+    assert attacker.vmm == "qemu"
+
+
 def test_hostname_renders_and_fqdn_gates_at_planning() -> None:
     """A declared `hostname:` renders (realized at render as of windows-ad-v1 slice 4: the plan resolves it, sanitized, for every injector); `fqdn` stays gated on the runtime path — only the build's AD recipes realize it (promotion/join set the primary DNS suffix)."""
     spec = two_segment_spec()

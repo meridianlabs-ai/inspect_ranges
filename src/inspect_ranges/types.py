@@ -854,6 +854,14 @@ def has_router_content(router: "Router") -> bool:
     return bool(router.provisioning)
 
 
+def has_attacker_content(attacker: "Attacker") -> bool:
+    """Whether the attacker declares buildable guest content (provisioning): the attacker analog of `has_guest_content`, shared by the same consumers.
+
+    Only a dedicated attack box can carry content: an attacker with `host` set refuses provisioning outright (`attacker-foothold-conflict`), so a true result always names a dedicated box.
+    """
+    return bool(attacker.provisioning)
+
+
 class Router(_StrictModel):
     """A gateway guest joining two or more networks, carrying the inter-segment ACL."""
 
@@ -985,6 +993,9 @@ class Attacker(_StrictModel):
     egress: Literal["none", "open"] | EgressPolicy = "none"
     """Attacker-reachable egress from the range: `none` (default), `open`, or a scoped allowlist. Attacker egress composes ahead of network egress: `none` drops the attacker's flows even on a network with an allowlist."""
 
+    provisioning: list[ProvisioningStep] = []
+    """Build-time recipe references, in order (the host build path extended to the dedicated attack box): a provisioned attack box boots in the build with egress, runs its recipes, and is captured as a realized image with its own build key. Requires a declared `image` (`attacker-image-required`): the standard attack image default is a backend resolution the build key cannot pin. Requires `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the build cannot capture Cloud Hypervisor guests yet. With `host` set, recipes belong on the foothold host and declaring them here is refused."""
+
     @model_validator(mode="after")
     def _check_foothold(self) -> "Attacker":
         if self.host is not None:
@@ -995,6 +1006,8 @@ class Attacker(_StrictModel):
             ]
             if self.vmm is not None:
                 extras.append("vmm")
+            if self.provisioning:
+                extras.append("provisioning")
             if extras:
                 raise IssueError(
                     [

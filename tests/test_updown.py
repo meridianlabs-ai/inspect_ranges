@@ -1054,6 +1054,35 @@ def test_up_verifies_the_realized_overlays_backing_golden(
         up(out, options(cache, tmp_path), runner=FakeDocker())
 
 
+def test_render_carries_the_attackers_realized_backing(
+    tmp_path: Path, cache: Path
+) -> None:
+    """A built attack box boots a realized overlay exactly like a content host: `realized_backings` keyed by the attacker's name lands `backing_file`/`backing_digest` on its boot entry through the shared render path."""
+    import hashlib as hashlib_module
+    import json as json_module
+
+    (cache / "attack-backing.qcow2").write_bytes(b"backing")
+    backing_digest = f"sha256:{hashlib_module.sha256(b'backing').hexdigest()}"
+    (cache / "tiny-attacker-abcdef.qcow2").write_bytes(b"realized")
+    spec = tiny_spec()
+    spec.attacker.image = "tiny-attacker-abcdef.qcow2"
+    spec.attacker.vmm = "qemu"
+    out = tmp_path / "attacker-backed-bundle"
+    render_bundle(
+        spec,
+        out,
+        PlanOptions(
+            image_cache=cache,
+            cid_base=3000,
+            realized_backings={"attacker": ("attack-backing.qcow2", backing_digest)},
+        ),
+    )
+    boot = json_module.loads((out / "boot.json").read_text())
+    attacker = next(g for g in boot["guests"] if g["name"] == "attacker")
+    assert attacker["backing_file"] == "attack-backing.qcow2"
+    assert attacker["backing_digest"] == backing_digest
+
+
 def test_up_verifies_the_golden_to_vendor_edge(tmp_path: Path, cache: Path) -> None:
     """Round-3 distribution review B4: a mixed chain (vendor moved under an older golden, e.g. an interrupted refresh) must refuse at verify-images, never boot silently corrupted."""
     import hashlib as hashlib_module
@@ -1298,6 +1327,43 @@ def test_up_external_attack_box_happy_path(
     assert (
         stages.index("attach") < stages.index("attack-box") < stages.index("readiness")
     )
+
+
+def test_external_attack_box_refuses_a_built_attack_box(
+    bundle: Path, cache: Path, tmp_path: Path
+) -> None:
+    """A realized attack-box overlay means built content (attacker provisioning), which an external provider cannot reproduce: the refusal names both ways out, and it must precede the vmm refusal (a provisioned box is qemu-planned, so the vmm hint would mislead)."""
+    from inspect_ranges._runtime.up import (
+        BootGuest,
+        BootPlan,
+        UpError,
+        _external_attack_box,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    boot = BootPlan(
+        parallel=True,
+        verify={},
+        guests=[
+            BootGuest(
+                name="attacker",
+                kind="attacker",
+                cid=3001,
+                image_file="attack-build-attacker-abcdef.qcow2",
+                backing_file="attack-golden.qcow2",
+                backing_digest="sha256:" + "ab" * 32,
+                overlay_gb=10,
+                readiness="cloud-init",
+                vmm="qemu",
+            )
+        ],
+    )
+    with pytest.raises(UpError) as excinfo:
+        _external_attack_box(
+            options(cache, tmp_path, attack_box=RECORDING_ORIGIN), boot, bundle
+        )
+    assert excinfo.value.stage == "attack-box"
+    assert "built realized image" in str(excinfo.value)
+    assert "drop the attacker's provisioning" in str(excinfo.value)
 
 
 def test_up_refuses_a_foothold_whose_daemon_runs_as_root(
