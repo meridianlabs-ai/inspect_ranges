@@ -530,6 +530,23 @@ def scrub_harness_echo(text: str, channel_prefix: str | None = None) -> str:
     return plain.sub("", wrapped.sub(scrub_wrapped, text))
 
 
+def split_suffix_holdback(text: str, channel_prefix: str) -> tuple[str, str]:
+    r"""`text` split into the part safe to emit now and a trailing fragment withheld because it may be the blocking signal's echo cut mid-suffix by a read boundary.
+
+    The scrub matches the suffix within one read, but a read racing dribbling output can end INSIDE the echoed `; tmux wait -S <channel>` (measured live: a wedged foreground ssh produced a delta that began at the bare channel name, which no pattern can anchor). The trailing fragment is withheld, not deleted: the next read prepends it, so a fragment that completes into the suffix scrubs as a whole, and one that does not is emitted then, delayed one read and never lost. Only a strict trailing prefix of this life's suffix literal (or the literal plus part of its send counter) is ever held, so ordinary output ends each read untouched; the fallback and close paths drop the holdback, because the screen they render shows the pane's reality in place.
+    """
+    literal = f"; tmux wait -S {channel_prefix}"
+    max_hold = min(len(text), len(literal) + 12)
+    for length in range(max_hold, 0, -1):
+        tail = text[-length:]
+        if length <= len(literal):
+            if literal.startswith(tail):
+                return text[:-length], tail
+        elif tail.startswith(literal) and tail[len(literal) :].isdigit():
+            return text[:-length], tail
+    return text, ""
+
+
 def label_output(
     new_content: str | None, visible_screen: str, first_read: bool = False
 ) -> str:
@@ -564,3 +581,5 @@ class SessionState:
     opened_monotonic: float = 0.0
     sends: int = 0
     token: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    scrub_holdback: str = ""
+    """A trailing fragment of the previous read withheld because it may be the blocking signal's echo cut mid-suffix by the read boundary (`split_suffix_holdback`); the next delta rejoins it so the suffix scrubs whole."""

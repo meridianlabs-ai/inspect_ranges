@@ -26,6 +26,7 @@ from inspect_ranges._terminal.session import (
     send_keys_command,
     send_keys_commands,
     set_pane_hooks_commands,
+    split_suffix_holdback,
     start_session_command,
     valid_session_name,
     wait_channel,
@@ -885,3 +886,56 @@ def test_assemble_cast_without_prefix_keeps_the_raw_stream() -> None:
         title="s",
     )
     assert json.loads(cast.strip().split("\n")[1])[2] == stream
+
+
+@pytest.mark.parametrize(
+    ("text", "emit", "hold"),
+    [
+        # ordinary output ends untouched
+        ("out\n$ ", "out\n$ ", ""),
+        ("int x=0;\n", "int x=0;\n", ""),
+        # the boundary landing anywhere inside the suffix withholds the tail
+        ("$ cmd; tmux wait -S done-", "$ cmd", "; tmux wait -S done-"),
+        ("$ cmd; tmux w", "$ cmd", "; tmux w"),
+        ("$ cmd;", "$ cmd", ";"),
+        # a boundary inside the send counter still withholds (digits ride)
+        (f"$ cmd; tmux wait -S {_PREFIX}1", "$ cmd", f"; tmux wait -S {_PREFIX}1"),
+        # the CONTINUATION fragment is never a prefix: nothing to hold (the
+        # previous read's carry is what rescues it)
+        ("main-b7f168f4-17", "main-b7f168f4-17", ""),
+        # non-suffix text that merely resembles the start is still held, then
+        # released by the next read (byte conservation, tested below)
+        ("echo hi; tmux win", "echo hi; tmux w" + "in", ""),
+    ],
+)
+def test_split_suffix_holdback(text: str, emit: str, hold: str) -> None:
+    """Only a strict trailing prefix of this life's suffix is withheld; everything else emits now (pre-ship measurement: a wedged ssh made a read boundary land inside the echoed suffix, and the next delta began at the bare channel name)."""
+    assert split_suffix_holdback(text, _PREFIX) == (emit, hold)
+
+
+def test_cross_read_suffix_split_is_scrubbed_whole() -> None:
+    """A suffix cut by a read boundary leaks neither half: the first read withholds the head, the second read rejoins and the scrub removes the whole (the measured leak showed the bare channel name as an entire delta)."""
+    read1 = "$ ssh target 'uname'; tmux wait -S done-"
+    read2 = f"{_PREFIX.removeprefix('done-')}17\nLinux\n$ "
+    emit1, hold = split_suffix_holdback(read1, _PREFIX)
+    assert "tmux wait" not in emit1
+    combined = hold + read2
+    emit2, hold2 = split_suffix_holdback(combined, _PREFIX)
+    assert hold2 == ""
+    out2 = scrub_harness_echo(emit2, _PREFIX)
+    assert "done-" not in out2 and "b7f168f4" not in out2
+    assert "Linux" in out2
+    assert (
+        scrub_harness_echo(emit1, _PREFIX) + out2 == "$ ssh target 'uname'\nLinux\n$ "
+    )
+
+
+def test_cross_read_agent_text_is_delayed_never_lost() -> None:
+    """A trailing fragment that merely resembles the suffix start is released intact by the next read: withholding delays bytes one read, it never deletes them."""
+    read1 = "C code: x++; tmux w"
+    read2 = "as here\n$ "
+    emit1, hold = split_suffix_holdback(read1, _PREFIX)
+    assert hold == "; tmux w"
+    emit2, hold2 = split_suffix_holdback(hold + read2, _PREFIX)
+    assert hold2 == ""
+    assert emit1 + emit2 == read1 + read2
