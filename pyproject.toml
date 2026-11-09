@@ -31,7 +31,7 @@ inspect_ranges = "inspect_ranges._registry"
 inspect-ranges = "inspect_ranges._cli.main:main"
 
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "ruff",
     "pytest",
@@ -43,6 +43,10 @@ dev = [
     "pytest-cov>=7.1.0",
     "types-PyYAML",
 ]
+
+[dependency-groups]
+# Keeps a plain `uv sync` or `uv run` (the Makefile) pulling the dev tools.
+dev = ["inspect_ranges[dev]"]
 # Kept out of `dev` and the default groups: quarto-cli has no wheel and is
 # built from its sdist. Docs builds ask for it with `--group doc`.
 doc = [
@@ -87,8 +91,19 @@ local_scheme = "no-local-version" # Important for PyPI compatibility
 
 [tool.uv]
 managed = true
-# uv 0.12.22 is the first release that writes lock revision 5 (this uv.lock)
-required-version = ">=0.12.22"
+# 0.11.8 is the first uv that keeps uv.lock stable with a relative exclude-newer,
+# and 0.13.4 the first that no longer trusts the compromised emSign root
+# (GHSA-hq85-5cpj-mr62).
+required-version = ">=0.13.4"
+# Only resolve releases at least 7 days old (see CONTRIBUTING.md).
+exclude-newer = "7 days"
+
+# 6 hours only for direct dependencies that are a model provider SDK or an
+# Inspect package; see CONTRIBUTING.md.
+[tool.uv.exclude-newer-package]
+anthropic = "6 hours"
+inspect-ai = "6 hours"
+inspect-scout = "6 hours"
 
 
 [tool.ruff]
