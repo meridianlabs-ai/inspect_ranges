@@ -514,6 +514,31 @@ def test_cloud_hypervisor_guests_with_content_refuse_at_planning(cache: Path) ->
     )
 
 
+def test_provisioned_attack_box_requires_qemu(cache: Path) -> None:
+    """A provisioned attack box on the cloud-hypervisor DEFAULT refuses with the exact fix named (the author likely declared no vmm at all); `vmm: qemu` plans."""
+    from inspect_ranges.types import ProvisioningStep
+
+    build = PlanOptions(
+        image_cache=cache, realized_sections=frozenset({"provisioning"})
+    )
+    spec = ch_spec()
+    spec.attacker.provisioning = [ProvisioningStep(recipe="acme.tools")]
+    spec.attacker.image = "img"
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(spec, build)
+    issue = next(
+        issue
+        for issue in excinfo.value.issues
+        if issue.code == "cloud-hypervisor-content-unsupported"
+    )
+    assert issue.path == ("attacker", "vmm")
+    assert "vmm: qemu" in (issue.hint or "")
+    spec.attacker.vmm = "qemu"
+    plan = resolve_plan(spec, build)
+    attacker = next(g for g in plan.guests if g.kind == "attacker")
+    assert attacker.vmm == "qemu"
+
+
 def test_guesttool_socket_env_round_trip() -> None:
     """IR_GUEST_SOCKETS round-trips through the contract env into HybridEndpoints."""
     import json as json_module

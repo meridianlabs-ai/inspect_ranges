@@ -595,9 +595,9 @@ async def _await_ready(
     if require_agent_identity and pong.identity == "root":
         return (
             False,
-            "foothold daemon runs commands as root by default (reported identity "
-            f"{pong.identity!r}); its image is missing the agent user — refusing, "
-            "a privilege-escalation task would start already solved",
+            f"the attack box {guest!r} runs commands as root by default (reported "
+            f"identity {pong.identity!r}); its image is missing the agent user. "
+            "Refusing: a privilege-escalation task would start already solved",
         )
     if readiness == "cloud-init":
         remaining_ms = max(
@@ -758,13 +758,28 @@ def _external_attack_box(
             "attack box (foothold range); realizing normally"
         )
         return None, None
+    if external.backing_file is not None:
+        # a realized overlay means the attack box carries BUILT content
+        # (attacker provisioning), which an external substrate cannot
+        # reproduce; this refusal must precede the vmm check below, because a
+        # provisioned attack box is qemu-planned by the content gate and the
+        # vmm refusal's "remove the attacker's vmm" hint would mislead
+        raise UpError(
+            "attack-box",
+            f"the attack box {external.name!r} boots a built realized image "
+            "(the range declares attacker provisioning), which an external "
+            "provider cannot reproduce; unset INSPECT_RANGES_ATTACK_BOX, or "
+            "drop the attacker's provisioning",
+        )
     if external.vmm != "cloud-hypervisor":
         raise UpError(
             "verify-bundle",
             f"an external attack box requires the attack box planned under "
             f"cloud-hypervisor (the default), but {external.name!r} declares "
-            f"vmm: {external.vmm}; remove the attacker's vmm or unset "
-            "INSPECT_RANGES_ATTACK_BOX",
+            f"vmm: {external.vmm}; remove the attacker's vmm, or unset "
+            "INSPECT_RANGES_ATTACK_BOX (required when the box is provisioned: "
+            "a provisioned attack box is qemu-planned and carries built "
+            "content no external provider can reproduce)",
         )
     if any(
         nic.network is None or nic.ip is None or nic.prefixlen is None

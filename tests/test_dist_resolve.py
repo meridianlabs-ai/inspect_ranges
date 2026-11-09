@@ -780,6 +780,59 @@ def test_catalog_image_references_applies_defaults() -> None:
     disked = spec.model_copy(deep=True)
     disked.hosts[1].hardware = Hardware(disks=[HardwareDisk(source="data-golden")])
     assert catalog_image_references(disked) == ["ubuntu-noble", "data-golden", "attack"]
+    # a content ATTACK BOX's artifacts land via the build pull too: its golden
+    # leaves the catalog sweep
+    boxed = spec.model_copy(deep=True)
+    boxed.attacker.image = "attack-golden"
+    boxed.attacker.vmm = "qemu"
+    boxed.attacker.provisioning = [ProvisioningStep(recipe="acme.tools")]
+    assert catalog_image_references(boxed) == ["ubuntu-noble"]
+
+
+def test_ensure_build_available_sees_attacker_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Attacker-only content triggers the build tier: with no matching build and pulls pinned off, the refusal is `never-pull`, never a silent content-free pass."""
+    from inspect_ranges._dist.resolve import NEVER_PULL_ENV, ensure_build_available
+    from inspect_ranges.types import (
+        Attacker,
+        Host,
+        Interface,
+        Network,
+        Os,
+        ProvisioningStep,
+        RangeMeta,
+        RangeSpec,
+    )
+
+    spec = RangeSpec(
+        meta=RangeMeta(name="boxed-pull", description="attacker-only content"),
+        networks=[Network(name="lab", cidr="10.0.0.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="plain",
+                os=Os(type="linux"),
+                image="ubuntu-noble",
+                interfaces=[Interface(network="lab")],
+            )
+        ],
+        attacker=Attacker(
+            image="attack-golden",
+            vmm="qemu",
+            interfaces=[Interface(network="lab")],
+            entry="external",
+            provisioning=[ProvisioningStep(recipe="acme.tools")],
+        ),
+    )
+    monkeypatch.setenv(NEVER_PULL_ENV, "1")
+    with pytest.raises(DistError) as excinfo:
+        ensure_build_available(
+            spec,
+            image_cache=tmp_path / "images",
+            build_cache=tmp_path / "builds",
+            recipe_cache=tmp_path / "recipes",
+        )
+    assert excinfo.value.code == "never-pull"
 
 
 def test_ensure_images_available_warm_cold_and_never_pull(

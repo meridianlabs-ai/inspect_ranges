@@ -21,6 +21,7 @@ from inspect_ranges._build.manifest import (
 from inspect_ranges._build.recipes import RecipeSpec, ResolvedRecipe
 from inspect_ranges.types import (
     AclRule,
+    Attacker,
     Host,
     Interface,
     Os,
@@ -558,6 +559,119 @@ def test_apply_build_manifest_covers_routers(tmp_path: Path) -> None:
     with pytest.raises(IssueError) as excinfo:
         apply_build_manifest(spec, image_cache=image_cache, build_cache=builds)
     assert "has no record for guest 'fw'" in excinfo.value.issues[0].message
+
+
+def make_attack_box(**overrides: object) -> Attacker:
+    base: dict[str, object] = {
+        "name": "attacker",
+        "image": "noble-guest",
+        "vmm": "qemu",
+        "interfaces": [Interface(network="dmz")],
+        "entry": "external",
+        "provisioning": [ProvisioningStep(recipe="acme.tools", vars={"marker": "x"})],
+    }
+    base.update(overrides)
+    return Attacker.model_validate(base)
+
+
+def test_attacker_projection_covers_provisioning_only() -> None:
+    """The attack box's realized disk holds its recipes' output alone: name, sizing, addressing, entry, and egress re-render per boot, so only `provisioning` participates in the projection (the router shape)."""
+    same = spec_projection(make_attack_box())
+    unchanged: list[Attacker] = [
+        make_attack_box(resources=Resources(cpus=2, memory_mb=2048)),
+        make_attack_box(
+            interfaces=[Interface(network="dmz", ip="10.80.10.99")],
+        ),
+        make_attack_box(egress="open"),
+        make_attack_box(entry="operator"),
+    ]
+    for other in unchanged:
+        assert spec_projection(other) == same
+    moved = make_attack_box(
+        provisioning=[ProvisioningStep(recipe="acme.tools", vars={"marker": "y"})]
+    )
+    assert spec_projection(moved) != same
+
+
+def test_attacker_build_key_accepts_the_attack_box() -> None:
+    """`guest_build_key` over an Attacker follows the host algebra, and a router with identical provisioning never shares the key (identity differs by name)."""
+    box = make_attack_box()
+    steps: Steps = [(resolved("recipe-digest-1"), {"marker": "x"})]
+    key = guest_build_key("sha-golden", box, steps, range_name="keyed")
+    assert guest_build_key("sha-other", box, steps, range_name="keyed") != key
+    assert guest_build_key("sha-golden", box, steps, range_name="other") != key
+    twin_router = make_router(name="twin", provisioning=list(box.provisioning))
+    assert guest_build_key("sha-golden", twin_router, steps, range_name="keyed") != key
+
+
+def test_apply_build_manifest_covers_the_attack_box(tmp_path: Path) -> None:
+    """The range-not-built gate sees attack-box content: a provisioned attack box demands a manifest, swaps to its digest-verified realized image when one matches, and refuses when the manifest never recorded it."""
+    import hashlib
+
+    from inspect_ranges._build.manifest import apply_build_manifest
+    from inspect_ranges._compiler.plan import spec_sha256
+    from inspect_ranges.types import IssueError, Network, RangeMeta, RangeSpec
+
+    spec = RangeSpec(
+        meta=RangeMeta(name="boxed", description="x"),
+        networks=[Network(name="dmz", cidr="10.80.10.0/24", mode="isolated")],
+        hosts=[
+            Host(
+                name="plain",
+                os=Os(type="linux"),
+                image="focal-guest",
+                interfaces=[Interface(network="dmz")],
+            )
+        ],
+        attacker=make_attack_box(),
+    )
+    image_cache = tmp_path / "images"
+    image_cache.mkdir()
+    builds = tmp_path / "builds"
+
+    with pytest.raises(IssueError) as excinfo:
+        apply_build_manifest(spec, image_cache=image_cache, build_cache=builds)
+    assert excinfo.value.issues[0].code == "range-not-built"
+
+    realized = image_cache / "boxed-attacker-abcdefabcdef.qcow2"
+    realized.write_bytes(b"realized-attacker")
+    golden = image_cache / "noble-guest.qcow2"
+    golden.write_bytes(b"golden-bytes")
+    manifest = BuildManifest(
+        range_name="boxed",
+        schema_version="0.3",
+        spec_sha256=spec_sha256(spec),
+        built_at=now_iso(),
+        project="ir-boxed-x",
+        guests=(
+            GuestRecord(
+                name="attacker",
+                golden_reference="noble-guest",
+                golden_digest=f"sha256:{hashlib.sha256(b'golden-bytes').hexdigest()}",
+                realized_file=realized.name,
+                realized_sha256=hashlib.sha256(b"realized-attacker").hexdigest(),
+                build_key="k" * 64,
+                recipes=(),
+            ),
+        ),
+        verification=VerificationRecord(verified_at=now_iso(), declarations=()),
+    )
+    save_manifest(manifest, builds)
+    swapped, sections, consumed = apply_build_manifest(
+        spec, image_cache=image_cache, build_cache=builds
+    )
+    assert swapped.attacker.image == realized.name
+    assert "provisioning" in sections
+    assert consumed is not None
+    assert spec.attacker.image == "noble-guest"  # the input spec is untouched
+
+    renamed = manifest.model_copy(
+        update={"guests": (manifest.guests[0].model_copy(update={"name": "other"}),)}
+    )
+    save_manifest(renamed, builds)
+    with pytest.raises(IssueError) as excinfo:
+        apply_build_manifest(spec, image_cache=image_cache, build_cache=builds)
+    assert "has no record for guest 'attacker'" in excinfo.value.issues[0].message
 
 
 def test_identity_participates_in_the_build_key() -> None:

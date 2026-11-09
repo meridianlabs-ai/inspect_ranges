@@ -854,6 +854,48 @@ def has_router_content(router: "Router") -> bool:
     return bool(router.provisioning)
 
 
+def has_attacker_content(attacker: "Attacker") -> bool:
+    """Whether the attacker declares buildable guest content (provisioning): the attacker analog of `has_guest_content`, shared by the same consumers.
+
+    Only a dedicated attack box can carry content: an attacker with `host` set refuses provisioning outright (`attacker-foothold-conflict`), so a true result always names a dedicated box.
+    """
+    return bool(attacker.provisioning)
+
+
+def content_guests(spec: "RangeSpec") -> "list[Host | Router | Attacker]":
+    """Every guest declaring buildable content, in build order (hosts, routers, then the dedicated attack box): the one enumeration the build, the range-not-built gate, and the distribution tiers share, so a new content-bearing guest kind cannot silently bypass one of them."""
+    guests: list[Host | Router | Attacker] = [
+        *(host for host in spec.hosts if has_guest_content(host)),
+        *(router for router in spec.routers if has_router_content(router)),
+    ]
+    if has_attacker_content(spec.attacker):
+        guests.append(spec.attacker)
+    return guests
+
+
+def declared_guests(spec: "RangeSpec") -> "list[Host | Router | Attacker]":
+    """Every guest that boots a machine of its own (hosts, routers, then the dedicated attack box), in build order; a foothold attacker adds no machine. The machine-list sibling of `content_guests`, shared so no consumer hand-rolls the attacker clause."""
+    guests: list[Host | Router | Attacker] = [*spec.hosts, *spec.routers]
+    if spec.attacker.host is None:
+        guests.append(spec.attacker)
+    return guests
+
+
+def indexed_guests(
+    spec: "RangeSpec",
+) -> "list[tuple[tuple[str | int, ...], Host | Router | Attacker]]":
+    """`declared_guests` with each guest's spec path base (`("hosts", i)`, `("routers", i)`, `("attacker",)`), for positioned issues."""
+    indexed: list[tuple[tuple[str | int, ...], Host | Router | Attacker]] = [
+        (("hosts", index), host) for index, host in enumerate(spec.hosts)
+    ]
+    indexed += [
+        (("routers", index), router) for index, router in enumerate(spec.routers)
+    ]
+    if spec.attacker.host is None:
+        indexed.append((("attacker",), spec.attacker))
+    return indexed
+
+
 class Router(_StrictModel):
     """A gateway guest joining two or more networks, carrying the inter-segment ACL."""
 
@@ -985,6 +1027,9 @@ class Attacker(_StrictModel):
     egress: Literal["none", "open"] | EgressPolicy = "none"
     """Attacker-reachable egress from the range: `none` (default), `open`, or a scoped allowlist. Attacker egress composes ahead of network egress: `none` drops the attacker's flows even on a network with an allowlist."""
 
+    provisioning: list[ProvisioningStep] = []
+    """Build-time recipe references, in order (the host build path extended to the dedicated attack box): a provisioned attack box boots in the build with egress, runs its recipes, and is captured as a realized image with its own build key. Requires a declared `image` (`attacker-image-required`): the standard attack image default is a backend resolution the build key cannot pin. Requires `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the build cannot capture Cloud Hypervisor guests yet. With `host` set, recipes belong on the foothold host and declaring them here is refused."""
+
     @model_validator(mode="after")
     def _check_foothold(self) -> "Attacker":
         if self.host is not None:
@@ -995,6 +1040,8 @@ class Attacker(_StrictModel):
             ]
             if self.vmm is not None:
                 extras.append("vmm")
+            if self.provisioning:
+                extras.append("provisioning")
             if extras:
                 raise IssueError(
                     [

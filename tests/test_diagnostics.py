@@ -753,6 +753,17 @@ def test_structural_errors_suppress_semantic_stage(tmp_path: Path) -> None:
             id="attacker-foothold-conflict",
         ),
         pytest.param(
+            """
+            attacker:
+              host: web
+              provisioning: [{ recipe: acme.tools }]
+              entry: assumed-breach
+            """,
+            "attacker-foothold-conflict",
+            "attacker",
+            id="attacker-foothold-provisioning-conflict",
+        ),
+        pytest.param(
             "attacker: { entry: external }",
             "attacker-no-foothold",
             "attacker",
