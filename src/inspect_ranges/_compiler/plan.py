@@ -294,6 +294,25 @@ def _evidence_name_issues(spec: RangeSpec) -> list[Issue]:
     return issues
 
 
+def image_required_issue(
+    guest: Router | Attacker, path: tuple[str | int, ...]
+) -> Issue:
+    """The content-pins-its-image refusal (`router-image-required` / `attacker-image-required`), shared by the planning gate and the build's pre-resolution check so the two can never drift: the guest kind's image default is a backend resolution its build key cannot pin."""
+    if isinstance(guest, Attacker):
+        return Issue(
+            code="attacker-image-required",
+            path=path,
+            message=f"the attack box {guest.name!r} declares provisioning but no image; the standard attack image default is a backend resolution its build key cannot pin",
+            hint="declare image: on a provisioned attack box (the build key pins the golden its recipes realize on)",
+        )
+    return Issue(
+        code="router-image-required",
+        path=path,
+        message=f"router {guest.name!r} declares provisioning but no image; the default router appliance is a backend resolution its build key cannot pin",
+        hint="declare image: on a content-bearing router (the build key pins the golden its recipes realize on)",
+    )
+
+
 def _attacker_vmm(attacker: Attacker) -> Vmm:
     """The attacker box's effective VMM: a declared value wins; a dedicated attack box with none declared defaults to `cloud-hypervisor` (hosts and routers default to `qemu`)."""
     return attacker.vmm or "cloud-hypervisor"
@@ -677,14 +696,7 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             # (PlanOptions.default_router_image), so content on it would key
             # against an image the spec never pinned; mirror of the Windows
             # declared-addressing rule: the build key must see its inputs
-            issues.append(
-                Issue(
-                    code="router-image-required",
-                    path=("routers", index, "image"),
-                    message=f"router {router.name!r} declares provisioning but no image; the default router appliance is a backend resolution its build key cannot pin",
-                    hint="declare image: on a content-bearing router (the build key pins the golden its recipes realize on)",
-                )
-            )
+            issues.append(image_required_issue(router, ("routers", index, "image")))
     if spec.attacker.provisioning and "provisioning" not in options.realized_sections:
         issues.append(
             Issue(
@@ -699,14 +711,7 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
         # (PlanOptions.default_attacker_image), so content on it would key
         # against an image the spec never pinned; the router-image-required
         # rule, extended to the attack box
-        issues.append(
-            Issue(
-                code="attacker-image-required",
-                path=("attacker", "image"),
-                message=f"the attack box {spec.attacker.name!r} declares provisioning but no image; the standard attack image default is a backend resolution its build key cannot pin",
-                hint="declare image: on a provisioned attack box (the build key pins the golden its recipes realize on)",
-            )
-        )
+        issues.append(image_required_issue(spec.attacker, ("attacker", "image")))
     if spec.defense is not None and (
         "defense" not in options.realized_sections or not spec.defense.telemetry
     ):

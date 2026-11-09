@@ -22,6 +22,7 @@ from ..types import (
     Attacker,
     Host,
     Router,
+    content_guests,
     has_attacker_content,
     has_guest_content,
     has_router_content,
@@ -616,12 +617,7 @@ def apply_build_manifest(
     """
     from ..types import IssueError  # local: keep module import-light
 
-    content_guests: list[Host | Router | Attacker] = [
-        *(host for host in spec.hosts if has_guest_content(host)),
-        *(router for router in spec.routers if has_router_content(router)),
-        *([spec.attacker] if has_attacker_content(spec.attacker) else []),
-    ]
-    if not content_guests:
+    if not content_guests(spec):
         return spec, frozenset(), None
 
     def refuse(reason: str, hint: str) -> "IssueError":

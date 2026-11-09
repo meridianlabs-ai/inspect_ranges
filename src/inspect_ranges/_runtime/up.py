@@ -595,9 +595,9 @@ async def _await_ready(
     if require_agent_identity and pong.identity == "root":
         return (
             False,
-            "foothold daemon runs commands as root by default (reported identity "
-            f"{pong.identity!r}); its image is missing the agent user — refusing, "
-            "a privilege-escalation task would start already solved",
+            f"the attack box {guest!r} runs commands as root by default (reported "
+            f"identity {pong.identity!r}); its image is missing the agent user. "
+            "Refusing: a privilege-escalation task would start already solved",
         )
     if readiness == "cloud-init":
         remaining_ms = max(

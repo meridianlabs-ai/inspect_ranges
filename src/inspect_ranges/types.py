@@ -862,6 +862,17 @@ def has_attacker_content(attacker: "Attacker") -> bool:
     return bool(attacker.provisioning)
 
 
+def content_guests(spec: "RangeSpec") -> "list[Host | Router | Attacker]":
+    """Every guest declaring buildable content, in build order (hosts, routers, then the dedicated attack box): the one enumeration the build, the range-not-built gate, and the distribution tiers share, so a new content-bearing guest kind cannot silently bypass one of them."""
+    guests: list[Host | Router | Attacker] = [
+        *(host for host in spec.hosts if has_guest_content(host)),
+        *(router for router in spec.routers if has_router_content(router)),
+    ]
+    if has_attacker_content(spec.attacker):
+        guests.append(spec.attacker)
+    return guests
+
+
 class Router(_StrictModel):
     """A gateway guest joining two or more networks, carrying the inter-segment ACL."""
 

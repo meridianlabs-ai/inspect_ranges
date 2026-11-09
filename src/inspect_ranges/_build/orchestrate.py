@@ -32,6 +32,7 @@ from .._compiler.plan import (
     ImageRef,
     PlanOptions,
     ResolvedPlan,
+    image_required_issue,
     plan_totals,
     resolve_image_reference,
     spec_sha256,
@@ -64,9 +65,8 @@ from ..types import (
     Network,
     RangeSpec,
     Router,
+    content_guests,
     has_attacker_content,
-    has_guest_content,
-    has_router_content,
     unanswerable_address,
 )
 from .activities import (
@@ -491,7 +491,7 @@ def egress_build_spec(spec: RangeSpec, nameserver_ip: str | None = None) -> Rang
     # uplinks exactly like a host; routers stay the offline exception
     attacker_stranded = (
         build.attacker.host is None
-        and bool(build.attacker.provisioning)
+        and has_attacker_content(build.attacker)
         and not any(
             interface.network in egress_bearing
             for interface in build.attacker.interfaces or []
@@ -545,7 +545,10 @@ def egress_build_spec(spec: RangeSpec, nameserver_ip: str | None = None) -> Rang
         )
         for host in stranded:
             host.interfaces.append(Interface(network=uplink_name))
-        if attacker_stranded and build.attacker.interfaces is not None:
+        if attacker_stranded:
+            # a dedicated box always carries interfaces (attacker-no-foothold),
+            # so the attach can never silently skip a stranded attacker
+            assert build.attacker.interfaces is not None
             build.attacker.interfaces.append(Interface(network=uplink_name))
     # a provisioned FOOTHOLD host is also the attacker, whose runtime
     # containment (egress: none) drops its flows at the hypervisor before any
@@ -606,7 +609,7 @@ def resolve_provisioning(
         (("routers", index), router) for index, router in enumerate(spec.routers)
     ]
     if spec.attacker.host is None:
-        provisioned.append(((("attacker",)), spec.attacker))
+        provisioned.append((("attacker",), spec.attacker))
     for path_base, host in provisioned:
         for step_index, step in enumerate(host.provisioning):
             path = (*path_base, "provisioning", step_index)
@@ -786,12 +789,8 @@ def build_range(
     activities_by_host: dict[str, list[ResolvedActivity]] = {}
     for activity in activities:
         activities_by_host.setdefault(activity.guest, []).append(activity)
-    content_guests: list[Host | Router | Attacker] = [
-        *(host for host in spec.hosts if has_guest_content(host)),
-        *(router for router in spec.routers if has_router_content(router)),
-        *([spec.attacker] if has_attacker_content(spec.attacker) else []),
-    ]
-    content_names = {guest.name for guest in content_guests}
+    guests_with_content = content_guests(spec)
+    content_names = {guest.name for guest in guests_with_content}
     goldens: dict[str, ImageRef] = {}
     keys: dict[str, str] = {}
     missing: list[Issue] = []
@@ -810,24 +809,9 @@ def build_range(
         if image_name is None:
             # the planning gate's rule, applied before any image resolution: a
             # content-bearing router or attack box must pin its golden itself
-            if isinstance(host, Attacker):
-                missing.append(
-                    Issue(
-                        code="attacker-image-required",
-                        path=(*path_base, "image"),
-                        message=f"the attack box {host.name!r} declares provisioning but no image; the standard attack image default is a backend resolution its build key cannot pin",
-                        hint="declare image: on a provisioned attack box (the build key pins the golden its recipes realize on)",
-                    )
-                )
-            else:
-                missing.append(
-                    Issue(
-                        code="router-image-required",
-                        path=(*path_base, "image"),
-                        message=f"router {host.name!r} declares provisioning but no image; the default router appliance is a backend resolution its build key cannot pin",
-                        hint="declare image: on a content-bearing router (the build key pins the golden its recipes realize on)",
-                    )
-                )
+            # (a Host's image is required by schema, so it never lands here)
+            assert not isinstance(host, Host)
+            missing.append(image_required_issue(host, (*path_base, "image")))
             continue
         reference = resolve_image_reference(image_name, image_cache)
         if reference.digest is None:
@@ -923,7 +907,7 @@ def build_range(
         )
     reusable: dict[str, GuestRecord] = {}
     if prior is not None:
-        for host in content_guests:
+        for host in guests_with_content:
             record = prior.guest(host.name)
             if record is None or record.build_key != keys[host.name]:
                 continue
@@ -940,12 +924,13 @@ def build_range(
     # guest whose state the domain mutates but that declares no content of its
     # own joins the set by declaring any content (at minimum a convergence
     # recipe; declared services or vulnerabilities equally count).
-    converged = len(content_guests) > 1 and any(
-        isinstance(host, Host) and host.os.type == "windows" for host in content_guests
+    converged = len(guests_with_content) > 1 and any(
+        isinstance(host, Host) and host.os.type == "windows"
+        for host in guests_with_content
     )
-    if converged and len(reusable) != len(content_guests):
+    if converged and len(reusable) != len(guests_with_content):
         if reusable:
-            tee_note = f"{len(reusable)} of {len(content_guests)} guests unchanged, but converged ranges rebuild whole"
+            tee_note = f"{len(reusable)} of {len(guests_with_content)} guests unchanged, but converged ranges rebuild whole"
         else:
             tee_note = None
         reusable = {}
@@ -969,7 +954,7 @@ def build_range(
         # a keep build exists to leave a running range for diagnosis, which
         # the no-op path cannot provide (round-1 review)
         and manifest_matches_spec(prior, spec_hash)
-        and all(host.name in reusable for host in content_guests)
+        and all(host.name in reusable for host in guests_with_content)
         and prior.checks_sha256 == current_checks_sha
         and all(
             record.status == "pass" for record in prior.verification.behavioral_checks
@@ -1034,7 +1019,7 @@ def build_range(
         "ok",
         recipes=len(steps),
         reused_guests=len(reusable),
-        rebuilt_guests=len(content_guests) - len(reusable),
+        rebuilt_guests=len(guests_with_content) - len(reusable),
     )
     for step in steps:
         if step.guest in reusable:
@@ -1385,7 +1370,7 @@ def build_range(
                     # steps are purely guest-local, but a future domain-aware
                     # scrub would make this ordering load-bearing (the root
                     # DC, declared first, shuts off first)
-                    for host in content_guests:
+                    for host in guests_with_content:
                         if host.name in reusable:
                             continue
                         try:
@@ -1404,7 +1389,7 @@ def build_range(
                                 "quiesce", _strip_stage(error), guest=host.name
                             ) from error
                         tee.log("quiesce", "ok", guest=host.name)
-                for host in content_guests:
+                for host in guests_with_content:
                     if host.name in reusable:
                         guest_records.append(reusable[host.name])
                         continue

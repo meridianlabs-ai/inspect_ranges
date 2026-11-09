@@ -15,6 +15,7 @@ from .._build.manifest import BuildManifest, load_manifest
 from .._compiler.plan import image_file_name, resolve_image_reference, spec_sha256
 from ..types import (
     RangeSpec,
+    content_guests,
     has_attacker_content,
     has_guest_content,
     has_router_content,
@@ -300,12 +301,7 @@ def ensure_build_available(
     Raises:
         DistError: `never-pull` when a pull is needed but the host is pinned offline; otherwise whatever `pull_range` refuses with (`no-build-for-spec` with the nearest builds, a named broken location, an unreachable registry).
     """
-    content = (
-        any(has_guest_content(host) for host in spec.hosts)
-        or any(has_router_content(router) for router in spec.routers)
-        or has_attacker_content(spec.attacker)
-    )
-    if not content:
+    if not content_guests(spec):
         return None
     manifest = load_manifest(build_cache, spec.meta.name)
     if (
