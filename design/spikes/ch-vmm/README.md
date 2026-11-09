@@ -12,6 +12,7 @@
 4. **C6** the VMM process runs as `ch_uid(cid)`, not root and not `libvirt-qemu`.
 5. **C7** the CH serial console log is non-empty.
 6. **C8** teardown removes the containers and the hybrid socket dir.
+7. **C9/C10** the capture shutoff wait, live: a 5 s wait on the running VMM times out with the VMM log tail in the error, and after an in-guest poweroff the wait reads shut off through the pidfile (the CH capture slice).
 
 ## Files
 
