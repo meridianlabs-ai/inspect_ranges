@@ -320,6 +320,16 @@ def carriage_returns(keystrokes: str) -> str:
     return _LINE_BREAK.sub("\r", keystrokes)
 
 
+def blocking_form(keystrokes: str) -> str:
+    r"""The executing form of a blocking send: the keystrokes with a trailing newline appended when they carry none.
+
+    `block=True` asks for a command to RUN to completion; keystrokes without a line break used to degrade silently to type-without-Enter, leaving the line sitting at the prompt where the next send concatenated onto it (measured across two eval runs: merged commands like `ls -l exp2clear`, a heredoc collapsing to its interleaved fragments, and the multiline refusal bypassed because the gate never saw an executing line). Appending the Enter matches the intent of every observed case; empty keystrokes stay empty (a wait-and-read, documented), and the Enter key names pass through to the existing block-on-what-was-typed handling.
+    """
+    if not keystrokes or _is_enter_key(keystrokes) or _executes(keystrokes):
+        return keystrokes
+    return keystrokes + "\n"
+
+
 def multiline_block(keystrokes: str) -> bool:
     """Whether a blocking send must be refused because the keystrokes span lines.
 
@@ -452,6 +462,15 @@ def find_new_content(previous_buffer: str | None, current_buffer: str) -> str | 
     if previous_buffer is None:
         return None
     anchor = previous_buffer.strip()
+    # anchor-quality floor: `clear` emits E3 and tmux wipes the history, so a
+    # cleared session's stored buffer strips to little more than the prompt;
+    # anchoring on a bare "$" matches the FIRST prompt in the fresh buffer and
+    # classifies everything after the clear as old, burying real output
+    # (measured live: byte-identical to the eval incidents). A degenerate
+    # anchor returns None, and the caller's labeled-screen fallback shows the
+    # output instead of a wrong delta.
+    if len(anchor) < 8:
+        return None
     if anchor and anchor in current_buffer:
         idx = current_buffer.index(anchor)
         if "\n" in anchor:
@@ -530,6 +549,89 @@ def scrub_harness_echo(text: str, channel_prefix: str | None = None) -> str:
     return plain.sub("", wrapped.sub(scrub_wrapped, text))
 
 
+def strip_suffix_partial(text: str, channel_prefix: str) -> str:
+    r"""`text` without a trailing, not-yet-complete fragment of the blocking signal's echo (a strict prefix of this life's suffix, possibly carrying one capture wrap newline).
+
+    The scrub removes complete suffixes; a capture taken while the echo is still dribbling can END mid-suffix, and nothing can scrub a fragment whose completion has not arrived. Stripping it from the stable view means it is neither emitted nor stored as anchor text: the next capture either completes it (the whole suffix then scrubs) or reveals it as ordinary output that merely resembled the suffix start (no longer trailing, it emits untouched, delayed one read and never lost).
+    """
+    literal = f"; tmux wait -S {channel_prefix}"
+    max_hold = min(len(text), len(literal) + 14)
+    for length in range(max_hold, 0, -1):
+        tail = text[-length:]
+        # a tail ending in a newline is a COMPLETED line, never a dribble cut
+        # (ordinary output ends lines constantly; a mid-echo cut has nothing
+        # after the partial yet); a single interior newline is a capture wrap
+        if tail.endswith("\n") or tail.count("\n") > 1:
+            continue
+        # a wrap landing on one of the suffix's spaces also eats the space
+        # (capture-pane trims trailing whitespace), so the rejoined form is
+        # tried both ways
+        for flat in (tail.replace("\n", ""), tail.replace("\n", " ")):
+            if not flat:
+                continue
+            if len(flat) <= len(literal):
+                if literal.startswith(flat):
+                    return text[:-length]
+            elif flat.startswith(literal) and flat[len(literal) :].isdigit():
+                return text[:-length]
+    return text
+
+
+def stable_view(
+    text: str, channel_prefix: str | None = None, release_partial: str = ""
+) -> str:
+    r"""The model-stable rendering of a raw capture: trailing blank-row padding dropped, the harness echo scrubbed with full-line context, then any trailing suffix partial stripped (`strip_suffix_partial`).
+
+    The scrub's wrap patterns and column checks are only correct against whole captured lines, and a delta can begin mid-wrapped-line (`find_new_content` re-anchors on the previous buffer's final line), which severed the context they need: the measured leak was a delta that began at the bare channel name of a WRAPPED suffix, unanchorable by any pattern. Scrubbing the full capture BEFORE the delta is sliced makes straddling impossible by construction: deltas are computed between stable views, in which no suffix, wrapped, cut, or dribbling, exists at all.
+
+    `capture-pane -S -` pads the visible pane with trailing blank rows, so the padding is dropped before the tail scan or a partial would always end in a newline and never strip (review round 2, verified on tmux 3.4). `release_partial` is the persistence escape for SHORT lookalikes: a pane that goes quiet mid-lookalike would otherwise withhold its genuine tail forever, so the caller passes the partial it saw stripped LAST read, and an unchanged tail within the generic head is released. A partial reaching the channel-prefix region never releases: an identical tail there is this life's own echo with near-certainty, and a stalled dribble must not leak the token (`stable_view_with_partial`).
+    """
+    view, _ = stable_view_with_partial(text, channel_prefix, release_partial)
+    return view
+
+
+def stable_view_with_partial(
+    text: str, channel_prefix: str | None = None, release_partial: str = ""
+) -> tuple[str, str]:
+    r"""`stable_view` plus the partial it stripped, from one pass (the view and the partial share the scrub, which is the expensive half).
+
+    The release is TIERED: a partial reaching the channel-prefix region is never released, because an identical tail there is this life's own echo with near-certainty (the prefix carries a random token; agent text containing it is quoting the harness), and a stalled dribble must not leak it. Only a short generic-head lookalike (`;` through `; tmux wait -S `) releases on an unchanged tail, so genuine agent output is delayed at most one read while a stalled echo can expose nothing identifying.
+    """
+    scrubbed = scrub_harness_echo(text, channel_prefix).rstrip("\n")
+    if channel_prefix is None:
+        return scrubbed, ""
+    stripped = strip_suffix_partial(scrubbed, channel_prefix)
+    partial = scrubbed[len(stripped) :]
+    generic_head = "; tmux wait -S "
+    releasable = len(partial.replace("\n", "")) <= len(generic_head)
+    if partial and releasable and partial == release_partial:
+        return scrubbed, ""
+    return stripped, partial
+
+
+def strip_leading_suffix_orphan(screen: str, channel_prefix: str) -> str:
+    r"""The visible screen without a first line that is a severed continuation of the suffix's echo.
+
+    A wrapped suffix whose head row scrolled off the top of the visible pane leaves its continuation line (ending in the channel name and counter) as the screen's FIRST line, which no wrap pattern can anchor (the head is gone) and no trailing strip touches. The first line is dropped only when it is exactly a trailing slice of `<literal><digits>` whose overlap includes at least four characters of the channel prefix, so ordinary output (bare digits included) never matches.
+    """
+    line, newline, rest = screen.partition("\n")
+    literal = f"; tmux wait -S {channel_prefix}"
+    head_len = len(literal) - len(channel_prefix)
+    for split in range(len(literal)):
+        remainder = literal[split:]
+        # characters of the channel prefix contained in this remainder: the
+        # prefix occupies literal[head_len:], so a split inside the prefix
+        # keeps len(remainder) of it and an earlier split keeps all of it
+        prefix_overlap = len(literal) - max(split, head_len)
+        if prefix_overlap < 4:
+            continue
+        if line == remainder or (
+            line.startswith(remainder) and line[len(remainder) :].isdigit()
+        ):
+            return rest if newline else ""
+    return screen
+
+
 def label_output(
     new_content: str | None, visible_screen: str, first_read: bool = False
 ) -> str:
@@ -558,6 +660,13 @@ class SessionState:
     """Tool-side state for one open session."""
 
     previous_buffer: str | None = None
+    """The previous read's STABLE view of the scrollback (`stable_view`: scrubbed with full-line context, padding-normalized, trailing suffix partial stripped), so deltas are sliced from text in which no harness echo exists to straddle a boundary. A failed capture leaves it untouched."""
+
+    pending_partial: str = ""
+    """The suffix partial the previous read stripped, if any: a tail identical across consecutive captures is real output, not a dribbling echo, and is released on the next read (`stable_view`'s `release_partial`)."""
+
+    read_done: bool = False
+    """Whether any read has returned content to the model: the first-read label exemption must track reads, not the anchor, or a failed first capture would repeat the unlabeled-screen treatment."""
     chunks: list[tuple[float, bytes]] = field(default_factory=list[tuple[float, bytes]])
     markers: list[tuple[float, str]] = field(default_factory=list[tuple[float, str]])
     opened_wall: float = 0.0

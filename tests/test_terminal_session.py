@@ -26,7 +26,11 @@ from inspect_ranges._terminal.session import (
     send_keys_command,
     send_keys_commands,
     set_pane_hooks_commands,
+    stable_view,
+    stable_view_with_partial,
     start_session_command,
+    strip_leading_suffix_orphan,
+    strip_suffix_partial,
     valid_session_name,
     wait_channel,
     wait_channel_prefix,
@@ -387,7 +391,13 @@ def test_a_line_break_composes_with_the_semicolon_split() -> None:
         # first read: no anchor
         (None, "screen", None),
         # single-line anchor: delta starts at the anchor
-        ("$ ls", "$ ls\nfile-a\nfile-b", "$ ls\nfile-a\nfile-b"),
+        ("$ ls -la", "$ ls -la\nfile-a\nfile-b", "$ ls -la\nfile-a\nfile-b"),
+        # anchor-quality floor: a cleared session's buffer strips to little
+        # more than the prompt, and a bare "$" would anchor on the FIRST
+        # prompt of the fresh buffer, burying real output as "old" (measured
+        # live); degenerate anchors fall back to the labeled screen instead
+        ("$", "$ cmd\nreal output\n$ ", None),
+        ("$ ls", "$ ls\nfile-a\nfile-b", None),
         # multiline anchor: delta starts at the anchor's final line
         ("$ ls\nfile-a", "$ ls\nfile-a\nfile-b", "\nfile-a\nfile-b"),
         # rotated past history or cleared: anchor lost, no delta claimed
@@ -885,3 +895,134 @@ def test_assemble_cast_without_prefix_keeps_the_raw_stream() -> None:
         title="s",
     )
     assert json.loads(cast.strip().split("\n")[1])[2] == stream
+
+
+@pytest.mark.parametrize(
+    ("text", "stripped"),
+    [
+        # ordinary output is untouched, C-style trailing semicolons included
+        ("out\n$ ", "out\n$ "),
+        ("int x=0;\n", "int x=0;\n"),
+        # a capture cut anywhere inside the suffix strips the partial
+        ("$ cmd; tmux wait -S done-", "$ cmd"),
+        ("$ cmd; tmux w", "$ cmd"),
+        ("$ cmd;", "$ cmd"),
+        # a cut inside the send counter still strips (digits ride)
+        (f"$ cmd; tmux wait -S {_PREFIX}1", "$ cmd"),
+        # ONE capture wrap newline inside the partial is tolerated: the
+        # measured leak wrapped after "wait" and dribbled mid-channel-name
+        (f"$ cmd; tmux wait\n-S {_PREFIX}", "$ cmd"),
+        # the bare continuation is not a prefix: nothing to strip (the stable
+        # view never stores the head, so this shape cannot reach a delta)
+        ("main-b7f168f4-17", "main-b7f168f4-17"),
+        # two newlines cannot be one wrap: left alone
+        ("a; tmux\n wait\n -S", "a; tmux\n wait\n -S"),
+    ],
+)
+def test_strip_suffix_partial(text: str, stripped: str) -> None:
+    """Only a trailing strict prefix of this life's suffix (at most one wrap newline) is stripped; everything else stays."""
+    assert strip_suffix_partial(text, _PREFIX) == stripped
+
+
+def test_pane_padding_does_not_defeat_the_partial_strip() -> None:
+    """`capture-pane -S -` pads the visible pane with trailing blank rows (verified on tmux 3.4), so a fresh pane's dribbling partial always ended in newlines and the strip never fired; the stable view drops the padding first (review round 2's headline repro)."""
+    raw = "$ ssh target uname; tmux w" + "\n" * 38
+    assert stable_view(raw, _PREFIX) == "$ ssh target uname"
+
+
+def test_quiet_pane_releases_a_persistent_lookalike() -> None:
+    """A tail identical across consecutive captures is real output, not a dribbling echo: the second read releases it instead of withholding forever."""
+    raw = "$ printf 'x++; tmux w'\nx++; tmux w" + "\n" * 10
+    first, partial = stable_view_with_partial(raw, _PREFIX)
+    assert not first.endswith("; tmux w")  # withheld while it could dribble
+    assert partial == "; tmux w"
+    second, _ = stable_view_with_partial(raw, _PREFIX, release_partial=partial)
+    assert second.endswith("x++; tmux w")  # unchanged tail is real output
+
+
+def test_a_partial_reaching_the_token_region_never_releases() -> None:
+    """The release is tiered: an unchanged tail that extends into the channel prefix is this life's own echo with near-certainty (the prefix carries a random token), so a stalled dribble must withhold it on every read rather than leak it."""
+    raw = "$ cmd; tmux wait -S done-main-b7f" + "\n" * 8
+    first, partial = stable_view_with_partial(raw, _PREFIX)
+    assert first == "$ cmd"
+    assert partial == "; tmux wait -S done-main-b7f"
+    second, partial2 = stable_view_with_partial(raw, _PREFIX, release_partial=partial)
+    assert second == "$ cmd"  # still withheld, not released
+    assert partial2 == partial
+
+
+@pytest.mark.parametrize(
+    ("screen", "expected"),
+    [
+        # the severed continuation of a wrapped suffix whose head scrolled off
+        (f"-S {_PREFIX}17\nout\n$ ", "out\n$ "),
+        (f"wait -S {_PREFIX}3\n$ ", "$ "),
+        # bare digits and ordinary first lines are never dropped
+        ("17\nout\n$ ", "17\nout\n$ "),
+        ("-S something-else\n$ ", "-S something-else\n$ "),
+        ("normal output\n$ ", "normal output\n$ "),
+    ],
+)
+def test_strip_leading_suffix_orphan(screen: str, expected: str) -> None:
+    """The screen fallback drops a first line that is exactly a trailing slice of the suffix echo overlapping the channel prefix by at least four characters; everything else stays."""
+    assert strip_leading_suffix_orphan(screen, _PREFIX) == expected
+
+
+def _reads(buffers: list[str]) -> list[str]:
+    """Drive raw capture buffers through the real read pipeline: stable views anchored on each other, deltas sliced between them (what `_read_result` does)."""
+    emitted: list[str] = []
+    previous: str | None = None
+    for raw in buffers:
+        current = stable_view(raw, _PREFIX)
+        delta = find_new_content(previous, current)
+        previous = current
+        emitted.append(delta if delta is not None else f"<fallback:{current}>")
+    return emitted
+
+
+def test_wrapped_suffix_cut_by_a_racing_capture_leaks_nothing() -> None:
+    """The measured leak: the echoed suffix WRAPPED at the pane width and a capture landed mid-dribble on the continuation line, so the next delta began at the bare channel name, unanchorable by any pattern. Stable views scrub before slicing, so no fragment exists to straddle the boundary, and the anchor survives the completion."""
+    suffix = f"; tmux wait -S {_PREFIX}17"
+    body = "$ ssh target uname" + "x" * (
+        PANE_WIDTH - len("$ ssh target uname") - len("; tmux wait")
+    )
+    logical = body + suffix
+    full = capture_pane_render(logical)
+    assert "\n" in full  # the suffix wrapped
+    cut = full.index("\n") + 6  # mid-dribble: a few continuation chars arrived
+    history = "$ hostname\ntarget-box\n"
+    buffers = [history + "$ ", history + full[:cut], history + full + "\nLinux\n$ "]
+    _, read1, read2 = _reads(buffers)
+    for emitted in (read1, read2):
+        assert "tmux wait" not in emitted and "b7f168f4" not in emitted
+        assert not emitted.startswith("<fallback")
+    assert "Linux" in read2
+
+
+def test_unwrapped_suffix_cut_self_heals_without_duplication() -> None:
+    """An unwrapped cut re-anchors on the final line and completes next read; the stable view must emit the command once and the suffix never (the first holdback design duplicated the fragment here)."""
+    history = "$ hostname\ntarget-box\n"
+    line = f"$ ls; tmux wait -S {_PREFIX}17"
+    buffers = [
+        history + "$ ",
+        history + line[: len("$ ls; tmux wait -S done-")],
+        history + line + "\nout\n$ ",
+    ]
+    _, read1, read2 = _reads(buffers)
+    assert read1.endswith("$ ls")
+    assert "tmux" not in read1 and "tmux" not in read2
+    assert read2.count("$ ls") <= 1 and "out" in read2
+
+
+def test_agent_lookalike_at_buffer_end_is_delayed_never_lost() -> None:
+    """Agent text that merely resembles the suffix start at a capture boundary is withheld from that read and emitted whole by the next; bytes are conserved."""
+    buffers = [
+        "$ ",
+        "$ echo 'x++; tmux w",
+        "$ echo 'x++; tmux what'\nx++; tmux what\n$ ",
+    ]
+    _, read1, read2 = _reads(buffers)
+    assert "tmux w" not in read1  # withheld while it could still be the suffix
+    combined = read1 + read2
+    assert "x++; tmux what" in combined  # released intact once disambiguated
+    assert not read2.startswith("<fallback")

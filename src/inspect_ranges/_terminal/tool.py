@@ -34,6 +34,7 @@ except ImportError:  # pragma: no cover
 
 from .session import (
     SessionState,
+    blocking_form,
     blocking_send_refusal,
     capture_pane_command,
     clip_output,
@@ -47,10 +48,11 @@ from .session import (
     pane_hooks_supported,
     prepare_send,
     remove_sink_command,
-    scrub_harness_echo,
     send_keys_commands,
     set_pane_hooks_commands,
+    stable_view_with_partial,
     start_session_command,
+    strip_leading_suffix_orphan,
     tmux_version_command,
     unset_pane_hooks_commands,
     valid_session_name,
@@ -192,22 +194,43 @@ def _open_sessions(states: dict[str, SessionState]) -> str:
 
 
 async def _read_result(session: str, state: SessionState) -> str:
-    """Capture, compute the delta, and clip; the visible screen is fetched only for the fallback."""
-    first_read = state.previous_buffer is None
+    """Capture, compute the delta between stable views, and clip; the visible screen is fetched only for the fallback.
+
+    Both the stored anchor and the emitted delta come from `stable_view_with_partial`: the raw capture scrubbed with full-line context, padding-normalized, and stripped of any trailing suffix partial, computed once per capture (the scrub is the expensive half; measured 42 ms at the HISTORY_LIMIT worst case of 50k lines, so the single full pass is fine at tool-call cadence and incremental scrubbing is complexity without a payoff). Scrubbing after slicing was the measured leak (a delta beginning at the bare channel name of a wrapped suffix is unanchorable); scrubbing before slicing makes a straddling suffix impossible by construction. A failed scrollback capture keeps the previous anchor, so a transient tmux error cannot bury the output produced since the last read, and a read where BOTH captures fail says so instead of presenting stale content as the current screen. The screen fallback threads the same release valve as the primary path and additionally drops a severed wrapped-suffix continuation whose head row scrolled off the visible pane (`strip_leading_suffix_orphan`).
+    """
+    first_read = not state.read_done
     channel_prefix = wait_channel_prefix(session, state.token)
     entire = await _exec(capture_pane_command(session, entire=True))
-    current = entire.stdout if entire.success else ""
-    delta = find_new_content(state.previous_buffer, current)
-    state.previous_buffer = current
-    if delta is not None and delta.strip():
-        return clip_output(scrub_harness_echo(label_output(delta, ""), channel_prefix))
-    visible = await _exec(capture_pane_command(session))
-    screen = visible.stdout if visible.success else current[-3000:]
-    return clip_output(
-        scrub_harness_echo(
-            label_output(delta, screen, first_read=first_read), channel_prefix
+    delta: str | None = None
+    if entire.success:
+        current, state.pending_partial = stable_view_with_partial(
+            entire.stdout, channel_prefix, release_partial=state.pending_partial
         )
-    )
+        delta = find_new_content(state.previous_buffer, current)
+        state.previous_buffer = current
+        if delta is not None and delta.strip():
+            state.read_done = True
+            return clip_output(label_output(delta, ""))
+    visible = await _exec(capture_pane_command(session))
+    if visible.success:
+        screen, partial = stable_view_with_partial(
+            visible.stdout, channel_prefix, release_partial=state.pending_partial
+        )
+        screen = strip_leading_suffix_orphan(screen, channel_prefix)
+        if not entire.success:
+            state.pending_partial = partial
+    elif not entire.success:
+        # both captures failed: saying so beats presenting the previous
+        # read's content as the live screen (the anchor stays untouched, so
+        # the next successful read emits everything produced meanwhile)
+        detail = (entire.stderr or visible.stderr or "").strip()[-200:]
+        return f"terminal read failed: could not capture the pane ({detail or 'tmux error'})"
+    else:
+        # the previous buffer is already a stable view; re-running the strip
+        # could eat a genuine trailing lookalike a second time
+        screen = (state.previous_buffer or "")[-3000:]
+    state.read_done = True
+    return clip_output(label_output(delta, screen, first_read=first_read))
 
 
 @tool(viewer=_terminal_viewer, parallel=False)
@@ -328,6 +351,13 @@ def terminal(instance: str | None = None) -> Tool:
                 return f"Closed session {session!r}. {_open_sessions(states)}\nFinal {final}"
 
             # send
+            if block:
+                # block=True asks for a command to RUN: keystrokes without a
+                # line break used to degrade silently to type-without-Enter,
+                # merging with the next send and bypassing the refusals below
+                # (they gate on an executing line); the executing form closes
+                # both
+                keystrokes = blocking_form(keystrokes)
             if block and multiline_block(keystrokes):
                 return (
                     "Refusing block=True: the keystrokes span multiple lines, and "
