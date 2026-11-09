@@ -130,15 +130,34 @@ def test_wait_shutoff_resolves_the_range_service_by_label() -> None:
     """Capture and probe sidecars share the project label: the poll must exec the labeled range service, not a name-derived container."""
     calls: list[list[str]] = []
     wait_shutoff(
-        shutoff_runner(["running", "shut off"], calls=calls),  # type: ignore[arg-type]
+        shutoff_runner(["shut off"], calls=calls),  # type: ignore[arg-type]
         "ir-cap-x",
         "web",
         timeout_s=30.0,
     )
-    listed = calls[0]
-    assert listed[:3] == ["docker", "ps", "-q"]
-    assert "label=com.docker.compose.service=range" in listed
-    assert all(call[:3] == ["docker", "exec", "rangecid"] for call in calls[1:])
+    listings = [call for call in calls if call[:2] == ["docker", "ps"]]
+    execs = [call for call in calls if call[:2] == ["docker", "exec"]]
+    assert listings and execs
+    assert all(
+        "label=com.docker.compose.service=range" in listed for listed in listings
+    )
+    assert all(call[2] == "rangecid" for call in execs)
+
+
+def test_wait_shutoff_retries_a_transient_listing_failure() -> None:
+    """A `docker ps` hiccup is a retried poll, never an abort: a false kill destroys a green build at its final step."""
+    listings = {"count": 0}
+
+    def runner(argv: list[str]) -> str:
+        if argv[:2] == ["docker", "ps"]:
+            listings["count"] += 1
+            if listings["count"] == 1:
+                raise BuildError("capture", "docker ps exited 1: daemon busy")
+            return "rangecid\n"
+        return "shut off"
+
+    wait_shutoff(runner, "ir-cap-x", "web", timeout_s=30.0)  # type: ignore[arg-type]
+    assert listings["count"] == 2
 
 
 def test_wait_shutoff_refuses_when_no_range_container_runs() -> None:

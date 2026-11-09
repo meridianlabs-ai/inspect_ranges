@@ -243,31 +243,17 @@ def shutdown_guest(
     return asyncio.run(poweroff())
 
 
-def range_container(runner: CaptureRunner, project: str) -> str:
-    """Resolve the project's range service container by compose labels.
-
-    The project label alone is not enough: capture and probe sidecars share it, and an exec landing in a sidecar would read no domains and no pidfiles.
-
-    Raises:
-        BuildError: stage `capture` when no range container runs for the project.
-    """
-    listed = runner(
-        [
-            "docker",
-            "ps",
-            "-q",
-            "--filter",
-            f"label=com.docker.compose.project={project}",
-            "--filter",
-            "label=com.docker.compose.service=range",
-        ]
-    )
-    containers = [line for line in listed.splitlines() if line.strip()]
-    if not containers:
-        raise BuildError(
-            "capture", f"no running range container for project {project!r}"
-        )
-    return containers[0]
+def _range_container_argv(project: str) -> list[str]:
+    """The `docker ps` that resolves the project's range service by compose labels: the project label alone is not enough, capture and probe sidecars share it, and an exec landing in a sidecar would read no domains and no pidfiles."""
+    return [
+        "docker",
+        "ps",
+        "-q",
+        "--filter",
+        f"label=com.docker.compose.project={project}",
+        "--filter",
+        "label=com.docker.compose.service=range",
+    ]
 
 
 # the guest name rides as a positional parameter ($1), never interpolated into
@@ -277,7 +263,10 @@ def range_container(runner: CaptureRunner, project: str) -> str:
 # alone. An empty or malformed pidfile reads as shut off: the boot script
 # wrote it before readiness ever passed, so at capture time its absence means
 # the VMM is gone, and only an exited VMM (or a hand that removed the file,
-# the same trust class as killing the VMM) can make it unreadable.
+# the same trust class as killing the VMM) can make it unreadable. The read
+# depends on the range service's `init: true` (render.py): an exited VMM is
+# orphaned to the container's pid 1, and an unreaped zombie would keep its
+# comm and read as running forever.
 _CH_SHUTOFF_PROBE = (
     'pid=$(cat "/scratch/ch/$1.pid" 2>/dev/null); '
     'case "$pid" in ""|*[!0-9]*) echo "shut off"; exit 0;; esac; '
@@ -304,20 +293,20 @@ def wait_shutoff(
     Raises:
         BuildError: stage `capture` when the guest does not reach `shut off` within the bound; carries `shutdown_diagnosis` when the poweroff itself visibly failed, plus the VMM log tail for a Cloud Hypervisor guest.
     """
-    container = range_container(runner, project)
-    if cloud_hypervisor:
-        probe = [
-            "docker",
-            "exec",
-            container,
-            "bash",
-            "-c",
-            _CH_SHUTOFF_PROBE,
-            "wait-shutoff",
-            guest,
-        ]
-    else:
-        probe = [
+
+    def probe_argv(container: str) -> list[str]:
+        if cloud_hypervisor:
+            return [
+                "docker",
+                "exec",
+                container,
+                "bash",
+                "-c",
+                _CH_SHUTOFF_PROBE,
+                "wait-shutoff",
+                guest,
+            ]
+        return [
             "docker",
             "exec",
             container,
@@ -327,22 +316,44 @@ def wait_shutoff(
             "domstate",
             guest,
         ]
+
+    # resolution happens inside the loop: a transient `docker ps` failure is a
+    # retried poll like a transient probe failure, never an abort (a false kill
+    # destroys a green build at its final step). A SUCCESSFUL listing with no
+    # range container is a dead range and fails now rather than burning the
+    # bound against a container that cannot come back.
+    container = ""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         try:
-            state = runner(probe).strip()
+            listed = runner(_range_container_argv(project))
+        except BuildError:
+            time.sleep(2.0)
+            continue
+        containers = [line for line in listed.splitlines() if line.strip()]
+        if not containers:
+            raise BuildError(
+                "capture",
+                f"no running range container for project {project!r}",
+                guest=guest,
+            )
+        container = containers[0]
+        try:
+            state = runner(probe_argv(container)).strip()
         except BuildError:
             state = ""
         if "shut off" in state:
             return
         time.sleep(2.0)
     details = [shutdown_diagnosis] if shutdown_diagnosis else []
-    if cloud_hypervisor:
+    if cloud_hypervisor and container:
+        # pure diagnosis: no tail failure of any shape may replace the
+        # primary timeout error
         try:
             tail = runner(
                 ["docker", "exec", container, "bash", "-c", _CH_LOG_TAIL, "tail", guest]
             )
-        except BuildError:
+        except Exception:
             tail = ""
         flat = " | ".join(line for line in tail.strip().splitlines() if line.strip())
         if flat:

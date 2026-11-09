@@ -761,9 +761,10 @@ def _external_attack_box(
     if external.backing_file is not None:
         # a realized overlay means the attack box carries BUILT content
         # (attacker provisioning), which an external substrate cannot
-        # reproduce; this refusal must precede the vmm check below, because a
-        # provisioned attack box is qemu-planned by the content gate and the
-        # vmm refusal's "remove the attacker's vmm" hint would mislead
+        # reproduce; this refusal must precede the vmm check below so a
+        # provisioned box always gets THIS message (a qemu-declared one would
+        # otherwise hit the vmm refusal, whose "remove the attacker's vmm"
+        # hint cannot fix a built box)
         raise UpError(
             "attack-box",
             f"the attack box {external.name!r} boots a built realized image "
@@ -777,9 +778,7 @@ def _external_attack_box(
             f"an external attack box requires the attack box planned under "
             f"cloud-hypervisor (the default), but {external.name!r} declares "
             f"vmm: {external.vmm}; remove the attacker's vmm, or unset "
-            "INSPECT_RANGES_ATTACK_BOX (required when the box is provisioned: "
-            "a provisioned attack box is qemu-planned and carries built "
-            "content no external provider can reproduce)",
+            "INSPECT_RANGES_ATTACK_BOX",
         )
     if any(
         nic.network is None or nic.ip is None or nic.prefixlen is None

@@ -434,7 +434,6 @@ hosts:
 
 attacker:
   image: ubuntu-noble
-  vmm: qemu
   interfaces: [{ network: dmz }]
   entry: external
   provisioning:
@@ -462,7 +461,6 @@ provisioned_attacker = RangeSpec(
     ],
     attacker=Attacker(
         image="ubuntu-noble",
-        vmm="qemu",
         interfaces=[Interface(network="dmz")],
         entry="external",
         provisioning=[ProvisioningStep(recipe="acme.attack-tools")],
