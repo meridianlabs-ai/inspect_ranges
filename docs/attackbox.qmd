@@ -30,6 +30,16 @@ The tool contract is asserted at image build, so [behavioral checks](building.qm
 
 Declare `image:` on the attacker to boot any image instead: another catalog name, or your own golden. The one hard requirement is the guest control daemon, which carries exec, files, and readiness. Derive your image over a published golden, or bake the daemon in with the `daemon-bundle` artifact (see [Images](images.qmd#catalog)). The tool contract above is a property of the `attack` image, not of attack boxes generally: behavioral checks that rely on it should keep the default image or assert their own tooling.
 
+To build a toolset image of your own, use the pattern that produces the catalog's `attack` image: a factory range with one host whose recipes install the tools (the shipped [attack factory](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/catalog/attack) is the reference). `inspect-ranges build` converges the recipes and captures the host's disk as a realized image. `inspect-ranges publish` then promotes that image to a bare name at a location you control: your own registry, or a directory ([Distribution](distribution.qmd#the-catalog-list)):
+
+``` {.bash .fragment}
+$ cd my-attack-factory && inspect-ranges build
+$ inspect-ranges publish --guest box --as acme-attack \
+    --to registry.example.net/ranges
+```
+
+Prepend the location to `INSPECT_RANGES_REGISTRY` and any range can declare `image: acme-attack` on its attacker. The public catalog is not involved, and a directory location works air-gapped.
+
 ## External Providers
 
 By default the realizer renders and boots the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an attachment point on the foothold's segment and routes `sandbox()` operations to the surface the provider returns; the provider supplies the machine and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.

@@ -409,7 +409,7 @@ attack_box = RangeSpec(
 
 A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](security.qmd#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host's own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`. A Cloud Hypervisor guest cannot yet carry [guest content](#guest-content) that requires a build, so planning refuses the combination.
 
-With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The attacker's `egress` posture is covered in [Networks](networks.qmd#egress).
+With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The foothold is an ordinary declared host, so it carries `provisioning:` recipes and other [guest content](#guest-content) like any host; the build lifts the attacker's egress containment for the build only ([Building Ranges](building.qmd#build-stages)). The attacker's `egress` posture is covered in [Networks](networks.qmd#egress).
 
 ## Guest Content {#guest-content}
 
