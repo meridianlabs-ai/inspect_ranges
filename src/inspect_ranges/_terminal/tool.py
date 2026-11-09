@@ -47,10 +47,9 @@ from .session import (
     pane_hooks_supported,
     prepare_send,
     remove_sink_command,
-    scrub_harness_echo,
     send_keys_commands,
     set_pane_hooks_commands,
-    split_suffix_holdback,
+    stable_view,
     start_session_command,
     tmux_version_command,
     unset_pane_hooks_commands,
@@ -193,32 +192,23 @@ def _open_sessions(states: dict[str, SessionState]) -> str:
 
 
 async def _read_result(session: str, state: SessionState) -> str:
-    """Capture, compute the delta, and clip; the visible screen is fetched only for the fallback.
+    """Capture, compute the delta between stable views, and clip; the visible screen is fetched only for the fallback.
 
-    A read racing dribbling output can end inside the echoed completion signal, leaving an unanchorable fragment for the NEXT read (measured live under a wedged foreground ssh). The previous read's withheld tail rejoins the delta here so the suffix scrubs whole (`split_suffix_holdback`); the fallback path drops the holdback instead, because the screen it renders shows the pane's reality in place.
+    Both the stored anchor and the emitted delta come from `stable_view`: the raw capture scrubbed with full-line context and stripped of any trailing suffix partial. Scrubbing after slicing was the measured leak (a delta beginning at the bare channel name of a wrapped suffix is unanchorable); scrubbing before slicing makes a straddling suffix impossible by construction.
     """
     first_read = state.previous_buffer is None
     channel_prefix = wait_channel_prefix(session, state.token)
     entire = await _exec(capture_pane_command(session, entire=True))
-    current = entire.stdout if entire.success else ""
+    current = stable_view(entire.stdout if entire.success else "", channel_prefix)
     delta = find_new_content(state.previous_buffer, current)
     state.previous_buffer = current
-    if delta is not None:
-        combined = state.scrub_holdback + delta
-        emit, state.scrub_holdback = split_suffix_holdback(combined, channel_prefix)
-        if emit.strip():
-            return clip_output(
-                scrub_harness_echo(label_output(emit, ""), channel_prefix)
-            )
-    else:
-        state.scrub_holdback = ""
+    if delta is not None and delta.strip():
+        return clip_output(label_output(delta, ""))
     visible = await _exec(capture_pane_command(session))
-    screen = visible.stdout if visible.success else current[-3000:]
-    return clip_output(
-        scrub_harness_echo(
-            label_output(delta, screen, first_read=first_read), channel_prefix
-        )
+    screen = stable_view(
+        visible.stdout if visible.success else current[-3000:], channel_prefix
     )
+    return clip_output(label_output(delta, screen, first_read=first_read))
 
 
 @tool(viewer=_terminal_viewer, parallel=False)

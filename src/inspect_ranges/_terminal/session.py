@@ -530,21 +530,43 @@ def scrub_harness_echo(text: str, channel_prefix: str | None = None) -> str:
     return plain.sub("", wrapped.sub(scrub_wrapped, text))
 
 
-def split_suffix_holdback(text: str, channel_prefix: str) -> tuple[str, str]:
-    r"""`text` split into the part safe to emit now and a trailing fragment withheld because it may be the blocking signal's echo cut mid-suffix by a read boundary.
+def strip_suffix_partial(text: str, channel_prefix: str) -> str:
+    r"""`text` without a trailing, not-yet-complete fragment of the blocking signal's echo (a strict prefix of this life's suffix, possibly carrying one capture wrap newline).
 
-    The scrub matches the suffix within one read, but a read racing dribbling output can end INSIDE the echoed `; tmux wait -S <channel>` (measured live: a wedged foreground ssh produced a delta that began at the bare channel name, which no pattern can anchor). The trailing fragment is withheld, not deleted: the next read prepends it, so a fragment that completes into the suffix scrubs as a whole, and one that does not is emitted then, delayed one read and never lost. Only a strict trailing prefix of this life's suffix literal (or the literal plus part of its send counter) is ever held, so ordinary output ends each read untouched; the fallback and close paths drop the holdback, because the screen they render shows the pane's reality in place.
+    The scrub removes complete suffixes; a capture taken while the echo is still dribbling can END mid-suffix, and nothing can scrub a fragment whose completion has not arrived. Stripping it from the stable view means it is neither emitted nor stored as anchor text: the next capture either completes it (the whole suffix then scrubs) or reveals it as ordinary output that merely resembled the suffix start (no longer trailing, it emits untouched, delayed one read and never lost).
     """
     literal = f"; tmux wait -S {channel_prefix}"
-    max_hold = min(len(text), len(literal) + 12)
+    max_hold = min(len(text), len(literal) + 14)
     for length in range(max_hold, 0, -1):
         tail = text[-length:]
-        if length <= len(literal):
-            if literal.startswith(tail):
-                return text[:-length], tail
-        elif tail.startswith(literal) and tail[len(literal) :].isdigit():
-            return text[:-length], tail
-    return text, ""
+        # a tail ending in a newline is a COMPLETED line, never a dribble cut
+        # (ordinary output ends lines constantly; a mid-echo cut has nothing
+        # after the partial yet); a single interior newline is a capture wrap
+        if tail.endswith("\n") or tail.count("\n") > 1:
+            continue
+        # a wrap landing on one of the suffix's spaces also eats the space
+        # (capture-pane trims trailing whitespace), so the rejoined form is
+        # tried both ways
+        for flat in (tail.replace("\n", ""), tail.replace("\n", " ")):
+            if not flat:
+                continue
+            if len(flat) <= len(literal):
+                if literal.startswith(flat):
+                    return text[:-length]
+            elif flat.startswith(literal) and flat[len(literal) :].isdigit():
+                return text[:-length]
+    return text
+
+
+def stable_view(text: str, channel_prefix: str | None = None) -> str:
+    r"""The model-stable rendering of a raw capture: the harness echo scrubbed with full-line context, then any trailing suffix partial stripped (`strip_suffix_partial`).
+
+    The scrub's wrap patterns and column checks are only correct against whole captured lines, and a delta can begin mid-wrapped-line (`find_new_content` re-anchors on the previous buffer's final line), which severed the context they need: the measured leak was a delta that began at the bare channel name of a WRAPPED suffix, unanchorable by any pattern. Scrubbing the full capture BEFORE the delta is sliced makes straddling impossible by construction: deltas are computed between stable views, in which no suffix, wrapped, cut, or dribbling, exists at all.
+    """
+    scrubbed = scrub_harness_echo(text, channel_prefix)
+    if channel_prefix is None:
+        return scrubbed
+    return strip_suffix_partial(scrubbed, channel_prefix)
 
 
 def label_output(
@@ -575,11 +597,10 @@ class SessionState:
     """Tool-side state for one open session."""
 
     previous_buffer: str | None = None
+    """The previous read's STABLE view of the scrollback (`stable_view`: scrubbed with full-line context, trailing suffix partial stripped), so deltas are sliced from text in which no harness echo exists to straddle a boundary."""
     chunks: list[tuple[float, bytes]] = field(default_factory=list[tuple[float, bytes]])
     markers: list[tuple[float, str]] = field(default_factory=list[tuple[float, str]])
     opened_wall: float = 0.0
     opened_monotonic: float = 0.0
     sends: int = 0
     token: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
-    scrub_holdback: str = ""
-    """A trailing fragment of the previous read withheld because it may be the blocking signal's echo cut mid-suffix by the read boundary (`split_suffix_holdback`); the next delta rejoins it so the suffix scrubs whole."""
