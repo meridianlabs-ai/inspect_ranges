@@ -48,7 +48,7 @@ def shell(
 ) -> None:
     """Open an interactive shell on GUEST of the running range PROJECT.
 
-    Attaches a tmux session in the guest over the range's control channel: no SSH, no guest listener, works on fully isolated networks. Only ranges booted with `inspect-ranges up` attach; a project booted by the Inspect sandbox provider (an eval sample) refuses, so scored runs are structurally out of reach. GUEST defaults to the range's attacker when it has exactly one. Detach with Ctrl-]; the session keeps running for reattach.
+    Attaches a tmux session in the guest over the range's control channel: no SSH, no guest listener, works on fully isolated networks. Only ranges booted with `inspect-ranges up` attach; a project booted by the Inspect sandbox provider (an eval sample) refuses, so scored runs are structurally out of reach. GUEST defaults to the range's attacker when it has exactly one. The session runs `bash` when the guest has it. Detach with Ctrl-]; the session keeps running for reattach. Exiting the shell ends the session and the attach.
     """
     state = default_state_dir()
     try:

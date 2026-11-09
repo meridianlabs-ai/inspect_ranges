@@ -48,6 +48,11 @@ MAX_PENDING_SEQUENCE = 64 * 1024
 
 DETACH_BYTE = 0x1D  # Ctrl-], the telnet escape: detach, leave the session up
 
+# the sink-read probe's exit code when the tmux session no longer exists;
+# deliberately outside the shell's conventional 0/1/2 and 126/127 range so a
+# tail/head failure can never read as session death
+SESSION_GONE_RC = 43
+
 # OSC codes forwarded to the operator's terminal: window/icon titles only.
 # Everything else (52 clipboard, 4/10/11/104 palette programming, 7 cwd
 # reports, 8 hyperlinks, 1337/133x proprietary extensions) is dropped.
@@ -129,6 +134,8 @@ def start_operator_session_command(
 ) -> list[str]:
     """Argv creating the operator session sized to the operator's terminal, piping into `sink`.
 
+    The pane runs `bash` when the guest has it. With no command, tmux falls back to `$SHELL` (unset under the daemon) and then `/bin/sh`, which minimal guests resolve to a bare POSIX shell; a human operator wants bash where it exists. When bash is absent the word expands away and tmux's own fallback applies unchanged.
+
     The same global history-limit save/restore dance as the agent terminal's opener (`history-limit` only applies to windows created after it is set).
     """
     return [
@@ -136,9 +143,11 @@ def start_operator_session_command(
         "-c",
         (
             f"mkdir -p {SINK_DIR} && : > {sink} && "
+            f'shell="$(command -v bash 2>/dev/null || true)"; '
             f'prev="$(tmux show-options -gv history-limit 2>/dev/null)"; '
             f"tmux set-option -g history-limit {HISTORY_LIMIT} \\; "
-            f"new-session -x {width} -y {height} -d -s {session} \\; "
+            f"new-session -x {width} -y {height} -d -s {session} "
+            f'${{shell:+"$shell"}} \\; '
             f"set-option -t {target(session)} history-limit {HISTORY_LIMIT} \\; "
             f"pipe-pane -t {target(session)} 'cat >> {sink}' && "
             f'if [ -n "$prev" ]; then tmux set-option -g history-limit "$prev"; '
@@ -209,10 +218,21 @@ def send_hex_commands(session: str, data: bytes) -> list[list[str]]:
 
 
 def read_sink_command(
-    sink: str, offset: int, cap: int = OUTPUT_CHUNK_BYTES
+    session: str, sink: str, offset: int, cap: int = OUTPUT_CHUNK_BYTES
 ) -> list[str]:
-    """Argv reading the sink from `offset` (0-based), capped; the client advances its offset by the bytes returned."""
-    return ["sh", "-c", f"tail -c +{offset + 1} -- {sink} | head -c {cap}"]
+    """Argv reading the sink from `offset` (0-based), capped; the client advances its offset by the bytes returned.
+
+    The read carries a liveness probe: after the bytes are written, `has-session` failing exits `SESSION_GONE_RC`, so the client learns the session ended (`exit`, `tmux kill-session`) instead of polling an idle sink forever. The probe runs after the read, so the bytes the pipe flushed as the session died still arrive, flagged with the same exit code.
+    """
+    return [
+        "sh",
+        "-c",
+        (
+            f"tail -c +{offset + 1} -- {sink} | head -c {cap}; "
+            f"tmux has-session -t {target(session)} 2>/dev/null "
+            f"|| exit {SESSION_GONE_RC}"
+        ),
+    ]
 
 
 # -- the guest-bytes filter -----------------------------------------------------
@@ -405,7 +425,7 @@ async def run_shell(
 ) -> None:
     """The interactive loop: raw local tty, keystrokes to the pane, filtered pane bytes back.
 
-    Detach with Ctrl-]; the session stays up for reattach. The guest-side pipe is closed and the attach's sink removed on the way out, whatever ended the loop.
+    Detach with Ctrl-]; the session stays up for reattach. When the session itself ends (`exit`, `tmux kill-session`), the loop exits with it. The guest-side pipe is closed and the attach's sink removed on the way out, whatever ended the loop.
 
     Raises:
         OperatorShellError: Not running on a terminal, a bad session name, or a guest-side setup failure.
@@ -447,6 +467,7 @@ async def run_shell(
     pending_input = bytearray()
     detach = asyncio.Event()
     resized = asyncio.Event()
+    session_ended = False
 
     def on_stdin() -> None:
         data = os.read(fd, 4096)
@@ -489,17 +510,26 @@ async def run_shell(
                     await run(cmd)
 
     async def pump_output() -> None:
+        nonlocal session_ended
         offset = 0
         while not detach.is_set():
-            rc, data = await run(read_sink_command(sink, offset))
+            rc, data = await run(read_sink_command(session, sink, offset))
+            if data:
+                offset += len(data)
+                emit(data)
+            if rc == SESSION_GONE_RC:
+                if data:
+                    # drain what the pipe flushed as the session died; the
+                    # next read comes back empty and still flagged
+                    continue
+                session_ended = True
+                detach.set()
+                return
             if rc != 0:
                 raise OperatorShellError(
                     "reading the session sink failed; the range may be down"
                 )
-            if data:
-                offset += len(data)
-                emit(data)
-            else:
+            if not data:
                 await asyncio.sleep(OUTPUT_POLL_S)
 
     try:
@@ -533,9 +563,12 @@ async def run_shell(
             pass
         if cast is not None and cast_path is not None:
             cast.write(cast_path, title=f"{session} on {guest}")
-        sys.stdout.write(
-            f"\r\n[detached; the session is still running - reattach with the "
-            f"same command, or end it from a shell with: tmux kill-session "
-            f"-t ={session}]\r\n"
-        )
+        if session_ended:
+            sys.stdout.write(f"\r\n[session {session!r} ended]\r\n")
+        else:
+            sys.stdout.write(
+                f"\r\n[detached; the session is still running - reattach with "
+                f"the same command, or end it from a shell with: tmux "
+                f"kill-session -t ={session}]\r\n"
+            )
         sys.stdout.flush()

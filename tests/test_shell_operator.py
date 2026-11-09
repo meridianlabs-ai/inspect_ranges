@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from inspect_ranges._runtime.ownership import owner_record, write_owner
 from inspect_ranges._runtime.up import BootGuest, BootPlan
 from inspect_ranges._terminal.operator import (
     SEND_HEX_CHUNK_BYTES,
+    SESSION_GONE_RC,
     EscapeFilter,
     OperatorShellError,
     operator_sink_path,
@@ -20,6 +22,7 @@ from inspect_ranges._terminal.operator import (
     resolve_guest,
     run_shell,
     send_hex_commands,
+    start_operator_session_command,
 )
 from inspect_ranges._terminal.session import SINK_DIR
 
@@ -135,9 +138,49 @@ def test_sink_paths_are_per_attach_and_distinct_from_agent_sinks() -> None:
 
 def test_read_sink_offsets_are_one_based_tail() -> None:
     """`tail -c +N` is 1-based: offset 0 reads from the first byte."""
-    cmd = read_sink_command("/tmp/.x/op.pipe", 0, cap=10)
-    assert cmd[-1] == "tail -c +1 -- /tmp/.x/op.pipe | head -c 10"
-    assert read_sink_command("/tmp/.x/op.pipe", 7)[-1].startswith("tail -c +8 ")
+    cmd = read_sink_command("operator", "/tmp/.x/op.pipe", 0, cap=10)
+    assert cmd[-1].startswith("tail -c +1 -- /tmp/.x/op.pipe | head -c 10")
+    assert read_sink_command("operator", "/tmp/.x/op.pipe", 7)[-1].startswith(
+        "tail -c +8 "
+    )
+
+
+def _stub_tmux(tmp_path: Path, rc: int) -> dict[str, str]:
+    """An env whose PATH resolves `tmux` to a stub exiting `rc` (the has-session verdict)."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    stub = bin_dir / "tmux"
+    stub.write_text(f"#!/bin/sh\nexit {rc}\n")
+    stub.chmod(0o755)
+    return {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+
+
+@pytest.mark.parametrize(
+    ("has_session_rc", "expected_rc"),
+    [(0, 0), (1, SESSION_GONE_RC)],
+    ids=["alive", "dead"],
+)
+def test_read_sink_probes_session_liveness(
+    tmp_path: Path, has_session_rc: int, expected_rc: int
+) -> None:
+    """The sink read reports a dead session via `SESSION_GONE_RC`, and the sink's bytes still arrive either way (the final flush must not be lost)."""
+    sink = tmp_path / "op.pipe"
+    sink.write_bytes(b"final bytes")
+    result = subprocess.run(
+        read_sink_command("operator", str(sink), 0),
+        capture_output=True,
+        env=_stub_tmux(tmp_path, has_session_rc),
+        check=False,
+    )
+    assert result.returncode == expected_rc
+    assert result.stdout == b"final bytes"
+
+
+def test_operator_session_prefers_bash() -> None:
+    """The opener resolves bash in the guest and hands it to `new-session`; when bash is absent the word expands away and tmux's default-shell fallback applies."""
+    body = start_operator_session_command("operator", f"{SINK_DIR}/op.pipe", 80, 24)[-1]
+    assert 'shell="$(command -v bash 2>/dev/null || true)"' in body
+    assert '-s operator ${shell:+"$shell"}' in body
 
 
 # -- the guest-bytes filter -----------------------------------------------------
