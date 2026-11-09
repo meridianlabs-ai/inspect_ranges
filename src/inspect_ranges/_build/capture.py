@@ -266,9 +266,12 @@ def _range_container_argv(project: str) -> list[str]:
 # the same trust class as killing the VMM) can make it unreadable. The read
 # depends on the range service's `init: true` (render.py): an exited VMM is
 # orphaned to the container's pid 1, and an unreaped zombie would keep its
-# comm and read as running forever.
+# comm and read as running forever. $2 overrides the pidfile directory so the
+# tests execute THIS script text against a scratch directory (a fake that
+# re-implements the case statement would only test itself); production never
+# passes it.
 _CH_SHUTOFF_PROBE = (
-    'pid=$(cat "/scratch/ch/$1.pid" 2>/dev/null); '
+    'pid=$(cat "${2:-/scratch/ch}/$1.pid" 2>/dev/null); '
     'case "$pid" in ""|*[!0-9]*) echo "shut off"; exit 0;; esac; '
     'if grep -q "^cloud-hyperviso" "/proc/$pid/comm" 2>/dev/null; '
     'then echo "running"; else echo "shut off"; fi'
@@ -291,7 +294,7 @@ def wait_shutoff(
     A QEMU guest is polled through `virsh domstate` until the domain reads `shut off`. A Cloud Hypervisor guest is never a libvirt domain: its VMM process exits on its own once the in-guest poweroff completes, so the poll reads the boot script's pidfile and reports shut off when the recorded process is gone or its comm is no longer cloud-hypervisor. The pid signal cannot distinguish a clean poweroff from a VMM crash, so a Cloud Hypervisor timeout folds the VMM's own log tail into the failure.
 
     Raises:
-        BuildError: stage `capture` when the guest does not reach `shut off` within the bound; carries `shutdown_diagnosis` when the poweroff itself visibly failed, plus the VMM log tail for a Cloud Hypervisor guest.
+        BuildError: stage `capture` when the guest does not reach `shut off` within the bound (carrying `shutdown_diagnosis` when the poweroff itself visibly failed, plus the VMM log tail for a Cloud Hypervisor guest), or immediately when a successful listing shows no running range container for the project.
     """
 
     def probe_argv(container: str) -> list[str]:
