@@ -10,7 +10,7 @@ See [Registering a Provider](../attackbox.html.md#registering-a-provider) for th
 
 What the dotted path in `INSPECT_RANGES_ATTACK_BOX` names. Must be cheap: no dialing, no probing; remote work belongs in the provider’s `boot`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L140)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L140)
 
 ``` python
 AttackBoxFactory = Callable[[AttackBoxContext], AttackBoxBackend]
@@ -20,7 +20,7 @@ AttackBoxFactory = Callable[[AttackBoxContext], AttackBoxBackend]
 
 What an [AttackBoxFactory](../reference/attackbox.html.md#attackboxfactory) is called with.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L128)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L128)
 
 ``` python
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ One resolved backend bundle: the provider plus the hooks the provider protocol a
 
 `reclaim` overrides the teardown-by-origin connector; left `None`, teardown runs `provider.teardown` with the recorded token. `doctor_probe` lets `inspect-ranges doctor` check reachability. `capabilities` is the declared-drop surface the evidence record and the conformance battery hold the provider to.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L104)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L104)
 
 ``` python
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class AttackBoxBackend
 reclaimer  
 The teardown-by-origin connector `down` runs: the explicit `reclaim`, or the provider’s own `teardown` with the recorded token.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L116)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L116)
 
 ``` python
 def reclaimer(self) -> AttackBoxReclaimFn
@@ -66,7 +66,7 @@ def reclaimer(self) -> AttackBoxReclaimFn
 
 The teardown-by-origin connector: `(record, state_dir)`; raises on failure, after which `down` refuses to touch the range’s own resources (a dead netns strands a live foreign VMM).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L100)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L100)
 
 ``` python
 AttackBoxReclaimFn = Callable[[AttackBoxRecord, Path], None]
@@ -76,7 +76,7 @@ AttackBoxReclaimFn = Callable[[AttackBoxRecord, Path], None]
 
 An optional reachability probe for `inspect-ranges doctor`: `None` when healthy, else the failure detail (the `_host/backend.py` shape, aliased here so the realizer can import this module without the host-seam dependency chain).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L25)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L25)
 
 ``` python
 DoctorProbe = Callable[[], str | None]
@@ -86,7 +86,7 @@ DoctorProbe = Callable[[], str | None]
 
 The environment variable that selects an external attack-box provider, as `<module>.<factory>[:<config>]`.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L22)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L22)
 
 ``` python
 ENV_VAR = "INSPECT_RANGES_ATTACK_BOX"
@@ -100,7 +100,7 @@ An external supplier of one range’s dedicated attack box.
 
 `boot` receives the attachment and returns the running box’s handle; it owns the box’s lifecycle from that moment. `teardown` must be idempotent (a crash between the record write and `boot` reclaims a box that never existed) and must tolerate a token from a `boot` that half-completed.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L81)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L81)
 
 ``` python
 class AttackBoxProvider(Protocol)
@@ -110,7 +110,7 @@ class AttackBoxProvider(Protocol)
 
 What the backend declares it can do; a declared gap is recorded as evidence, never silently absent.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L92)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L92)
 
 ``` python
 @dataclass(frozen=True)
@@ -126,7 +126,7 @@ Whether the provider delivers the attack box’s console stream. `False` records
 
 What a provider’s `boot` returns: the exec surface plus a reclaim token, nothing else.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L71)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L71)
 
 ``` python
 @dataclass(frozen=True)
@@ -149,7 +149,7 @@ What the compiled plan hands an external attack-box provider: attachment in, not
 
 Everything here is a plan fact; the provider supplies its own box (image, VMM, hardening) and attaches it behind the taps. `seed_dir` points at the rendered cloud-init seed for the attack box when the bundle carries one; a provider MAY consume it for in-guest network configuration and is never required to.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L54)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L54)
 
 ``` python
 @dataclass(frozen=True)
@@ -167,7 +167,7 @@ One L2 attachment point on a foothold segment, built inside the range container�
 
 The tap is created and enslaved to the segment bridge inside the range netns before the provider sees it; the provider receives only the open fd. The host netns never carries a device for it, and the attachment dies with the fd (the tap is non-persistent) or with the range container’s netns, whichever comes first.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L31)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L31)
 
 ``` python
 @dataclass(frozen=True)
@@ -201,7 +201,7 @@ The segment gateway address, when the segment has one.
 
 Where a Cloud Hypervisor guest’s hybrid-vsock socket is, and who must be listening on it.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_channel/vsock.py#L30)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_channel/vsock.py#L30)
 
 ``` python
 class HybridEndpoint(NamedTuple)
@@ -218,7 +218,7 @@ The uid the VMM runs as, as this host’s kernel reports it; any other socket ow
 
 THE resolver: an `INSPECT_RANGES_ATTACK_BOX` value (or a persisted record origin) to its backend bundle.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L169)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L169)
 
 ``` python
 def resolve_attack_box(value: str, state_dir: Path) -> AttackBoxBackend
@@ -232,7 +232,7 @@ def resolve_attack_box(value: str, state_dir: Path) -> AttackBoxBackend
 
 Split an `INSPECT_RANGES_ATTACK_BOX` value against the grammar, without importing anything.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L156)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L156)
 
 ``` python
 def parse_attack_box(value: str) -> ParsedAttackBox
@@ -246,7 +246,7 @@ The configured attack-box origin, validated against the grammar; `None` when uns
 
 Validation here is parse-only (no import), so a malformed value refuses loudly wherever the origin is first consulted, before any resource exists. A pinned program’s value is the one exception: its pin file is read here, so the origin carries the pin’s contents (`pinned.canonical_origin`).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/backend.py#L207)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/backend.py#L207)
 
 ``` python
 def attack_box_origin() -> str | None
@@ -256,7 +256,7 @@ def attack_box_origin() -> str | None
 
 What `up` registers before the external provider boots: enough for any process to reclaim the foreign box.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/_attackbox/record.py#L29)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/_attackbox/record.py#L29)
 
 ``` python
 class AttackBoxRecord(BaseModel)

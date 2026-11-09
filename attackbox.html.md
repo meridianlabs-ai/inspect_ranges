@@ -26,11 +26,23 @@ The tool contract is asserted at image build, so [behavioral checks](./building.
 
 Declare `image:` on the attacker to boot any image instead: another catalog name, or your own golden. The one hard requirement is the guest control daemon, which carries exec, files, and readiness. Derive your image over a published golden, or bake the daemon in with the `daemon-bundle` artifact (see [Images](./images.html.md#catalog)). The tool contract above is a property of the `attack` image, not of attack boxes generally: behavioral checks that rely on it should keep the default image or assert their own tooling.
 
+A range can also declare `provisioning:` recipes directly on its attacker: the range build then converges and captures the attack box like any content guest ([Guests](./guests.html.md#the-attacker-guest)). That suits tooling specific to one range. For a reusable image shared across ranges, build it once with a factory range instead.
+
+The factory pattern is how the catalog’s `attack` image itself is built: a factory range with one host whose recipes install the tools (the shipped [attack factory](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/catalog/attack) is the reference). `inspect-ranges build` converges the recipes and captures the host’s disk as a realized image. `inspect-ranges publish` then promotes that image to a bare name at a location you control: your own registry, or a directory ([Distribution](./distribution.html.md#the-catalog-list)):
+
+``` bash
+$ cd my-attack-factory && inspect-ranges build
+$ inspect-ranges publish --guest box --as acme-attack \
+    --to registry.example.net/ranges
+```
+
+Prepend the location to `INSPECT_RANGES_REGISTRY` and any range can declare `image: acme-attack` on its attacker. The public catalog is not involved, and a directory location works air-gapped.
+
 ## External Providers
 
 By default the realizer renders and boots the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an attachment point on the foothold’s segment and routes [sandbox()](https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandbox) operations to the surface the provider returns; the provider supplies the machine and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.
 
-The deployment selects the provider, not the range definition: `range.yaml` has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it.
+The deployment selects the provider, not the range definition: `range.yaml` has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it. A provisioned attack box refuses the seam the same way: it boots built content an external substrate cannot reproduce, so `up` refuses while the provider is configured.
 
 ``` bash
 INSPECT_RANGES_ATTACK_BOX=example_ranges.provider.factory:cell-pool-a \

@@ -150,13 +150,30 @@ from inspect_ranges.scanners import range_apparatus
 scorer = [challenge_scorer(), range_apparatus()]
 ```
 
-Or scan accumulated logs after the fact:
+The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
 
-``` bash
-scout scan inspect_ranges/range_apparatus -T ./logs
+[range_friction](./reference/scanners.html.md#range_friction) covers what leaves no machine signature. A file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed a newline: these exist only as the agent saying so, so a model reads for them. Each finding carries a category, a confidence, a verbatim quote and the message it came from. An empty list is the healthy answer even for a sample that scored zero, because the scanner reports the environment breaking its promises and not the task being hard.
+
+A scanjob runs both over accumulated logs:
+
+    apparatus.py
+
+``` python
+from inspect_scout import ScanJob, scanjob
+
+from inspect_ranges.scanners import range_apparatus, range_friction
+
+@scanjob
+def apparatus() -> ScanJob:
+    return ScanJob(
+        scanners=[range_apparatus(), range_friction()],
+        model="anthropic/claude-opus-5",
+    )
 ```
 
-The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
+``` bash
+scout scan apparatus.py -T ./logs
+```
 
 ## Range Build
 
@@ -175,9 +192,9 @@ Until a range has a matching build, every command that consumes built content re
 
 ## Build Stages
 
-1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it). A provisioned host reachable only through routers gets a dedicated `build-uplink` NAT segment instead, so routed topologies build too. A provisioned foothold host has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the exception: a router gets no build egress, so its recipes run offline, reconfiguring what the golden already carries.
+1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it). A provisioned host reachable only through routers gets a dedicated `build-uplink` NAT segment instead, so routed topologies build too. A provisioned foothold host or a provisioned dedicated attack box has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the exception: a router gets no build egress, so its recipes run offline, reconfiguring what the golden already carries.
 
-2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)). Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range’s `activities/` directory ([Guests](./guests.html.md#scheduled-activity)).
+2.  **Recipes** run in strict sequence: hosts in declaration order, then routers, then a provisioned attack box, with one guest’s whole recipe list finishing before the next guest’s starts (see [Authoring Recipes](#authoring-recipes)). This order is how cross-guest dependencies are expressed: declare the dependency first. The [goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light) example declares the forest root, then the child domain, then the member that joins it, and the forest converges in that order. Samples are unaffected: they boot the captured, already-converged images in parallel, each gated only by its own readiness. Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range’s `activities/` directory ([Guests](./guests.html.md#scheduled-activity)).
 
 3.  **Verification** checks every declared `services`, `vulnerabilities`, and `scheduled_activity` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
 
@@ -221,7 +238,7 @@ The `manifest` lines appear after the `behavioral` lines: a build is never recor
 
 ## Incremental Rebuilds
 
-Each guest gets a build key: a hash of its golden image digest, its own spec declarations, its ordered recipe digests with their variables, and its activity scripts’ content digests. On rebuild:
+Each guest gets a build key: a hash of its golden image digest, its own spec declarations, its ordered recipe digests with their variables, and its activity scripts’ content digests. A Windows guest’s key also covers the per-boot seed: its specialize pass runs once at build time and never again, so a change to what the seed bakes has to rebuild the image to reach it. On rebuild:
 
 - A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.
 

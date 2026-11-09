@@ -7,7 +7,7 @@
 | [inspect_ranges.attackbox](../reference/attackbox.html.md) | The attack-box extension point: implement and register an external provider for INSPECT_RANGES_ATTACK_BOX. |
 | [inspect_ranges.host](../reference/host.html.md) | The range-host extension point: implement and register a custom backend for INSPECT_RANGES_HOST. |
 | [inspect_ranges](../reference/inspect_ranges.html.md) | Challenges and goals (dataset, setup, scoring, verification), the goal types, and range definition loading. |
-| [inspect_ranges.scanners](../reference/scanners.html.md) | Deterministic apparatus checking over sample transcripts, as inspect_scout scanners. |
+| [inspect_ranges.scanners](../reference/scanners.html.md) | Apparatus checking over sample transcripts, as inspect_scout scanners. |
 | [inspect_ranges.types](../reference/types.html.md) | Range definition types, usable directly as sandbox configuration. |
 
 ### CLI

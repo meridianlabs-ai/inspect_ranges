@@ -371,7 +371,61 @@ attack_box = RangeSpec(
 
 A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`. A Cloud Hypervisor guest cannot yet carry [guest content](#guest-content) that requires a build, so planning refuses the combination.
 
-With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The attacker’s `egress` posture is covered in [Networks](./networks.html.md#egress).
+With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The foothold is an ordinary declared host, so it carries `provisioning:` recipes and other [guest content](#guest-content) like any host; the build lifts the attacker’s egress containment for the build only ([Building Ranges](./building.html.md#build-stages)). The attacker’s `egress` posture is covered in [Networks](./networks.html.md#egress).
+
+A dedicated attack box can carry `provisioning:` recipes of its own, built and captured like a host’s ([Building Ranges](./building.html.md)). A provisioned attack box must declare `image:` (`attacker-image-required`) and `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the standard attack image default is a backend resolution the build key cannot pin, and the build cannot capture Cloud Hypervisor guests yet. Its recipes run last in the build order, with build egress. Recipes must keep the `agent` user and the daemon’s unprivileged default identity: readiness refuses an attack box whose daemon reports root ([Attack Box](./attackbox.html.md)).
+
+``` yaml
+range:
+  name: provisioned-attacker
+  description: A dedicated attack box with its own tooling recipe.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: dmz }]
+
+attacker:
+  image: ubuntu-noble
+  vmm: qemu
+  interfaces: [{ network: dmz }]
+  entry: external
+  provisioning:
+    - { recipe: acme.attack-tools }
+```
+
+``` python
+provisioned_attacker = RangeSpec(
+    meta=RangeMeta(
+        name="provisioned-attacker",
+        description="A dedicated attack box with its own tooling recipe.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated")
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="dmz")],
+        )
+    ],
+    attacker=Attacker(
+        image="ubuntu-noble",
+        vmm="qemu",
+        interfaces=[Interface(network="dmz")],
+        entry="external",
+        provisioning=[ProvisioningStep(recipe="acme.attack-tools")],
+    ),
+)
+```
 
 ## Guest Content
 
@@ -1094,3 +1148,5 @@ windows_host = RangeSpec(
 ```
 
 Windows 11 clients ride the same tier: `os: { type: windows, version: "11" }` with `image: windows-11` and the hardware contract declared (`hardware: { firmware: uefi-secure, tpm: true }`). The golden installs through `images derive-windows --os 11` from the same two user-supplied, sha256-pinned ISOs, under the contract itself: the installer VM boots the MS-key secure loader with SMM and an emulated TPM 2.0, lays the disk out GPT with an ESP, and selects the Pro image with the documented edition-selection key. Everything else behaves exactly as on server goldens: the unattend specialize seed, daemon readiness, and exec as SYSTEM are proven on a Windows 11 clone, and recipes and plants ride that same daemon channel.
+
+On Windows the default exec identity is SYSTEM: the contract user `root` maps to the daemon’s own identity, and `root` is not a Windows principal. An explicit user runs under that account’s own logon. The daemon reads that account’s credentials from `C:\guestd\users.txt`, one `name:password` line per account, so a recipe that wants named-user exec creates the account and writes that file. The pre-capture scrub deletes the file: the daemon credential file never rides a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot, for example from an `@boot` activity running as SYSTEM.

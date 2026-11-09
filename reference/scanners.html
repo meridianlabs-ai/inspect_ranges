@@ -2,21 +2,24 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.36">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Deterministic apparatus checking over sample transcripts, as inspect_scout scanners.">
+<meta name="description" content="Apparatus checking over sample transcripts, as inspect_scout scanners.">
 
 <title>inspect_ranges.scanners – Inspect Ranges</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -77,10 +80,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-60b6846f58d02926bc6ca5ecd6f15c48.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-448504402dfc9b88167053986c84adf0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -1129,6 +1132,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">range_apparatus</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/scanners.html#range_friction" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">range_friction</span></a>
+  </div>
+</li>
       </ul>
   </li>
           <li class="sidebar-item sidebar-item-section">
@@ -1530,6 +1539,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#scanners" id="toc-scanners" class="nav-link active" data-scroll-target="#scanners">Scanners</a>
   <ul class="collapse">
   <li><a href="#range_apparatus" id="toc-range_apparatus" class="nav-link" data-scroll-target="#range_apparatus">range_apparatus</a></li>
+  <li><a href="#range_friction" id="toc-range_friction" class="nav-link" data-scroll-target="#range_friction">range_friction</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -1544,7 +1554,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div>
   <div class="description">
-    Deterministic apparatus checking over sample transcripts, as inspect_scout scanners.
+    Apparatus checking over sample transcripts, as inspect_scout scanners.
   </div>
 </div>
 
@@ -1561,7 +1571,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Scanners checking that the range apparatus itself behaved, built on <a href="https://meridianlabs-ai.github.io/inspect_scout/">inspect_scout</a>. The scanner form covers both consumption paths: scan finished logs with <code>scout scan inspect_ranges/range_apparatus -T ./logs</code> (or <code>inspect_scout.scan</code> from Python), or put it directly in a task’s scorer list to run online beside <code>challenge_scorer</code>, as the packaged example tasks do. See <a href="../building.html#scan">Running the Range</a> for the development usage and what a finding looks like.</p>
+<p>Scanners checking that the range apparatus itself behaved, built on <a href="https://meridianlabs-ai.github.io/inspect_scout/">inspect_scout</a>. <code>range_apparatus</code> matches machine signatures and costs no model call, so it also runs online in a task’s scorer list beside <code>challenge_scorer</code>, as the packaged example tasks do. <code>range_friction</code> reads the same transcripts with a model, for the defects that exist only as prose.</p>
+<p>See <a href="../building.html#scan">Running the Range</a> for the scanjob that runs both over finished logs, and what a finding looks like.</p>
 <section id="scanners" class="level2">
 <h2 class="anchored" data-anchor-id="scanners">Scanners</h2>
 <section id="range_apparatus" class="level3">
@@ -1570,10 +1581,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The result value is the finding count (0 is healthy; the <span class="element-type-name ref-interlink"><a href="https://inspect.aisi.org.uk/reference/inspect_ai.scorer.html#mean">mean()</a></span> metric reads as mean findings per sample, with no accuracy semantics). The explanation carries one line per finding with its remediation hint, the metadata carries the structured findings (stable detector id, severity, message, hint), and references point at the events each finding keys on.</p>
 <p>Detector families: PLUMBING (post-readiness channel/transport failures, repeated retries against one guest, evidence finalize/teardown errors, the in-guest tool’s rc 124/125 contract), CONFIG-AWARE REACHABILITY (reading the range definition from the sample metadata <code>challenge_dataset(range_spec=...)</code> writes: connectivity failures toward addresses the spec declares reachable from the foothold under its ACLs, and attempts toward private addresses no declared network holds), VERIFY_GOAL BEHAVIOR (zero recorded submissions, submissions binding to no goal, dropped candidates, completion claims over unattempted goals), and SCORING/EVIDENCE INTEGRITY (recorded validity other than <code>valid</code>, corroboration flags, the all-segment-goals-uncorroborated hint).</p>
 <div class="source-link">
-<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/68fa6815b41bb6dab6cedf6ad7abb346720abc40/src/inspect_ranges/scanners.py#L36">Source</a>
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/scanners.py#L46">Source</a>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@scanner</span>(messages<span class="op">=</span><span class="st">"all"</span>, events<span class="op">=</span><span class="st">"all"</span>, metadata<span class="op">=</span><span class="va">True</span>, metrics<span class="op">=</span>[mean()])</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> range_apparatus() <span class="op">-&gt;</span> Scanner[Transcript]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="range_friction" class="level3">
+<h3 class="anchored" data-anchor-id="range_friction">range_friction</h3>
+<p>Read a sample’s transcript for evidence that the range contradicted its own brief.</p>
+<p>The companion to <code>range_apparatus</code>, and the half that needs a model. <code>range_apparatus</code> matches exact machine signatures and is blind to a defect that exists only as prose: a file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed output, scoring scaffolding the agent tripped over. Those appear in the transcript as the agent saying so.</p>
+<p>The result value carries the findings (<code>{"findings": [...]}</code>), each with a category, a confidence, a verbatim quote and the <code>[M12]</code> marker it came from. An empty list is the healthy answer and the expected one for most transcripts, including most that scored zero: the prompt separates “the environment broke its promises” from “the task was hard and the agent failed”, and only the former is a finding.</p>
+<p>Costs a model call per transcript, so this is an after-the-fact audit over eval logs (<code>inspect_scout.scan</code> or <code>scout scan</code>) rather than something to put in a scorer list.</p>
+<div class="source-link">
+<a href="https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/scanners.py#L98">Source</a>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python doc-declaration code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@scanner</span>(messages<span class="op">=</span><span class="st">"all"</span>, metadata<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> range_friction(model: <span class="bu">str</span> <span class="op">|</span> Model <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>) <span class="op">-&gt;</span> Scanner[Transcript]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<dl>
+<dt><code class="ref-definition">model</code> <span class="element-type"><span class="element-type-name">str</span> | <span class="element-type-name"><a href="https://inspect.aisi.org.uk/reference/inspect_ai.model.html#model">Model</a></span> | <span class="element-type-name">None</span></span></dt>
+<dd>
+<p>Model to read with. Defaults to the scan’s model.</p>
+</dd>
+</dl>
 
 
 </section>

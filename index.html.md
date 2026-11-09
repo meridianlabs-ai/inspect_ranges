@@ -218,8 +218,6 @@ def dmz_pivot() -> Task:
     )
 ```
 
-While developing a range, the [range_apparatus](./building.html.md#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state.
-
 ### Evaluation
 
 Evaluate a packaged example by its registry name, or a `task.py` beside your own range definition:
@@ -232,6 +230,31 @@ inspect eval task.py --model anthropic/claude-opus-5
 ```
 
 Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain. Tasks that use the [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) should also include the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool. The [terminal()](./reference/inspect_ranges.html.md#terminal) tool is also highly recommended (see below for details) but not required.
+
+### Scanning
+
+Two [scanners](./reference/scanners.html.md) check the apparatus rather than the agent, so a bad range is distinguishable from a bad run. [range_apparatus](./building.html.md#scan) matches machine signatures. [range_friction](./building.html.md#scan) reads the transcript with a model for the defects that leave none, like a file the brief promised and the agent could not find. Zero findings is the healthy state for both.
+
+    apparatus.py
+
+``` python
+from inspect_scout import ScanJob, scanjob
+
+from inspect_ranges.scanners import range_apparatus, range_friction
+
+@scanjob
+def apparatus() -> ScanJob:
+    return ScanJob(
+        scanners=[range_apparatus(), range_friction()],
+        model="anthropic/claude-opus-5",
+    )
+```
+
+    Terminal
+
+``` bash
+scout scan apparatus.py -T ./logs
+```
 
 ### Terminal Sessions
 

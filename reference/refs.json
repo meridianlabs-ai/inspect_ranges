@@ -97,6 +97,7 @@
   "Totals": "inspect_ranges.qmd#totals",
   "catalog_image_references": "inspect_ranges.qmd#catalog_image_references",
   "range_apparatus": "scanners.qmd#range_apparatus",
+  "range_friction": "scanners.qmd#range_friction",
   "RangeSpec": "types.qmd#rangespec",
   "RangeMeta": "types.qmd#rangemeta",
   "Host": "types.qmd#host",

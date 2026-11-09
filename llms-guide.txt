@@ -224,8 +224,6 @@ def dmz_pivot() -> Task:
     )
 ```
 
-While developing a range, the [range_apparatus](./building.html.md#scan) scanner is the companion diagnostic: wire it beside the scorer or run `scout scan` over finished logs, and zero findings is the healthy state.
-
 ### Evaluation
 
 Evaluate a packaged example by its registry name, or a `task.py` beside your own range definition:
@@ -238,6 +236,31 @@ inspect eval task.py --model anthropic/claude-opus-5
 ```
 
 Any Inspect agent can be the attacker. The agent works from the attack box, a real VM with a real NIC in the broadcast domain. Tasks that use the [challenge_scorer()](./reference/inspect_ranges.html.md#challenge_scorer) should also include the [verify_goal()](./reference/inspect_ranges.html.md#verify_goal) tool. The [terminal()](./reference/inspect_ranges.html.md#terminal) tool is also highly recommended (see below for details) but not required.
+
+### Scanning
+
+Two [scanners](./reference/scanners.html.md) check the apparatus rather than the agent, so a bad range is distinguishable from a bad run. [range_apparatus](./building.html.md#scan) matches machine signatures. [range_friction](./building.html.md#scan) reads the transcript with a model for the defects that leave none, like a file the brief promised and the agent could not find. Zero findings is the healthy state for both.
+
+    apparatus.py
+
+``` python
+from inspect_scout import ScanJob, scanjob
+
+from inspect_ranges.scanners import range_apparatus, range_friction
+
+@scanjob
+def apparatus() -> ScanJob:
+    return ScanJob(
+        scanners=[range_apparatus(), range_friction()],
+        model="anthropic/claude-opus-5",
+    )
+```
+
+    Terminal
+
+``` bash
+scout scan apparatus.py -T ./logs
+```
 
 ### Terminal Sessions
 
@@ -463,13 +486,30 @@ from inspect_ranges.scanners import range_apparatus
 scorer = [challenge_scorer(), range_apparatus()]
 ```
 
-Or scan accumulated logs after the fact:
+The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
 
-``` bash
-scout scan inspect_ranges/range_apparatus -T ./logs
+[range_friction](./reference/scanners.html.md#range_friction) covers what leaves no machine signature. A file the brief promised and the agent could not find, a credential that did not authenticate, a terminal that swallowed a newline: these exist only as the agent saying so, so a model reads for them. Each finding carries a category, a confidence, a verbatim quote and the message it came from. An empty list is the healthy answer even for a sample that scored zero, because the scanner reports the environment breaking its promises and not the task being hard.
+
+A scanjob runs both over accumulated logs:
+
+    apparatus.py
+
+``` python
+from inspect_scout import ScanJob, scanjob
+
+from inspect_ranges.scanners import range_apparatus, range_friction
+
+@scanjob
+def apparatus() -> ScanJob:
+    return ScanJob(
+        scanners=[range_apparatus(), range_friction()],
+        model="anthropic/claude-opus-5",
+    )
 ```
 
-The score value is the finding count, so a healthy range reads `0` with explanation `no findings`. A finding reads like `[warning] reachability/declared-unreachable: 10.80.20.10 is declared reachable from the foothold but tool output shows 'no route to host'`, followed by its hint. The structured findings ride the score metadata.
+``` bash
+scout scan apparatus.py -T ./logs
+```
 
 ## Range Build
 
@@ -488,9 +528,9 @@ Until a range has a matching build, every command that consumes built content re
 
 ## Build Stages
 
-1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it). A provisioned host reachable only through routers gets a dedicated `build-uplink` NAT segment instead, so routed topologies build too. A provisioned foothold host has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the exception: a router gets no build egress, so its recipes run offline, reconfiguring what the golden already carries.
+1.  **The egress build plan.** For the build only, routerless isolated networks become NAT networks with full egress and a host-derived nameserver (`--build-nameserver` overrides it). A provisioned host reachable only through routers gets a dedicated `build-uplink` NAT segment instead, so routed topologies build too. A provisioned foothold host or a provisioned dedicated attack box has the attacker’s egress containment lifted for the build only; no agent runs during a build. The runtime spec is untouched: samples boot with the isolation the definition declares, and realized images keep no reference to build networking. A per-guest settle gate holds each guest’s first recipe until in-guest name resolution works. Provisioned routers are the exception: a router gets no build egress, so its recipes run offline, reconfiguring what the golden already carries.
 
-2.  **Recipes** run in declaration order per guest (see [Authoring Recipes](#authoring-recipes)). Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range’s `activities/` directory ([Guests](./guests.html.md#scheduled-activity)).
+2.  **Recipes** run in strict sequence: hosts in declaration order, then routers, then a provisioned attack box, with one guest’s whole recipe list finishing before the next guest’s starts (see [Authoring Recipes](#authoring-recipes)). This order is how cross-guest dependencies are expressed: declare the dependency first. The [goad_light](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/src/inspect_ranges/examples/_goad_light) example declares the forest root, then the child domain, then the member that joins it, and the forest converges in that order. Samples are unaffected: they boot the captured, already-converged images in parallel, each gated only by its own readiness. Declared `scheduled_activity` then installs as persistent units (a systemd service and timer on Linux, a scheduled task on Windows) from scripts under the range’s `activities/` directory ([Guests](./guests.html.md#scheduled-activity)).
 
 3.  **Verification** checks every declared `services`, `vulnerabilities`, and `scheduled_activity` entry against the live guests, independent of what the recipes claimed (see [Verification](#verification)).
 
@@ -534,7 +574,7 @@ The `manifest` lines appear after the `behavioral` lines: a build is never recor
 
 ## Incremental Rebuilds
 
-Each guest gets a build key: a hash of its golden image digest, its own spec declarations, its ordered recipe digests with their variables, and its activity scripts’ content digests. On rebuild:
+Each guest gets a build key: a hash of its golden image digest, its own spec declarations, its ordered recipe digests with their variables, and its activity scripts’ content digests. A Windows guest’s key also covers the per-boot seed: its specialize pass runs once at build time and never again, so a change to what the seed bakes has to rebuild the image to reach it. On rebuild:
 
 - A guest whose key is unchanged boots from its captured realized image with its recipes skipped; verification still covers it in full.
 
@@ -1558,7 +1598,61 @@ attack_box = RangeSpec(
 
 A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`. A Cloud Hypervisor guest cannot yet carry [guest content](#guest-content) that requires a build, so planning refuses the combination.
 
-With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The attacker’s `egress` posture is covered in [Networks](./networks.html.md#egress).
+With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The foothold is an ordinary declared host, so it carries `provisioning:` recipes and other [guest content](#guest-content) like any host; the build lifts the attacker’s egress containment for the build only ([Building Ranges](./building.html.md#build-stages)). The attacker’s `egress` posture is covered in [Networks](./networks.html.md#egress).
+
+A dedicated attack box can carry `provisioning:` recipes of its own, built and captured like a host’s ([Building Ranges](./building.html.md)). A provisioned attack box must declare `image:` (`attacker-image-required`) and `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the standard attack image default is a backend resolution the build key cannot pin, and the build cannot capture Cloud Hypervisor guests yet. Its recipes run last in the build order, with build egress. Recipes must keep the `agent` user and the daemon’s unprivileged default identity: readiness refuses an attack box whose daemon reports root ([Attack Box](./attackbox.html.md)).
+
+``` yaml
+range:
+  name: provisioned-attacker
+  description: A dedicated attack box with its own tooling recipe.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: dmz }]
+
+attacker:
+  image: ubuntu-noble
+  vmm: qemu
+  interfaces: [{ network: dmz }]
+  entry: external
+  provisioning:
+    - { recipe: acme.attack-tools }
+```
+
+``` python
+provisioned_attacker = RangeSpec(
+    meta=RangeMeta(
+        name="provisioned-attacker",
+        description="A dedicated attack box with its own tooling recipe.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated")
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="dmz")],
+        )
+    ],
+    attacker=Attacker(
+        image="ubuntu-noble",
+        vmm="qemu",
+        interfaces=[Interface(network="dmz")],
+        entry="external",
+        provisioning=[ProvisioningStep(recipe="acme.attack-tools")],
+    ),
+)
+```
 
 ## Guest Content
 
@@ -2281,6 +2375,8 @@ windows_host = RangeSpec(
 ```
 
 Windows 11 clients ride the same tier: `os: { type: windows, version: "11" }` with `image: windows-11` and the hardware contract declared (`hardware: { firmware: uefi-secure, tpm: true }`). The golden installs through `images derive-windows --os 11` from the same two user-supplied, sha256-pinned ISOs, under the contract itself: the installer VM boots the MS-key secure loader with SMM and an emulated TPM 2.0, lays the disk out GPT with an ESP, and selects the Pro image with the documented edition-selection key. Everything else behaves exactly as on server goldens: the unattend specialize seed, daemon readiness, and exec as SYSTEM are proven on a Windows 11 clone, and recipes and plants ride that same daemon channel.
+
+On Windows the default exec identity is SYSTEM: the contract user `root` maps to the daemon’s own identity, and `root` is not a Windows principal. An explicit user runs under that account’s own logon. The daemon reads that account’s credentials from `C:\guestd\users.txt`, one `name:password` line per account, so a recipe that wants named-user exec creates the account and writes that file. The pre-capture scrub deletes the file: the daemon credential file never rides a realized disk. A realized image that needs named-user exec when consumed re-creates the file at boot, for example from an `@boot` activity running as SYSTEM.
 
 
 # Networks – Inspect Ranges
@@ -3608,7 +3704,7 @@ Evidence is on by default inside an eval: when a sample runs under Inspect, the 
 | `draws` | The per-sample variable draw seed and values (non-secret by construction), so recorded samples re-derive post-hoc. |
 | `plants` | What challenge setup planted where (tokens, flags), timestamped: the scorer’s proof-contract record. |
 | `probe/<goal id>` | The nonce-bound active prober’s transcript for goals that use it. |
-| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the pane output re-encoded as UTF-8, host-timestamped. At close, an asciicast assembled from it lands beside a local evidence location as `terminal-<session>.cast` (a remote location carries the stream but gets no cast file). |
+| `terminal/<session>` | The agent’s terminal sessions when the task wires the [terminal](./challenges.html.md#terminal-sessions) tool: the pane output re-encoded as UTF-8, host-timestamped. A pane the agent adds with `tmux new-window` or `split-window` records to its own `terminal/<session>.p<N>` stream. At close, an asciicast assembled from each stream lands beside a local evidence location as `terminal-<session>.cast` (panes as `terminal-<session>.p<N>.cast`; a remote location carries the streams but gets no cast files). |
 | `heartbeat`, `clock` | Capture liveness and watermarks for our own collectors, and wall-clock anomaly records. |
 
 ## Storage
@@ -4350,11 +4446,23 @@ The tool contract is asserted at image build, so [behavioral checks](./building.
 
 Declare `image:` on the attacker to boot any image instead: another catalog name, or your own golden. The one hard requirement is the guest control daemon, which carries exec, files, and readiness. Derive your image over a published golden, or bake the daemon in with the `daemon-bundle` artifact (see [Images](./images.html.md#catalog)). The tool contract above is a property of the `attack` image, not of attack boxes generally: behavioral checks that rely on it should keep the default image or assert their own tooling.
 
+A range can also declare `provisioning:` recipes directly on its attacker: the range build then converges and captures the attack box like any content guest ([Guests](./guests.html.md#the-attacker-guest)). That suits tooling specific to one range. For a reusable image shared across ranges, build it once with a factory range instead.
+
+The factory pattern is how the catalog’s `attack` image itself is built: a factory range with one host whose recipes install the tools (the shipped [attack factory](https://github.com/meridianlabs-ai/inspect_ranges/tree/main/catalog/attack) is the reference). `inspect-ranges build` converges the recipes and captures the host’s disk as a realized image. `inspect-ranges publish` then promotes that image to a bare name at a location you control: your own registry, or a directory ([Distribution](./distribution.html.md#the-catalog-list)):
+
+``` bash
+$ cd my-attack-factory && inspect-ranges build
+$ inspect-ranges publish --guest box --as acme-attack \
+    --to registry.example.net/ranges
+```
+
+Prepend the location to `INSPECT_RANGES_REGISTRY` and any range can declare `image: acme-attack` on its attacker. The public catalog is not involved, and a directory location works air-gapped.
+
 ## External Providers
 
 By default the realizer renders and boots the attack box like any guest. The provider seam lets a deployment substitute an externally-managed VM for that one guest: the range supplies an attachment point on the foothold’s segment and routes [sandbox()](https://inspect.aisi.org.uk/reference/inspect_ai.util.html#sandbox) operations to the surface the provider returns; the provider supplies the machine and owns its lifecycle. Everything else in the range (targets, routers, networking, scoring, evidence capture) is untouched.
 
-The deployment selects the provider, not the range definition: `range.yaml` has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it.
+The deployment selects the provider, not the range definition: `range.yaml` has no provider field, and the same published bundle realizes the same way with or without one. The seam covers dedicated attack boxes only; an assumed-breach range’s foothold is a built, verified target host, so the seam does not apply to it. A provisioned attack box refuses the seam the same way: it boots built content an external substrate cannot reproduce, so `up` refuses while the provider is configured.
 
 ``` bash
 INSPECT_RANGES_ATTACK_BOX=example_ranges.provider.factory:cell-pool-a \
