@@ -1,11 +1,6 @@
 """Tests for the dependency cooldown in pyproject.toml and the CI jobs around it.
 
-pyproject.toml holds back releases younger than seven days, or six hours for a
-list of model provider SDKs and Inspect packages. Dependabot applies the seven
-days to its uv.lock bumps and leaves that list to uv. CI installs from uv.lock,
-and the build toolchain from scripts/build-dist/requirements.txt, pinned with
-hashes. Testing against the newest releases happens in
-meridianlabs-ai/canaries, outside this repository.
+pyproject.toml holds back releases younger than seven days, or six hours for a list of model provider SDKs and Inspect packages. Dependabot applies the seven days to its uv.lock bumps and leaves that list to uv. CI installs from uv.lock, and the build toolchain from scripts/build-dist/requirements.txt, pinned with hashes. Testing against the newest releases happens in meridianlabs-ai/canaries, outside this repository.
 """
 
 import pathlib
@@ -155,8 +150,7 @@ def test_dated_entry_age(age: timedelta, caught: bool) -> None:
 def test_dependabot_cooldown_matches_pyproject() -> None:
     """Dependabot has the cooldown and the 6-hour list of pyproject.toml.
 
-    Dependabot's cooldown counts whole days, so it leaves the "6 hours" entries
-    to uv. Dated entries are locked by hand.
+    Dependabot's cooldown counts whole days, so it leaves the "6 hours" entries to uv. Dated entries are locked by hand.
     """
     dependabot = dependabot_uv()
     assert dependabot["cooldown"]["default-days"] == 7
@@ -205,8 +199,7 @@ def test_shared_actions_share_one_pinned_commit_and_pin_versions() -> None:
 def test_jobs_that_can_write_use_no_cache() -> None:
     """A job that can write restores no Actions cache.
 
-    A cache that a write-capable job restores could run code from a less
-    trusted run. Jobs without permissions get the read-only repo default.
+    A cache that a write-capable job restores could run code from a less trusted run. Jobs without permissions get the read-only repo default.
     """
     cached = [
         where
@@ -248,8 +241,7 @@ def test_build_toolchain_is_hashed_wheels() -> None:
 def test_builds_use_the_installed_toolchain() -> None:
     """Each build uses the hashed toolchain.
 
-    An isolated build or `uv build` resolves its own build backend, outside the
-    hashes.
+    An isolated build or `uv build` resolves its own build backend, outside the hashes.
     """
     builds = [(w, line) for w, line in run_lines() if re.search(r"-m build\b", line)]
     assert builds, "no workflow builds the package"
@@ -264,8 +256,7 @@ def test_builds_use_the_installed_toolchain() -> None:
 def test_uv_never_relocks() -> None:
     """No `uv run` or `uv sync` can re-lock.
 
-    A bare `uv run` or `uv sync` re-resolves an out-of-date uv.lock and installs
-    the result. `--with` installs unlocked packages whatever the other flags.
+    A bare `uv run` or `uv sync` re-resolves an out-of-date uv.lock and installs the result. `--with` installs unlocked packages whatever the other flags.
     """
     relocks = [
         (where, line)

@@ -1,7 +1,9 @@
 version: 2
 updates:
   # Actions are pinned to commit SHAs with a `# vX.Y.Z` comment; Dependabot
-  # bumps both. The cooldown gives a compromised release time to be caught
+  # bumps both. A `<sha> # main` pin (meridianlabs-ai/actions, until a release
+  # tag has the shared Python actions) moves to that branch's head, with no
+  # cooldown. The cooldown gives a compromised release time to be caught
   # before it is proposed; security updates skip it.
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -40,7 +42,6 @@ updates:
       python-packages:
         patterns:
           - "*"
-    # `build` keeps these out of the release notes.
     commit-message:
       prefix: "build"
   # Bumps the release build toolchain pinned with hashes in
