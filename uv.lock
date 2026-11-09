@@ -13,6 +13,15 @@ resolution-markers = [
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
+[options]
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer-span = "P7D"
+
+[options.exclude-newer-package]
+anthropic = { timestamp = "0001-01-01T00:00:00Z", span = "PT6H" }
+inspect-ai = { timestamp = "0001-01-01T00:00:00Z", span = "PT6H" }
+inspect-scout = { timestamp = "0001-01-01T00:00:00Z", span = "PT6H" }
+
 [[package]]
 name = "agent-client-protocol"
 version = "0.12.1"
@@ -1339,7 +1348,7 @@ dependencies = [
     { name = "tenacity" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 dev = [
     { name = "anthropic" },
     { name = "pyright" },
@@ -1350,6 +1359,11 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "types-pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "inspect-ranges", extra = ["dev"] },
 ]
 dist = [
     { name = "build" },
@@ -1367,27 +1381,27 @@ doc = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'dev'", specifier = ">=1.11.0" },
     { name = "boto3", extras = ["crt"], specifier = ">=1.40" },
     { name = "click", specifier = ">=8.0" },
     { name = "inspect-ai", specifier = ">=0.3.288" },
     { name = "inspect-scout", specifier = ">=0.6.0" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "pyright", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.1.0" },
+    { name = "pytest-dotenv", marker = "extra == 'dev'" },
+    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.4.0" },
+    { name = "pytest-xdist", marker = "extra == 'dev'" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "ruff", marker = "extra == 'dev'" },
     { name = "tenacity", specifier = ">=8.2" },
+    { name = "types-pyyaml", marker = "extra == 'dev'" },
 ]
+provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "anthropic", specifier = ">=1.11.0" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "pytest-dotenv" },
-    { name = "pytest-timeout", specifier = ">=2.4.0" },
-    { name = "pytest-xdist" },
-    { name = "ruff" },
-    { name = "types-pyyaml" },
-]
+dev = [{ name = "inspect-ranges", extras = ["dev"] }]
 dist = [
     { name = "build" },
     { name = "twine" },
