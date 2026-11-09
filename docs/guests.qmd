@@ -416,7 +416,22 @@ A dedicated attack box can carry `provisioning:` recipes of its own, built and c
 ::: {.panel-tabset group="definition-language"}
 ### YAML
 
-``` yaml
+``` {.yaml .plan-invalid}
+range:
+  name: provisioned-attacker
+  description: A dedicated attack box with its own tooling recipe.
+
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: dmz }]
+
 attacker:
   image: ubuntu-noble
   vmm: qemu
@@ -428,13 +443,30 @@ attacker:
 
 ### Python
 
-``` python
-attacker = Attacker(
-    image="ubuntu-noble",
-    vmm="qemu",
-    interfaces=[Interface(network="dmz")],
-    entry="external",
-    provisioning=[ProvisioningStep(recipe="acme.attack-tools")],
+``` {.python .plan-invalid}
+provisioned_attacker = RangeSpec(
+    meta=RangeMeta(
+        name="provisioned-attacker",
+        description="A dedicated attack box with its own tooling recipe.",
+    ),
+    networks=[
+        Network(name="dmz", cidr="10.80.10.0/24", mode="isolated")
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="dmz")],
+        )
+    ],
+    attacker=Attacker(
+        image="ubuntu-noble",
+        vmm="qemu",
+        interfaces=[Interface(network="dmz")],
+        entry="external",
+        provisioning=[ProvisioningStep(recipe="acme.attack-tools")],
+    ),
 )
 ```
 :::
