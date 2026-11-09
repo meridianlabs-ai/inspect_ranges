@@ -90,13 +90,32 @@ def test_capture_failure_leaves_no_temp_or_sidecar(tmp_path: Path) -> None:
     assert not (cache / ".caprange-web-abc.qcow2.capturing").exists()
 
 
-def test_wait_shutoff_timeout_carries_the_shutdown_diagnosis() -> None:
-    def never_off(argv: list[str]) -> str:
-        return "running"
+def shutoff_runner(
+    states: list[str],
+    tail: str | None = None,
+    calls: list[list[str]] | None = None,
+) -> object:
+    """A scripted CaptureRunner: `docker ps` resolves the range container, the VMM log tail returns `tail` (raising when None), and each state probe consumes `states` (the last repeats)."""
+    remaining = list(states)
 
+    def runner(argv: list[str]) -> str:
+        if calls is not None:
+            calls.append(argv)
+        if argv[:2] == ["docker", "ps"]:
+            return "rangecid\n"
+        if "tail -n 5" in " ".join(argv):
+            if tail is None:
+                raise BuildError("capture", "docker exec exited 1: container gone")
+            return tail
+        return remaining.pop(0) if len(remaining) > 1 else remaining[0]
+
+    return runner
+
+
+def test_wait_shutoff_timeout_carries_the_shutdown_diagnosis() -> None:
     with pytest.raises(BuildError) as excinfo:
         wait_shutoff(
-            never_off,  # type: ignore[arg-type]
+            shutoff_runner(["running"]),  # type: ignore[arg-type]
             "ir-cap-x",
             "web",
             timeout_s=0.1,
@@ -105,6 +124,77 @@ def test_wait_shutoff_timeout_carries_the_shutdown_diagnosis() -> None:
     message = str(excinfo.value)
     assert "did not reach 'shut off'" in message
     assert "systemctl poweroff exited 1" in message
+
+
+def test_wait_shutoff_resolves_the_range_service_by_label() -> None:
+    """Capture and probe sidecars share the project label: the poll must exec the labeled range service, not a name-derived container."""
+    calls: list[list[str]] = []
+    wait_shutoff(
+        shutoff_runner(["running", "shut off"], calls=calls),  # type: ignore[arg-type]
+        "ir-cap-x",
+        "web",
+        timeout_s=30.0,
+    )
+    listed = calls[0]
+    assert listed[:3] == ["docker", "ps", "-q"]
+    assert "label=com.docker.compose.service=range" in listed
+    assert all(call[:3] == ["docker", "exec", "rangecid"] for call in calls[1:])
+
+
+def test_wait_shutoff_refuses_when_no_range_container_runs() -> None:
+    def no_containers(argv: list[str]) -> str:
+        return "\n"
+
+    with pytest.raises(BuildError) as excinfo:
+        wait_shutoff(no_containers, "ir-cap-x", "web", timeout_s=0.1)  # type: ignore[arg-type]
+    assert "no running range container" in str(excinfo.value)
+
+
+def test_wait_shutoff_cloud_hypervisor_passes_the_guest_positionally() -> None:
+    """The guest name rides as `$1`, never interpolated into the probe script, and a probe reporting shut off returns."""
+    calls: list[list[str]] = []
+    wait_shutoff(
+        shutoff_runner(["shut off"], calls=calls),  # type: ignore[arg-type]
+        "ir-cap-x",
+        "web",
+        timeout_s=30.0,
+        cloud_hypervisor=True,
+    )
+    probe = calls[1]
+    assert probe[3:5] == ["bash", "-c"]
+    assert probe[-1] == "web" and "web" not in probe[5]
+
+
+def test_wait_shutoff_cloud_hypervisor_timeout_folds_the_vmm_log_tail() -> None:
+    """A missing pid cannot distinguish a clean poweroff from a VMM crash, so the timeout carries the VMM's own log tail beside the poweroff diagnosis."""
+    with pytest.raises(BuildError) as excinfo:
+        wait_shutoff(
+            shutoff_runner(["running"], tail="Error booting VM\nvm exited\n"),  # type: ignore[arg-type]
+            "ir-cap-x",
+            "web",
+            timeout_s=0.1,
+            shutdown_diagnosis="poweroff exited 1",
+            cloud_hypervisor=True,
+        )
+    message = str(excinfo.value)
+    assert "did not reach 'shut off'" in message
+    assert "poweroff exited 1" in message
+    assert "vmm log: Error booting VM | vm exited" in message
+
+
+def test_wait_shutoff_cloud_hypervisor_unreadable_log_keeps_the_timeout_error() -> None:
+    """A failing tail must never mask the timeout: the error stands without the log line."""
+    with pytest.raises(BuildError) as excinfo:
+        wait_shutoff(
+            shutoff_runner(["running"], tail=None),  # type: ignore[arg-type]
+            "ir-cap-x",
+            "web",
+            timeout_s=0.1,
+            cloud_hypervisor=True,
+        )
+    message = str(excinfo.value)
+    assert "did not reach 'shut off'" in message
+    assert "vmm log" not in message
 
 
 def write_realized(cache: Path, range_name: str, guest: str, key: str) -> Path:

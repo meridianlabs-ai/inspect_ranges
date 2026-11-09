@@ -272,6 +272,9 @@ def _quiesce_guest(
         guest,
         timeout_s=SHUTOFF_TIMEOUT_WINDOWS_S if windows else SHUTOFF_TIMEOUT_S,
         shutdown_diagnosis=diagnosis,
+        # a hybrid endpoint exists exactly for a Cloud Hypervisor guest's VMM
+        # (the HybridSockets contract), so presence picks the shutoff probe
+        cloud_hypervisor=guest in (hybrid_sockets or {}),
     )
 
 

@@ -1,6 +1,6 @@
 # Cloud Hypervisor capture: slice brief
 
-Status: parked slice, ready to execute. Parked in [attack-box-v1](attack-box-v1.md) ("Attacker provisioning", decision 2) and [agent-containment](agent-containment.md) ("The attack box runs on Cloud Hypervisor by default"). This brief is self-contained: it names the blocker, the fix shape, the scope boundary, the test surfaces, and the proof bar.
+Status: executed (2026-11; this file was the slice's brief and stays as its record). Was parked in [attack-box-v1](attack-box-v1.md) ("Attacker provisioning", decision 2) and [agent-containment](agent-containment.md) ("The attack box runs on Cloud Hypervisor by default"). This brief is self-contained: it names the blocker, the fix shape, the scope boundary, the test surfaces, and the proof bar.
 
 ## Goal
 

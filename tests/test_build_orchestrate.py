@@ -3054,3 +3054,27 @@ def test_behavioral_phase_adapter_forwards_the_seam_scalars(
     assert seen["readiness_timeout"] == 42.0
     assert seen["uplink_network"] == "uplink0"
     assert "keep_on_failure" not in seen and "assertion_sink" not in seen
+
+
+def test_quiesce_picks_the_shutoff_probe_by_hybrid_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A hybrid endpoint exists exactly for a Cloud Hypervisor guest's VMM, so its presence must route the shutoff wait to the pidfile probe and its absence to virsh."""
+    from inspect_ranges._build import orchestrate
+
+    waited: list[tuple[str, bool]] = []
+
+    def no_op(*args: object, **kwargs: object) -> None:
+        return None
+
+    def fake_wait(runner: object, project: str, guest: str, **kwargs: object) -> None:
+        waited.append((guest, bool(kwargs["cloud_hypervisor"])))
+
+    monkeypatch.setattr(orchestrate, "scrub_guest", no_op)
+    monkeypatch.setattr(orchestrate, "shutdown_guest", no_op)
+    monkeypatch.setattr(orchestrate, "wait_shutoff", fake_wait)
+    hybrid = {"attacker": ("/run/ch-vsock/attacker.sock", 1003104)}
+    orchestrate._quiesce_guest("ir-x", "attacker", {}, hybrid_sockets=hybrid)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+    orchestrate._quiesce_guest("ir-x", "web", {}, hybrid_sockets=hybrid)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+    orchestrate._quiesce_guest("ir-x", "web", {}, hybrid_sockets=None)  # pyright: ignore[reportPrivateUsage]
+    assert waited == [("attacker", True), ("web", False), ("web", False)]
