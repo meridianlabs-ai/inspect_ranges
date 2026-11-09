@@ -64,9 +64,10 @@ from ..types import (
     IssueError,
     Network,
     RangeSpec,
-    Router,
     content_guests,
+    declared_guests,
     has_attacker_content,
+    indexed_guests,
     unanswerable_address,
 )
 from .activities import (
@@ -563,7 +564,7 @@ def egress_build_spec(spec: RangeSpec, nameserver_ip: str | None = None) -> Rang
         )
         if foothold is not None and foothold.provisioning:
             build.attacker.egress = "open"
-    elif build.attacker.provisioning:
+    elif has_attacker_content(build.attacker):
         build.attacker.egress = "open"
     try:
         return revalidate_range(build)
@@ -602,15 +603,7 @@ def resolve_provisioning(
     """
     steps: list[ResolvedStep] = []
     issues: list[Issue] = []
-    provisioned: list[tuple[tuple[str | int, ...], Host | Router | Attacker]] = [
-        (("hosts", index), host) for index, host in enumerate(spec.hosts)
-    ]
-    provisioned += [
-        (("routers", index), router) for index, router in enumerate(spec.routers)
-    ]
-    if spec.attacker.host is None:
-        provisioned.append((("attacker",), spec.attacker))
-    for path_base, host in provisioned:
+    for path_base, host in indexed_guests(spec):
         for step_index, step in enumerate(host.provisioning):
             path = (*path_base, "provisioning", step_index)
             try:
@@ -794,15 +787,7 @@ def build_range(
     goldens: dict[str, ImageRef] = {}
     keys: dict[str, str] = {}
     missing: list[Issue] = []
-    indexed_guests: list[tuple[tuple[str | int, ...], Host | Router | Attacker]] = [
-        (("hosts", index), host) for index, host in enumerate(spec.hosts)
-    ]
-    indexed_guests += [
-        (("routers", index), router) for index, router in enumerate(spec.routers)
-    ]
-    if spec.attacker.host is None:
-        indexed_guests.append((("attacker",), spec.attacker))
-    for path_base, host in indexed_guests:
+    for path_base, host in indexed_guests(spec):
         if host.name not in content_names:
             continue
         image_name = host.image
@@ -923,19 +908,27 @@ def build_range(
     # every content host quiesces at one point before any disk is copied. A
     # guest whose state the domain mutates but that declares no content of its
     # own joins the set by declaring any content (at minimum a convergence
-    # recipe; declared services or vulnerabilities equally count).
-    converged = len(guests_with_content) > 1 and any(
-        isinstance(host, Host) and host.os.type == "windows"
-        for host in guests_with_content
+    # recipe; declared services or vulnerabilities equally count). The attack
+    # box stays outside the set: it is Linux by construction, never
+    # domain-joined, and holds no cross-guest state, so it reuses per-guest
+    # even inside a converged range.
+    domain_set = [
+        guest for guest in guests_with_content if not isinstance(guest, Attacker)
+    ]
+    converged = len(domain_set) > 1 and any(
+        isinstance(host, Host) and host.os.type == "windows" for host in domain_set
     )
-    if converged and len(reusable) != len(guests_with_content):
-        if reusable:
-            tee_note = f"{len(reusable)} of {len(guests_with_content)} guests unchanged, but converged ranges rebuild whole"
-        else:
-            tee_note = None
-        reusable = {}
-    else:
-        tee_note = None
+    tee_note = None
+    if converged and any(guest.name not in reusable for guest in domain_set):
+        domain_names = {guest.name for guest in domain_set}
+        preserved = {
+            name: record
+            for name, record in reusable.items()
+            if name not in domain_names
+        }
+        if len(reusable) > len(preserved):
+            tee_note = f"{len(reusable) - len(preserved)} of {len(domain_set)} guests unchanged, but converged ranges rebuild whole"
+        reusable = preserved
 
     # derived once: egress_build_spec prepends it to resolvers and the Windows
     # scrub strips it back out; two independent resolv.conf reads could
@@ -994,13 +987,7 @@ def build_range(
             verified_at=prior.verification.verified_at,
         )
 
-    swap_into_build: list[Host | Router | Attacker] = [
-        *build_spec.hosts,
-        *build_spec.routers,
-    ]
-    if build_spec.attacker.host is None:
-        swap_into_build.append(build_spec.attacker)
-    for guest in swap_into_build:
+    for guest in declared_guests(build_spec):
         if guest.name in reusable:
             # unchanged guests boot from their captured realized image and
             # skip their recipes; verification still covers them in full

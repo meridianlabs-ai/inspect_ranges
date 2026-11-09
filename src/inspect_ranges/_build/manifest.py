@@ -23,9 +23,7 @@ from ..types import (
     Host,
     Router,
     content_guests,
-    has_attacker_content,
-    has_guest_content,
-    has_router_content,
+    declared_guests,
 )
 
 if TYPE_CHECKING:
@@ -731,19 +729,11 @@ def swap_realized_spec(
 
     swapped = spec.model_copy(deep=True)
     golden_digests: dict[str, str | None] = {}
-    swap_guests: list[Host | Router | Attacker] = [*swapped.hosts, *swapped.routers]
-    if swapped.attacker.host is None:
-        swap_guests.append(swapped.attacker)
-    for host in swap_guests:
+    content_names = {guest.name for guest in content_guests(swapped)}
+    for host in declared_guests(swapped):
         record = manifest.guest(host.name)
         if record is None:
-            if isinstance(host, Attacker):
-                content = has_attacker_content(host)
-            elif isinstance(host, Router):
-                content = has_router_content(host)
-            else:
-                content = has_guest_content(host)
-            if content:
+            if host.name in content_names:
                 raise refuse(
                     f"its build manifest has no record for guest {host.name!r}",
                     "run `inspect-ranges build` again",

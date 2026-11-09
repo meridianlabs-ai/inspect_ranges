@@ -2719,6 +2719,69 @@ def test_build_provisions_the_attack_box_on_the_host_path(
     assert [guest for guest, _, _ in third.captures] == ["web"]
 
 
+def test_converged_rebuild_keeps_the_attack_box_per_guest(
+    tmp_path: Path, cache: Path
+) -> None:
+    """The attack box stays outside the converged all-or-nothing set (it is never domain-joined and holds no cross-guest state): an attacker recipe edit rebuilds the attacker alone, and a Windows host edit rebuilds the domain set while the attacker reuses."""
+    spec, range_dir = windows_build_fixture(tmp_path, cache)
+    write_recipe(range_dir, name="acme.tools")
+    spec.attacker.image = "tiny-golden"
+    spec.attacker.vmm = "qemu"
+    spec.attacker.provisioning = [ProvisioningStep(recipe="acme.tools")]
+    first = Fakes(["dc", "db", "attacker"])
+    build_range(
+        spec,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=first.up_fn,
+        down_fn=first.down_fn,
+        recipe_fn=first.recipe_fn,
+        ensure_uplink=first.ensure_uplink,
+        capture_fn=first.capture_fn,
+        quiesce_fn=first.quiesce_fn,
+    )
+    assert [guest for guest, _, _ in first.captures] == ["dc", "db", "attacker"]
+    # an attacker-only edit rebuilds the attacker alone: the domain set reuses
+    edited = spec.model_copy(deep=True)
+    edited.attacker.provisioning = [
+        ProvisioningStep(recipe="acme.tools", vars={}),
+        ProvisioningStep(recipe="acme.db"),
+    ]
+    second = Fakes(["dc", "db", "attacker"])
+    build_range(
+        edited,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=second.up_fn,
+        down_fn=second.down_fn,
+        recipe_fn=second.recipe_fn,
+        ensure_uplink=second.ensure_uplink,
+        capture_fn=second.capture_fn,
+        quiesce_fn=second.quiesce_fn,
+    )
+    assert [guest for guest, _, _ in second.captures] == ["attacker"]
+    # a Windows host edit rebuilds BOTH domain guests while the attacker reuses
+    # (based on the edited spec, whose attacker the manifest now records)
+    reedited = edited.model_copy(deep=True)
+    reedited.hosts[1].provisioning = [
+        ProvisioningStep(recipe="acme.db", vars={}),
+        ProvisioningStep(recipe="acme.web", vars={"marker": "changed"}),
+    ]
+    third = Fakes(["dc", "db", "attacker"])
+    build_range(
+        reedited,
+        range_dir,
+        options_for(tmp_path, cache),
+        up_fn=third.up_fn,
+        down_fn=third.down_fn,
+        recipe_fn=third.recipe_fn,
+        ensure_uplink=third.ensure_uplink,
+        capture_fn=third.capture_fn,
+        quiesce_fn=third.quiesce_fn,
+    )
+    assert [guest for guest, _, _ in third.captures] == ["dc", "db"]
+
+
 def test_build_refuses_attacker_content_without_image(
     tmp_path: Path, cache: Path
 ) -> None:

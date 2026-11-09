@@ -873,6 +873,29 @@ def content_guests(spec: "RangeSpec") -> "list[Host | Router | Attacker]":
     return guests
 
 
+def declared_guests(spec: "RangeSpec") -> "list[Host | Router | Attacker]":
+    """Every guest that boots a machine of its own (hosts, routers, then the dedicated attack box), in build order; a foothold attacker adds no machine. The machine-list sibling of `content_guests`, shared so no consumer hand-rolls the attacker clause."""
+    guests: list[Host | Router | Attacker] = [*spec.hosts, *spec.routers]
+    if spec.attacker.host is None:
+        guests.append(spec.attacker)
+    return guests
+
+
+def indexed_guests(
+    spec: "RangeSpec",
+) -> "list[tuple[tuple[str | int, ...], Host | Router | Attacker]]":
+    """`declared_guests` with each guest's spec path base (`("hosts", i)`, `("routers", i)`, `("attacker",)`), for positioned issues."""
+    indexed: list[tuple[tuple[str | int, ...], Host | Router | Attacker]] = [
+        (("hosts", index), host) for index, host in enumerate(spec.hosts)
+    ]
+    indexed += [
+        (("routers", index), router) for index, router in enumerate(spec.routers)
+    ]
+    if spec.attacker.host is None:
+        indexed.append((("attacker",), spec.attacker))
+    return indexed
+
+
 class Router(_StrictModel):
     """A gateway guest joining two or more networks, carrying the inter-segment ACL."""
 

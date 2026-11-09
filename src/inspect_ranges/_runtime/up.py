@@ -776,8 +776,10 @@ def _external_attack_box(
             "verify-bundle",
             f"an external attack box requires the attack box planned under "
             f"cloud-hypervisor (the default), but {external.name!r} declares "
-            f"vmm: {external.vmm}; remove the attacker's vmm or unset "
-            "INSPECT_RANGES_ATTACK_BOX",
+            f"vmm: {external.vmm}; remove the attacker's vmm, or unset "
+            "INSPECT_RANGES_ATTACK_BOX (required when the box is provisioned: "
+            "a provisioned attack box is qemu-planned and carries built "
+            "content no external provider can reproduce)",
         )
     if any(
         nic.network is None or nic.ip is None or nic.prefixlen is None
