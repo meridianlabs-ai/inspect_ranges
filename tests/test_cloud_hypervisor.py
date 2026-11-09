@@ -482,40 +482,30 @@ def test_vsock_dir_is_private_sticky_and_refuses_a_foreign_root(
         prepare_ch_vsock_dir("ir-other")
 
 
-def test_cloud_hypervisor_guests_with_content_refuse_at_planning(cache: Path) -> None:
-    """The build captures provisioned guests through virsh domstate, which cannot see CH guests: fail closed until CH capture lands."""
+def test_cloud_hypervisor_guests_with_content_plan(cache: Path) -> None:
+    """CH capture landed (the pidfile shutoff wait), so a CH guest carries content like any qemu guest; the planning refusal is gone."""
     from inspect_ranges.types import ProvisioningStep, Service
 
     spec = ch_spec()
     spec.hosts[0].vmm = "cloud-hypervisor"
     spec.hosts[0].provisioning = [ProvisioningStep(recipe="acme.web")]
-    with pytest.raises(IssueError) as excinfo:
-        resolve_plan(spec, PlanOptions(image_cache=cache))
-    assert any(
-        issue.code == "cloud-hypervisor-content-unsupported"
-        for issue in excinfo.value.issues
-    )
-    # declarations alone (services) refuse the same way
-    spec = ch_spec()
-    spec.hosts[0].vmm = "cloud-hypervisor"
     spec.hosts[0].services = [Service(name="web", port=80)]
-    with pytest.raises(IssueError) as excinfo:
-        resolve_plan(spec, PlanOptions(image_cache=cache))
-    assert any(
-        issue.code == "cloud-hypervisor-content-unsupported"
-        for issue in excinfo.value.issues
+    plan = resolve_plan(
+        spec,
+        PlanOptions(
+            image_cache=cache,
+            realized_sections=frozenset({"provisioning", "services"}),
+        ),
     )
-    # a content-free CH guest (the attacker shape) plans fine
-    spec = ch_spec()
-    spec.hosts[0].vmm = "cloud-hypervisor"
-    plan = resolve_plan(spec, PlanOptions(image_cache=cache))
     assert next(g for g in plan.guests if g.name == spec.hosts[0].name).vmm == (
         "cloud-hypervisor"
     )
 
 
-def test_provisioned_attack_box_requires_qemu(cache: Path) -> None:
-    """A provisioned attack box on the cloud-hypervisor DEFAULT refuses with the exact fix named (the author likely declared no vmm at all); `vmm: qemu` plans."""
+def test_provisioned_attack_box_plans_on_the_cloud_hypervisor_default(
+    cache: Path,
+) -> None:
+    """A provisioned attack box no longer needs `vmm: qemu`: it plans on the CH default and the plan carries the effective vmm."""
     from inspect_ranges.types import ProvisioningStep
 
     build = PlanOptions(
@@ -524,19 +514,9 @@ def test_provisioned_attack_box_requires_qemu(cache: Path) -> None:
     spec = ch_spec()
     spec.attacker.provisioning = [ProvisioningStep(recipe="acme.tools")]
     spec.attacker.image = "img"
-    with pytest.raises(IssueError) as excinfo:
-        resolve_plan(spec, build)
-    issue = next(
-        issue
-        for issue in excinfo.value.issues
-        if issue.code == "cloud-hypervisor-content-unsupported"
-    )
-    assert issue.path == ("attacker", "vmm")
-    assert "vmm: qemu" in (issue.hint or "")
-    spec.attacker.vmm = "qemu"
     plan = resolve_plan(spec, build)
     attacker = next(g for g in plan.guests if g.kind == "attacker")
-    assert attacker.vmm == "qemu"
+    assert attacker.vmm == "cloud-hypervisor"
 
 
 def test_guesttool_socket_env_round_trip() -> None:

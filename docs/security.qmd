@@ -35,7 +35,7 @@ Hosts and routers run under QEMU via libvirt by default; the dedicated attack bo
 
 Cloud Hypervisor guests have no `AF_VSOCK` listener on the host: the control plane reaches them through the VMM's hybrid-vsock Unix socket, and every dialer checks the socket peer's credentials (`SO_PEERCRED`) against the VMM's uid before sending a byte. The sockets live in a private per-user host directory that `up` prepares and `down` removes.
 
-Two planning refusals bound the opt-in: a Cloud Hypervisor guest cannot carry guest content yet (`cloud-hypervisor-content-unsupported`: the build captures provisioned guests through libvirt, which cannot see CH guests), and a pinned `cpu_model` refuses (`cloud-hypervisor-cpu-model`: CH guests always see the host CPU).
+One planning refusal bounds the opt-in: a pinned `cpu_model` refuses (`cloud-hypervisor-cpu-model`: CH guests always see the host CPU).
 
 ## Control Plane
 

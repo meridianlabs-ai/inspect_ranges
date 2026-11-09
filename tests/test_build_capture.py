@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 from inspect_ranges._build.capture import (
+    _CH_SHUTOFF_PROBE,  # pyright: ignore[reportPrivateUsage]
+    CaptureRunner,
     RealizedImageMeta,
     capture_guest,
     wait_shutoff,
@@ -90,13 +92,32 @@ def test_capture_failure_leaves_no_temp_or_sidecar(tmp_path: Path) -> None:
     assert not (cache / ".caprange-web-abc.qcow2.capturing").exists()
 
 
-def test_wait_shutoff_timeout_carries_the_shutdown_diagnosis() -> None:
-    def never_off(argv: list[str]) -> str:
-        return "running"
+def shutoff_runner(
+    states: list[str],
+    tail: str | None = None,
+    calls: list[list[str]] | None = None,
+) -> CaptureRunner:
+    """A scripted CaptureRunner: `docker ps` resolves the range container, the VMM log tail returns `tail` (raising when None), and each state probe consumes `states` (the last repeats)."""
+    remaining = list(states)
 
+    def runner(argv: list[str]) -> str:
+        if calls is not None:
+            calls.append(argv)
+        if argv[:2] == ["docker", "ps"]:
+            return "rangecid\n"
+        if "tail -n 5" in " ".join(argv):
+            if tail is None:
+                raise BuildError("capture", "docker exec exited 1: container gone")
+            return tail
+        return remaining.pop(0) if len(remaining) > 1 else remaining[0]
+
+    return runner
+
+
+def test_wait_shutoff_timeout_carries_the_shutdown_diagnosis() -> None:
     with pytest.raises(BuildError) as excinfo:
         wait_shutoff(
-            never_off,  # type: ignore[arg-type]
+            shutoff_runner(["running"]),
             "ir-cap-x",
             "web",
             timeout_s=0.1,
@@ -105,6 +126,96 @@ def test_wait_shutoff_timeout_carries_the_shutdown_diagnosis() -> None:
     message = str(excinfo.value)
     assert "did not reach 'shut off'" in message
     assert "systemctl poweroff exited 1" in message
+
+
+def test_wait_shutoff_resolves_the_range_service_by_label() -> None:
+    """Capture and probe sidecars share the project label: the poll must exec the labeled range service, not a name-derived container."""
+    calls: list[list[str]] = []
+    wait_shutoff(
+        shutoff_runner(["shut off"], calls=calls),
+        "ir-cap-x",
+        "web",
+        timeout_s=30.0,
+    )
+    listings = [call for call in calls if call[:2] == ["docker", "ps"]]
+    execs = [call for call in calls if call[:2] == ["docker", "exec"]]
+    assert listings and execs
+    assert all(
+        "label=com.docker.compose.service=range" in listed for listed in listings
+    )
+    assert all(call[2] == "rangecid" for call in execs)
+
+
+def test_wait_shutoff_retries_a_transient_listing_failure() -> None:
+    """A `docker ps` hiccup is a retried poll, never an abort: a false kill destroys a green build at its final step."""
+    listings = {"count": 0}
+
+    def runner(argv: list[str]) -> str:
+        if argv[:2] == ["docker", "ps"]:
+            listings["count"] += 1
+            if listings["count"] == 1:
+                raise BuildError("capture", "docker ps exited 1: daemon busy")
+            return "rangecid\n"
+        return "shut off"
+
+    wait_shutoff(runner, "ir-cap-x", "web", timeout_s=30.0)  # type: ignore[arg-type]
+    assert listings["count"] == 2
+
+
+def test_wait_shutoff_refuses_when_no_range_container_runs() -> None:
+    def no_containers(argv: list[str]) -> str:
+        return "\n"
+
+    with pytest.raises(BuildError) as excinfo:
+        wait_shutoff(no_containers, "ir-cap-x", "web", timeout_s=0.1)  # type: ignore[arg-type]
+    assert "no running range container" in str(excinfo.value)
+
+
+def test_wait_shutoff_cloud_hypervisor_passes_the_guest_positionally() -> None:
+    """The guest name rides as `$1`, never interpolated into the probe script, and a probe reporting shut off returns."""
+    calls: list[list[str]] = []
+    wait_shutoff(
+        shutoff_runner(["shut off"], calls=calls),
+        "ir-cap-x",
+        "web",
+        timeout_s=30.0,
+        cloud_hypervisor=True,
+    )
+    probe = calls[1]
+    assert probe[3:5] == ["bash", "-c"]
+    assert probe[-1] == "web" and "web" not in probe[5]
+
+
+def test_wait_shutoff_cloud_hypervisor_timeout_folds_the_vmm_log_tail() -> None:
+    """A missing pid cannot distinguish a clean poweroff from a VMM crash, so the timeout carries the VMM's own log tail beside the poweroff diagnosis."""
+    with pytest.raises(BuildError) as excinfo:
+        wait_shutoff(
+            shutoff_runner(["running"], tail="Error booting VM\nvm exited\n"),
+            "ir-cap-x",
+            "web",
+            timeout_s=0.1,
+            shutdown_diagnosis="poweroff exited 1",
+            cloud_hypervisor=True,
+        )
+    message = str(excinfo.value)
+    assert "did not reach 'shut off'" in message
+    assert "poweroff exited 1" in message
+    assert "vmm log: Error booting VM | vm exited" in message
+
+
+def test_wait_shutoff_cloud_hypervisor_unreadable_log_keeps_the_timeout_error() -> None:
+    """A failing tail must never mask the timeout: the error stands without the log line."""
+    with pytest.raises(BuildError) as excinfo:
+        wait_shutoff(
+            shutoff_runner(["running"], tail=None),
+            "ir-cap-x",
+            "web",
+            timeout_s=0.1,
+            cloud_hypervisor=True,
+        )
+    message = str(excinfo.value)
+    assert "did not reach 'shut off'" in message
+    assert "vmm log" not in message
 
 
 def write_realized(cache: Path, range_name: str, guest: str, key: str) -> Path:
@@ -189,3 +300,58 @@ def test_windows_scrub_acl_guard_pins_the_lockdown_contract() -> None:
     ):
         assert f"@({path}, {mask})" in GUESTD_ACL_GUARD, path
     assert "derive-windows" in GUESTD_ACL_GUARD  # the remedy rides the error
+
+
+def test_ch_shutoff_probe_script_reads_real_processes(tmp_path: Path) -> None:
+    """The shipped probe TEXT runs under real bash against a scratch pidfile directory (a fake re-implementing the case statement would only test itself): every pidfile shape and both comm outcomes."""
+    import signal
+    import subprocess
+    import time
+
+    def probe(guest: str) -> str:
+        completed = subprocess.run(
+            ["bash", "-c", _CH_SHUTOFF_PROBE, "wait-shutoff", guest, str(tmp_path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert completed.returncode == 0
+        return completed.stdout.strip()
+
+    # missing, empty, and malformed pidfiles all read shut off
+    assert probe("absent") == "shut off"
+    (tmp_path / "empty.pid").write_text("")
+    assert probe("empty") == "shut off"
+    (tmp_path / "garbage.pid").write_text("not-a-pid\n")
+    assert probe("garbage") == "shut off"
+    # a live pid whose comm is not cloud-hypervisor (the recycled-pid shape)
+    foreign = subprocess.Popen(["sleep", "30"])
+    try:
+        (tmp_path / "foreign.pid").write_text(f"{foreign.pid}\n")
+        assert probe("foreign") == "shut off"
+    finally:
+        foreign.send_signal(signal.SIGKILL)
+        foreign.wait()
+    # a live pid whose comm IS cloud-hypervisor (a process may set its own comm)
+    # the trailing true defeats bash's implicit exec of a final command,
+    # which would reset comm to the exec'd binary name
+    vmm = subprocess.Popen(
+        ["bash", "-c", "printf cloud-hypervisor > /proc/self/comm; sleep 30; true"]
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            comm = Path(f"/proc/{vmm.pid}/comm").read_text().strip()
+            if comm.startswith("cloud-hyperviso"):
+                break
+            time.sleep(0.05)
+        (tmp_path / "vmm.pid").write_text(f"{vmm.pid}\n")
+        assert probe("vmm") == "running"
+        # the exited process reads shut off through the same pidfile
+        vmm.send_signal(signal.SIGKILL)
+        vmm.wait()
+        assert probe("vmm") == "shut off"
+    finally:
+        if vmm.poll() is None:
+            vmm.kill()
+            vmm.wait()

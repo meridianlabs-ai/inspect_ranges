@@ -1028,7 +1028,7 @@ class Attacker(_StrictModel):
     """Attacker-reachable egress from the range: `none` (default), `open`, or a scoped allowlist. Attacker egress composes ahead of network egress: `none` drops the attacker's flows even on a network with an allowlist."""
 
     provisioning: list[ProvisioningStep] = []
-    """Build-time recipe references, in order (the host build path extended to the dedicated attack box): a provisioned attack box boots in the build with egress, runs its recipes, and is captured as a realized image with its own build key. Requires a declared `image` (`attacker-image-required`): the standard attack image default is a backend resolution the build key cannot pin. Requires `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the build cannot capture Cloud Hypervisor guests yet. With `host` set, recipes belong on the foothold host and declaring them here is refused."""
+    """Build-time recipe references, in order (the host build path extended to the dedicated attack box): a provisioned attack box boots in the build with egress, runs its recipes, and is captured as a realized image with its own build key. Requires a declared `image` (`attacker-image-required`): the standard attack image default is a backend resolution the build key cannot pin. With `host` set, recipes belong on the foothold host and declaring them here is refused."""
 
     @model_validator(mode="after")
     def _check_foothold(self) -> "Attacker":

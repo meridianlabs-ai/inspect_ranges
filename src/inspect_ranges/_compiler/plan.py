@@ -351,27 +351,6 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
     # is linux by construction (the Attacker schema declares no `os` field)
     for section, declared_list in (("hosts", spec.hosts), ("routers", spec.routers)):
         for index, guest_decl in enumerate(declared_list):
-            content = any(
-                getattr(guest_decl, section_field, None)
-                for section_field in (
-                    "provisioning",
-                    "services",
-                    "vulnerabilities",
-                    "scheduled_activity",
-                )
-            )
-            if guest_decl.vmm == "cloud-hypervisor" and content:
-                # the build captures provisioned guests through virsh domstate,
-                # which cannot see Cloud Hypervisor guests: fail closed until
-                # CH capture lands (parked with the CH follow-ups)
-                issues.append(
-                    Issue(
-                        code="cloud-hypervisor-content-unsupported",
-                        path=(section, index, "vmm"),
-                        message=f"guest {guest_decl.name!r} runs on cloud-hypervisor and declares guest content, which the build cannot capture yet",
-                        hint="run this guest on qemu, or drop its content sections",
-                    )
-                )
             if (
                 getattr(guest_decl, "opaque", False)
                 and guest_decl.vmm == "cloud-hypervisor"
@@ -421,21 +400,6 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                             hint="Windows guests take firmware and tpm only (the verified Windows 11 shape is uefi-secure + tpm)",
                         )
                     )
-    if (
-        spec.attacker.provisioning
-        and _attacker_vmm(spec.attacker) == "cloud-hypervisor"
-    ):
-        # the same capture limit the hosts/routers gate enforces above, but
-        # cloud-hypervisor is the ATTACK BOX DEFAULT: the author likely wrote
-        # no vmm at all, so the refusal names the exact declaration to add
-        issues.append(
-            Issue(
-                code="cloud-hypervisor-content-unsupported",
-                path=("attacker", "vmm"),
-                message=f"the attack box {spec.attacker.name!r} declares provisioning but runs on cloud-hypervisor (the attack box default), which the build cannot capture yet",
-                hint="declare vmm: qemu on the attacker (a provisioned attack box must run on qemu until cloud-hypervisor capture lands)",
-            )
-        )
     if options.cpu_model != "host-passthrough":
         # Cloud Hypervisor takes no CPU model: its guests always see the host
         # CPU, so a pinned model would silently not apply to them

@@ -407,11 +407,11 @@ attack_box = RangeSpec(
 ```
 :::
 
-A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](security.qmd#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host's own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`. A Cloud Hypervisor guest cannot yet carry [guest content](#guest-content) that requires a build, so planning refuses the combination.
+A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](security.qmd#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host's own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`.
 
 With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The foothold is an ordinary declared host, so it carries `provisioning:` recipes and other [guest content](#guest-content) like any host; the build lifts the attacker's egress containment for the build only ([Building Ranges](building.qmd#build-stages)). The attacker's `egress` posture is covered in [Networks](networks.qmd#egress).
 
-A dedicated attack box can carry `provisioning:` recipes of its own, built and captured like a host's ([Building Ranges](building.qmd)). A provisioned attack box must declare `image:` (`attacker-image-required`) and `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the standard attack image default is a backend resolution the build key cannot pin, and the build cannot capture Cloud Hypervisor guests yet. Its recipes run last in the build order, with build egress. Recipes must keep the `agent` user and the daemon's unprivileged default identity: readiness refuses an attack box whose daemon reports root ([Attack Box](attackbox.qmd)).
+A dedicated attack box can carry `provisioning:` recipes of its own, built and captured like a host's ([Building Ranges](building.qmd)). A provisioned attack box must declare `image:` (`attacker-image-required`): the standard attack image default is a backend resolution the build key cannot pin. Its recipes run last in the build order, with build egress. Recipes must keep the `agent` user and the daemon's unprivileged default identity: readiness refuses an attack box whose daemon reports root ([Attack Box](attackbox.qmd)).
 
 ::: {.panel-tabset group="definition-language"}
 ### YAML
@@ -434,7 +434,6 @@ hosts:
 
 attacker:
   image: ubuntu-noble
-  vmm: qemu
   interfaces: [{ network: dmz }]
   entry: external
   provisioning:
@@ -462,7 +461,6 @@ provisioned_attacker = RangeSpec(
     ],
     attacker=Attacker(
         image="ubuntu-noble",
-        vmm="qemu",
         interfaces=[Interface(network="dmz")],
         entry="external",
         provisioning=[ProvisioningStep(recipe="acme.attack-tools")],

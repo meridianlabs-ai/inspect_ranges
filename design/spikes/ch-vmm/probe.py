@@ -135,6 +135,44 @@ def main() -> int:
             capture_output=True,
         )
         check(console.returncode == 0, "C7 the CH guest's serial console log is non-empty")
+
+        from inspect_ranges._build.capture import default_capture_runner, wait_shutoff
+        from inspect_ranges._build.errors import BuildError
+
+        try:
+            wait_shutoff(
+                default_capture_runner,
+                "ir-chvmm-battery",
+                "attacker",
+                timeout_s=5.0,
+                cloud_hypervisor=True,
+            )
+            check(False, "C9 shutoff wait times out on a running CH VMM")
+        except BuildError as error:
+            check(
+                "did not reach 'shut off'" in str(error) and "vmm log:" in str(error),
+                f"C9 shutoff timeout carries the VMM log tail ({str(error)[:120]!r})",
+            )
+
+        async def poweroff() -> None:
+            # channel death mid-poweroff is the expected success shape
+            try:
+                await execute("attacker", "systemctl poweroff")
+            except Exception:
+                pass
+
+        asyncio.run(poweroff())
+        try:
+            wait_shutoff(
+                default_capture_runner,
+                "ir-chvmm-battery",
+                "attacker",
+                timeout_s=60.0,
+                cloud_hypervisor=True,
+            )
+            check(True, "C10 the powered-off CH guest reads shut off through its pidfile")
+        except BuildError as error:
+            check(False, f"C10 the powered-off CH guest reads shut off ({error})")
     finally:
         down("ir-chvmm-battery", state_dir=state_dir, keep_state=False)
     leftovers = subprocess.run(

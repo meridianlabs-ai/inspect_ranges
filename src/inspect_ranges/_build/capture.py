@@ -1,6 +1,6 @@
 """Capture of provisioned guests into realized images (build-v1 slice 5).
 
-After verification passes, each rebuilt guest is shut down cleanly (an in-guest `systemctl poweroff` over the channel — `shutdown /s /t 0` on Windows — then a `virsh domstate` poll inside the range container until `shut off`), its per-guest overlay is copied out of the range container's scratch, rebased onto its golden's cache file name (relative backing, the cache convention), digested, and moved into the image cache atomically with a `.realized.json` provenance sidecar. The realized image is a boot-fresh scenario image in the Q4 sense: a chained qcow2 delta the runtime boots per sample with its own overlay on top.
+After verification passes, each rebuilt guest is shut down cleanly (an in-guest `systemctl poweroff` over the channel — `shutdown /s /t 0` on Windows — then a poll inside the range container until the VMM reports shut off: `virsh domstate` for QEMU guests, the boot script's pidfile for Cloud Hypervisor guests), its per-guest overlay is copied out of the range container's scratch, rebased onto its golden's cache file name (relative backing, the cache convention), digested, and moved into the image cache atomically with a `.realized.json` provenance sidecar. The realized image is a boot-fresh scenario image in the Q4 sense: a chained qcow2 delta the runtime boots per sample with its own overlay on top.
 
 Clean shutdown before capture is the slice-5 decision's crash-consistency rule: the captured disk is a cleanly unmounted filesystem, never a crash image. Captures run only for rebuilt guests; reused guests carry their prior manifest records forward.
 """
@@ -243,6 +243,43 @@ def shutdown_guest(
     return asyncio.run(poweroff())
 
 
+def _range_container_argv(project: str) -> list[str]:
+    """The `docker ps` that resolves the project's range service by compose labels: the project label alone is not enough, capture and probe sidecars share it, and an exec landing in a sidecar would read no domains and no pidfiles."""
+    return [
+        "docker",
+        "ps",
+        "-q",
+        "--filter",
+        f"label=com.docker.compose.project={project}",
+        "--filter",
+        "label=com.docker.compose.service=range",
+    ]
+
+
+# the guest name rides as a positional parameter ($1), never interpolated into
+# the script, so no name shape can change what the probe runs. /proc comm is
+# truncated to 15 chars, hence the cloud-hyperviso prefix; the comm check
+# exists because a recycled pid would read alive-when-dead from the pidfile
+# alone. An empty or malformed pidfile reads as shut off: the boot script
+# wrote it before readiness ever passed, so at capture time its absence means
+# the VMM is gone, and only an exited VMM (or a hand that removed the file,
+# the same trust class as killing the VMM) can make it unreadable. The read
+# depends on the range service's `init: true` (render.py): an exited VMM is
+# orphaned to the container's pid 1, and an unreaped zombie would keep its
+# comm and read as running forever. $2 overrides the pidfile directory so the
+# tests execute THIS script text against a scratch directory (a fake that
+# re-implements the case statement would only test itself); production never
+# passes it.
+_CH_SHUTOFF_PROBE = (
+    'pid=$(cat "${2:-/scratch/ch}/$1.pid" 2>/dev/null); '
+    'case "$pid" in ""|*[!0-9]*) echo "shut off"; exit 0;; esac; '
+    'if grep -q "^cloud-hyperviso" "/proc/$pid/comm" 2>/dev/null; '
+    'then echo "running"; else echo "shut off"; fi'
+)
+
+_CH_LOG_TAIL = 'tail -n 5 "/scratch/ch/$1.log" 2>/dev/null'
+
+
 def wait_shutoff(
     runner: CaptureRunner,
     project: str,
@@ -250,34 +287,81 @@ def wait_shutoff(
     timeout_s: float = SHUTOFF_TIMEOUT_S,
     *,
     shutdown_diagnosis: str | None = None,
+    cloud_hypervisor: bool = False,
 ) -> None:
-    """Poll the domain state inside the range container until the guest is shut off.
+    """Poll inside the range container until the guest's VMM reports shut off.
+
+    A QEMU guest is polled through `virsh domstate` until the domain reads `shut off`. A Cloud Hypervisor guest is never a libvirt domain: its VMM process exits on its own once the in-guest poweroff completes, so the poll reads the boot script's pidfile and reports shut off when the recorded process is gone or its comm is no longer cloud-hypervisor. The pid signal cannot distinguish a clean poweroff from a VMM crash, so a Cloud Hypervisor timeout folds the VMM's own log tail into the failure.
 
     Raises:
-        BuildError: stage `capture` when the guest does not reach `shut off` within the bound; carries `shutdown_diagnosis` when the poweroff itself visibly failed.
+        BuildError: stage `capture` when the guest does not reach `shut off` within the bound (carrying `shutdown_diagnosis` when the poweroff itself visibly failed, plus the VMM log tail for a Cloud Hypervisor guest), or immediately when a successful listing shows no running range container for the project.
     """
-    container = f"{project}-range-1"
+
+    def probe_argv(container: str) -> list[str]:
+        if cloud_hypervisor:
+            return [
+                "docker",
+                "exec",
+                container,
+                "bash",
+                "-c",
+                _CH_SHUTOFF_PROBE,
+                "wait-shutoff",
+                guest,
+            ]
+        return [
+            "docker",
+            "exec",
+            container,
+            "virsh",
+            "--connect",
+            "qemu:///system",
+            "domstate",
+            guest,
+        ]
+
+    # resolution happens inside the loop: a transient `docker ps` failure is a
+    # retried poll like a transient probe failure, never an abort (a false kill
+    # destroys a green build at its final step). A SUCCESSFUL listing with no
+    # range container is a dead range and fails now rather than burning the
+    # bound against a container that cannot come back.
+    container = ""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         try:
-            state = runner(
-                [
-                    "docker",
-                    "exec",
-                    container,
-                    "virsh",
-                    "--connect",
-                    "qemu:///system",
-                    "domstate",
-                    guest,
-                ]
-            ).strip()
+            listed = runner(_range_container_argv(project))
+        except BuildError:
+            time.sleep(2.0)
+            continue
+        containers = [line for line in listed.splitlines() if line.strip()]
+        if not containers:
+            raise BuildError(
+                "capture",
+                f"no running range container for project {project!r}",
+                guest=guest,
+            )
+        container = containers[0]
+        try:
+            state = runner(probe_argv(container)).strip()
         except BuildError:
             state = ""
         if "shut off" in state:
             return
         time.sleep(2.0)
-    detail = f" ({shutdown_diagnosis})" if shutdown_diagnosis else ""
+    details = [shutdown_diagnosis] if shutdown_diagnosis else []
+    if cloud_hypervisor and container:
+        # pure diagnosis: no tail failure of any shape may replace the
+        # primary timeout error
+        try:
+            tail = runner(
+                ["docker", "exec", container, "bash", "-c", _CH_LOG_TAIL, "tail", guest]
+            )
+        except Exception:
+            tail = ""
+        flat = " | ".join(line for line in tail.strip().splitlines() if line.strip())
+        if flat:
+            details.append(f"vmm log: {flat[-300:]}")
+    detail = f" ({'; '.join(details)})" if details else ""
     raise BuildError(
         "capture",
         f"guest did not reach 'shut off' within {timeout_s:.0f} s after poweroff{detail}",
