@@ -558,15 +558,48 @@ def strip_suffix_partial(text: str, channel_prefix: str) -> str:
     return text
 
 
-def stable_view(text: str, channel_prefix: str | None = None) -> str:
-    r"""The model-stable rendering of a raw capture: the harness echo scrubbed with full-line context, then any trailing suffix partial stripped (`strip_suffix_partial`).
+def stable_view(
+    text: str, channel_prefix: str | None = None, release_partial: str = ""
+) -> str:
+    r"""The model-stable rendering of a raw capture: trailing blank-row padding dropped, the harness echo scrubbed with full-line context, then any trailing suffix partial stripped (`strip_suffix_partial`).
 
     The scrub's wrap patterns and column checks are only correct against whole captured lines, and a delta can begin mid-wrapped-line (`find_new_content` re-anchors on the previous buffer's final line), which severed the context they need: the measured leak was a delta that began at the bare channel name of a WRAPPED suffix, unanchorable by any pattern. Scrubbing the full capture BEFORE the delta is sliced makes straddling impossible by construction: deltas are computed between stable views, in which no suffix, wrapped, cut, or dribbling, exists at all.
+
+    `capture-pane -S -` pads the visible pane with trailing blank rows, so the padding is dropped before the tail scan or a partial would always end in a newline and never strip (review round 2, verified on tmux 3.4). `release_partial` is the persistence escape: a pane that goes quiet mid-lookalike would otherwise withhold its genuine tail forever, so the caller passes the partial it saw stripped LAST read, and a tail identical to it is released rather than stripped (a dribbling echo changes between captures; an unchanged tail is real output).
     """
-    scrubbed = scrub_harness_echo(text, channel_prefix)
+    scrubbed = scrub_harness_echo(text, channel_prefix).rstrip("\n")
     if channel_prefix is None:
         return scrubbed
-    return strip_suffix_partial(scrubbed, channel_prefix)
+    stripped = strip_suffix_partial(scrubbed, channel_prefix)
+    partial = scrubbed[len(stripped) :]
+    if partial and partial == release_partial:
+        return scrubbed
+    return stripped
+
+
+def stripped_partial(text: str, channel_prefix: str) -> str:
+    r"""The trailing suffix partial `stable_view` would strip from `text` (for the caller's persistence tracking), computed over the same padding-normalized form."""
+    scrubbed = scrub_harness_echo(text, channel_prefix).rstrip("\n")
+    return scrubbed[len(strip_suffix_partial(scrubbed, channel_prefix)) :]
+
+
+def strip_leading_suffix_orphan(screen: str, channel_prefix: str) -> str:
+    r"""The visible screen without a first line that is a severed continuation of the suffix's echo.
+
+    A wrapped suffix whose head row scrolled off the top of the visible pane leaves its continuation line (ending in the channel name and counter) as the screen's FIRST line, which no wrap pattern can anchor (the head is gone) and no trailing strip touches. The first line is dropped only when it is exactly a trailing slice of `<literal><digits>` whose overlap includes at least four characters of the channel prefix, so ordinary output (bare digits included) never matches.
+    """
+    line, newline, rest = screen.partition("\n")
+    literal = f"; tmux wait -S {channel_prefix}"
+    for split in range(len(literal)):
+        remainder = literal[split:]
+        prefix_overlap = max(0, len(remainder) - (len(literal) - len(channel_prefix)))
+        if prefix_overlap < 4:
+            continue
+        if line == remainder or (
+            line.startswith(remainder) and line[len(remainder) :].isdigit()
+        ):
+            return rest if newline else ""
+    return screen
 
 
 def label_output(
@@ -597,7 +630,10 @@ class SessionState:
     """Tool-side state for one open session."""
 
     previous_buffer: str | None = None
-    """The previous read's STABLE view of the scrollback (`stable_view`: scrubbed with full-line context, trailing suffix partial stripped), so deltas are sliced from text in which no harness echo exists to straddle a boundary."""
+    """The previous read's STABLE view of the scrollback (`stable_view`: scrubbed with full-line context, padding-normalized, trailing suffix partial stripped), so deltas are sliced from text in which no harness echo exists to straddle a boundary. A failed capture leaves it untouched."""
+
+    pending_partial: str = ""
+    """The suffix partial the previous read stripped, if any: a tail identical across consecutive captures is real output, not a dribbling echo, and is released on the next read (`stable_view`'s `release_partial`)."""
     chunks: list[tuple[float, bytes]] = field(default_factory=list[tuple[float, bytes]])
     markers: list[tuple[float, str]] = field(default_factory=list[tuple[float, str]])
     opened_wall: float = 0.0

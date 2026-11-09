@@ -51,6 +51,8 @@ from .session import (
     set_pane_hooks_commands,
     stable_view,
     start_session_command,
+    strip_leading_suffix_orphan,
+    stripped_partial,
     tmux_version_command,
     unset_pane_hooks_commands,
     valid_session_name,
@@ -194,20 +196,33 @@ def _open_sessions(states: dict[str, SessionState]) -> str:
 async def _read_result(session: str, state: SessionState) -> str:
     """Capture, compute the delta between stable views, and clip; the visible screen is fetched only for the fallback.
 
-    Both the stored anchor and the emitted delta come from `stable_view`: the raw capture scrubbed with full-line context and stripped of any trailing suffix partial. Scrubbing after slicing was the measured leak (a delta beginning at the bare channel name of a wrapped suffix is unanchorable); scrubbing before slicing makes a straddling suffix impossible by construction.
+    Both the stored anchor and the emitted delta come from `stable_view`: the raw capture scrubbed with full-line context, padding-normalized, and stripped of any trailing suffix partial. Scrubbing after slicing was the measured leak (a delta beginning at the bare channel name of a wrapped suffix is unanchorable); scrubbing before slicing makes a straddling suffix impossible by construction. A failed capture keeps the previous anchor, so a transient tmux error cannot bury the output produced since the last read. The persistence escape: a partial stripped on consecutive reads of an unchanged tail is real output and is released (`release_partial`); the screen fallback additionally drops a severed wrapped-suffix continuation whose head row scrolled off the visible pane (`strip_leading_suffix_orphan`).
     """
     first_read = state.previous_buffer is None
     channel_prefix = wait_channel_prefix(session, state.token)
     entire = await _exec(capture_pane_command(session, entire=True))
-    current = stable_view(entire.stdout if entire.success else "", channel_prefix)
-    delta = find_new_content(state.previous_buffer, current)
-    state.previous_buffer = current
-    if delta is not None and delta.strip():
-        return clip_output(label_output(delta, ""))
+    # the stable view scrubs the WHOLE scrollback per read; measured 42 ms at
+    # the HISTORY_LIMIT worst case (50k lines, 8 MB, suffixes sprinkled), so
+    # incremental scrubbing is complexity without a payoff at tool-call cadence
+    delta: str | None = None
+    if entire.success:
+        current = stable_view(
+            entire.stdout, channel_prefix, release_partial=state.pending_partial
+        )
+        state.pending_partial = stripped_partial(entire.stdout, channel_prefix)
+        delta = find_new_content(state.previous_buffer, current)
+        state.previous_buffer = current
+        if delta is not None and delta.strip():
+            return clip_output(label_output(delta, ""))
     visible = await _exec(capture_pane_command(session))
-    screen = stable_view(
-        visible.stdout if visible.success else current[-3000:], channel_prefix
-    )
+    if visible.success:
+        screen = strip_leading_suffix_orphan(
+            stable_view(visible.stdout, channel_prefix), channel_prefix
+        )
+    else:
+        # the previous buffer is already a stable view; re-running the strip
+        # could eat a genuine trailing lookalike a second time
+        screen = (state.previous_buffer or "")[-3000:]
     return clip_output(label_output(delta, screen, first_read=first_read))
 
 

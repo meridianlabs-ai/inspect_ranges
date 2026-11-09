@@ -28,7 +28,9 @@ from inspect_ranges._terminal.session import (
     set_pane_hooks_commands,
     stable_view,
     start_session_command,
+    strip_leading_suffix_orphan,
     strip_suffix_partial,
+    stripped_partial,
     valid_session_name,
     wait_channel,
     wait_channel_prefix,
@@ -914,6 +916,40 @@ def test_assemble_cast_without_prefix_keeps_the_raw_stream() -> None:
 def test_strip_suffix_partial(text: str, stripped: str) -> None:
     """Only a trailing strict prefix of this life's suffix (at most one wrap newline) is stripped; everything else stays."""
     assert strip_suffix_partial(text, _PREFIX) == stripped
+
+
+def test_pane_padding_does_not_defeat_the_partial_strip() -> None:
+    """`capture-pane -S -` pads the visible pane with trailing blank rows (verified on tmux 3.4), so a fresh pane's dribbling partial always ended in newlines and the strip never fired; the stable view drops the padding first (review round 2's headline repro)."""
+    raw = "$ ssh target uname; tmux w" + "\n" * 38
+    assert stable_view(raw, _PREFIX) == "$ ssh target uname"
+
+
+def test_quiet_pane_releases_a_persistent_lookalike() -> None:
+    """A tail identical across consecutive captures is real output, not a dribbling echo: the second read releases it instead of withholding forever."""
+    raw = "$ printf 'x++; tmux w'\nx++; tmux w" + "\n" * 10
+    first = stable_view(raw, _PREFIX)
+    assert not first.endswith("; tmux w")  # withheld while it could dribble
+    partial = stripped_partial(raw, _PREFIX)
+    assert partial == "; tmux w"
+    second = stable_view(raw, _PREFIX, release_partial=partial)
+    assert second.endswith("x++; tmux w")  # unchanged tail is real output
+
+
+@pytest.mark.parametrize(
+    ("screen", "expected"),
+    [
+        # the severed continuation of a wrapped suffix whose head scrolled off
+        (f"-S {_PREFIX}17\nout\n$ ", "out\n$ "),
+        (f"wait -S {_PREFIX}3\n$ ", "$ "),
+        # bare digits and ordinary first lines are never dropped
+        ("17\nout\n$ ", "17\nout\n$ "),
+        ("-S something-else\n$ ", "-S something-else\n$ "),
+        ("normal output\n$ ", "normal output\n$ "),
+    ],
+)
+def test_strip_leading_suffix_orphan(screen: str, expected: str) -> None:
+    """The screen fallback drops a first line that is exactly a trailing slice of the suffix echo overlapping the channel prefix by at least four characters; everything else stays."""
+    assert strip_leading_suffix_orphan(screen, _PREFIX) == expected
 
 
 def _reads(buffers: list[str]) -> list[str]:
