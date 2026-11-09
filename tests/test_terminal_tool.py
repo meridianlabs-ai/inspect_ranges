@@ -1037,3 +1037,240 @@ def test_viewer_is_compact(armed: tuple[Any, Store, str]) -> None:
     assert bare.call is not None
     assert bare.call.title == f"terminal read · {session}"
     assert bare.call.content == ""
+
+
+# ---------------------------------------------------------------- read states
+
+
+class ScriptedCaptures:
+    """A scripted `_exec` for driving `_read_result` through capture sequences: one (entire, visible) pair per read, where a string is a successful capture and None a failed one."""
+
+    def __init__(self, reads: list[tuple[str | None, str | None]]) -> None:
+        self.reads = reads
+        self.index = -1
+
+    async def __call__(
+        self, cmd: list[str], timeout_s: float = 30.0
+    ) -> ExecResult[str]:
+        entire = "-S" in cmd
+        if entire:
+            self.index += 1
+        content = self.reads[self.index][0 if entire else 1]
+        if content is None:
+            return ExecResult(False, 1, "", "tmux: server exited unexpectedly")
+        return ExecResult(True, 0, content, "")
+
+
+def _drive(reads: list[tuple[str | None, str | None]]) -> tuple[list[str], Any]:
+    """Run `_read_result` once per scripted read against one SessionState; returns the emitted strings and the final state."""
+    from inspect_ranges._terminal.session import SessionState
+
+    state = SessionState(token="b7f168f4")
+    script = ScriptedCaptures(reads)
+    results: list[str] = []
+
+    async def scenario() -> None:
+        for _ in reads:
+            results.append(await terminal_tool._read_result("main", state))  # pyright: ignore[reportPrivateUsage]
+
+    original = terminal_tool._exec  # pyright: ignore[reportPrivateUsage]
+    terminal_tool._exec = script  # type: ignore[assignment]
+    try:
+        asyncio.run(scenario())
+    finally:
+        terminal_tool._exec = original  # type: ignore[assignment]
+    return results, state
+
+
+_HISTORY = "$ hostname\ntarget-box\n"
+
+
+def test_read_state_failed_capture_preserves_the_anchor() -> None:
+    """A transient scrollback-capture failure must not bury output: the anchor stays, the failed read reports the screen, and the next successful read emits everything produced since the last good one."""
+    grown = _HISTORY + "$ make\nstep-one\nstep-two\n$ "
+    reads: list[tuple[str | None, str | None]] = [
+        (_HISTORY + "$ ", _HISTORY + "$ "),
+        (None, "step-one\n$ "),
+        (grown, grown),
+    ]
+    results, state = _drive(reads)
+    assert "Current Terminal Screen:" in results[1]
+    assert "step-one" in results[2] and "step-two" in results[2]
+    assert state.previous_buffer is not None and "step-two" in state.previous_buffer
+
+
+def test_read_state_both_captures_failed_says_so() -> None:
+    """Stale content must never be presented as the live screen: when both captures fail the read says it failed, and the anchor is untouched."""
+    reads: list[tuple[str | None, str | None]] = [
+        (_HISTORY + "$ ", _HISTORY + "$ "),
+        (None, None),
+        (_HISTORY + "$ echo ok\nok\n$ ", _HISTORY + "$ echo ok\nok\n$ "),
+    ]
+    results, _ = _drive(reads)
+    assert results[1].startswith("terminal read failed")
+    assert "ok" in results[2]
+
+
+def test_read_state_first_read_label_tracks_reads_not_the_anchor() -> None:
+    """A failed first capture must not grant the unlabeled-screen exemption twice: the second screen the model sees carries the label."""
+    reads: list[tuple[str | None, str | None]] = [
+        (None, _HISTORY + "$ "),
+        (None, _HISTORY + "$ "),
+    ]
+    results, _ = _drive(reads)
+    assert not results[0].startswith("Current Terminal Screen:")
+    assert results[1].startswith("Current Terminal Screen:")
+
+
+def test_read_state_dribbling_suffix_never_reaches_the_model() -> None:
+    """The measured leak, through the real read path: a capture racing a wrapped suffix echo, then the completed buffer; no read may contain the channel fragment and the delta survives."""
+    from inspect_ranges._terminal.session import PANE_WIDTH, wait_channel_prefix
+
+    prefix = wait_channel_prefix("main", "b7f168f4")
+    suffix = f"; tmux wait -S {prefix}0"
+    body = "$ run-step" + "y" * (PANE_WIDTH - len("$ run-step") - len("; tmux wa"))
+    logical = body + suffix
+    from tests.test_terminal_session import capture_pane_render  # noqa: PLC0415
+
+    full = capture_pane_render(logical)
+    cut = full.index("\n") + 4
+    reads: list[tuple[str | None, str | None]] = [
+        (_HISTORY + "$ ", _HISTORY + "$ "),
+        (_HISTORY + full[:cut], _HISTORY + full[:cut]),
+        (_HISTORY + full + "\nstep-done\n$ ", _HISTORY + full + "\nstep-done\n$ "),
+    ]
+    results, _ = _drive(reads)
+    for result in results[1:]:
+        assert "tmux wait" not in result and "b7f168f4" not in result
+    assert "step-done" in results[2]
+
+
+def test_read_state_quiet_pane_releases_a_short_lookalike() -> None:
+    """A genuine tail that merely resembles the suffix start is withheld for exactly one unchanged capture, then released through the real read path."""
+    quiet = _HISTORY + "$ printf 'x++; tmux w'\nx++; tmux w"
+    reads: list[tuple[str | None, str | None]] = [
+        (_HISTORY + "$ ", _HISTORY + "$ "),
+        (quiet, quiet),
+        (quiet, quiet),
+    ]
+    results, _ = _drive(reads)
+    # the echoed command line carries the lookalike mid-line and emits; only
+    # the TRAILING output line is withheld while it could still be a dribble
+    assert not results[1].rstrip().endswith("x++; tmux w")
+    assert results[2].rstrip().endswith("x++; tmux w")
+
+
+def test_read_state_clear_does_not_bury_output() -> None:
+    """`clear` wipes the tmux history and the stored buffer degrades toward a bare prompt; the anchor floor turns that into the labeled screen instead of a wrong delta that classifies fresh output as old (measured live)."""
+    reads: list[tuple[str | None, str | None]] = [
+        ("$ ", "$ "),
+        ("$ findings-123\n$ ", "$ findings-123\n$ "),
+    ]
+    results, _ = _drive(reads)
+    assert "findings-123" in results[1]
+
+
+# ------------------------------------------------------------- live tmux (v2)
+
+
+def test_blocking_send_without_newline_executes(armed: tuple[Any, Store, str]) -> None:
+    """block=True implies execution: keystrokes without a line break used to degrade silently to type-without-Enter, leaving the line at the prompt to merge with the next send (measured across two eval runs). The executing form appends the Enter."""
+    tool, _, session = armed
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        result = await tool(
+            action="send",
+            session=session,
+            keystrokes="echo blocked-$((40 + 2))",  # deliberately no newline
+            block=True,
+            timeout=60,
+        )
+        assert "blocked-42" in result
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())
+
+
+def test_blocking_refusals_gate_the_executing_form(
+    armed: tuple[Any, Store, str],
+) -> None:
+    """The refusal checks run on the executing form: a comment-bearing line without a newline used to bypass them via the silent degrade, then stall a later send."""
+    tool, _, session = armed
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        result = await tool(
+            action="send",
+            session=session,
+            keystrokes="echo hi # just a comment",  # no newline, would stall
+            block=True,
+            timeout=60,
+        )
+        assert "Refusing block=True" in result and "comment" in result
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())
+
+
+def test_clear_does_not_bury_following_output_live(
+    armed: tuple[Any, Store, str],
+) -> None:
+    """`clear` wipes the tmux history (E3), degrading the stored anchor toward a bare prompt; the anchor floor must surface the next command's output instead of burying it as pre-anchor content (measured live in two eval runs)."""
+    tool, _, session = armed
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        await tool(action="send", session=session, keystrokes="clear\n", duration=1.0)
+        result = await tool(
+            action="send",
+            session=session,
+            keystrokes="echo after-clear-$((40 + 2))\n",
+            block=True,
+            timeout=60,
+        )
+        assert "after-clear-42" in result
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())
+
+
+def test_wrapped_suffix_echo_never_reaches_the_model_live(
+    armed: tuple[Any, Store, str],
+) -> None:
+    """End to end against real tmux: a blocking command sized so the echoed completion signal WRAPS at the pane width; no read may show the signal or the channel name (the measured transcript leak)."""
+    from inspect_ai.util._store import store as get_store
+    from inspect_ranges._terminal.session import PANE_WIDTH
+    from inspect_ranges._terminal.tool import (
+        _STATES,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    tool, _, session = armed
+
+    async def scenario() -> None:
+        await tool(action="open", session=session)
+        # a known prompt makes the wrap position computable
+        await tool(
+            action="send", session=session, keystrokes="PS1='$ '\n", duration=1.0
+        )
+        state = _STATES[id(get_store())][""][session]
+        # size the command so the wrap column lands inside the suffix echo:
+        # the echoed line is "$ " + command + "; tmux wait -S done-...", and
+        # the pad puts the 160th column nine characters into the suffix
+        command = "echo wrap-ok-" + "x" * (
+            PANE_WIDTH - len("$ echo wrap-ok-") - len("; tmux wa")
+        )
+        result = await tool(
+            action="send",
+            session=session,
+            keystrokes=command + "\n",
+            block=True,
+            timeout=60,
+        )
+        assert "wrap-ok" in result
+        assert "tmux wait" not in result and state.token not in result
+        follow = await tool(action="read", session=session)
+        assert "tmux wait" not in follow and state.token not in follow
+        await tool(action="close", session=session)
+
+    asyncio.run(scenario())

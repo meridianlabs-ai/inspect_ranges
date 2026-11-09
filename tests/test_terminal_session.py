@@ -27,10 +27,10 @@ from inspect_ranges._terminal.session import (
     send_keys_commands,
     set_pane_hooks_commands,
     stable_view,
+    stable_view_with_partial,
     start_session_command,
     strip_leading_suffix_orphan,
     strip_suffix_partial,
-    stripped_partial,
     valid_session_name,
     wait_channel,
     wait_channel_prefix,
@@ -391,7 +391,13 @@ def test_a_line_break_composes_with_the_semicolon_split() -> None:
         # first read: no anchor
         (None, "screen", None),
         # single-line anchor: delta starts at the anchor
-        ("$ ls", "$ ls\nfile-a\nfile-b", "$ ls\nfile-a\nfile-b"),
+        ("$ ls -la", "$ ls -la\nfile-a\nfile-b", "$ ls -la\nfile-a\nfile-b"),
+        # anchor-quality floor: a cleared session's buffer strips to little
+        # more than the prompt, and a bare "$" would anchor on the FIRST
+        # prompt of the fresh buffer, burying real output as "old" (measured
+        # live); degenerate anchors fall back to the labeled screen instead
+        ("$", "$ cmd\nreal output\n$ ", None),
+        ("$ ls", "$ ls\nfile-a\nfile-b", None),
         # multiline anchor: delta starts at the anchor's final line
         ("$ ls\nfile-a", "$ ls\nfile-a\nfile-b", "\nfile-a\nfile-b"),
         # rotated past history or cleared: anchor lost, no delta claimed
@@ -927,12 +933,22 @@ def test_pane_padding_does_not_defeat_the_partial_strip() -> None:
 def test_quiet_pane_releases_a_persistent_lookalike() -> None:
     """A tail identical across consecutive captures is real output, not a dribbling echo: the second read releases it instead of withholding forever."""
     raw = "$ printf 'x++; tmux w'\nx++; tmux w" + "\n" * 10
-    first = stable_view(raw, _PREFIX)
+    first, partial = stable_view_with_partial(raw, _PREFIX)
     assert not first.endswith("; tmux w")  # withheld while it could dribble
-    partial = stripped_partial(raw, _PREFIX)
     assert partial == "; tmux w"
-    second = stable_view(raw, _PREFIX, release_partial=partial)
+    second, _ = stable_view_with_partial(raw, _PREFIX, release_partial=partial)
     assert second.endswith("x++; tmux w")  # unchanged tail is real output
+
+
+def test_a_partial_reaching_the_token_region_never_releases() -> None:
+    """The release is tiered: an unchanged tail that extends into the channel prefix is this life's own echo with near-certainty (the prefix carries a random token), so a stalled dribble must withhold it on every read rather than leak it."""
+    raw = "$ cmd; tmux wait -S done-main-b7f" + "\n" * 8
+    first, partial = stable_view_with_partial(raw, _PREFIX)
+    assert first == "$ cmd"
+    assert partial == "; tmux wait -S done-main-b7f"
+    second, partial2 = stable_view_with_partial(raw, _PREFIX, release_partial=partial)
+    assert second == "$ cmd"  # still withheld, not released
+    assert partial2 == partial
 
 
 @pytest.mark.parametrize(
@@ -974,7 +990,8 @@ def test_wrapped_suffix_cut_by_a_racing_capture_leaks_nothing() -> None:
     full = capture_pane_render(logical)
     assert "\n" in full  # the suffix wrapped
     cut = full.index("\n") + 6  # mid-dribble: a few continuation chars arrived
-    buffers = ["$ ", full[:cut], full + "\nLinux\n$ "]
+    history = "$ hostname\ntarget-box\n"
+    buffers = [history + "$ ", history + full[:cut], history + full + "\nLinux\n$ "]
     _, read1, read2 = _reads(buffers)
     for emitted in (read1, read2):
         assert "tmux wait" not in emitted and "b7f168f4" not in emitted
@@ -984,10 +1001,15 @@ def test_wrapped_suffix_cut_by_a_racing_capture_leaks_nothing() -> None:
 
 def test_unwrapped_suffix_cut_self_heals_without_duplication() -> None:
     """An unwrapped cut re-anchors on the final line and completes next read; the stable view must emit the command once and the suffix never (the first holdback design duplicated the fragment here)."""
+    history = "$ hostname\ntarget-box\n"
     line = f"$ ls; tmux wait -S {_PREFIX}17"
-    buffers = ["$ ", line[: len("$ ls; tmux wait -S done-")], line + "\nout\n$ "]
+    buffers = [
+        history + "$ ",
+        history + line[: len("$ ls; tmux wait -S done-")],
+        history + line + "\nout\n$ ",
+    ]
     _, read1, read2 = _reads(buffers)
-    assert read1 == "$ ls" or read1.endswith("$ ls")
+    assert read1.endswith("$ ls")
     assert "tmux" not in read1 and "tmux" not in read2
     assert read2.count("$ ls") <= 1 and "out" in read2
 
