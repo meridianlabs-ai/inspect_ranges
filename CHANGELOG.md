@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.21 (09 November 2026)
 
 - `inspect-ranges shell` opens bash and notices when the session ends. The operator session used to open with tmux's default shell, which minimal guests resolve to `/bin/sh` (`$SHELL` is unset under the daemon, and tmux's passwd fallback lands on the bare POSIX shell); the opener now resolves bash in the guest and hands it to `new-session`, with tmux's own fallback applying unchanged when bash is absent. And the client used to poll an idle sink forever after the session itself ended (`exit`, or `tmux kill-session` from inside), leaving the attach hung until Ctrl-]: each sink read now carries a liveness probe after the bytes, so the output the pipe flushed as the session died still arrives, and the attach exits with a `[session ended]` notice instead of hanging. Agent terminal sessions are untouched.
 
