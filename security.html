@@ -1580,7 +1580,7 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="virtual-machine-monitors">Virtual Machine Monitors</h2>
 <p>Hosts and routers run under QEMU via libvirt by default; the dedicated attack box defaults to Cloud Hypervisor (declare <code>attacker.vmm: qemu</code> to keep QEMU), and any host or router may opt in with <code>vmm: cloud-hypervisor</code>. Each Cloud Hypervisor VMM gets the same per-guest uid treatment as the attack box (<a href="#per-guest-identity">Per-Guest Identity</a>); none shares QEMU’s <code>libvirt-qemu</code>.</p>
 <p>Cloud Hypervisor guests have no <code>AF_VSOCK</code> listener on the host: the control plane reaches them through the VMM’s hybrid-vsock Unix socket, and every dialer checks the socket peer’s credentials (<code>SO_PEERCRED</code>) against the VMM’s uid before sending a byte. The sockets live in a private per-user host directory that <code>up</code> prepares and <code>down</code> removes.</p>
-<p>Two planning refusals bound the opt-in: a Cloud Hypervisor guest cannot carry guest content yet (<code>cloud-hypervisor-content-unsupported</code>: the build captures provisioned guests through libvirt, which cannot see CH guests), and a pinned <code>cpu_model</code> refuses (<code>cloud-hypervisor-cpu-model</code>: CH guests always see the host CPU).</p>
+<p>One planning refusal bounds the opt-in: a pinned <code>cpu_model</code> refuses (<code>cloud-hypervisor-cpu-model</code>: CH guests always see the host CPU).</p>
 </section>
 <section id="control-plane" class="level2">
 <h2 class="anchored" data-anchor-id="control-plane">Control Plane</h2>

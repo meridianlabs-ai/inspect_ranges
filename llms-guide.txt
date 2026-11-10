@@ -1596,11 +1596,11 @@ attack_box = RangeSpec(
 )
 ```
 
-A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`. A Cloud Hypervisor guest cannot yet carry [guest content](#guest-content) that requires a build, so planning refuses the combination.
+A dedicated attack box runs under Cloud Hypervisor by default, so the most adversarial guest gets the smaller VMM (see [Security](./security.html.md#virtual-machine-monitors)). Declare `vmm: qemu` to keep QEMU; with `host:` set, the foothold host’s own `vmm` applies. Hosts and routers default to QEMU and opt in with `vmm: cloud-hypervisor`.
 
 With `host:`, the attacker declares no machine of its own (the foothold is the machine), and `entry: assumed-breach` records the premise. The foothold is an ordinary declared host, so it carries `provisioning:` recipes and other [guest content](#guest-content) like any host; the build lifts the attacker’s egress containment for the build only ([Building Ranges](./building.html.md#build-stages)). The attacker’s `egress` posture is covered in [Networks](./networks.html.md#egress).
 
-A dedicated attack box can carry `provisioning:` recipes of its own, built and captured like a host’s ([Building Ranges](./building.html.md)). A provisioned attack box must declare `image:` (`attacker-image-required`) and `vmm: qemu` (`cloud-hypervisor-content-unsupported`): the standard attack image default is a backend resolution the build key cannot pin, and the build cannot capture Cloud Hypervisor guests yet. Its recipes run last in the build order, with build egress. Recipes must keep the `agent` user and the daemon’s unprivileged default identity: readiness refuses an attack box whose daemon reports root ([Attack Box](./attackbox.html.md)).
+A dedicated attack box can carry `provisioning:` recipes of its own, built and captured like a host’s ([Building Ranges](./building.html.md)). A provisioned attack box must declare `image:` (`attacker-image-required`): the standard attack image default is a backend resolution the build key cannot pin. Its recipes run last in the build order, with build egress. Recipes must keep the `agent` user and the daemon’s unprivileged default identity: readiness refuses an attack box whose daemon reports root ([Attack Box](./attackbox.html.md)).
 
 ``` yaml
 range:
@@ -1620,7 +1620,6 @@ hosts:
 
 attacker:
   image: ubuntu-noble
-  vmm: qemu
   interfaces: [{ network: dmz }]
   entry: external
   provisioning:
@@ -1646,7 +1645,6 @@ provisioned_attacker = RangeSpec(
     ],
     attacker=Attacker(
         image="ubuntu-noble",
-        vmm="qemu",
         interfaces=[Interface(network="dmz")],
         entry="external",
         provisioning=[ProvisioningStep(recipe="acme.attack-tools")],
@@ -4123,7 +4121,7 @@ Hosts and routers run under QEMU via libvirt by default; the dedicated attack bo
 
 Cloud Hypervisor guests have no `AF_VSOCK` listener on the host: the control plane reaches them through the VMM’s hybrid-vsock Unix socket, and every dialer checks the socket peer’s credentials (`SO_PEERCRED`) against the VMM’s uid before sending a byte. The sockets live in a private per-user host directory that `up` prepares and `down` removes.
 
-Two planning refusals bound the opt-in: a Cloud Hypervisor guest cannot carry guest content yet (`cloud-hypervisor-content-unsupported`: the build captures provisioned guests through libvirt, which cannot see CH guests), and a pinned `cpu_model` refuses (`cloud-hypervisor-cpu-model`: CH guests always see the host CPU).
+One planning refusal bounds the opt-in: a pinned `cpu_model` refuses (`cloud-hypervisor-cpu-model`: CH guests always see the host CPU).
 
 ## Control Plane
 
@@ -4593,7 +4591,7 @@ On failure, the error names the stage and guest, the affected guests’ serial c
 
 ## `shell`
 
-`inspect-ranges shell <project> [guest]` opens an interactive shell on a guest of a running range: a tmux session inside the guest, driven over the range’s control channel, so it needs no SSH, no guest listener, and works on fully isolated networks. The guest defaults to the range’s attacker when it has exactly one; `--session` names the tmux session (the same name reattaches, and sessions survive detach); `--user` picks the guest identity (default: the daemon identity, root on Linux); `--cast <path>` records the attach as a local asciicast. Detach with `Ctrl-]`.
+`inspect-ranges shell <project> [guest]` opens an interactive shell on a guest of a running range: a tmux session inside the guest, driven over the range’s control channel, so it needs no SSH, no guest listener, and works on fully isolated networks. The guest defaults to the range’s attacker when it has exactly one; `--session` names the tmux session (the same name reattaches, and sessions survive detach); `--user` picks the guest identity (default: the daemon identity, root on Linux); `--cast <path>` records the attach as a local asciicast. The session runs `bash` when the guest has it. Detach with `Ctrl-]`; exiting the shell ends the session and the attach.
 
 This is an operator surface for ranges booted with `up` (trying tasks by hand, debugging guest state and images). A project booted by the Inspect sandbox provider refuses by recorded origin, so an eval sample can never acquire an interactive operator mid-run. Guest output is treated as untrusted: display sequences pass to your terminal, but clipboard writes, palette programming, and device-control strings are filtered out. Linux guests only (the session is tmux). One known seam: the attach paints the current visible screen and then streams new output, so a full-screen program already mid-flight may need a redraw (`Ctrl-L`) to render cleanly.
 

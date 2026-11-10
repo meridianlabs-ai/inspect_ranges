@@ -14,7 +14,7 @@ The result value is the finding count (0 is healthy; the [mean()](https://inspec
 
 Detector families: PLUMBING (post-readiness channel/transport failures, repeated retries against one guest, evidence finalize/teardown errors, the in-guest tool’s rc 124/125 contract), CONFIG-AWARE REACHABILITY (reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes: connectivity failures toward addresses the spec declares reachable from the foothold under its ACLs, and attempts toward private addresses no declared network holds), VERIFY_GOAL BEHAVIOR (zero recorded submissions, submissions binding to no goal, dropped candidates, completion claims over unattempted goals), and SCORING/EVIDENCE INTEGRITY (recorded validity other than `valid`, corroboration flags, the all-segment-goals-uncorroborated hint).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/scanners.py#L46)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/fc32484f22ebbc82b461a6987bc9afc29245796a/src/inspect_ranges/scanners.py#L46)
 
 ``` python
 @scanner(messages="all", events="all", metadata=True, metrics=[mean()])
@@ -31,7 +31,7 @@ The result value carries the findings (`{"findings": [...]}`), each with a categ
 
 Costs a model call per transcript, so this is an after-the-fact audit over eval logs (`inspect_scout.scan` or `scout scan`) rather than something to put in a scorer list.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/91489b4f544a510e92b7d1c89cf825c1ee654458/src/inspect_ranges/scanners.py#L98)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/fc32484f22ebbc82b461a6987bc9afc29245796a/src/inspect_ranges/scanners.py#L98)
 
 ``` python
 @scanner(messages="all", metadata=True)
