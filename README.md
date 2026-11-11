@@ -6,12 +6,12 @@ Learn more about using Inspect Ranges at <https://meridianlabs-ai.github.io/insp
 
 ## Development
 
-To work on development of Inspect Ranges, clone the repository and `uv sync`:
+To work on development of Inspect Ranges, clone the repository and `uv sync --locked`:
 
 ```bash
 git clone https://github.com/meridianlabs-ai/inspect_ranges
 cd inspect_ranges
-uv sync
+uv sync --locked
 ```
 
 Run linting, formatting, and tests via

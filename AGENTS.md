@@ -51,6 +51,7 @@ Directory: `src/inspect_ranges/`
 
 ### Common Pitfalls
 - Use the venv for all Python commands: either reference `.venv/bin/` directly or run `source .venv/bin/activate`
+- After you change dependencies in `pyproject.toml`, run `uv lock` and commit `uv.lock`. Don't override the cooldown. Everything else about dependencies is in [DEPENDENCIES.md](https://github.com/meridianlabs-ai/actions/blob/main/DEPENDENCIES.md) in meridianlabs-ai/actions
 
 ## Documentation
 

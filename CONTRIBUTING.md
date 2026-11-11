@@ -9,26 +9,19 @@ Inspect Ranges uses [uv](https://docs.astral.sh/uv/) 0.13.4 or later for environ
 ```bash
 git clone https://github.com/meridianlabs-ai/inspect_ranges
 cd inspect_ranges
-uv sync --group dev
+uv sync --locked --group dev
 ```
 
-This installs Inspect Ranges in editable mode along with the dev tools (ruff, pyright, pytest), and puts the `inspect-ranges` CLI on your path. `uv sync` uses the exact versions in `uv.lock`. The dev tools are in the `dev` extra. The default `dev` dependency group includes that extra, so `uv sync` and `uv run` install them. `uv sync --extra dev` does the same, and works with `--no-default-groups` too.
+This installs Inspect Ranges in editable mode along with the dev tools (ruff, pyright, pytest), and puts the `inspect-ranges` CLI on your path. `uv sync --locked` installs exactly the versions in `uv.lock`. It fails if `uv.lock` is out of date with `pyproject.toml`. The dev tools are in the `dev` extra. The default `dev` dependency group includes that extra, so `uv sync` and `uv run` install them. `uv sync --extra dev` does the same, and works with `--no-default-groups` too.
 
-### Dependencies and the cooldown
+### Dependencies
 
-`uv.lock` pins every Python dependency except the build toolchain. CI's lint, type-check, test and build jobs install their dependencies from it, and fail when `uv.lock` is out of date with `pyproject.toml`. CI's build job and the release build use the build toolchain (build, hatchling, hatch-vcs) pinned with hashes in `scripts/build-dist/requirements.txt`. Dependabot updates that file weekly, and `.github/workflows/publish.yaml` gives the command to update it by hand. When uv builds Inspect Ranges, for example for the editable install in `uv sync`, it resolves the build requirements (hatchling, hatch-vcs) without `uv.lock` or hashes, but within the cooldown. When you change dependencies in `pyproject.toml`, run `uv lock` and commit both files.
+[DEPENDENCIES.md](https://github.com/meridianlabs-ai/actions/blob/main/DEPENDENCIES.md) in meridianlabs-ai/actions tells how the Inspect repositories install and change dependencies. It covers the lock file, the cooldown, Dependabot, the canaries, the release build tools, and the procedures to add or update a dependency. Follow it. It is the same for every Inspect repository, so this file does not repeat it.
 
-`pyproject.toml` sets `exclude-newer = "7 days"` under `[tool.uv]`, so `uv lock`, `uv sync` and `uv pip` only pick releases that have been on PyPI for at least seven days. A compromised release is usually found and removed within that time, before it reaches `uv.lock`, CI or your machine. Only a direct dependency (a package in `dependencies` or the `dev` extra in `pyproject.toml`) that is a model provider SDK or an Inspect package can wait 6 hours instead, so Inspect Ranges can adopt a new release the day it ships. Today those are `anthropic`, `inspect-ai` and `inspect-scout`, listed with `"6 hours"` in `[tool.uv.exclude-newer-package]`. Every other package keeps the seven-day cooldown. Dependabot's `uv` entry in `.github/dependabot.yml` repeats the cooldown and the list. When you add a `"6 hours"` entry, also add the package to `cooldown.exclude` and the `six-hour-cooldown` group there. `tests/test_dependency_cooldown.py` checks that each entry is a direct dependency, that dated entries (below) are less than seven days old, and that the two files match. Whether a package is a provider SDK or an Inspect package is up to review.
+For this repository:
 
-Dependabot proposes `uv.lock` updates daily, once a release has cleared its cooldown. To adopt a release sooner, run `uv lock --upgrade-package <package>` and commit `uv.lock`. A release still inside its cooldown can't be locked; wait for it rather than overriding `exclude-newer`, unless it's an emergency (below).
-
-In an emergency, for example a security fix, you can adopt a release that is less than seven days old with a one-time dated entry:
-
-1. Under `[tool.uv.exclude-newer-package]` in `pyproject.toml`, add `<package> = "<timestamp>"`. The package must be a direct dependency. Use an RFC 3339 timestamp just after the upload time of the fixed release. Don't add a dated entry to `.github/dependabot.yml`.
-2. Run `uv lock --upgrade-package <package>` and commit both files.
-3. Within seven days, once the normal cooldown includes the release, delete the entry, run `uv lock --upgrade-package <package>`, and commit both files. A plain `uv lock` doesn't reliably remove the entry from `uv.lock`, and CI then fails. A test fails when a dated entry is seven days old or older.
-
-Testing against the newest release of every dependency happens in the nightly canary in [meridianlabs-ai/canaries](https://github.com/meridianlabs-ai/canaries), so Inspect Ranges's own CI doesn't need to.
+- inspect_ranges uses only released inspect_ai. `uv.lock` names a PyPI release of `inspect-ai`.
+- The 6-hour packages are in `[tool.uv.exclude-newer-package]` in `pyproject.toml`.
 
 ### Remote development
 
@@ -69,7 +62,7 @@ See [`CLAUDE.md`](CLAUDE.md) for the full conventions used in this repo.
 Docs live in `docs/` and are built with [Quarto](https://quarto.org). The Quarto CLI and the doc-build dependencies are in the `doc` group, which a plain `uv sync` leaves out (and removes):
 
 ```bash
-uv sync --group doc
+uv sync --locked --group doc
 cd docs
 source ../.venv/bin/activate
 quarto render        # outputs to docs/_site/
