@@ -487,3 +487,79 @@ def test_interrupted_import_heals_and_bad_names_refuse(tmp_path: Path) -> None:
     # the user-facing entry refuses an unpublishable name before any work
     with pytest.raises(DeriveError, match="not a legal image name"):
         import_image(source, "my fw", cache)
+
+
+def _qcow2_vendor(tmp_path: Path, virtual_size: int) -> tuple[Path, str]:
+    """A stand-in vendor carrying a real qcow2 header with the given virtual size."""
+    header = b"QFI\xfb" + (3).to_bytes(4, "big") + b"\x00" * 16
+    header += virtual_size.to_bytes(8, "big") + b"\x00" * 32
+    image = tmp_path / "big-vendor.qcow2"
+    image.write_bytes(header)
+    return image, hashlib.sha256(header).hexdigest()
+
+
+def recording_runner(record: list[list[str]]):
+    def runner(argv: list[str], cwd: Path) -> None:
+        record.append(list(argv))
+        fake_runner(argv, cwd)
+
+    return runner
+
+
+def test_overlay_covers_large_vendor(tmp_path: Path, artifact: Path) -> None:
+    """A large vendor gets an overlay of its own virtual size.
+
+    A fixed size would truncate the disk under the partition table and the
+    guest would fail inspection.
+    """
+    fifty_g = 50 * 1024**3
+    image, digest = _qcow2_vendor(tmp_path, fifty_g)
+    record: list[list[str]] = []
+    derive_golden(
+        image,
+        digest,
+        tmp_path / "cache",
+        runner=recording_runner(record),
+        artifact_dir=artifact,
+    )
+    create = next(argv for argv in record if argv[:2] == ["qemu-img", "create"])
+    assert create[-1] == str(fifty_g)
+
+
+def test_overlay_keeps_floor_for_small_vendor(
+    tmp_path: Path, vendor: tuple[Path, str], artifact: Path
+) -> None:
+    """Small (or non-qcow2 stand-in) vendors keep the 10G floor."""
+    image, digest = vendor
+    record: list[list[str]] = []
+    derive_golden(
+        image,
+        digest,
+        tmp_path / "cache",
+        runner=recording_runner(record),
+        artifact_dir=artifact,
+    )
+    create = next(argv for argv in record if argv[:2] == ["qemu-img", "create"])
+    assert create[-1] == str(10 * 1024**3)
+
+
+def test_customize_tolerates_existing_agent_user(
+    tmp_path: Path, vendor: tuple[Path, str], artifact: Path
+) -> None:
+    """Re-deriving an image that already carries the agent user must not abort.
+
+    Previously derived (or otherwise agent-carrying) disks hit useradd's
+    already-exists failure without the guard.
+    """
+    image, digest = vendor
+    record: list[list[str]] = []
+    derive_golden(
+        image,
+        digest,
+        tmp_path / "cache",
+        runner=recording_runner(record),
+        artifact_dir=artifact,
+    )
+    customize = next(argv for argv in record if argv[0] == "virt-customize")
+    command = customize[customize.index("--run-command") + 1]
+    assert command.startswith("id -u agent >/dev/null 2>&1 || useradd")

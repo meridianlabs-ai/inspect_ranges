@@ -244,6 +244,29 @@ def _load_metadata(path: Path) -> "ImageMetadata | None":
         return None
 
 
+_OVERLAY_FLOOR_BYTES = 10 * 1024**3
+"""The historical overlay size; kept as the floor so small cloud images keep their room to grow."""
+
+
+def _overlay_bytes(vendor: Path) -> int:
+    """The overlay's virtual size: the vendor's own virtual size, floored at 10G.
+
+    A fixed overlay size truncates any vendor image larger than it — the guest
+    then sees a disk smaller than its partition table and inspection fails with
+    parted errors. The virtual size is read straight from the qcow2 header
+    (bytes 24..32, big-endian, after the QFI magic); a non-qcow2 vendor keeps
+    the floor, and `qemu-img create` fails on it exactly as before.
+    """
+    try:
+        with vendor.open("rb") as handle:
+            header = handle.read(32)
+    except OSError:
+        return _OVERLAY_FLOOR_BYTES
+    if len(header) < 32 or header[:4] != b"QFI\xfb":
+        return _OVERLAY_FLOOR_BYTES
+    return max(_OVERLAY_FLOOR_BYTES, int.from_bytes(header[24:32], "big"))
+
+
 def derive_golden(
     vendor: Path,
     vendor_sha256: str,
@@ -417,7 +440,7 @@ def _derive_locked(
                 "-b",
                 vendor.name,
                 temp.name,
-                "10G",
+                str(_overlay_bytes(cache / vendor.name)),
             ],
             cache,
         )
@@ -436,7 +459,7 @@ def _derive_locked(
                     # the daemon's unprivileged default identity for exec and
                     # file operations (provider-v1 slice 4)
                     "--run-command",
-                    "useradd --create-home --home-dir /home/agent --shell /bin/sh agent",
+                    "id -u agent >/dev/null 2>&1 || useradd --create-home --home-dir /home/agent --shell /bin/sh agent",
                     "--mkdir",
                     GUEST_OPT_LINUX,
                     "--copy-in",
