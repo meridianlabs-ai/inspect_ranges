@@ -59,10 +59,10 @@ See [`CLAUDE.md`](CLAUDE.md) for the full conventions used in this repo.
 
 ## Building the docs
 
-Docs live in `docs/` and are built with [Quarto](https://quarto.org). The Quarto CLI and the doc-build dependencies are in the `doc` group, which a plain `uv sync` leaves out (and removes):
+Docs live in `docs/` and are built with [Quarto](https://quarto.org). The Quarto CLI and the doc-build dependencies are in the `doc` extra, which a plain `uv sync` leaves out (and removes):
 
 ```bash
-uv sync --locked --group doc
+uv sync --locked --extra doc
 cd docs
 source ../.venv/bin/activate
 quarto render        # outputs to docs/_site/
@@ -80,7 +80,7 @@ To pull a newer version:
 ```bash
 cd docs
 mv _quarto.yml _quarto.yml.bak
-uv run --group doc quarto update meridianlabs-ai/inspect-docs --no-prompt
+uv run --extra doc quarto update meridianlabs-ai/inspect-docs --no-prompt
 mv _quarto.yml.bak _quarto.yml
 ```
 
