@@ -1360,15 +1360,6 @@ dev = [
     { name = "ruff" },
     { name = "types-pyyaml" },
 ]
-
-[package.dev-dependencies]
-dev = [
-    { name = "inspect-ranges", extra = ["dev"] },
-]
-dist = [
-    { name = "build" },
-    { name = "twine" },
-]
 doc = [
     { name = "griffe" },
     { name = "jupyter" },
@@ -1379,13 +1370,26 @@ doc = [
     { name = "rich" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "inspect-ranges", extra = ["dev"] },
+]
+dist = [
+    { name = "build" },
+    { name = "twine" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'dev'", specifier = ">=1.11.0" },
     { name = "boto3", extras = ["crt"], specifier = ">=1.40" },
     { name = "click", specifier = ">=8.0" },
+    { name = "griffe", marker = "extra == 'doc'", specifier = ">=2" },
     { name = "inspect-ai", specifier = ">=0.3.288" },
     { name = "inspect-scout", specifier = ">=0.6.0" },
+    { name = "jupyter", marker = "extra == 'doc'" },
+    { name = "markdown", marker = "extra == 'doc'" },
+    { name = "panflute", marker = "extra == 'doc'" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
@@ -1394,26 +1398,20 @@ requires-dist = [
     { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.4.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "pyyaml", marker = "extra == 'doc'" },
+    { name = "quarto-cli", marker = "extra == 'doc'", specifier = ">=1.9.36" },
+    { name = "rich", marker = "extra == 'doc'" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "tenacity", specifier = ">=8.2" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "doc"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "inspect-ranges", extras = ["dev"] }]
 dist = [
     { name = "build" },
     { name = "twine" },
-]
-doc = [
-    { name = "griffe", specifier = ">=2" },
-    { name = "jupyter" },
-    { name = "markdown" },
-    { name = "panflute" },
-    { name = "pyyaml" },
-    { name = "quarto-cli", specifier = ">=1.9.36" },
-    { name = "rich" },
 ]
 
 [[package]]

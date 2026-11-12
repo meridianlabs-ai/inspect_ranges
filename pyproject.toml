@@ -44,11 +44,8 @@ dev = [
     "types-PyYAML",
 ]
 
-[dependency-groups]
-# Keeps a plain `uv sync` or `uv run` (the Makefile) pulling the dev tools.
-dev = ["inspect_ranges[dev]"]
-# Kept out of `dev` and the default groups: quarto-cli has no wheel and is
-# built from its sdist. Docs builds ask for it with `--group doc`.
+# Kept out of `dev`, so not installed by default: quarto-cli has no wheel and
+# is built from its sdist. Docs builds ask for it with `--extra doc`.
 doc = [
     "jupyter",
     "panflute",
@@ -58,6 +55,10 @@ doc = [
     "pyyaml",
     "quarto-cli>=1.9.36",
 ]
+
+[dependency-groups]
+# Keeps a plain `uv sync` or `uv run` (the Makefile) pulling the dev tools.
+dev = ["inspect_ranges[dev]"]
 dist = ["twine", "build"]
 
 [tool.hatch.build]
