@@ -38,9 +38,8 @@ const (
 	TombstoneBound = 4096             // evicted-unacked ids answering ESTALE, their own FIFO
 	DiagBound      = 256
 	KillGrace      = 5 * time.Second // SIGTERM, then SIGKILL after grace
-	WaitDelay      = 5 * time.Second // bound on reaping pipe copiers after exit (cmd.WaitDelay)
 	MaxConnActive  = 512             // resource bound against floods; polls must outlive held exec slots
-	DaemonVersion  = "vsockd 3.6.0 (go)"
+	DaemonVersion  = "vsockd 3.7.0 (go)"
 	// exec must not PATH-resolve a privilege boundary: a range-writable PATH
 	// entry could shadow runuser, so the daemon invokes it absolutely
 	RunuserPath    = "/usr/sbin/runuser"
@@ -52,6 +51,11 @@ const (
 	// outbound stays capped at OutputCap per stream
 	ReceiveBulkCap = 256 * 1024 * 1024
 )
+
+// WaitDelay bounds the post-exit waits: the stdin copier (cmd.WaitDelay) and
+// the reply's wait for trailing pipe output. A var only so the drain tests
+// can shrink the window; nothing mutates it in production.
+var WaitDelay = 5 * time.Second
 
 type storedReply struct {
 	message *Message
@@ -618,6 +622,14 @@ func (lb *limitedBuffer) Len() int {
 	return lb.buf.Len()
 }
 
+// Truncated reports the cap flag under the lock: the drain goroutine may
+// still be appending when the reply is built.
+func (lb *limitedBuffer) Truncated() bool {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	return lb.truncated
+}
+
 func (d *Daemon) runCommand(request *Message, stdin []byte) *storedReply {
 	argv := request.Cmd
 	usedRunuser := false
@@ -683,17 +695,63 @@ func (d *Daemon) runCommand(request *Message, stdin []byte) *storedReply {
 	}
 	stdout := &limitedBuffer{}
 	stderr := &limitedBuffer{}
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	// the output pipes are daemon-owned, never os/exec's: exec's own copiers
+	// end with Wait, which closes the parent's read ends (bounded by
+	// WaitDelay), and a daemonized descendant still holding a write end then
+	// dies with SIGPIPE at its next write — killing exactly the long-lived
+	// background processes a command legitimately leaves behind (measured: a
+	// backgrounded relay server, dead the moment its first client connected
+	// and it logged). The daemon instead keeps reading until every writer is
+	// gone: the reply waits at most WaitDelay after exit for trailing output
+	// (the old bound), and the drain carries on behind it, capped by
+	// limitedBuffer, open for as long as a holder lives — the read-side twin
+	// of the documented setsid kill escape
+	outRead, outWrite, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		return errorReply(request.ID, errnoName(pipeErr),
+			"stdout pipe: "+pipeErr.Error(), nil)
+	}
+	errRead, errWrite, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		outRead.Close()
+		outWrite.Close()
+		return errorReply(request.ID, errnoName(pipeErr),
+			"stderr pipe: "+pipeErr.Error(), nil)
+	}
+	cmd.Stdout = outWrite
+	cmd.Stderr = errWrite
 
-	// a killed process group can leave a descendant holding the stdout pipe
-	// (setsid daemonizer): WaitDelay bounds Wait's pipe-copier wait after the
-	// process exits, so runCommand can never hang a slot forever
+	// WaitDelay now bounds only the stdin copier after exit, so a child that
+	// never reads its stdin cannot hold the slot
 	cmd.WaitDelay = WaitDelay
 
 	if err := cmd.Start(); err != nil {
+		outRead.Close()
+		outWrite.Close()
+		errRead.Close()
+		errWrite.Close()
 		return execStartFailure(request.ID, argv[0], err)
 	}
+	// the child holds its own dups; the daemon keeps only the read ends
+	outWrite.Close()
+	errWrite.Close()
+	var drains sync.WaitGroup
+	drains.Add(2)
+	go func() {
+		defer drains.Done()
+		_, _ = io.Copy(stdout, outRead)
+		outRead.Close()
+	}()
+	go func() {
+		defer drains.Done()
+		_, _ = io.Copy(stderr, errRead)
+		errRead.Close()
+	}()
+	drained := make(chan struct{})
+	go func() {
+		drains.Wait()
+		close(drained)
+	}()
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
@@ -744,6 +802,13 @@ func (d *Daemon) runCommand(request *Message, stdin []byte) *storedReply {
 		}
 		return reply
 	}
+	// trailing output: the same post-exit window Wait's copiers had. A pipe
+	// still held past it stops the wait, never the holder — the drain keeps
+	// reading behind the reply
+	select {
+	case <-drained:
+	case <-time.After(WaitDelay):
+	}
 	rc := int64(cmd.ProcessState.ExitCode())
 	if status, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok && status.Signaled() {
 		rc = -int64(status.Signal()) // killed-by-signal convention: negative
@@ -751,16 +816,17 @@ func (d *Daemon) runCommand(request *Message, stdin []byte) *storedReply {
 	if usedRunuser && rc == 1 && stderr.Len() <= runuserSignatureBound {
 		rc = runuserExecFailureRc(stderr.Snapshot(), rc)
 	}
-	outBytes := stdout.buf.Bytes()
-	errBytes := stderr.buf.Bytes()
+	// snapshots, not bare buffer reads: the drain may still be appending
+	outBytes := stdout.Snapshot()
+	errBytes := stderr.Snapshot()
 	payload := append(append([]byte{}, outBytes...), errBytes...)
 	message := &Message{
 		V: ProtocolVersion, ID: request.ID, Kind: "exec_result",
 		Rc:              i64(rc),
 		StdoutSize:      i64(int64(len(outBytes))),
 		StderrSize:      i64(int64(len(errBytes))),
-		StdoutTruncated: boolp(stdout.truncated),
-		StderrTruncated: boolp(stderr.truncated),
+		StdoutTruncated: boolp(stdout.Truncated()),
+		StderrTruncated: boolp(stderr.Truncated()),
 	}
 	var bulk []byte
 	if len(payload) > 0 {
