@@ -547,8 +547,25 @@ def egress_build_spec(spec: RangeSpec, nameserver_ip: str | None = None) -> Rang
                 dns=DnsConfig(nameservers=[nameserver]),
             )
         )
+        # a content-carrying Windows host must declare an ip on every
+        # interface (windows-ip-required: its captured disk bakes the
+        # addresses), and the gate runs over the build variant too — an
+        # ip-less uplink attachment would refuse the exact build that needs
+        # it. The uplink interface gets a deterministic address instead
+        # (declaration order from offset 10, mirroring the allocator's host
+        # policy; .1-.9 stay free for the gateway the same way routers claim
+        # the bottom of a subnet). Linux hosts keep allocator-assigned
+        # addressing, exactly as before.
+        uplink_addresses = ip_network(uplink_cidr).hosts()
+        for _ in range(9):
+            next(uplink_addresses)
         for host in stranded:
-            host.interfaces.append(Interface(network=uplink_name))
+            if host.os.type == "windows":
+                host.interfaces.append(
+                    Interface(network=uplink_name, ip=next(uplink_addresses))
+                )
+            else:
+                host.interfaces.append(Interface(network=uplink_name))
         if attacker_stranded:
             # a dedicated box always carries interfaces (attacker-no-foothold),
             # so the attach can never silently skip a stranded attacker
