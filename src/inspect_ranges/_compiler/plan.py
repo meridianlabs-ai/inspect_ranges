@@ -572,6 +572,10 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
         for field_name in fields:
             if field_name in options.realized_sections:
                 continue
+            if field_name == "users" and host.opaque:
+                # an opaque guest's users document accounts baked into the
+                # sealed image: they claim nothing to realize, on any path
+                continue
             if getattr(host, field_name):
                 issues.append(
                     Issue(
@@ -627,6 +631,10 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
         for field_name in ("users", "provisioning"):
             if field_name in options.realized_sections:
                 continue
+            if field_name == "users" and router.opaque:
+                # the baked-accounts rule, same as hosts: an opaque guest's
+                # users document the sealed image and claim nothing to realize
+                continue
             if getattr(router, field_name):
                 issues.append(
                     Issue(
@@ -645,8 +653,8 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             # router users converge through the router's recipes exactly like
             # a host's; a recipe-less router would mint the claim unrealized
             # and unverified (the slice-4 unconsumed rule, extended). An
-            # opaque router is exempt: its users document accounts baked into
-            # the sealed image (the host rule), nothing claims to realize them
+            # opaque router is exempt (the baked-accounts rule above): its
+            # users document the sealed image, nothing claims to realize them
             issues.append(
                 Issue(
                     code="realized-section-unconsumed",

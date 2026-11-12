@@ -849,7 +849,7 @@ def unanswerable_address(address: IPv4Address | IPv6Address) -> bool:
 def has_router_content(router: "Router") -> bool:
     """Whether a router declares buildable guest content (provisioning): the router analog of `has_guest_content`, shared by the same consumers.
 
-    Provisioning is the only content-bearing router section because recipes are the only realizer: routers declare no `services` or `vulnerabilities`, and declared `users` converge through the router's recipes exactly like a host's (users without provisioning refuse at planning, `realized-section-unconsumed`).
+    Provisioning is the only content-bearing router section because recipes are the only realizer: routers declare no `services` or `vulnerabilities`, and declared `users` converge through the router's recipes exactly like a host's (on a managed router, users without provisioning refuse at planning, `realized-section-unconsumed`; an opaque router's users document baked accounts instead).
     """
     return bool(router.provisioning)
 
@@ -921,7 +921,7 @@ class Router(_StrictModel):
     """Static routes to segments reached through other routers."""
 
     users: list[User] = []
-    """Local accounts on the router (converged by the router's recipes, like `Host.users`): CyRIS-style firewall-as-target ranges give the gateway its own weak account. Declaring users without `provisioning` refuses at planning (`realized-section-unconsumed`): nothing would realize them."""
+    """Local accounts on the router (converged by the router's recipes, like `Host.users`): CyRIS-style firewall-as-target ranges give the gateway its own weak account. On a managed router, declaring users without `provisioning` refuses at planning (`realized-section-unconsumed`): nothing would realize them. On an opaque router, users document accounts baked into the sealed image."""
 
     provisioning: list[ProvisioningStep] = []
     """Build-time recipe references, in order (the host build path extended to routers): a provisioned router boots in the build, runs its recipes, and is captured as a realized image with its own build key. Requires a declared `image` (`router-image-required`): the appliance default is a backend resolution the build key cannot pin."""
@@ -1354,9 +1354,9 @@ def _opaque_guest_issues(
                         path=(section, index, field),
                         message=(
                             f"opaque guest {guest.name!r} declares "
-                            f"{field}; an opaque guest has no daemon and "
-                            "no recipes, so nothing could realize or "
-                            "verify it"
+                            f"{field}; an opaque guest has no daemon, no "
+                            "recipes, and no seed, so nothing could "
+                            "realize or verify it"
                         ),
                         hint="bake the content into the imported image at prep time, or make the guest a managed one",
                     )

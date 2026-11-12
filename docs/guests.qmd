@@ -511,7 +511,7 @@ Beyond identity and sizing, a definition declares what a guest contains: account
 
 ## Users {#users}
 
-`users` declares a guest's local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). Domain accounts belong in [`active_directory`](#active-directory), not here:
+`users` declares a guest's local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a managed router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). On an [opaque](#appliances) guest, users instead document accounts baked into the sealed image. Domain accounts belong in [`active_directory`](#active-directory), not here:
 
 ::: {.panel-tabset group="definition-language"}
 ### YAML

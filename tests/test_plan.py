@@ -1750,21 +1750,32 @@ def test_opaque_router_threads_into_the_plan(cache: Path) -> None:
     assert networks["edge"].hypervisor_address is not None  # the probe's vantage
 
 
-def test_opaque_router_users_document_baked_accounts(cache: Path) -> None:
-    """Users on an opaque router pass the build path's unconsumed gate (they document accounts baked into the sealed image); a managed recipe-less router still refuses."""
+def test_opaque_guest_users_document_baked_accounts(cache: Path) -> None:
+    """Users on an opaque guest (host or router) document accounts baked into the sealed image: they pass the runtime path's not-realized gate (an appliance-only range never builds) and the build path's unconsumed gate; a managed recipe-less router still refuses on both."""
     from inspect_ranges.types import User
 
-    options = PlanOptions(image_cache=cache, realized_sections=frozenset({"users"}))
+    runtime = PlanOptions(image_cache=cache)
+    build = PlanOptions(image_cache=cache, realized_sections=frozenset({"users"}))
     documented = _opaque_router_spec()
     documented.routers[0].users = [User(name="admin", password="weak")]
-    resolve_plan(documented, options)
+    resolve_plan(documented, runtime)
+    resolve_plan(documented, build)
+
+    appliance_host = _appliance_spec()
+    appliance_host.hosts[1].users = [User(name="admin")]
+    resolve_plan(appliance_host, runtime)
 
     managed = _opaque_router_spec()
     managed.routers[0].opaque = False
     managed.routers[0].readiness = None
     managed.routers[0].users = [User(name="admin")]
     with pytest.raises(IssueError) as excinfo:
-        resolve_plan(managed, options)
+        resolve_plan(managed, runtime)
+    assert any(
+        issue.code == "guest-config-not-realized" for issue in excinfo.value.issues
+    )
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(managed, build)
     assert any(
         issue.code == "realized-section-unconsumed" for issue in excinfo.value.issues
     )
