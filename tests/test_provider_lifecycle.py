@@ -224,7 +224,7 @@ def test_readiness_timeout_env_reaches_up_options(
 
     async def scenario() -> None:
         with sandbox_lifecycle_scope():
-            runtime, seams = rigged_runtime(tmp_path)
+            _, seams = rigged_runtime(tmp_path)
             monkeypatch.setenv("INSPECT_RANGES_READINESS_TIMEOUT", "600")
             envs = await Env.sample_init("task", small_spec(), {"__sample_id__": "s1"})
             assert seams.up_calls[0].readiness_timeout == 600.0
