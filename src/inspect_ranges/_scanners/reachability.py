@@ -2,7 +2,7 @@
 
 The model reuses what the compiler already resolved rather than reimplementing ACL semantics: addresses come from `allocate()` (the same deterministic allocation `render_router_nftables` resolves guest endpoints against), and rule evaluation is `_compiler/acl.py`'s `acl_admits`, the shared statement of the rendered contract (an empty `acl` is a plain router with policy accept; any declared rule flips to default-drop with first-match evaluation in declaration order), so this model cannot drift from what the renderer emits.
 
-Scope is deliberate: a destination counts as expected-reachable when it shares a segment with the foothold (plain L2, no filter in the path) or when a single router attached to both segments allows at least one service from the foothold endpoint to it. Multi-hop paths (static `routes` through a second router) are not computed; a destination the model cannot see stays out of the set, which errs quiet, never wrong, for the detector built on top.
+Scope is deliberate: a destination counts as expected-reachable when it shares a segment with the foothold (plain L2, no filter in the path) or when a single router attached to both segments allows at least one service from the foothold endpoint to it. Multi-hop paths (static `routes` through a second router) are not computed, and an opaque router contributes nothing (its forwarding policy is baked into the sealed image, so the model cannot evaluate it); a destination the model cannot see stays out of the set, which errs quiet, never wrong, for the detector built on top.
 """
 
 from ipaddress import IPv4Address, IPv4Network
@@ -82,6 +82,11 @@ def _router_admits(
     guest_networks: dict[str, set[str]],
 ) -> bool:
     """Whether one router joins the foothold to the destination and its ACL admits any service (`acl_admits`, the shared evaluator)."""
+    if router.opaque:
+        # a sealed appliance's forwarding policy is baked into its image, so
+        # the model cannot evaluate it; its segments stay out of the expected
+        # set, which errs quiet, never wrong
+        return False
     router_networks = {interface.network for interface in router.interfaces}
     source_networks = {
         interface.network

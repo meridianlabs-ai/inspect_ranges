@@ -849,7 +849,7 @@ def unanswerable_address(address: IPv4Address | IPv6Address) -> bool:
 def has_router_content(router: "Router") -> bool:
     """Whether a router declares buildable guest content (provisioning): the router analog of `has_guest_content`, shared by the same consumers.
 
-    Provisioning is the only content-bearing router section because recipes are the only realizer: routers declare no `services` or `vulnerabilities`, and declared `users` converge through the router's recipes exactly like a host's (users without provisioning refuse at planning, `realized-section-unconsumed`).
+    Provisioning is the only content-bearing router section because recipes are the only realizer: routers declare no `services` or `vulnerabilities`, and declared `users` converge through the router's recipes exactly like a host's (on a managed router, users without provisioning refuse at planning, `realized-section-unconsumed`; an opaque router's users document baked accounts instead).
     """
     return bool(router.provisioning)
 
@@ -921,13 +921,19 @@ class Router(_StrictModel):
     """Static routes to segments reached through other routers."""
 
     users: list[User] = []
-    """Local accounts on the router (converged by the router's recipes, like `Host.users`): CyRIS-style firewall-as-target ranges give the gateway its own weak account. Declaring users without `provisioning` refuses at planning (`realized-section-unconsumed`): nothing would realize them."""
+    """Local accounts on the router (converged by the router's recipes, like `Host.users`): CyRIS-style firewall-as-target ranges give the gateway its own weak account. On a managed router, declaring users without `provisioning` refuses at planning (`realized-section-unconsumed`): nothing would realize them. On an opaque router, users document accounts baked into the sealed image."""
 
     provisioning: list[ProvisioningStep] = []
     """Build-time recipe references, in order (the host build path extended to routers): a provisioned router boots in the build, runs its recipes, and is captured as a realized image with its own build key. Requires a declared `image` (`router-image-required`): the appliance default is a backend resolution the build key cannot pin."""
 
     acl: list[AclRule] = []
     """Inter-segment policy enforced on this router (stateful; endpoints may be routed, not only attached). EMPTY means a plain router (everything forwards, the KYPO/CyRIS pure-router shape); declaring ANY rule flips the router to default-drop, forwarding only the declared allows plus established/related."""
+
+    opaque: bool = False
+    """A sealed appliance image in the gateway seat (`Host.opaque` for routers): no control daemon, so the engine never reaches inside it. An opaque router carries no `provisioning`, `acl`, or `routes` (all refused: each realizes through recipes or the seed, and a sealed image receives neither): its routing stack, forwarding policy, and static routes are baked into the image, and the engine treats the image's behavior as the policy. `users` stays legal as documentation of baked accounts. A declared `image` is required (the default router appliance is a managed guest, `opaque-image-required`), every interface must declare its `ip` as a statement of fact about the image, and readiness comes from `readiness`."""
+
+    readiness: Readiness | None = None
+    """How an opaque router reports ready: `{tcp: <port>}` (a connect probe against the first declared address) or `process` (the VM process runs). Opaque routers only, exactly like `Host.readiness`; omitted on an opaque router means `process`."""
 
 
 class Host(_StrictModel):
@@ -1317,10 +1323,87 @@ _OPAQUE_CONTENT_FIELDS = (
     "vulnerabilities",
     "misconfigurations",
     "data",
+    "defense",
     "roles",
     "scheduled_activity",
 )
 """Host fields an opaque guest cannot carry: each is realized by recipes or verified through the daemon, and an opaque guest has neither. `users` stays legal as documentation of baked accounts."""
+
+_ROUTER_OPAQUE_CONTENT_FIELDS = (
+    "provisioning",
+    "routes",
+    "acl",
+)
+"""Router fields an opaque guest cannot carry: recipes realize `provisioning`, and the per-boot renders (`routes`, `acl`) land in a seed a sealed image never receives; the appliance's own stack carries them. `users` stays legal as documentation of baked accounts."""
+
+
+def _opaque_guest_issues(
+    section: str,
+    index: int,
+    guest: "Host | Router",
+    content_fields: tuple[str, ...],
+) -> list[Issue]:
+    """The opaque-tier checks shared across guest kinds: content refusals, declared-address facts, the Windows gate, and readiness scoping."""
+    issues: list[Issue] = []
+    if guest.opaque:
+        for field in content_fields:
+            if getattr(guest, field):
+                issues.append(
+                    Issue(
+                        code="opaque-content-not-supported",
+                        path=(section, index, field),
+                        message=(
+                            f"opaque guest {guest.name!r} declares "
+                            f"{field}; an opaque guest has no daemon, no "
+                            "recipes, and no seed, so nothing could "
+                            "realize or verify it"
+                        ),
+                        hint="bake the content into the imported image at prep time, or make the guest a managed one",
+                    )
+                )
+        for if_index, interface in enumerate(guest.interfaces):
+            if interface.ip is None:
+                # the appliance's addresses are baked into the image; an
+                # allocator-invented address would be probed and recorded
+                # as fact while the real one could be handed to another
+                # guest
+                issues.append(
+                    Issue(
+                        code="opaque-ip-required",
+                        path=(section, index, "interfaces", if_index, "ip"),
+                        message=(
+                            f"opaque guest {guest.name!r} leaves an "
+                            f"interface on {interface.network!r} without "
+                            "a declared ip; nothing configures addresses "
+                            "inside a sealed image, so the engine cannot "
+                            "invent one"
+                        ),
+                        hint="declare the address the image actually carries on that network",
+                    )
+                )
+        if guest.os is not None and guest.os.type == "windows":
+            issues.append(
+                Issue(
+                    code="opaque-windows-not-supported",
+                    path=(section, index, "opaque"),
+                    message=(
+                        "opaque Windows guests are not supported (the "
+                        "Windows tier is daemon-managed by construction)"
+                    ),
+                )
+            )
+    elif guest.readiness is not None:
+        issues.append(
+            Issue(
+                code="readiness-requires-opaque",
+                path=(section, index, "readiness"),
+                message=(
+                    f"guest {guest.name!r} declares readiness but is not "
+                    "opaque; managed guests keep the daemon handshake"
+                ),
+            )
+        )
+    return issues
 
 
 def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
@@ -1424,73 +1507,29 @@ def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
                         ),
                     )
                 )
-        if host.opaque:
-            for field in _OPAQUE_CONTENT_FIELDS:
-                if getattr(host, field):
-                    issues.append(
-                        Issue(
-                            code="opaque-content-not-supported",
-                            path=("hosts", index, field),
-                            message=(
-                                f"opaque guest {host.name!r} declares "
-                                f"{field}; an opaque guest has no daemon and "
-                                "no recipes, so nothing could realize or "
-                                "verify it"
-                            ),
-                            hint="bake the content into the imported image at prep time, or make the guest a managed one",
-                        )
-                    )
-            if host.defense is not None:
-                issues.append(
-                    Issue(
-                        code="opaque-content-not-supported",
-                        path=("hosts", index, "defense"),
-                        message=(
-                            f"opaque guest {host.name!r} declares defense "
-                            "toggles, which recipes realize"
-                        ),
-                    )
-                )
-            for if_index, interface in enumerate(host.interfaces):
-                if interface.ip is None:
-                    # the appliance's addresses are baked into the image; an
-                    # allocator-invented address would be probed and recorded
-                    # as fact while the real one could be handed to another
-                    # guest
-                    issues.append(
-                        Issue(
-                            code="opaque-ip-required",
-                            path=("hosts", index, "interfaces", if_index, "ip"),
-                            message=(
-                                f"opaque guest {host.name!r} leaves an "
-                                f"interface on {interface.network!r} without "
-                                "a declared ip; nothing configures addresses "
-                                "inside a sealed image, so the engine cannot "
-                                "invent one"
-                            ),
-                            hint="declare the address the image actually carries on that network",
-                        )
-                    )
-            if host.os.type == "windows":
-                issues.append(
-                    Issue(
-                        code="opaque-windows-not-supported",
-                        path=("hosts", index, "opaque"),
-                        message=(
-                            "opaque Windows guests are not supported (the "
-                            "Windows tier is daemon-managed by construction)"
-                        ),
-                    )
-                )
-        elif host.readiness is not None:
+        issues.extend(
+            _opaque_guest_issues("hosts", index, host, _OPAQUE_CONTENT_FIELDS)
+        )
+    for index, router in enumerate(spec.routers):
+        issues.extend(
+            _opaque_guest_issues(
+                "routers", index, router, _ROUTER_OPAQUE_CONTENT_FIELDS
+            )
+        )
+        if router.opaque and router.image is None:
+            # the default router appliance is a managed guest (daemon,
+            # per-boot seed); a sealed appliance is necessarily an image the
+            # author imported
             issues.append(
                 Issue(
-                    code="readiness-requires-opaque",
-                    path=("hosts", index, "readiness"),
+                    code="opaque-image-required",
+                    path=("routers", index, "image"),
                     message=(
-                        f"guest {host.name!r} declares readiness but is not "
-                        "opaque; managed guests keep the daemon handshake"
+                        f"opaque router {router.name!r} declares no image; "
+                        "the default router appliance is a managed guest, "
+                        "not a sealed appliance"
                     ),
+                    hint="declare image: naming the imported appliance image the router boots",
                 )
             )
     if spec.attacker.host is not None:

@@ -173,10 +173,9 @@ def allocate(
         interface.network for router in spec.routers for interface in router.interfaces
     }
     probed = {
-        host.interfaces[0].network
-        for host in spec.hosts
-        if getattr(host, "opaque", False)
-        and isinstance(getattr(host, "readiness", None), TcpReadiness)
+        guest.interfaces[0].network
+        for guest in (*spec.hosts, *spec.routers)
+        if guest.opaque and isinstance(guest.readiness, TcpReadiness)
     }
     hypervisor_addresses: dict[str, IPv4Address] = {}
     for network in spec.networks:

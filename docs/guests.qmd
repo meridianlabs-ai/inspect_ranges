@@ -258,6 +258,8 @@ Opaque is a contract, enforced fail-closed on both sides:
 
 - **Readiness is observed, not reported.** With no daemon handshake, `readiness` says how `up` decides the guest is ready: `{tcp: <port>}` probes a TCP connect against the first declared address, and `process` (the default) means the VM process runs. An appliance whose stack boots slowly declares its budget alongside the port (`{tcp: 830, timeout: 1200}`), extending the shared window for that guest. `readiness` on a non-opaque guest refuses.
 
+A router can be opaque too, putting the sealed appliance in the gateway seat; see [Routers](#routers-are-guests-too).
+
 ## Routers {#routers-are-guests-too}
 
 A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. `os` and `image` are optional; when omitted, the backend's default router appliance is used. A router can also be a target in its own right: it takes [`users`](#users) and `provisioning` like a host, built and captured on the same path as host content ([Building Ranges](building.qmd)). A router declaring content must declare `image` as well (`router-image-required`), since the appliance default is a backend resolution its build key cannot pin. For example:
@@ -345,6 +347,38 @@ router_guest = RangeSpec(
 :::
 
 Policy (`acl`) and routing (`routes`, gateway election) are covered in [Networks](networks.qmd).
+
+A router can also be a sealed appliance: declare `opaque: true` and the engine boots its [imported image](images.qmd#imported-images) as-is, under the same [opaque contract](#appliances) as a host. The appliance's own stack carries the forwarding policy and routing, so `acl`, `routes`, and `provisioning` all refuse (`opaque-content-not-supported`). A declared `image` is required (`opaque-image-required`), and every interface declares the `ip` the image carries on that segment. Gateway election hands that declared address to the segment's other guests. The tcp readiness probe connects to the first declared interface's address, so list the interface that answers it first. `users` stays legal as documentation of baked-in accounts:
+
+::: {.panel-tabset group="definition-language"}
+### YAML
+
+``` {.yaml .fragment}
+routers:
+  - name: fw
+    image: acme-fw
+    opaque: true
+    readiness: { tcp: 443 }
+    interfaces:
+      - { network: dmz, ip: 10.80.10.1 }
+      - { network: internal, ip: 10.80.20.1 }
+```
+
+### Python
+
+``` {.python .fragment}
+Router(
+    name="fw",
+    image="acme-fw",
+    opaque=True,
+    readiness=TcpReadiness(tcp=443),
+    interfaces=[
+        Interface(network="dmz", ip="10.80.10.1"),
+        Interface(network="internal", ip="10.80.20.1"),
+    ],
+)
+```
+:::
 
 ## Attacker {#the-attacker-guest}
 
@@ -477,7 +511,7 @@ Beyond identity and sizing, a definition declares what a guest contains: account
 
 ## Users {#users}
 
-`users` declares a guest's local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). Domain accounts belong in [`active_directory`](#active-directory), not here:
+`users` declares a guest's local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a managed router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). On an [opaque](#appliances) guest, users instead document accounts baked into the sealed image. Domain accounts belong in [`active_directory`](#active-directory), not here:
 
 ::: {.panel-tabset group="definition-language"}
 ### YAML

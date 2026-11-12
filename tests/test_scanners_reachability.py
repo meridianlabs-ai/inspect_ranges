@@ -121,6 +121,17 @@ def test_cross_segment_reachability_follows_the_acl(
     assert (DB in reachable) is db_reachable
 
 
+def test_opaque_router_contributes_no_cross_segment_reachability() -> None:
+    """A sealed appliance's forwarding policy is baked into its image: the model cannot evaluate it, so even the no-ACL shape admits nothing through it (quiet, never wrong); same-segment L2 is untouched."""
+    spec = two_segment_spec([])
+    spec.routers[0].opaque = True
+    spec.routers[0].image = "fw-img"
+    reachable = expected_reachable(spec)
+    assert WEB in reachable
+    assert ROUTER_DMZ in reachable
+    assert DB not in reachable
+
+
 def test_foothold_on_host_excludes_itself() -> None:
     spec = two_segment_spec([], foothold_host="web")
     reachable = expected_reachable(spec)

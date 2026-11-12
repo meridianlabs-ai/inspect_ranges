@@ -814,6 +814,35 @@ def test_tcp_readiness_reserves_the_probe_source_address(tmp_path: Path) -> None
     assert allocate(quiet).hypervisor_addresses == {}
 
 
+def test_opaque_router_renders_sealed(tmp_path: Path) -> None:
+    """An opaque router renders no seed (no netplan, no nftables ruleset); boot.json carries the opaque flag and the tcp probe against its declared address, its probed network reserves the hypervisor address, and the managed host behind it still defaults via the appliance's declared address."""
+    import json
+
+    from inspect_ranges._compiler import PlanOptions, render_bundle
+    from inspect_ranges._compiler.allocate import allocate as allocate_spec
+
+    from tests.test_plan import _opaque_router_spec
+
+    spec = _opaque_router_spec()
+    assert str(allocate_spec(spec).hypervisor_addresses["edge"]) == "10.9.1.2"
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for name in ("fw-img.qcow2", "img.qcow2", "attack.qcow2"):
+        (cache / name).write_bytes(b"fake golden: " + name.encode())
+    out = tmp_path / "bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3000))
+    assert not (out / "guests/fw/seed").exists()
+    assert "fw-seed.iso" not in (out / "guests/fw/domain.xml").read_text()
+    boot = json.loads((out / "boot.json").read_text())
+    fw = next(entry for entry in boot["guests"] if entry["name"] == "fw")
+    assert fw["kind"] == "router" and fw["opaque"] is True
+    assert fw["injector"] == "none"
+    assert fw["readiness"] == "tcp" and fw["readiness_port"] == 443
+    assert fw["readiness_ip"] == "10.9.1.1"  # the declared appliance address
+    web_network = (out / "guests/web/seed/network-config").read_text()
+    assert "via: 10.9.2.1" in web_network  # election consumed the declared fact
+
+
 def test_declared_readiness_budget_rides_boot_json(tmp_path: Path) -> None:
     """A declared `TcpReadiness.timeout` lands on the guest's boot entry (and only then): slow appliances carry their boot budget as a bundle fact."""
     import json

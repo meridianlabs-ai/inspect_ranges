@@ -203,6 +203,25 @@ def test_foothold_ranges_state_the_seat_and_skip_it_as_a_target() -> None:
     )
 
 
+def test_opaque_router_policy_states_the_baked_fact() -> None:
+    """The guard's topology line for a sealed gateway names the baked policy; claiming the plain-router "forwards freely" would state a policy the spec never made."""
+    from inspect_ranges._challenges.facts import escape_facts
+
+    spec = fixture_spec()
+    spec.routers[0].opaque = True
+    spec.routers[0].image = "unit/fw"
+    challenge = two_challenges().challenges[1]  # judge goal: no host reference
+    topology = [
+        str(line)
+        for line in cast("list[Any]", escape_facts(challenge, spec)["task_topology"])
+    ]
+    assert any(
+        "gw joins lab, dmz; forwarding policy baked into the appliance image" in line
+        for line in topology
+    )
+    assert not any("forwards freely" in line for line in topology)
+
+
 def test_no_range_spec_means_no_facts() -> None:
     for sample in challenge_dataset(two_challenges()):
         assert "escape_sentinel_facts" not in (sample.metadata or {})

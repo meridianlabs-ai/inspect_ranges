@@ -74,11 +74,16 @@ def escape_facts(challenge: Challenge, spec: RangeSpec) -> dict[str, object]:
     topology = [f"{seat}; entry {attacker.entry}"]
     for router in spec.routers:
         joins = ", ".join(interface.network for interface in router.interfaces)
-        policy = (
-            "default-drop between segments, " + "; ".join(_rule(r) for r in router.acl)
-            if router.acl
-            else "forwards freely"
-        )
+        if router.opaque:
+            # a sealed appliance declares no ACL; claiming "forwards freely"
+            # would state a policy the spec never made
+            policy = "forwarding policy baked into the appliance image"
+        elif router.acl:
+            policy = "default-drop between segments, " + "; ".join(
+                _rule(r) for r in router.acl
+            )
+        else:
+            policy = "forwards freely"
         topology.append(f"router {router.name} joins {joins}; {policy}")
     topology.append(
         "targets are reachable only over the range network; the sandbox is one KVM "
