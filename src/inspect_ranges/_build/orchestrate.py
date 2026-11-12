@@ -1094,6 +1094,14 @@ def build_range(
             # plant layer owns declared secret data at sample time
             # (linux-examples-v1); the runtime path keeps its gates
             realized_sections=frozenset(BUILD_REALIZED_SECTIONS),
+            # the networks the egress transformation added (the build-only
+            # uplink) are shared by every stranded guest for the build's
+            # duration by construction; the hostname-collision gate scopes
+            # to the segments the runtime spec actually declares
+            collision_exempt_networks=frozenset(
+                {network.name for network in build_spec.networks}
+                - {network.name for network in spec.networks}
+            ),
         )
         try:
             plan = render_bundle(build_spec, staging, plan_options)

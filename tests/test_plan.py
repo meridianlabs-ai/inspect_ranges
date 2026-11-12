@@ -341,10 +341,14 @@ def test_hostname_renders_and_fqdn_gates_at_planning() -> None:
 
 
 def test_declared_hostnames_feed_the_collision_gate() -> None:
-    """Two hosts whose DECLARED hostnames render identically refuse at planning, exactly like colliding names."""
+    r"""Two hosts whose DECLARED hostnames render identically refuse at planning, exactly like colliding names — when they share a segment, where name registration is visible. On disjoint segments the reuse is legitimate (one `dc1` per AD forest, addressed as \\DC1.<domain>) and the spec plans."""
     spec = two_segment_spec()
     spec.hosts[0].hostname = "same-host"
     spec.hosts[1].hostname = "same-host"
+    # web (dmz) and db (internal) share no segment: the reuse plans
+    assert resolve_plan(spec) is not None
+    # attach db to dmz too and the same declared hostnames refuse
+    spec.hosts[1].interfaces.append(Interface(network="dmz"))
     with pytest.raises(IssueError) as excinfo:
         resolve_plan(spec)
     assert any(issue.code == "hostname-collision" for issue in excinfo.value.issues)
@@ -692,14 +696,45 @@ def test_guest_hostnames_sanitize_to_rfc_form() -> None:
 
 
 def test_colliding_sanitized_hostnames_refuse_at_planning(cache: Path) -> None:
-    """Two legal guest names that sanitize to one hostname would be agent-visible identity confusion; planning refuses."""
+    """Two legal guest names that sanitize to one hostname would be agent-visible identity confusion on the segment they share; planning refuses. With no common segment there is no confusion to see, and the spec plans."""
     spec = two_segment_spec()
     collided = spec.model_copy(deep=True)
     collided.hosts[0].name = "web_0"
     collided.hosts[1].name = "web.0"
+    # on disjoint segments the sanitized twins plan
+    assert resolve_plan(collided, options(cache)) is not None
+    collided.hosts[1].interfaces.append(Interface(network="dmz"))
     with pytest.raises(IssueError) as excinfo:
         resolve_plan(collided, options(cache))
     assert any(issue.code == "hostname-collision" for issue in excinfo.value.issues)
+
+
+def test_hostname_collision_scope_is_the_shared_segment(cache: Path) -> None:
+    """The gate's scope rules: a dedicated attack box without declared interfaces attaches where the backend decides, so it collides everywhere; networks named in `collision_exempt_networks` (the build's uplink) never make a segment shared."""
+    spec = two_segment_spec()
+    # the attacker renders the hostname `attacker`; an undeclared-interfaces
+    # box must still collide with a host of that name on ANY segment
+    wildcard = spec.model_copy(deep=True)
+    wildcard.attacker.interfaces = None
+    wildcard.hosts[1].hostname = "attacker"
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(wildcard, options(cache))
+    assert any(issue.code == "hostname-collision" for issue in excinfo.value.issues)
+    # a shared segment that is exempt (the build-only uplink) does not count
+    exempt = spec.model_copy(deep=True)
+    exempt.networks.append(
+        Network(name="build-uplink", cidr="10.254.169.0/24", mode="nat")
+    )
+    exempt.hosts[0].hostname = "same-host"
+    exempt.hosts[1].hostname = "same-host"
+    for host in exempt.hosts:
+        host.interfaces.append(Interface(network="build-uplink"))
+    with pytest.raises(IssueError):
+        resolve_plan(exempt, options(cache))
+    plan_options = options(cache).model_copy(
+        update={"collision_exempt_networks": frozenset({"build-uplink"})}
+    )
+    assert resolve_plan(exempt, plan_options) is not None
 
 
 def test_windows_guest_renders_unattend_seed(cache: Path, tmp_path: Path) -> None:
