@@ -351,10 +351,7 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
     # is linux by construction (the Attacker schema declares no `os` field)
     for section, declared_list in (("hosts", spec.hosts), ("routers", spec.routers)):
         for index, guest_decl in enumerate(declared_list):
-            if (
-                getattr(guest_decl, "opaque", False)
-                and guest_decl.vmm == "cloud-hypervisor"
-            ):
+            if guest_decl.opaque and guest_decl.vmm == "cloud-hypervisor":
                 # the CH boot path hands every guest a seed disk that the
                 # opaque tier (injector none) never creates
                 issues.append(
@@ -643,10 +640,13 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             router.users
             and "users" in options.realized_sections
             and not router.provisioning
+            and not router.opaque
         ):
             # router users converge through the router's recipes exactly like
             # a host's; a recipe-less router would mint the claim unrealized
-            # and unverified (the slice-4 unconsumed rule, extended)
+            # and unverified (the slice-4 unconsumed rule, extended). An
+            # opaque router is exempt: its users document accounts baked into
+            # the sealed image (the host rule), nothing claims to realize them
             issues.append(
                 Issue(
                     code="realized-section-unconsumed",

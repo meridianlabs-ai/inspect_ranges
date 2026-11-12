@@ -267,6 +267,57 @@ def test_hardware_vocabulary_gates_refuse() -> None:
     _refuses(foothold, "foothold")
 
 
+def _opaque_router(spec: RangeSpec) -> Router:
+    """Make dmz_pivot's router a sealed appliance (image declared, no realized content; its ips are already declared facts)."""
+    router = spec.routers[0]
+    router.opaque = True
+    router.image = "fw-img"
+    router.acl = []
+    return router
+
+
+def test_opaque_router_accepts_the_sealed_gateway_shape() -> None:
+    """An opaque router with a declared image, declared addresses, and no realized content validates; users stay legal as documentation of baked accounts."""
+    from inspect_ranges.types import TcpReadiness, User
+
+    spec = dmz_pivot()
+    router = _opaque_router(spec)
+    router.readiness = TcpReadiness(tcp=443, timeout=1200)
+    router.users = [User(name="admin", password="weak")]
+    revalidate_range(spec)
+
+
+def test_opaque_router_gates_refuse() -> None:
+    """Realized content (provisioning, routes, acl), a missing ip, a missing image, misscoped readiness, and an opaque Windows router each refuse with their code's message."""
+    from inspect_ranges.types import ProvisioningStep, Route, TcpReadiness
+
+    content: list[tuple[str, object]] = [
+        ("provisioning", [ProvisioningStep(recipe="acme.fw")]),
+        ("routes", [Route(to="10.99.0.0/24", via="10.80.20.10")]),
+        ("acl", [AclRule(from_="dmz", to="internal", allow=["tcp/5432"])]),
+    ]
+    for field, value in content:
+        spec = dmz_pivot()
+        setattr(_opaque_router(spec), field, value)
+        _refuses(spec, f"declares\\s+{field}")
+
+    unaddressed = dmz_pivot()
+    _opaque_router(unaddressed).interfaces[0].ip = None
+    _refuses(unaddressed, "cannot invent one")
+
+    unpinned = dmz_pivot()
+    _opaque_router(unpinned).image = None
+    _refuses(unpinned, "not a sealed appliance")
+
+    scoped = dmz_pivot()
+    scoped.routers[0].readiness = TcpReadiness(tcp=443)
+    _refuses(scoped, "not\\s+opaque")
+
+    windows = dmz_pivot()
+    _opaque_router(windows).os = Os(type="windows", version="server-2022")
+    _refuses(windows, "opaque Windows")
+
+
 def test_hardware_disk_takes_exactly_one_source() -> None:
     from inspect_ranges.types import HardwareDisk
 

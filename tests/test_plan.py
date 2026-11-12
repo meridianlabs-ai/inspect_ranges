@@ -1704,6 +1704,83 @@ def test_opaque_without_readiness_defaults_to_process(cache: Path) -> None:
     assert appliance.readiness == "process" and appliance.readiness_port is None
 
 
+def _opaque_router_spec() -> RangeSpec:
+    """A managed host behind a sealed gateway appliance."""
+    from inspect_ranges.types import TcpReadiness
+
+    return RangeSpec(
+        meta=RangeMeta(name="opq-rtr", description="sealed gateway appliance"),
+        networks=[
+            Network(name="edge", cidr="10.9.1.0/24", mode="isolated"),
+            Network(name="lan", cidr="10.9.2.0/24", mode="isolated"),
+        ],
+        routers=[
+            Router(
+                name="fw",
+                image="fw-img",
+                opaque=True,
+                readiness=TcpReadiness(tcp=443),
+                interfaces=[
+                    Interface(network="edge", ip="10.9.1.1"),
+                    Interface(network="lan", ip="10.9.2.1"),
+                ],
+            )
+        ],
+        hosts=[
+            Host(
+                name="web",
+                os=Os(type="linux"),
+                image="img",
+                interfaces=[Interface(network="lan", ip="10.9.2.10")],
+            )
+        ],
+        attacker=Attacker(interfaces=[Interface(network="edge")], entry="external"),
+    )
+
+
+def test_opaque_router_threads_into_the_plan(cache: Path) -> None:
+    """An opaque router plans like an opaque host (injector none, daemon-free readiness) while keeping the gateway seat: election hands its declared address to the segment, and the probed network reserves the hypervisor address."""
+    plan = resolve_plan(_opaque_router_spec(), PlanOptions(image_cache=cache))
+    fw = next(guest for guest in plan.guests if guest.name == "fw")
+    assert fw.kind == "router" and fw.opaque is True
+    assert fw.injector == "none"
+    assert fw.readiness == "tcp" and fw.readiness_port == 443
+    networks = {network.name: network for network in plan.networks}
+    assert str(networks["lan"].gateway) == "10.9.2.1"
+    assert networks["edge"].hypervisor_address is not None  # the probe's vantage
+
+
+def test_opaque_router_users_document_baked_accounts(cache: Path) -> None:
+    """Users on an opaque router pass the build path's unconsumed gate (they document accounts baked into the sealed image); a managed recipe-less router still refuses."""
+    from inspect_ranges.types import User
+
+    options = PlanOptions(image_cache=cache, realized_sections=frozenset({"users"}))
+    documented = _opaque_router_spec()
+    documented.routers[0].users = [User(name="admin", password="weak")]
+    resolve_plan(documented, options)
+
+    managed = _opaque_router_spec()
+    managed.routers[0].opaque = False
+    managed.routers[0].readiness = None
+    managed.routers[0].users = [User(name="admin")]
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(managed, options)
+    assert any(
+        issue.code == "realized-section-unconsumed" for issue in excinfo.value.issues
+    )
+
+
+def test_opaque_router_on_cloud_hypervisor_refuses(cache: Path) -> None:
+    """The opaque tier boots through qemu for routers exactly as for hosts."""
+    spec = _opaque_router_spec()
+    spec.routers[0].vmm = "cloud-hypervisor"
+    with pytest.raises(IssueError) as excinfo:
+        resolve_plan(spec, PlanOptions(image_cache=cache))
+    assert any(
+        issue.code == "opaque-vmm-not-supported" for issue in excinfo.value.issues
+    )
+
+
 def test_hardware_refuses_on_cloud_hypervisor_and_windows(cache: Path) -> None:
     """The hardware block parameterizes the QEMU domain XML only, and the Windows tier keeps its own measured device model."""
     from inspect_ranges.types import IssueError
