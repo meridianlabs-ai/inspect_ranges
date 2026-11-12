@@ -2122,6 +2122,86 @@ def test_egress_build_spec_uplinks_stranded_content_hosts() -> None:
     assert not any(n.name == "build-uplink" for n in spec.networks)
 
 
+def test_egress_build_spec_assigns_uplink_addresses_to_windows_hosts() -> None:
+    """A stranded Windows content host must carry an ip on EVERY interface (windows-ip-required: its captured disk bakes the addresses), the build-only uplink included — an ip-less uplink attachment would refuse the exact build that needs it. The uplink address is deterministic (declaration order from offset 10, the allocator's own host policy); Linux hosts keep allocator-assigned addressing."""
+    from ipaddress import ip_address, ip_network
+
+    from inspect_ranges.types import (
+        Attacker,
+        Host,
+        Interface,
+        Network,
+        Os,
+        ProvisioningStep,
+        RangeMeta,
+        RangeSpec,
+        Router,
+    )
+
+    def routed_spec() -> RangeSpec:
+        return RangeSpec(
+            meta=RangeMeta(name="winuplink", description="stranded windows hosts"),
+            networks=[
+                Network(name="a", cidr="192.168.20.0/24", mode="routed"),
+                Network(name="b", cidr="192.168.30.0/24", mode="routed"),
+            ],
+            routers=[
+                Router(
+                    name="r",
+                    interfaces=[
+                        Interface(network="a", ip="192.168.20.1"),
+                        Interface(network="b", ip="192.168.30.1"),
+                    ],
+                )
+            ],
+            hosts=[
+                Host(
+                    name="dc1",
+                    os=Os(type="windows", version="server-2019"),
+                    image="windows-2019",
+                    interfaces=[Interface(network="a", ip="192.168.20.5")],
+                    provisioning=[ProvisioningStep(recipe="kypo.dc")],
+                ),
+                Host(
+                    name="server",
+                    os=Os(type="linux"),
+                    image="ubuntu-focal",
+                    interfaces=[Interface(network="a", ip="192.168.20.6")],
+                    provisioning=[ProvisioningStep(recipe="kypo.server")],
+                ),
+                Host(
+                    name="ws1",
+                    os=Os(type="windows", version="server-2019"),
+                    image="windows-2019",
+                    interfaces=[Interface(network="b", ip="192.168.30.5")],
+                    provisioning=[ProvisioningStep(recipe="kypo.ws")],
+                ),
+            ],
+            attacker=Attacker(host="server", entry="assumed-breach"),
+        )
+
+    build = egress_build_spec(routed_spec(), nameserver_ip="1.1.1.1")
+    uplink = next(n for n in build.networks if n.name == "build-uplink")
+    subnet = ip_network(str(uplink.cidr))
+    by_name = {host.name: host for host in build.hosts}
+    dc_uplink = by_name["dc1"].interfaces[-1]
+    ws_uplink = by_name["ws1"].interfaces[-1]
+    linux_uplink = by_name["server"].interfaces[-1]
+    for interface in (dc_uplink, ws_uplink):
+        assert interface.network == "build-uplink"
+        assert interface.ip is not None
+        assert ip_address(str(interface.ip)) in subnet
+    # offset 10 in declaration order; .1-.9 stay free for the host side
+    assert str(dc_uplink.ip).endswith(".10")
+    assert str(ws_uplink.ip).endswith(".11")
+    assert linux_uplink.network == "build-uplink" and linux_uplink.ip is None
+    # the same spec allocates the same addresses
+    rebuilt = egress_build_spec(routed_spec(), nameserver_ip="1.1.1.1")
+    rebuilt_by_name = {host.name: host for host in rebuilt.hosts}
+    assert str(rebuilt_by_name["dc1"].interfaces[-1].ip) == str(dc_uplink.ip)
+    assert str(rebuilt_by_name["ws1"].interfaces[-1].ip) == str(ws_uplink.ip)
+
+
 def test_egress_build_spec_lifts_containment_for_provisioned_footholds() -> None:
     """A foothold host carrying recipes needs build egress, which the attacker's runtime containment (egress: none) would drop at the hypervisor; the build variant lifts it, the runtime spec keeps it."""
     from inspect_ranges.types import (

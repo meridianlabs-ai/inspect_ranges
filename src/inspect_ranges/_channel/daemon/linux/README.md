@@ -37,6 +37,8 @@ go test ./...       # includes the cross-codec drift guard
 
 The command budget kills the PROCESS GROUP (TERM, then KILL after the grace). A descendant that calls `setsid()` leaves the group and survives the kill (the battery's own hostile shim is started exactly this way). `cmd.WaitDelay` bounds the daemon's pipe wait so the escape cannot hang a serve slot, and the ETIME message states the kill was group-scoped, but the surviving process is real. The honest fix is cgroup-scoped kill, recorded in `design/inspect-ranges/channel-v1.md` as future work; range containment does not rest on this kill (the hypervisor boundary does).
 
+The read side has a matching edge, accepted for the same reason. Exec's output pipes are daemon-owned and drained until every writer is gone, so a command may daemonize a worker that keeps the inherited stdout and lives on (the point: closing the pipe instead SIGPIPE-killed such workers at their next write). A worker that never exits keeps one drain goroutine and one pipe fd open for the daemon's lifetime, with output capped by `limitedBuffer`. The reply itself never waits past `WaitDelay` after exit.
+
 ## At-most-once under eviction (ESTALE)
 
 Durable results are held in a bounded FIFO until acked. An evicted-unacked id leaves a tombstone (own FIFO, 4096): polls and resends for it answer errno `ESTALE` ("executed, result lost"), and the client surfaces that as an infrastructure failure, never a re-run.

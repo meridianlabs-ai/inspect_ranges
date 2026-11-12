@@ -101,6 +101,29 @@ def _attack_box_origin_or_up_error() -> str | None:
         raise UpError("attack-box", str(error)) from error
 
 
+def _readiness_timeout_or_up_error() -> float:
+    """The deployment's per-guest readiness window, with a malformed value folded to the typed stage failure every other boot refusal uses.
+
+    Deployment knowledge, like the attack box and the uplink: ranges carrying large adopted images can need a longer window than the `UpOptions` default (the build CLI already has `--readiness-timeout`; `INSPECT_RANGES_READINESS_TIMEOUT` is the provider-side equivalent, consulted where `up()` runs). Unset keeps the default, so existing deployments are untouched.
+    """
+    raw = os.environ.get("INSPECT_RANGES_READINESS_TIMEOUT")
+    if raw is None:
+        return float(UpOptions.model_fields["readiness_timeout"].default)
+    try:
+        value = float(raw)
+    except ValueError as error:
+        raise UpError(
+            "boot",
+            f"INSPECT_RANGES_READINESS_TIMEOUT is not a number of seconds: {raw!r}",
+        ) from error
+    if value <= 0:
+        raise UpError(
+            "boot",
+            f"INSPECT_RANGES_READINESS_TIMEOUT must be positive seconds: {raw!r}",
+        )
+    return value
+
+
 async def _prepare_attack_box(runtime: ProviderRuntime, spec: RangeSpec) -> None:
     """Eval init's slow work for a pinned provider program: fetch the pinned release and probe the host, once per run.
 
@@ -468,6 +491,10 @@ class RangeSandboxEnvironment(SandboxEnvironment):
                                 uplink_network=os.environ.get(
                                     "INSPECT_RANGES_UPLINK_NETWORK"
                                 ),
+                                # deployment knowledge again: large adopted
+                                # images can need a longer per-guest readiness
+                                # window; unset keeps the UpOptions default
+                                readiness_timeout=_readiness_timeout_or_up_error(),
                             ),
                             on_stage,
                         )

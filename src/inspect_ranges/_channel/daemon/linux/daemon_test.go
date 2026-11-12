@@ -453,3 +453,46 @@ func TestFileOpsRefuseWedgingTypes(t *testing.T) {
 		t.Fatalf("mode-carrying FIFO write: got %s, want a loud error", reply.message.Kind)
 	}
 }
+
+// TestBackgroundedDescendantSurvivesItsNextWrite pins the drain contract: a
+// command that legitimately daemonizes a worker must not have that worker
+// killed by SIGPIPE at its next write to the inherited stdout. Before the
+// daemon owned the pipes, os/exec closed the read ends once WaitDelay
+// expired after exit, and a worker outliving that window died at its first
+// post-reply write (measured: a backgrounded relay server, dead the moment
+// its first client connected and it logged). The worker here outlives the
+// window (shrunk so the test stays fast), writes to stdout, and then proves
+// it survived by writing a witness file.
+func TestBackgroundedDescendantSurvivesItsNextWrite(t *testing.T) {
+	saved := WaitDelay
+	WaitDelay = 200 * time.Millisecond
+	defer func() { WaitDelay = saved }()
+	daemon := NewDaemon()
+	witness := filepath.Join(t.TempDir(), "alive")
+	script := fmt.Sprintf(
+		"( sleep 1; echo tick; echo lived > %s ) & echo started", witness)
+	start := time.Now()
+	reply := daemon.dispatch(execMessage(rid(6501), "sh", "-c", script), nil)
+	if reply.message.Kind != "exec_result" || reply.message.Rc == nil ||
+		*reply.message.Rc != 0 {
+		t.Fatalf("got %s rc=%v (%v)", reply.message.Kind, reply.message.Rc,
+			reply.message.Message)
+	}
+	if !bytes.Contains(reply.bulk, []byte("started")) {
+		t.Fatalf("stdout should carry the foreground output, got %q", reply.bulk)
+	}
+	if elapsed := time.Since(start); elapsed > 3*time.Second {
+		t.Fatalf("reply took %v: the held pipe must stop the wait at WaitDelay, not block it", elapsed)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		data, err := os.ReadFile(witness)
+		if err == nil && strings.Contains(string(data), "lived") {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the backgrounded worker never wrote its witness: SIGPIPE killed it at the post-reply write")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}

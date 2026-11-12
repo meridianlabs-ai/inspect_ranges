@@ -84,6 +84,9 @@ class PlanOptions(BaseModel):
     draws: dict[str, int | str] = {}
     """The sample's drawn variable values (variable-draws-v0), rendered into every Linux guest's cloud-init seed as the draws file. A render input only: planning ignores it, so the plan and build keys never see a draw. Set per sample by the provider (and by the build's proof boot); empty everywhere else."""
 
+    collision_exempt_networks: frozenset[str] = frozenset()
+    """Networks the hostname-collision gate leaves out of its shared-segment scoping: set by the build pipeline to the build-only uplink it appended, which every stranded guest shares for the build's duration by construction and which vanishes at runtime (no name resolution rides on it by design). The runtime path never sets it."""
+
 
 class ImageRef(BaseModel):
     """An image as the plan records it: the logical reference plus its cache-resolved digest."""
@@ -513,7 +516,47 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             )
     from .render import guest_hostname, windows_hostname
 
-    hostnames: dict[str, str] = {}
+    # hostname collisions matter where names are visible to one another:
+    # NetBIOS, mDNS, and broadcast name registration are segment-scoped, and
+    # multi-domain ranges legitimately reuse a hostname across disjoint
+    # segments (one `dc1` per AD forest, each on its own subnet, addressed as
+    # \\DC1.<domain>), so the gate refuses collisions only between guests
+    # sharing a network. A dedicated attack box without declared interfaces
+    # attaches where the backend decides, so it scopes as everywhere — the
+    # conservative reading the old range-wide gate gave every guest
+    exempt = options.collision_exempt_networks
+    guest_networks: dict[str, frozenset[str]] = {
+        host.name: frozenset(
+            interface.network
+            for interface in host.interfaces
+            if interface.network not in exempt
+        )
+        for host in spec.hosts
+    }
+    for router in spec.routers:
+        guest_networks[router.name] = frozenset(
+            interface.network
+            for interface in router.interfaces
+            if interface.network not in exempt
+        )
+    everywhere: set[str] = set()
+    if spec.attacker.host is None:
+        if spec.attacker.interfaces is None:
+            everywhere.add(spec.attacker.name)
+            guest_networks[spec.attacker.name] = frozenset()
+        else:
+            guest_networks[spec.attacker.name] = frozenset(
+                interface.network
+                for interface in spec.attacker.interfaces
+                if interface.network not in exempt
+            )
+
+    def shares_segment(one: str, other: str) -> bool:
+        if one in everywhere or other in everywhere:
+            return True
+        return bool(guest_networks[one] & guest_networks[other])
+
+    hostnames: dict[str, list[str]] = {}
     named_guests: list[tuple[str, str, bool]] = [
         # the declared hostname: wins when a host carries one (realized as of
         # windows-ad-v1 slice 4); routers and the attacker derive from names
@@ -546,17 +589,25 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 )
             )
             continue
-        if sanitized in hostnames and hostnames[sanitized] != guest_name:
+        collided = next(
+            (
+                other
+                for other in hostnames.get(sanitized, [])
+                if other != guest_name and shares_segment(other, guest_name)
+            ),
+            None,
+        )
+        if collided is not None:
             issues.append(
                 Issue(
                     code="hostname-collision",
                     path=("hosts",),
-                    message=f"guests {hostnames[sanitized]!r} and {guest_name!r} both render the in-guest hostname {sanitized!r}",
-                    hint="hostname-invalid characters sanitize to hyphens and Windows names truncate to the 15-character NetBIOS limit; rename one guest (or its declared hostname) so the rendered forms differ",
+                    message=f"guests {collided!r} and {guest_name!r} both render the in-guest hostname {sanitized!r} on a shared network",
+                    hint="hostname-invalid characters sanitize to hyphens and Windows names truncate to the 15-character NetBIOS limit; rename one guest (or its declared hostname) so the rendered forms differ — guests with no network in common may share a rendered hostname",
                 )
             )
         else:
-            hostnames[sanitized] = guest_name
+            hostnames.setdefault(sanitized, []).append(guest_name)
     _GUEST_CONTENT_HINT = "guest configuration is applied and verified at range build; the build pipeline is the next phase (see guest-config-v0.3)"
     for index, host in enumerate(spec.hosts):
         fields = [
