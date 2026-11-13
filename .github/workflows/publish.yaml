@@ -15,7 +15,7 @@ jobs:
   notify-approval:
     runs-on: ubuntu-latest
     steps:
-      - uses: meridianlabs-ai/actions/slack-approval-ping@6fe6acfaeb946d22dd4fb673c744a3591eab0d91 # main
+      - uses: meridianlabs-ai/actions/slack-approval-ping@a398ed0ac7c5704baa361d84b253ca452332c220 # main
         with:
           webhook: ${{ secrets.SLACK_APPROVALS_WEBHOOK_URL }}
           approvers: "jjallaire dragonstyle epatey"
@@ -31,7 +31,7 @@ jobs:
   build:
     permissions:
       contents: read
-    uses: meridianlabs-ai/actions/.github/workflows/build-python-dist.yml@b6f97e6b72216233d805ce570ceb7fa2071f8a93 # main
+    uses: meridianlabs-ai/actions/.github/workflows/build-python-dist.yml@a398ed0ac7c5704baa361d84b253ca452332c220 # main
     with:
       python-version: "3.12"
 
