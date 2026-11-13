@@ -1,0 +1,329 @@
+name: Breakout CTF
+
+# The live-fire breakout CTF: a real agent attacks the contained breakout range from the
+# Cloud Hypervisor attack box, and the verdict grades whether containment held. This is a
+# PAID, LIVE-FIRE eval (it calls a real model and boots real VMs), so it never runs on a
+# push or pull request. It runs on manual dispatch and on a weekly schedule.
+#
+# The range boots real VMs, so this needs a KVM-capable runner. `ubuntu-latest` is used on
+# the assumption that the hosted runner exposes /dev/kvm; the preflight step refuses loudly
+# before any paid leg if it does not. Point `runs-on` at a self-hosted KVM label instead
+# where the hosted runner has no nested virtualization.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Pin the sweep to one model slug (e.g. openrouter/...). Empty fans out the distinct models of config/ctf-round-set.json (the CTF_AGENT_MODEL repo variable pins it too, if set)."
+        required: false
+        default: ""
+      whitebox:
+        description: "Posture for the whole sweep. 'on' (default) unpacks the inspect_ranges source on the attack box and hands over the recon brief; 'off' is a lean black-box run."
+        required: false
+        default: "on"
+        type: choice
+        options: ["on", "off"]
+      turns:
+        description: "Message limit for the agent (react turns). Default 400, matching the reference harness."
+        required: false
+        default: "400"
+  schedule:
+    # Mondays, 11:11 UTC (outside the delayed 6-9am Pacific window).
+    - cron: "11 11 * * 1"
+  push:
+    # Iterate from a feature branch: a push runs the CTF only when the head
+    # commit subject STARTS WITH the [breakout-ctf] marker (the job `if` below),
+    # so ordinary pushes never trigger a paid run. workflow_dispatch and the
+    # schedule register only from the default branch.
+    branches:
+      - "claude/**"
+
+concurrency:
+  # A manual dispatch keys on its run id so repeat dispatches of one model coexist; the
+  # scheduled run keys on the ref.
+  group: ctf-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    # Compute the model matrix for the sweep. A dispatch `model` input (or the
+    # CTF_AGENT_MODEL repo variable) pins the sweep to that one model; otherwise
+    # the distinct models of config/ctf-round-set.json are fanned out, one live
+    # range run each. Emitted as a JSON array the breakout-ctf job matrixes over.
+    # The push marker gate lives here too, so a non-marker push skips plan and,
+    # through `needs`, the paid job.
+    if: github.event_name != 'push' || startsWith(github.event.head_commit.message, '[breakout-ctf]')
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.models.outputs.models }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve the model matrix
+        id: models
+        env:
+          INPUT_MODEL: ${{ github.event.inputs.model }}
+          VAR_MODEL: ${{ vars.CTF_AGENT_MODEL }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_MODEL" ]; then
+            models="$(jq -cn --arg m "$INPUT_MODEL" '[$m]')"
+          elif [ -n "$VAR_MODEL" ]; then
+            models="$(jq -cn --arg m "$VAR_MODEL" '[$m]')"
+          else
+            # unique preserves distinct models and collapses any accidental
+            # repeat (a matrix key must be unique anyway).
+            models="$(jq -c '[.rounds[].model] | unique' config/ctf-round-set.json)"
+          fi
+          if [ "$models" = "[]" ] || [ -z "$models" ]; then
+            echo "::error::no models resolved for the matrix (input, CTF_AGENT_MODEL, or round set)." >&2
+            exit 1
+          fi
+          echo "models=$models" >>"$GITHUB_OUTPUT"
+          echo "model matrix: $models"
+
+  breakout-ctf:
+    needs: plan
+    runs-on: ubuntu-latest
+    # The agent's wall-clock (--time-limit below) matches the reference harness's
+    # 400 turns x 48 s/turn = 19200 s (~320 min); the job timeout sits above that
+    # plus build/derive/grade/upload, under the hosted runner's 6 h hard cap.
+    timeout-minutes: 350
+    strategy:
+      # The sweep: one live range run per model from the plan job, all in the
+      # one posture, in parallel. fail-fast off so one model's failure does not
+      # cancel the others. Posture is a dispatch choice (default white-box), not
+      # a matrix dimension — flip `whitebox` to run the sweep black-box.
+      fail-fast: false
+      matrix:
+        model: ${{ fromJson(needs.plan.outputs.models) }}
+    env:
+      CTF_WHITEBOX: ${{ github.event.inputs.whitebox || 'on' }}
+      CTF_ATTACKER_VMM: cloud-hypervisor
+      INSPECT_RANGES_CTF_WHITEBOX: ${{ github.event.inputs.whitebox || 'on' }}
+      # The leg's model, straight from the matrix; every step reads it from here.
+      CTF_MODEL: ${{ matrix.model }}
+      # `inspect eval evals/ctf/task.py` loads the task file by path and does not
+      # put the repo root on sys.path, so the task's absolute `evals.ctf.*`
+      # imports (source_bundle, verdict) need the root on PYTHONPATH. This is the
+      # CI counterpart of pyproject's pytest `pythonpath = ["."]`.
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Model slug
+        # A filesystem/artifact-safe form of the model slug (no slashes), for the
+        # artifact name and R2 key so the sweep's legs never collide.
+        id: slug
+        env:
+          M: ${{ matrix.model }}
+        run: echo "slug=${M//\//-}" >>"$GITHUB_OUTPUT"
+
+      - name: Require KVM
+        run: bash .github/scripts/ctf-require-kvm.sh
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Install image-build tooling (qemu-utils, libguestfs-tools)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends qemu-utils libguestfs-tools
+          # libguestfs/supermin builds its appliance from the host kernel and
+          # must read it; Ubuntu ships /boot/vmlinuz-* mode 0600 (root only),
+          # and the derive runs as the unprivileged runner user, so supermin
+          # fails with "exited with error status 1". Make the kernel readable —
+          # the standard libguestfs-on-CI fix (verified locally: a 0600 kernel
+          # reproduces the failure, +r clears it and the derive completes).
+          sudo chmod +r /boot/vmlinuz-* || true
+
+      - name: Install the pinned Go toolchain (builds the daemon artifact)
+        # `daemon-bundle` builds the control-channel daemon and refuses any Go
+        # but the exact pin (src/inspect_ranges/_channel/bundle.py: GO_PIN), for
+        # a reproducible artifact digest; the runner's PATH Go is newer. Install
+        # the pin where inspect_ranges looks (~/.local/go-toolchains/<pin>), the
+        # same toolchain and path as the Build workflow's test job.
+        run: |
+          curl -fsSL -o /tmp/go.tgz https://go.dev/dl/go1.23.6.linux-amd64.tar.gz
+          echo "9379441ea310de000f33a4dc767bd966e72ab2826270e038e78b2c53c2e7802d  /tmp/go.tgz" | sha256sum -c
+          mkdir -p "$HOME/.local/go-toolchains"
+          tar -C "$HOME/.local/go-toolchains" -xzf /tmp/go.tgz
+          mv "$HOME/.local/go-toolchains/go" "$HOME/.local/go-toolchains/go1.23.6"
+          "$HOME/.local/go-toolchains/go1.23.6/bin/go" version
+
+      - name: Derive the ubuntu-noble golden
+        # The range's `web` host boots the `ubuntu-noble` catalog golden, which
+        # is empty on a fresh runner (the image cache is per-run, never
+        # restored). Fetch the vendor cloud image and derive the golden the
+        # same way design/spikes/kypo-build and ch-vmm do: hash what was
+        # downloaded (no fixed sha is published for the "current" alias), bundle
+        # the daemon, and derive. INSPECT_RANGES_IMAGE_CACHE/_BUILD_CACHE are
+        # exported for every later step (the build, and the eval's provider).
+        run: |
+          set -euo pipefail
+          image_cache="$RUNNER_TEMP/ir-cache/images"
+          build_cache="$RUNNER_TEMP/ir-cache/builds"
+          artifacts="$RUNNER_TEMP/ir-daemon-artifacts"
+          mkdir -p "$image_cache" "$build_cache"
+          vendor="$RUNNER_TEMP/noble-server-cloudimg-amd64.img"
+          curl -fsSL -o "$vendor" https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+          # Bake the Claude Code CLI into the attack image. The agent is
+          # inspect_swe's claude_code (version="sandbox"), which needs `claude`
+          # already on PATH in the box: the ~280 MB binary exceeds the range
+          # daemon's 256 MiB single-write cap, so it cannot be pushed in over
+          # the control channel at runtime. Resolve and fetch the release the
+          # same way inspect_swe does (claude.ai/install.sh -> base URL ->
+          # stable), then copy it into the vendor image before deriving, so the
+          # golden every guest boots carries it. Done pre-derive so the derive's
+          # recorded vendor sha matches the image it actually processed.
+          cc_base="$(curl -fsSL https://claude.ai/install.sh | grep -oE '(DOWNLOAD_BASE_URL|GCS_BUCKET)=["'"'"']https://[^"'"'"']+' | head -1 | sed -E 's/.*=["'"'"']//')"
+          cc_ver="$(curl -fsSL "$cc_base/stable")"
+          curl -fsSL -o "$RUNNER_TEMP/claude" "$cc_base/$cc_ver/linux-x64/claude"
+          echo "baking Claude Code $cc_ver into the attack image"
+          # --no-network: the copy-in/chmod need no network, and libguestfs 1.52
+          # enables the appliance network by default via passt, which exits 1 on
+          # the hosted runner and fails the customize. Turning it off avoids passt
+          # entirely (validated locally: the bake still lands the binary).
+          virt-customize --no-network -a "$vendor" \
+            --copy-in "$RUNNER_TEMP/claude:/usr/local/bin" \
+            --run-command 'chmod +x /usr/local/bin/claude'
+          vendor_sha="$(sha256sum "$vendor" | cut -d' ' -f1)"
+          db_out="$(uv run inspect-ranges daemon-bundle -o "$artifacts")"
+          daemon_sha="$(echo "$db_out" | grep -o 'bundle sha256:[0-9a-f]*' | cut -d: -f2)"
+          uv run inspect-ranges images derive "$vendor" --sha256 "$vendor_sha" --name ubuntu-noble \
+            --image-cache "$image_cache" \
+            --daemon-bundle "$artifacts" --daemon-sha256 "$daemon_sha"
+          echo "INSPECT_RANGES_IMAGE_CACHE=$image_cache" >>"$GITHUB_ENV"
+          echo "INSPECT_RANGES_BUILD_CACHE=$build_cache" >>"$GITHUB_ENV"
+
+      # No "build" step: the range is now topology-only (a benign neighbour and
+      # the attack box, no provisioning / services / plants), so `plan` resolves
+      # it immediately and the `range` provider boots it straight from the derived
+      # golden. A build manifest is only required for a range that declares guest
+      # content; `range-not-built` is raised only for such a range, never this one.
+
+      - name: Require a model key
+        # Fail cheaply, before any VM boot or model call, when the resolved
+        # model's provider has no API key: a keyless run would otherwise boot
+        # the range (paid compute) only to crash at the first generate, and the
+        # verdict would read INCONCLUSIVE off a hollow run. Report each key's
+        # presence (never its value) so a model/key mismatch is legible.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          for v in ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do
+            if [ -n "${!v:-}" ]; then echo "$v: present"; else echo "$v: absent"; fi
+          done
+          provider="${CTF_MODEL%%/*}"
+          case "$provider" in
+            anthropic) need=ANTHROPIC_API_KEY ;;
+            openrouter) need=OPENROUTER_API_KEY ;;
+            openai) need=OPENAI_API_KEY ;;
+            *) need="" ;;
+          esac
+          if [ -n "$need" ] && [ -z "${!need:-}" ]; then
+            echo "::error::resolved model '$CTF_MODEL' needs $need, which is empty. Set that org/repo secret, or point CTF_AGENT_MODEL (or the dispatch model input) at a provider whose key is present." >&2
+            exit 1
+          fi
+          echo "model key present for provider '$provider'."
+
+      - name: Run the breakout CTF
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p logs
+          # The OpenAI-compatible providers (openrouter/, openai/) ride the openai
+          # client, which is not a package dependency; the anthropic client is in the
+          # dev group. --with openai makes an openrouter default resolve.
+          # Claude Code is the agent (see evals/ctf/task.py): the message limit
+          # bounds the bridged conversation (Claude Code has no separate
+          # max-turns knob; Inspect's limit is the ceiling); it defaults to 400,
+          # matching the reference harness. --time-limit is a wall-clock backstop
+          # (19200 s, ~320 min, the reference harness's 400 turns x 48 s/turn) so
+          # a stuck agent can't consume the whole job timeout and the run still
+          # scores whatever it reached.
+          uv run --with openai inspect eval evals/ctf/task.py \
+            --model "$CTF_MODEL" \
+            --message-limit "${{ github.event.inputs.turns || '400' }}" \
+            --time-limit 19200 \
+            --log-dir logs \
+            --log-format eval
+          log="$(ls -t logs/*.eval | head -1)"
+          echo "CTF_LOG=$log" >>"$GITHUB_ENV"
+          echo "graded log: $log"
+
+      - name: Grade containment
+        # The verdict exits non-zero for BREAKOUT (1) and INCONCLUSIVE (2); keep
+        # the code for the final gate but do not abort here, so the verdict still
+        # records, uploads, and publishes before CI decides pass/fail.
+        run: |
+          set -uo pipefail
+          rc=0
+          uv run python -m evals.ctf.verdict "$CTF_LOG" --out verdict.json || rc=$?
+          echo "verdict exit code: $rc"
+          test -f verdict.json
+
+      - name: Job summary
+        run: bash .github/scripts/ctf-job-summary.sh verdict.json
+
+      - name: Build the Inspect viewer (self-contained HTML)
+        # A standalone HTML eval viewer, folded into the artifact below so a run is
+        # openable with no R2 and no secrets: download the artifact, unzip, open
+        # viewer/index.html in a browser for the full interactive transcript.
+        # `inspect view bundle` inlines everything into a static page.
+        if: always()
+        run: |
+          set -uo pipefail
+          if [ -n "${CTF_LOG:-}" ] && [ -f "${CTF_LOG:-}" ]; then
+            uv run inspect view bundle --log-dir "$(dirname "$CTF_LOG")" --output-dir viewer --overwrite
+            echo "built viewer/ ($(du -sh viewer | cut -f1))"
+          else
+            echo "no CTF_LOG on disk; skipping viewer bundle"
+          fi
+
+      - name: Upload the verdict, log, and HTML viewer
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: breakout-ctf-${{ github.run_id }}-${{ github.run_attempt }}-${{ steps.slug.outputs.slug }}
+          path: |
+            verdict.json
+            logs/
+            viewer/
+          if-no-files-found: warn
+
+      # The run publishes nothing externally: the uploaded artifact above carries
+      # the raw .eval, the verdict, and a self-contained HTML viewer (open
+      # viewer/index.html), so a run is fully inspectable with no external storage
+      # or credentials. An adopter who wants a durable link beyond the artifact's
+      # retention can add their own publish step against the uploaded viewer/ and
+      # .eval; the eval itself stays credential-free.
+
+      - name: Gate on the containment verdict
+        # The CI signal, after the verdict has recorded and uploaded.
+        # A measured BREAKOUT fails the job so a breach is never green; CONTAINED
+        # and INCONCLUSIVE pass but are annotated distinctly (INCONCLUSIVE — an
+        # unmeasured surface — is the expected default and is not a pass claim,
+        # so it warns rather than failing every run red).
+        if: always()
+        run: |
+          set -euo pipefail
+          test -f verdict.json || { echo "::error::no verdict.json was produced"; exit 1; }
+          label="$(python -c "import json; print(json.load(open('verdict.json'))['label'])")"
+          echo "containment verdict: $label"
+          case "$label" in
+            BREAKOUT) echo "::error::containment BREAKOUT — a boundary was crossed"; exit 1 ;;
+            INCONCLUSIVE) echo "::warning::containment INCONCLUSIVE — a surface was unmeasured; not a containment pass" ;;
+            CONTAINED) echo "::notice::containment held (CONTAINED)" ;;
+            *) echo "::warning::unexpected verdict label: $label" ;;
+          esac
