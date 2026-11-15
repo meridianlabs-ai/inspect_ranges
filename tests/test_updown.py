@@ -902,6 +902,150 @@ def test_readiness_failure_logs_the_swallowed_cause(
     assert fails and any("exited 2" in str(e.get("cause", "")) for e in fails)
 
 
+# -- readiness reset-and-reawait --------------------------------------------------
+
+
+class PerGuestChannel(FakeChannel):
+    """FakeChannel whose exec rc is scriptable per guest (one unready guest among ready peers)."""
+
+    def __init__(self, rc_by_guest: dict[str, int], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.rc_by_guest = rc_by_guest
+
+    async def exec(self, guest: str, request: Any, **kwargs: Any) -> FakeOutcome:
+        self.exec_requests.append(request)
+        return FakeOutcome(self.rc_by_guest.get(guest, self.exec_rc))
+
+
+class ResetCuringDocker(FakeDocker):
+    """The reset-and-reawait premise, scripted: the guest answers only after its hard reset."""
+
+    def __init__(self, channel: PerGuestChannel, cures: str = "web") -> None:
+        super().__init__()
+        self.channel = channel
+        self.cures = cures
+
+    def resets(self) -> list[list[str]]:
+        return [c for c in self.calls if "virsh" in c and "reset" in c]
+
+    def __call__(
+        self,
+        argv: list[str],
+        env: dict[str, str] | None = None,
+        input: str | None = None,
+        timeout: float | None = None,
+    ) -> "subprocess.CompletedProcess[str]":
+        if "virsh" in argv and "reset" in argv and argv[-1] == self.cures:
+            self.channel.rc_by_guest[self.cures] = 0
+        return super().__call__(argv, env, input, timeout)
+
+
+def test_readiness_reset_recovers_a_wedged_guest(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A guest that answers only after a hard reset boots the range: reset issued through the range container, fresh window awaited, final verdict ok."""
+    channel = PerGuestChannel({"web": 1})
+    use_channel(monkeypatch, channel)
+    docker = ResetCuringDocker(channel)
+    result = up(bundle, options(cache, tmp_path, readiness_resets=1), runner=docker)
+    assert all(guest.ready for guest in result.guests)
+    resets = docker.resets()
+    assert len(resets) == 1
+    assert resets[0][-6:] == ["range", "virsh", "-c", "qemu:///system", "reset", "web"]
+    events = StageLog(tmp_path / "state", result.project).events()
+    rows = [e for e in events if e["stage"] == "readiness" and e.get("guest") == "web"]
+    statuses = [e["status"] for e in rows]
+    assert statuses == ["start", "warn", "warn", "ok"], statuses
+    assert rows[2]["action"] == "reset"
+    assert not any(e["status"] == "fail" for e in rows)
+
+
+def test_readiness_reset_exhaustion_fails_with_one_terminal_row(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A guest no reset cures still fails the boot: every granted reset is spent, and exactly one terminal fail row survives for the stage translator."""
+    use_channel(monkeypatch, PerGuestChannel({"web": 1}))
+    docker = FakeDocker()
+    docker.ps_sequence = ["", "c1\n"]
+    with pytest.raises(UpError, match=r"\[readiness\] guest 'web'"):
+        up(bundle, options(cache, tmp_path, readiness_resets=2), runner=docker)
+    resets = [c for c in docker.calls if "virsh" in c and "reset" in c]
+    assert len(resets) == 2
+    state_root = tmp_path / "state"
+    project = next(entry.name for entry in state_root.iterdir())
+    events = StageLog(state_root, project).events()
+    # the overall raise writes its own readiness/fail row (error=...); the
+    # per-guest verdict must appear exactly once
+    fails = [
+        e
+        for e in events
+        if e["stage"] == "readiness" and e["status"] == "fail" and "error" not in e
+    ]
+    assert [e.get("guest") for e in fails] == ["web"]
+
+
+def test_readiness_resets_default_zero_never_resets(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default keeps today's single-attempt behavior: no reset verb, no warn rows."""
+    use_channel(monkeypatch, FakeChannel(ping_ok=False))
+    docker = FakeDocker()
+    docker.ps_sequence = ["", "c1\n"]
+    with pytest.raises(UpError, match=r"\[readiness\]"):
+        up(bundle, options(cache, tmp_path), runner=docker)
+    assert not [c for c in docker.calls if "virsh" in c and "reset" in c]
+    state_root = tmp_path / "state"
+    project = next(entry.name for entry in state_root.iterdir())
+    events = StageLog(state_root, project).events()
+    assert not [
+        e for e in events if e["stage"] == "readiness" and e["status"] == "warn"
+    ]
+
+
+def test_readiness_reset_skips_cloud_hypervisor_guests(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The reset verb is local virsh: the cloud-hypervisor attacker is never reset, and its miss stays a terminal fail."""
+    use_channel(monkeypatch, PerGuestChannel({"attacker": 1}))
+    docker = FakeDocker()
+    docker.ps_sequence = ["", "c1\n"]
+    with pytest.raises(UpError, match=r"\[readiness\] guest 'attacker'"):
+        up(bundle, options(cache, tmp_path, readiness_resets=1), runner=docker)
+    assert not [c for c in docker.calls if "virsh" in c and "reset" in c]
+
+
+def test_readiness_reset_verb_failure_is_the_terminal_cause(
+    bundle: Path, cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reset the range container cannot deliver ends the attempts: the boot fails and the fail row carries the virsh verdict."""
+
+    class ResetRefusingDocker(FakeDocker):
+        def __call__(
+            self,
+            argv: list[str],
+            env: dict[str, str] | None = None,
+            input: str | None = None,
+            timeout: float | None = None,
+        ) -> "subprocess.CompletedProcess[str]":
+            if "virsh" in argv and "reset" in argv:
+                self.calls.append(argv)
+                self.timeouts.append(timeout)
+                return subprocess.CompletedProcess(argv, 1, "", "libvirt melted")
+            return super().__call__(argv, env, input, timeout)
+
+    use_channel(monkeypatch, PerGuestChannel({"web": 1}))
+    docker = ResetRefusingDocker()
+    docker.ps_sequence = ["", "c1\n"]
+    with pytest.raises(UpError, match=r"\[readiness\] guest 'web'"):
+        up(bundle, options(cache, tmp_path, readiness_resets=2), runner=docker)
+    assert len([c for c in docker.calls if "virsh" in c and "reset" in c]) == 1
+    state_root = tmp_path / "state"
+    project = next(entry.name for entry in state_root.iterdir())
+    events = StageLog(state_root, project).events()
+    fails = [e for e in events if e["stage"] == "readiness" and e["status"] == "fail"]
+    assert fails and "virsh reset exited 1" in str(fails[0].get("cause", ""))
+
+
 # -- range-host-v1 slice 1: bundle digest + on_stage mirroring -------------------
 
 

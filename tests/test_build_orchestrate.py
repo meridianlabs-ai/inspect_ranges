@@ -3115,7 +3115,12 @@ def test_behavioral_phase_adapter_forwards_the_seam_scalars(
 
     monkeypatch.setattr(orchestrate_module, "run_proof_boot", fake_seam)
     options = options_for(
-        tmp_path, cache, cid_base=7, readiness_timeout=42.0, uplink_network="uplink0"
+        tmp_path,
+        cache,
+        cid_base=7,
+        readiness_timeout=42.0,
+        readiness_resets=2,
+        uplink_network="uplink0",
     )
     _run_behavioral_phase(
         cast(Any, object()),
@@ -3132,6 +3137,7 @@ def test_behavioral_phase_adapter_forwards_the_seam_scalars(
     )
     assert seen["cid_base"] == 7
     assert seen["readiness_timeout"] == 42.0
+    assert seen["readiness_resets"] == 2
     assert seen["uplink_network"] == "uplink0"
     assert "keep_on_failure" not in seen and "assertion_sink" not in seen
 

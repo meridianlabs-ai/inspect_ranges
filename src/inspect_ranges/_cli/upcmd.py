@@ -58,6 +58,13 @@ from .specpath import resolve_spec_path
     help="Per-guest readiness deadline in seconds (daemon answer, then cloud-init).",
 )
 @click.option(
+    "--readiness-resets",
+    type=click.IntRange(min=0, max=3),
+    default=0,
+    show_default=True,
+    help="Hard resets granted to an unready QEMU guest before the boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures).",
+)
+@click.option(
     "--keep",
     is_flag=True,
     help="Keep a failed range running for inspection instead of tearing it down.",
@@ -74,6 +81,7 @@ def up(
     image_cache: Path | None,
     cid_base: int | None,
     readiness_timeout: float,
+    readiness_resets: int,
     keep: bool,
     uplink_network: str | None,
 ) -> None:
@@ -93,6 +101,7 @@ def up(
         project=project,
         image_cache=image_cache,
         readiness_timeout=readiness_timeout,
+        readiness_resets=readiness_resets,
         keep_on_failure=keep,
         uplink_network=uplink_network,
         attack_box=attack_box,

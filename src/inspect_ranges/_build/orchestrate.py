@@ -364,6 +364,9 @@ class BuildOptions(BaseModel):
     readiness_timeout: float = 300.0
     """Per-`up` readiness budget."""
 
+    readiness_resets: int = 0
+    """Hard resets granted to an unready QEMU guest before a boot fails (`UpOptions.readiness_resets`), applied to the build boot and the proof boot alike."""
+
     recipe_budget_s: float = DEFAULT_RECIPE_BUDGET_S
     """Whole-entrypoint budget per provisioning step."""
 
@@ -1126,6 +1129,7 @@ def build_range(
                     image_cache=image_cache,
                     state_dir=state_dir,
                     readiness_timeout=options.readiness_timeout,
+                    readiness_resets=options.readiness_resets,
                     keep_on_failure=options.keep,
                     uplink_network=options.uplink_network,
                     # a kept range is deliberately detached: refused, never
@@ -1740,6 +1744,7 @@ def _run_behavioral_phase(
         down_fn=down_fn,
         cid_base=_resolved_cid_base(options),
         readiness_timeout=options.readiness_timeout,
+        readiness_resets=options.readiness_resets,
         uplink_network=options.uplink_network,
     )
 
@@ -1757,6 +1762,7 @@ def run_proof_boot(
     down_fn: DownFn,
     cid_base: int,
     readiness_timeout: float,
+    readiness_resets: int = 0,
     uplink_network: str | None,
     keep_on_failure: bool = False,
     assertion_sink: "list[GoalAssertion] | None" = None,
@@ -1817,6 +1823,7 @@ def run_proof_boot(
                 image_cache=image_cache,
                 state_dir=state_dir,
                 readiness_timeout=readiness_timeout,
+                readiness_resets=readiness_resets,
                 keep_on_failure=keep_on_failure,
                 # a kept failed proof boot is deliberately detached: refused,
                 # never reclaimed

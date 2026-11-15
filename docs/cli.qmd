@@ -25,6 +25,8 @@ Moving builds and images between machines (`push`, `pull`, `mirror`, `publish`) 
 
 `up --from-spec range.yaml` composes render into a temporary bundle first. `--uplink-network` supplies the deployment uplink for ranges that request egress. A second `up` of an identical bundle refuses, naming the running project and the exact `down` command.
 
+`--readiness-resets` grants each unready QEMU guest that many hard resets (`virsh reset`) before the boot fails, each followed by a fresh readiness window of the guest's own size — for the boot lotteries a reboot cures (a wedged early boot, a missed cloud-init seed). The default is 0: one attempt, today's behavior. Cloud-hypervisor guests and an external attack box are not reset.
+
 On failure, the error names the stage and guest, the affected guests' serial console logs are pulled into the project state directory (`~/.local/state/inspect-ranges/projects/<project>/`, next to the JSONL stage log), and the project tears down unless `--keep` is passed.
 
 ## `down`
