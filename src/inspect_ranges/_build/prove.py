@@ -42,6 +42,7 @@ def run_prove(
     state_dir: Path | None = None,
     uplink_network: str | None = None,
     readiness_timeout: float = 300.0,
+    readiness_resets: int = 0,
     keep: bool = False,
     on_stage: OnStage | None = None,
 ) -> ProvenRecord:
@@ -123,6 +124,7 @@ def run_prove(
             down_fn=down,
             cid_base=lease.base,
             readiness_timeout=readiness_timeout,
+            readiness_resets=readiness_resets,
             uplink_network=uplink_network,
             keep_on_failure=keep,
             assertion_sink=assertions,

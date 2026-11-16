@@ -243,6 +243,33 @@ def test_readiness_timeout_env_reaches_up_options(
             _readiness_timeout_or_up_error()
 
 
+def test_readiness_resets_env_reaches_up_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INSPECT_RANGES_READINESS_RESETS is deployment knowledge like the readiness window: set, each unready QEMU guest earns that many hard resets inside one boot (the intra-boot sibling of the whole-boot respin); unset keeps the UpOptions default (no resets) so existing deployments are untouched; malformed refuses as the typed stage failure every other boot refusal uses."""
+    from inspect_ranges._provider.provider import _readiness_resets_or_up_error
+
+    async def scenario() -> None:
+        with sandbox_lifecycle_scope():
+            _, seams = rigged_runtime(tmp_path)
+            monkeypatch.setenv("INSPECT_RANGES_READINESS_RESETS", "2")
+            envs = await Env.sample_init("task", small_spec(), {"__sample_id__": "s1"})
+            assert seams.up_calls[0].readiness_resets == 2
+            await Env.sample_cleanup("task", None, envs, interrupted=False)
+
+    asyncio.run(scenario())
+
+    monkeypatch.delenv("INSPECT_RANGES_READINESS_RESETS", raising=False)
+    assert (
+        _readiness_resets_or_up_error()
+        == UpOptions.model_fields["readiness_resets"].default
+    ), "unset keeps the UpOptions default"
+    for malformed in ("many", "", "-1", "4", "1.5"):
+        monkeypatch.setenv("INSPECT_RANGES_READINESS_RESETS", malformed)
+        with pytest.raises(UpError, match="INSPECT_RANGES_READINESS_RESETS"):
+            _readiness_resets_or_up_error()
+
+
 def test_sample_draws_flow_to_render_and_the_handle(tmp_path: Path) -> None:
     """A `draw: boot` variable draws once per sample before render: the rendered options carry the values the handle (and so scoring) reads, the draw respects the declared bounds and excludes the default, and the recorded seed re-derives the values (variable-draws-v0). A spec without draw variables leaves both empty."""
 

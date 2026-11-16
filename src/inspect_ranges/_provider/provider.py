@@ -124,6 +124,29 @@ def _readiness_timeout_or_up_error() -> float:
     return value
 
 
+def _readiness_resets_or_up_error() -> int:
+    """The deployment's per-guest reset allowance, with a malformed value folded to the typed stage failure every other boot refusal uses.
+
+    The intra-boot sibling of `INSPECT_RANGES_RETRY_UP_ATTEMPTS`: where that respins the whole boot with fresh identity on a transient failure, this grants each unready QEMU guest `UpOptions.readiness_resets` hard resets inside one boot. Unset keeps the default (no resets), so existing deployments are untouched.
+    """
+    raw = os.environ.get("INSPECT_RANGES_READINESS_RESETS")
+    if raw is None:
+        return int(UpOptions.model_fields["readiness_resets"].default)
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise UpError(
+            "boot",
+            f"INSPECT_RANGES_READINESS_RESETS is not a count: {raw!r}",
+        ) from error
+    if value < 0 or value > 3:
+        raise UpError(
+            "boot",
+            f"INSPECT_RANGES_READINESS_RESETS must be between 0 and 3: {raw!r}",
+        )
+    return value
+
+
 async def _prepare_attack_box(runtime: ProviderRuntime, spec: RangeSpec) -> None:
     """Eval init's slow work for a pinned provider program: fetch the pinned release and probe the host, once per run.
 
@@ -495,6 +518,7 @@ class RangeSandboxEnvironment(SandboxEnvironment):
                                 # images can need a longer per-guest readiness
                                 # window; unset keeps the UpOptions default
                                 readiness_timeout=_readiness_timeout_or_up_error(),
+                                readiness_resets=_readiness_resets_or_up_error(),
                             ),
                             on_stage,
                         )

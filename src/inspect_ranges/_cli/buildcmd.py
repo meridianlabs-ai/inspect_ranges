@@ -104,6 +104,13 @@ def _echo_stage(stage: str, status: str, fields: dict[str, Any]) -> None:
     help="Per-guest readiness deadline in seconds (daemon answer, then cloud-init).",
 )
 @click.option(
+    "--readiness-resets",
+    type=click.IntRange(min=0, max=3),
+    default=0,
+    show_default=True,
+    help="Hard resets granted to an unready QEMU guest before a boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures).",
+)
+@click.option(
     "--settle-probe",
     default=None,
     show_default="archive.ubuntu.com",
@@ -138,6 +145,7 @@ def build(
     build_cache: Path | None,
     reverify: bool,
     readiness_timeout: float,
+    readiness_resets: int,
     settle_probe: str | None,
     settle_timeout_s: float | None,
     recipe_budget_s: float,
@@ -158,6 +166,7 @@ def build(
         build_cache=build_cache,
         reverify=reverify,
         readiness_timeout=readiness_timeout,
+        readiness_resets=readiness_resets,
         recipe_budget_s=recipe_budget_s,
     )
     if settle_probe is not None:

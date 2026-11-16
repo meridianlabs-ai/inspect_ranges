@@ -113,6 +113,8 @@ class UpOptions(BaseModel):
     state_dir: Path = Field(default_factory=default_state_dir)
     readiness_timeout: float = 300.0
     readiness_min_window: float = 10.0
+    readiness_resets: int = Field(default=0, ge=0, le=3)
+    """Hard resets granted to an unready guest before the boot fails. A guest that misses its readiness window is reset (`virsh reset`) and awaited again on a fresh window of its own size, up to this many times — the per-guest sibling of the provider's whole-boot respin, for the boot lotteries a reboot cures (a wedged early boot, a missed cloud-init seed). QEMU guests only; the default keeps today's single-attempt behavior."""
     keep_on_failure: bool = False
     uplink_network: str | None = None
     reclaimable: bool = False
@@ -1237,6 +1239,45 @@ def up(
         channel = make_channel({g.name: g.cid for g in guests}, ch_sockets)
         deadline = time.monotonic() + options.readiness_timeout
         collected: list[GuestState] = []
+
+        async def _probe_guest(
+            guest: BootGuest, guest_deadline: float
+        ) -> tuple[bool, str | None]:
+            # an external box's bar here is daemon liveness only (ping over its
+            # exec surface); the conformance battery holds the deeper bar
+            readiness = (
+                "daemon"
+                if external is not None and guest.name == external.name
+                else guest.readiness
+            )
+            if readiness == "process":
+                # the opaque tier's weakest honest contract: the VM process
+                # started (guest-boot already failed otherwise); no probe
+                return True, None
+            if readiness == "tcp":
+                return await asyncio.to_thread(
+                    _await_tcp_ready, run, project, bundle, env, guest, guest_deadline
+                )
+            return await _await_ready(
+                channel,
+                guest.name,
+                readiness,
+                guest_deadline,
+                min_window=options.readiness_min_window,
+                # the foothold must start unprivileged: refuse a dedicated
+                # attack box whose daemon would run the agent as root
+                require_agent_identity=guest.kind == "attacker",
+            )
+
+        def _resettable(guest: BootGuest) -> bool:
+            # the reset verb is local virsh: QEMU guests only, and never the
+            # external attack box (its VM lives behind the backend provider)
+            return (
+                options.readiness_resets > 0
+                and guest.vmm == "qemu"
+                and (external is None or guest.name != external.name)
+            )
+
         for guest in guests:
             log.log("readiness", "start", guest=guest.name, cid=guest.cid)
             # a hung guest must not consume later guests' diagnostics: every
@@ -1251,32 +1292,7 @@ def up(
                 guest_deadline = max(
                     guest_deadline, time.monotonic() + guest.readiness_timeout
                 )
-            # an external box's bar here is daemon liveness only (ping over its
-            # exec surface); the conformance battery holds the deeper bar
-            readiness = (
-                "daemon"
-                if external is not None and guest.name == external.name
-                else guest.readiness
-            )
-            if readiness == "process":
-                # the opaque tier's weakest honest contract: the VM process
-                # started (guest-boot already failed otherwise); no probe
-                ready, cause = True, None
-            elif readiness == "tcp":
-                ready, cause = await asyncio.to_thread(
-                    _await_tcp_ready, run, project, bundle, env, guest, guest_deadline
-                )
-            else:
-                ready, cause = await _await_ready(
-                    channel,
-                    guest.name,
-                    readiness,
-                    guest_deadline,
-                    min_window=options.readiness_min_window,
-                    # the foothold must start unprivileged: refuse a dedicated
-                    # attack box whose daemon would run the agent as root
-                    require_agent_identity=guest.kind == "attacker",
-                )
+            ready, cause = await _probe_guest(guest, guest_deadline)
             collected.append(
                 GuestState(
                     name=guest.name,
@@ -1285,6 +1301,83 @@ def up(
                     hybrid_vsock=ch_sockets.get(guest.name),
                 )
             )
+            # an unready guest that still holds a reset is not terminal yet:
+            # `fail` latches the separated topology's stage translator, so the
+            # recoverable miss rides a `warn` and the verdict follows the pass
+            # below
+            if ready or not _resettable(guest):
+                log.log(
+                    "readiness",
+                    "ok" if ready else "fail",
+                    guest=guest.name,
+                    **({"cause": cause} if cause else {}),
+                )
+            else:
+                log.log(
+                    "readiness",
+                    "warn",
+                    guest=guest.name,
+                    warning=f"{guest.name} unready; reset pending",
+                    **({"cause": cause} if cause else {}),
+                )
+
+        # reset-and-reawait pass: the boot lotteries a reboot cures (a wedged
+        # early boot, a missed cloud-init seed) get `readiness_resets` hard
+        # resets each, awaited on a fresh window of the guest's own size
+        unready = {state.name for state in collected if not state.ready}
+        for index, guest in enumerate(guests):
+            if guest.name not in unready or not _resettable(guest):
+                continue
+            ready, cause = False, None
+            for attempt in range(1, options.readiness_resets + 1):
+                outcome = await asyncio.to_thread(
+                    run,
+                    _compose_argv(
+                        project,
+                        bundle,
+                        "exec",
+                        "-T",
+                        "range",
+                        "virsh",
+                        "-c",
+                        "qemu:///system",
+                        "reset",
+                        guest.name,
+                    ),
+                    env=env,
+                    timeout=60.0,
+                )
+                if outcome.returncode != 0:
+                    cause = (
+                        f"virsh reset exited {outcome.returncode}: "
+                        f"{outcome.stderr.strip()[:200]}"
+                    )
+                    break
+                log.log(
+                    "readiness",
+                    "warn",
+                    guest=guest.name,
+                    action="reset",
+                    attempt=attempt,
+                    warning=f"reset {guest.name} (attempt {attempt})",
+                )
+                window = max(
+                    options.readiness_timeout, float(guest.readiness_timeout or 0.0)
+                )
+                ready, cause = await _probe_guest(guest, time.monotonic() + window)
+                if ready:
+                    collected[index] = collected[index].model_copy(
+                        update={"ready": True}
+                    )
+                    break
+                if attempt < options.readiness_resets:
+                    log.log(
+                        "readiness",
+                        "warn",
+                        guest=guest.name,
+                        warning=f"{guest.name} still unready; reset pending",
+                        **({"cause": cause} if cause else {}),
+                    )
             log.log(
                 "readiness",
                 "ok" if ready else "fail",

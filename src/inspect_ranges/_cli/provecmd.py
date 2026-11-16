@@ -35,6 +35,20 @@ from .specpath import resolve_spec_path
     help="Deployment-supplied uplink network, for ranges that request egress.",
 )
 @click.option(
+    "--readiness-timeout",
+    type=float,
+    default=300.0,
+    show_default=True,
+    help="Per-guest readiness deadline in seconds for the proof boot.",
+)
+@click.option(
+    "--readiness-resets",
+    type=click.IntRange(min=0, max=3),
+    default=0,
+    show_default=True,
+    help="Hard resets granted to an unready QEMU guest before the proof boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures).",
+)
+@click.option(
     "--keep",
     is_flag=True,
     help="Keep a FAILED proof boot running for diagnosis (named in the error); successful proofs always tear down.",
@@ -44,6 +58,8 @@ def prove(
     image_cache: Path | None,
     build_cache: Path | None,
     uplink_network: str | None,
+    readiness_timeout: float,
+    readiness_resets: int,
     keep: bool,
 ) -> None:
     """Prove PATH's scoring post hoc (default `.`): boot the recorded build once and run every declared conformance proof against it, exactly as the build's own proof phase does.
@@ -57,6 +73,8 @@ def prove(
             image_cache=image_cache,
             build_cache=build_cache,
             uplink_network=uplink_network,
+            readiness_timeout=readiness_timeout,
+            readiness_resets=readiness_resets,
             keep=keep,
             on_stage=_echo_stage,
         )
