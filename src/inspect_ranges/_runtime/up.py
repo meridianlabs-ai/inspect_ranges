@@ -1397,10 +1397,21 @@ def up(
             for guest in guests
         }
         failed_detail = ", ".join(f"{name} ({windows[name]:.0f}s)" for name in failed)
+        # the remedy travels with the refusal: nobody discovers the reset
+        # allowance from a bare timeout, and the boot lotteries it cures (a
+        # wedged early boot, a missed cloud-init seed) look exactly like this
+        remedy = (
+            "an unready QEMU guest can earn hard resets: --readiness-resets, "
+            "or INSPECT_RANGES_READINESS_RESETS for sample boots"
+            if options.readiness_resets == 0
+            else f"each earned {options.readiness_resets} reset(s); "
+            "the consoles say how far the boots got"
+        )
         raise fail(
             "readiness",
             f"guests not ready within their windows: {failed_detail} "
-            f"(console logs under {project_dir(options.state_dir, project) / 'consoles'})",
+            f"(console logs under {project_dir(options.state_dir, project) / 'consoles'}; "
+            f"{remedy})",
             guest=failed[0],
             consoles=[
                 name for name in failed if external is None or name != external.name

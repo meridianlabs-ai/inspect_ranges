@@ -354,7 +354,11 @@ def test_up_readiness_failure_names_guest_and_tears_down(
         "",
         "c1\n",
     ]  # empty at duplicate check, one container at teardown
-    with pytest.raises(UpError, match=r"\[readiness\] guest 'web'.*not ready"):
+    # the remedy travels with the refusal: a bare timeout names the reset
+    # allowance nobody would otherwise discover
+    with pytest.raises(
+        UpError, match=r"\[readiness\] guest 'web'.*not ready.*--readiness-resets"
+    ):
         up(bundle, options(cache, tmp_path), runner=docker)
     assert docker.commands("docker", "rm", "-f"), "failure must tear the project down"
     # console pull attempted for the failed guest
@@ -967,7 +971,8 @@ def test_readiness_reset_exhaustion_fails_with_one_terminal_row(
     use_channel(monkeypatch, PerGuestChannel({"web": 1}))
     docker = FakeDocker()
     docker.ps_sequence = ["", "c1\n"]
-    with pytest.raises(UpError, match=r"\[readiness\] guest 'web'"):
+    # spent resets are reported instead of re-advertising the flag
+    with pytest.raises(UpError, match=r"\[readiness\] guest 'web'.*earned 2 reset"):
         up(bundle, options(cache, tmp_path, readiness_resets=2), runner=docker)
     resets = [c for c in docker.calls if "virsh" in c and "reset" in c]
     assert len(resets) == 2
