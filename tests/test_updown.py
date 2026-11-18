@@ -44,6 +44,7 @@ from inspect_ranges._runtime.up import (
 )
 from inspect_ranges.types import (
     Attacker,
+    BootBudget,
     Host,
     Interface,
     Network,
@@ -354,10 +355,11 @@ def test_up_readiness_failure_names_guest_and_tears_down(
         "",
         "c1\n",
     ]  # empty at duplicate check, one container at teardown
-    # the remedy travels with the refusal: a bare timeout names the reset
-    # allowance nobody would otherwise discover
+    # the remedy travels with the refusal, spec-first: a bare timeout names
+    # the boot-budget declaration and the deployment overrides
     with pytest.raises(
-        UpError, match=r"\[readiness\] guest 'web'.*not ready.*--readiness-resets"
+        UpError,
+        match=r"\[readiness\] guest 'web'.*not ready.*boot: \{ readiness_timeout: 900, resets: 2 \}.*--readiness-resets",
     ):
         up(bundle, options(cache, tmp_path), runner=docker)
     assert docker.commands("docker", "rm", "-f"), "failure must tear the project down"
@@ -971,8 +973,10 @@ def test_readiness_reset_exhaustion_fails_with_one_terminal_row(
     use_channel(monkeypatch, PerGuestChannel({"web": 1}))
     docker = FakeDocker()
     docker.ps_sequence = ["", "c1\n"]
-    # spent resets are reported instead of re-advertising the flag
-    with pytest.raises(UpError, match=r"\[readiness\] guest 'web'.*earned 2 reset"):
+    # spent resets are reported instead of re-advertising the remedy
+    with pytest.raises(
+        UpError, match=r"\[readiness\] guest 'web'.*spent its reset allowance \(up to 2\)"
+    ):
         up(bundle, options(cache, tmp_path, readiness_resets=2), runner=docker)
     resets = [c for c in docker.calls if "virsh" in c and "reset" in c]
     assert len(resets) == 2
@@ -987,6 +991,29 @@ def test_readiness_reset_exhaustion_fails_with_one_terminal_row(
         if e["stage"] == "readiness" and e["status"] == "fail" and "error" not in e
     ]
     assert [e.get("guest") for e in fails] == ["web"]
+
+
+def test_spec_declared_boot_budget_reaches_the_reset_pass(
+    cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A guest whose spec declares boot: {resets} earns its resets with the
+    deployment knob untouched (the spec carries the image's needs).
+    """
+    spec = tiny_spec()
+    spec.hosts[0].boot = BootBudget(readiness_timeout=35, resets=1)
+    out = tmp_path / "budget-bundle"
+    render_bundle(spec, out, PlanOptions(image_cache=cache, cid_base=3200))
+    import json as json_module
+
+    boot = json_module.loads((out / "boot.json").read_text())
+    web = next(g for g in boot["guests"] if g["name"] == "web")
+    assert web["readiness_timeout"] == 35 and web["readiness_resets"] == 1
+    channel = PerGuestChannel({"web": 1})
+    use_channel(monkeypatch, channel)
+    docker = ResetCuringDocker(channel)
+    result = up(out, options(cache, tmp_path), runner=docker)
+    assert all(guest.ready for guest in result.guests)
+    assert len(docker.resets()) == 1
 
 
 def test_readiness_resets_default_zero_never_resets(

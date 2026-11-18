@@ -239,6 +239,26 @@ def test_boot_script_starts_cloud_hypervisor_unprivileged(
     assert script.index("setpriv") < script.index("chmod 0666 /run/ch-vsock/web.sock")
 
 
+def test_boot_resets_refuse_on_cloud_hypervisor(cache: Path) -> None:
+    # resets are a virsh verb; a CH guest has no libvirt domain to reset. The
+    # declared-CH host and the default-CH attack box both refuse, and the
+    # budget's window (no resets) stays legal on CH.
+    from inspect_ranges.types import BootBudget
+
+    spec = ch_spec("web")
+    spec.hosts[0].boot = BootBudget(resets=1)
+    spec.attacker.boot = BootBudget(resets=1)
+    with pytest.raises(IssueError) as refused:
+        resolve_plan(spec, PlanOptions(image_cache=cache))
+    assert [(issue.code, issue.path) for issue in refused.value.issues] == [
+        ("boot-resets-requires-qemu", ("attacker", "boot", "resets")),
+        ("boot-resets-requires-qemu", ("hosts", 0, "boot", "resets")),
+    ]
+    window_only = ch_spec("web")
+    window_only.hosts[0].boot = BootBudget(readiness_timeout=600)
+    resolve_plan(window_only, PlanOptions(image_cache=cache))
+
+
 def test_cloud_hypervisor_guests_refuse_a_pinned_cpu_model(cache: Path) -> None:
     # CH has no CPU model setting: a pinned model would silently not apply. The
     # declared-CH host and the default-CH attacker box both refuse.

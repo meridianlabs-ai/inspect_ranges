@@ -662,6 +662,8 @@ def _boot_guest(
         entry["readiness_ip"] = str(guest.interfaces[0].ip)
     if guest.readiness_timeout is not None:
         entry["readiness_timeout"] = guest.readiness_timeout
+    if guest.readiness_resets is not None:
+        entry["readiness_resets"] = guest.readiness_resets
     if guest.tpm:
         entry["tpm"] = True
     if guest.extra_disks:

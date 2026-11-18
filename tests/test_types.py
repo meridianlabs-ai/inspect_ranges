@@ -173,6 +173,28 @@ def test_range_spec_hash_tracks_content() -> None:
     assert hash(a) != hash(b)
 
 
+def test_boot_budget_shapes() -> None:
+    """A declared boot budget validates on managed guests and the attack box; an opaque guest refuses it (the sealed tier's budget rides its readiness declaration); the field bounds hold."""
+    from inspect_ranges.types import BootBudget
+
+    spec = dmz_pivot()
+    spec.hosts[0].boot = BootBudget(readiness_timeout=900, resets=2)
+    spec.attacker.vmm = "qemu"
+    spec.attacker.boot = BootBudget(resets=1)
+    revalidate_range(spec)
+
+    sealed = dmz_pivot()
+    sealed.hosts[1].opaque = True
+    sealed.hosts[1].interfaces[0].ip = IPv4Address("10.80.20.9")
+    sealed.hosts[1].boot = BootBudget(readiness_timeout=120)
+    _refuses(sealed, "rides its readiness declaration")
+
+    with pytest.raises(ValidationError):
+        BootBudget(readiness_timeout=10)  # below the 30 s floor
+    with pytest.raises(ValidationError):
+        BootBudget(resets=4)  # above the allowance ceiling
+
+
 def _refuses(spec: RangeSpec, match: str) -> None:
     with pytest.raises(ValidationError, match=match):
         revalidate_range(spec)

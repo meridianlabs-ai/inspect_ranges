@@ -313,6 +313,8 @@ class BootGuest(BaseModel):
     """The address the tcp readiness probe connects to (the opaque guest's first interface, declared as the address the image carries)."""
     readiness_timeout: int | None = Field(default=None, ge=30, le=7200)
     """The guest's declared boot budget in seconds (`TcpReadiness.timeout`): the probe waits at least this long for this guest, extending the deployment's shared window (never shrinking it)."""
+    readiness_resets: int | None = Field(default=None, ge=0, le=3)
+    """The guest's declared reset allowance (`BootBudget.resets`): hard resets it may earn on a readiness miss. The deployment's `readiness_resets` can widen this, never narrow it (the effective allowance is the max of the two)."""
     injector: Literal["cloud-init", "unattend", "none"] = "cloud-init"
     firmware: Literal["bios", "uefi", "uefi-secure"] = "bios"
     tpm: bool = False
@@ -1269,11 +1271,16 @@ def up(
                 require_agent_identity=guest.kind == "attacker",
             )
 
+        def _reset_allowance(guest: BootGuest) -> int:
+            # the spec declares the image's needs; the deployment can widen
+            # the allowance, never narrow a declaration
+            return max(options.readiness_resets, guest.readiness_resets or 0)
+
         def _resettable(guest: BootGuest) -> bool:
             # the reset verb is local virsh: QEMU guests only, and never the
             # external attack box (its VM lives behind the backend provider)
             return (
-                options.readiness_resets > 0
+                _reset_allowance(guest) > 0
                 and guest.vmm == "qemu"
                 and (external is None or guest.name != external.name)
             )
@@ -1329,7 +1336,8 @@ def up(
             if guest.name not in unready or not _resettable(guest):
                 continue
             ready, cause = False, None
-            for attempt in range(1, options.readiness_resets + 1):
+            allowance = _reset_allowance(guest)
+            for attempt in range(1, allowance + 1):
                 outcome = await asyncio.to_thread(
                     run,
                     _compose_argv(
@@ -1370,7 +1378,7 @@ def up(
                         update={"ready": True}
                     )
                     break
-                if attempt < options.readiness_resets:
+                if attempt < allowance:
                     log.log(
                         "readiness",
                         "warn",
@@ -1400,11 +1408,25 @@ def up(
         # the remedy travels with the refusal: nobody discovers the reset
         # allowance from a bare timeout, and the boot lotteries it cures (a
         # wedged early boot, a missed cloud-init seed) look exactly like this
+        guests_by_name = {guest.name: guest for guest in guests}
+        spent = max(
+            (
+                max(
+                    options.readiness_resets,
+                    guests_by_name[name].readiness_resets or 0,
+                )
+                for name in failed
+                if guests_by_name[name].vmm == "qemu"
+            ),
+            default=0,
+        )
         remedy = (
-            "an unready QEMU guest can earn hard resets: --readiness-resets, "
-            "or INSPECT_RANGES_READINESS_RESETS for sample boots"
-            if options.readiness_resets == 0
-            else f"each earned {options.readiness_resets} reset(s); "
+            "a heavier image can declare its boot budget in the spec — "
+            "boot: { readiness_timeout: 900, resets: 2 } — and deployments "
+            "can widen with --readiness-timeout/--readiness-resets, or "
+            "INSPECT_RANGES_READINESS_TIMEOUT/_RESETS for sample boots"
+            if spent == 0
+            else f"each spent its reset allowance (up to {spent}); "
             "the consoles say how far the boots got"
         )
         raise fail(
