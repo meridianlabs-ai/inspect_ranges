@@ -517,6 +517,24 @@ def test_push_streams_large_files_in_chunks_and_verifies(
     assert "sha256sum" not in channel.commands[-1][-1]
 
 
+def test_push_promote_budget_counts_started_gib() -> None:
+    """The promote budget grants the per-GiB allowance for every started GiB: a 1.4 GiB push measured past the old floor-division grant under a 19-guest build."""
+    from inspect_ranges._build.guesttool import (
+        PUSH_PROMOTE_BASE_MS,
+        PUSH_PROMOTE_PER_GIB_MS,
+        promote_budget_ms,
+    )
+
+    gib = 1024 * 1024 * 1024
+    assert promote_budget_ms(1) == PUSH_PROMOTE_BASE_MS + PUSH_PROMOTE_PER_GIB_MS
+    assert promote_budget_ms(gib) == PUSH_PROMOTE_BASE_MS + PUSH_PROMOTE_PER_GIB_MS
+    assert (
+        promote_budget_ms(gib + 1) == PUSH_PROMOTE_BASE_MS + 2 * PUSH_PROMOTE_PER_GIB_MS
+    )
+    # the measured expiry: a 1 483 531 069-byte tarball against a 90 000 ms grant
+    assert promote_budget_ms(1_483_531_069) >= 240_000
+
+
 def test_push_chunked_windows_promote_reassembles_and_verifies(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
