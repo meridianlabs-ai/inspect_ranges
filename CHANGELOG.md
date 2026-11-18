@@ -1,5 +1,7 @@
 ## Unreleased
 
+- The Windows network-settle probe queries the wire, not the client cache. `Resolve-DnsName -Server` still answers from the DNS client cache, so one failed query during boot-time warm-up was negative-cached and every later attempt returned the cached failure without touching the resolver — a transient blip failed the whole settle window (observed as an all-window `powershell exited 1` on one guest of a 19-guest build while its peers resolved fine). The probe now passes `-DnsOnly`: each attempt is an independent wire query, which is exactly the gate's claim.
+
 - The push promote budget counts started GiB at a fleet-contended rate. `IR_PUSH` grants its promote exec (reassemble, digest, install — three sequential full-file passes in the guest) a budget scaled by payload size, but floor division granted a 1.4 GiB push a single GiB and the old per-GiB rate assumed an uncontended disk: a 19-guest build measured that promote past its 90 s grant and failed the recipe. The allowance now counts every started GiB at 120 s each over the same 60 s base. The budget is liveness, not performance: generous bounds cost nothing on the happy path and a wedged guest is still caught.
 
 ## 0.2.24 (17 November 2026)
