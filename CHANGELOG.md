@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.25 (18 November 2026)
 
 - The Windows network-settle probe queries the wire, not the client cache. `Resolve-DnsName -Server` still answers from the DNS client cache, so one failed query during boot-time warm-up was negative-cached and every later attempt returned the cached failure without touching the resolver — a transient blip failed the whole settle window (observed as an all-window `powershell exited 1` on one guest of a 19-guest build while its peers resolved fine). The probe now passes `-DnsOnly`: each attempt is an independent wire query, which is exactly the gate's claim.
 
