@@ -516,7 +516,11 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                     hint="drop the named cpu_model for this range, or drop the declaration",
                 )
             )
-        if host.boot is not None and host.boot.resets and host.vmm == "cloud-hypervisor":
+        if (
+            host.boot is not None
+            and host.boot.resets
+            and host.vmm == "cloud-hypervisor"
+        ):
             # the reset verb is local virsh; a cloud-hypervisor guest has no
             # libvirt domain to reset
             issues.append(

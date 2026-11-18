@@ -975,7 +975,8 @@ def test_readiness_reset_exhaustion_fails_with_one_terminal_row(
     docker.ps_sequence = ["", "c1\n"]
     # spent resets are reported instead of re-advertising the remedy
     with pytest.raises(
-        UpError, match=r"\[readiness\] guest 'web'.*spent its reset allowance \(up to 2\)"
+        UpError,
+        match=r"\[readiness\] guest 'web'.*spent its reset allowance \(up to 2\)",
     ):
         up(bundle, options(cache, tmp_path, readiness_resets=2), runner=docker)
     resets = [c for c in docker.calls if "virsh" in c and "reset" in c]
@@ -996,8 +997,10 @@ def test_readiness_reset_exhaustion_fails_with_one_terminal_row(
 def test_spec_declared_boot_budget_reaches_the_reset_pass(
     cache: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A guest whose spec declares boot: {resets} earns its resets with the
-    deployment knob untouched (the spec carries the image's needs).
+    """A spec-declared reset allowance works with the deployment knob untouched.
+
+    The spec carries the image's needs: a guest declaring boot: {resets}
+    earns its resets while options.readiness_resets stays 0.
     """
     spec = tiny_spec()
     spec.hosts[0].boot = BootBudget(readiness_timeout=35, resets=1)
