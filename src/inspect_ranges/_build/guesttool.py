@@ -195,8 +195,14 @@ PUSH_CHUNK_BYTES = DAEMON_INBOUND_BULK_CAP // 2
 """Large pushes stream in chunks of this size: half the daemon's inbound bulk cap by construction, so a chunk can never flirt with the refusal while the chunk count (and per-chunk request overhead) stays low. One knob for both guest OS paths."""
 
 PUSH_PROMOTE_BASE_MS = 60_000
-PUSH_PROMOTE_PER_GIB_MS = 30_000
-"""The promote budget scales with payload size: reassembly plus digest plus install is three sequential full-file passes, so a fixed bound would time out exactly the appliance-sized pushes chunking exists for. The per-GiB allowance assumes a conservative effective pass rate."""
+PUSH_PROMOTE_PER_GIB_MS = 120_000
+"""The promote budget scales with payload size: reassembly plus digest plus install is three sequential full-file passes, so a fixed bound would time out exactly the appliance-sized pushes chunking exists for. The allowance counts started GiB (floor division granted a 1.4 GiB push one GiB) and assumes the promote competes with a whole fleet's IO — a 19-guest build measured a 1.4 GiB promote past the old 90 s grant."""
+
+
+def promote_budget_ms(size: int) -> int:
+    """Promote budget for a `size`-byte push: base plus the per-GiB allowance for every started GiB."""
+    gib = 1024 * 1024 * 1024
+    return PUSH_PROMOTE_BASE_MS + PUSH_PROMOTE_PER_GIB_MS * ((size + gib - 1) // gib)
 
 
 async def _sweep_staging(
@@ -348,9 +354,7 @@ async def _run_push(args: argparse.Namespace) -> int:
             )
         cmd = ["sh", "-c", promote]
         user = "root"
-    promote_ms = PUSH_PROMOTE_BASE_MS + PUSH_PROMOTE_PER_GIB_MS * (
-        size // (1024 * 1024 * 1024)
-    )
+    promote_ms = promote_budget_ms(size)
     outcome = await channel.exec(
         guest,
         ExecRequest(
