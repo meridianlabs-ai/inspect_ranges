@@ -260,6 +260,23 @@ Opaque is a contract, enforced fail-closed on both sides:
 
 A router can be opaque too, putting the sealed appliance in the gateway seat; see [Routers](#routers-are-guests-too).
 
+## Boot budgets
+
+A guest's boot behavior is a fact about its image, like its addresses: a
+large adopted disk that reaches readiness in five minutes under a cold fleet
+boots that way everywhere. A managed guest (or the dedicated attack box)
+declares that fact with `boot: { readiness_timeout: 900, resets: 2 }` —
+`readiness_timeout` extends the deployment's per-guest readiness window for
+this guest (never shrinking it), and `resets` grants the guest hard resets
+(`virsh reset`) when it misses its window, each awaited on a fresh window of
+its own size, for images whose boot occasionally wedges pre-daemon or misses
+its cloud-init seed. `resets` needs a QEMU guest
+(`boot-resets-requires-qemu`); an opaque guest refuses `boot:` and declares
+its budget on `readiness: {tcp:, timeout:}` instead (`boot-budget-opaque`).
+Deployments can widen either value (`--readiness-timeout` /
+`--readiness-resets`, or `INSPECT_RANGES_READINESS_TIMEOUT` / `_RESETS` for
+sample boots), never narrow a declaration.
+
 ## Routers {#routers-are-guests-too}
 
 A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. `os` and `image` are optional; when omitted, the backend's default router appliance is used. A router can also be a target in its own right: it takes [`users`](#users) and `provisioning` like a host, built and captured on the same path as host content ([Building Ranges](building.qmd)). A router declaring content must declare `image` as well (`router-image-required`), since the appliance default is a backend resolution its build key cannot pin. For example:

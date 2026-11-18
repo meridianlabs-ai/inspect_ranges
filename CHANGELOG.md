@@ -1,5 +1,7 @@
 ## Unreleased
 
+- The spec declares a guest's boot budget. How an image boots is a fact about the image, not about any deployment — a large adopted disk that needs five minutes to readiness under a cold fleet needs them everywhere — but the only homes for that knowledge were deployment knobs (and, for the window, only the opaque tier's `readiness: {tcp:, timeout:}`). Hosts and the dedicated attack box now take `boot: { readiness_timeout, resets }`: the window extends the deployment's for that guest, and the reset allowance feeds the reset-and-reawait pass per guest. Deployment knobs widen declarations, never narrow them (the effective value is the max). `resets` refuses on cloud-hypervisor guests at planning (`boot-resets-requires-qemu`, a virsh verb needs a libvirt domain), and an opaque guest refuses `boot:` outright (`boot-budget-opaque`). The readiness failure now teaches the declaration first and the deployment overrides second; the spent-allowance variant reports the per-guest maximum.
+
 - The readiness failure names the reset remedy. A guest that misses its window now fails with the same message plus the recovery path: `--readiness-resets` / `INSPECT_RANGES_READINESS_RESETS` when no resets were granted, or how many were spent when they were — nobody discovers an opt-in allowance from a bare timeout, and the boot lotteries it cures look exactly like one. Message-only; behavior is unchanged.
 
 ## 0.2.23 (15 November 2026)

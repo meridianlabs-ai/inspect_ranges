@@ -155,6 +155,7 @@ class PlannedGuest(BaseModel):
     readiness_port: int | None = None
     """The TCP readiness port, when `readiness` is `tcp`."""
     readiness_timeout: int | None = None
+    readiness_resets: int | None = None
     """The guest's declared boot budget in seconds (`TcpReadiness.timeout`), for appliances slower than the deployment's readiness window."""
     interfaces: list[InterfaceAllocation]
     hostname: str
@@ -424,6 +425,20 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
             for path, name, vmm in pinned_cpu_guests
             if vmm == "cloud-hypervisor"
         )
+    if (
+        spec.attacker.host is None
+        and spec.attacker.boot is not None
+        and spec.attacker.boot.resets
+        and _attacker_vmm(spec.attacker) == "cloud-hypervisor"
+    ):
+        issues.append(
+            Issue(
+                code="boot-resets-requires-qemu",
+                path=("attacker", "boot", "resets"),
+                message="the attack box declares boot resets but resolves to vmm: cloud-hypervisor; resets are a virsh verb",
+                hint="declare vmm: qemu on the attacker, or drop boot.resets",
+            )
+        )
     if spec.attacker.host is not None:
         foothold = next(
             (host for host in spec.hosts if host.name == spec.attacker.host), None
@@ -499,6 +514,21 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                     path=("hosts", index, "nested_virtualization"),
                     message=f"host {host.name!r} declares nested_virtualization, which needs the default host-passthrough CPU; this plan uses cpu_model {options.cpu_model!r}",
                     hint="drop the named cpu_model for this range, or drop the declaration",
+                )
+            )
+        if (
+            host.boot is not None
+            and host.boot.resets
+            and host.vmm == "cloud-hypervisor"
+        ):
+            # the reset verb is local virsh; a cloud-hypervisor guest has no
+            # libvirt domain to reset
+            issues.append(
+                Issue(
+                    code="boot-resets-requires-qemu",
+                    path=("hosts", index, "boot", "resets"),
+                    message=f"host {host.name!r} declares boot resets but vmm: cloud-hypervisor; resets are a virsh verb",
+                    hint="declare vmm: qemu, or drop boot.resets",
                 )
             )
         if host.os.type == "windows" and host.vmm == "cloud-hypervisor":
@@ -872,6 +902,12 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 readiness = "process"
         else:
             readiness = "daemon" if windows else "cloud-init"
+        boot_budget = getattr(declared, "boot", None)
+        readiness_resets: int | None = None
+        if boot_budget is not None:
+            if boot_budget.readiness_timeout is not None:
+                readiness_timeout = boot_budget.readiness_timeout
+            readiness_resets = boot_budget.resets
         guests.append(
             PlannedGuest(
                 name=guest.name,
@@ -902,6 +938,7 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 opaque=opaque,
                 readiness_port=readiness_port,
                 readiness_timeout=readiness_timeout,
+                readiness_resets=readiness_resets,
                 interfaces=guest.interfaces,
                 hostname=(
                     windows_hostname(declared_hostname)

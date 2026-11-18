@@ -421,6 +421,16 @@ Readiness = TcpReadiness | Literal["process"]
 """An opaque guest's readiness contract: a TCP port that answers (`{tcp: 22}`), or `process` (the VM process runs; the weakest honest signal)."""
 
 
+class BootBudget(_StrictModel):
+    """Declared facts about how the guest's image boots: the readiness window it needs and the hard resets that cure its boot lotteries. These are properties of the image, like its addresses — a large adopted disk that reaches readiness in five minutes under a cold fleet boots that way everywhere — so they belong in the spec, not in deployment configuration. The deployment's knobs (`--readiness-timeout`/`--readiness-resets`, `INSPECT_RANGES_READINESS_TIMEOUT`/`_RESETS`) can widen either value, never narrow a declaration."""
+
+    readiness_timeout: int | None = Field(default=None, ge=30, le=7200)
+    """Seconds the readiness probe waits for THIS guest, extending the deployment's shared window (never shrinking it) — the managed-guest sibling of `readiness: {tcp:, timeout:}`. Omitted means the deployment's window applies."""
+
+    resets: int | None = Field(default=None, ge=0, le=3)
+    """Hard resets (`virsh reset`) this guest may earn when it misses its window, each awaited on a fresh window of its own size — for images whose boot occasionally wedges pre-daemon or misses its cloud-init seed. QEMU guests only; declared on a cloud-hypervisor guest it refuses at planning (`boot-resets-requires-qemu`)."""
+
+
 class User(_StrictModel):
     """A local account on a guest.
 
@@ -972,6 +982,9 @@ class Host(_StrictModel):
     nested_virtualization: bool = False
     """The guest runs KVM virtual machines of its own (kernel-under-test and appliance-emulation workloads). Needs two things the engine checks rather than assumes: the plan's `host-passthrough` CPU (a named CPU model does not carry the virtualization flag, refused at planning as `nested-virt-requires-host-passthrough`) and a host whose KVM module exposes nesting (`up` refuses at preflight otherwise, naming the host classes that work). The guest image still owns loading its own kvm modules."""
 
+    boot: BootBudget | None = None
+    """Declared boot budget of this guest's image (window and reset allowance); see `BootBudget`. Refused on an opaque guest (`boot-budget-opaque`): a sealed image's budget rides `readiness: {tcp:, timeout:}`."""
+
     interfaces: list[Interface] = Field(min_length=1)
     """Network attachments (explicit; v0.1 has no implicit attachment)."""
 
@@ -1023,6 +1036,9 @@ class Attacker(_StrictModel):
 
     vmm: Vmm | None = None
     """Attack box virtual machine monitor (see `Host.vmm`); unset, a dedicated attack box resolves to `cloud-hypervisor` at planning (unlike hosts and routers, which default to `qemu`). With `host` set, the foothold host's own `vmm` applies and declaring one here is refused."""
+
+    boot: BootBudget | None = None
+    """Declared boot budget of the attack box image; see `BootBudget`. `resets` needs `vmm: qemu` (the dedicated box's default is cloud-hypervisor)."""
 
     interfaces: list[Interface] | None = None
     """Attack box network attachments (required unless `host` is set)."""
@@ -1510,6 +1526,18 @@ def _hardware_issues(spec: "RangeSpec") -> list[Issue]:
         issues.extend(
             _opaque_guest_issues("hosts", index, host, _OPAQUE_CONTENT_FIELDS)
         )
+        if host.opaque and host.boot is not None:
+            issues.append(
+                Issue(
+                    code="boot-budget-opaque",
+                    path=("hosts", index, "boot"),
+                    message=(
+                        f"opaque host {host.name!r} declares a boot budget; a "
+                        "sealed image's budget rides its readiness declaration"
+                    ),
+                    hint="declare readiness: {tcp: <port>, timeout: <s>} instead",
+                )
+            )
     for index, router in enumerate(spec.routers):
         issues.extend(
             _opaque_guest_issues(
