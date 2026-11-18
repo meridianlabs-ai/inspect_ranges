@@ -689,6 +689,17 @@ def test_bare_build_uses_the_default_image_cache(
     assert fakes.up_calls[0][1].image_cache == cache
 
 
+def test_windows_settle_probe_is_wire_only() -> None:
+    """The Windows probe carries -DnsOnly: without it a negative-cached first miss answers every later attempt from the client cache and a transient boot-time blip fails the whole settle window."""
+    from inspect_ranges._build.orchestrate import _windows_resolve_cmd
+
+    cmd = _windows_resolve_cmd("archive.ubuntu.com", "169.254.169.253")
+    script = cmd[-1]
+    assert "-DnsOnly" in script
+    assert "-Server '169.254.169.253'" in script
+    assert "-QuickTimeout" in script
+
+
 def test_network_settle_gates_each_guest_once(tmp_path: Path, cache: Path) -> None:
     spec, range_dir = build_spec_fixture(tmp_path)
     fakes = Fakes(["web", "db", "attacker"])

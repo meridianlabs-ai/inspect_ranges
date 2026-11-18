@@ -2193,6 +2193,30 @@ def _strip_stage(error: BuildError) -> str:
     return text[len(prefix) :] if text.startswith(prefix) else text
 
 
+def _windows_resolve_cmd(probe: str, resolver: str) -> list[str]:
+    """The Windows settle probe: a wire-only query of `probe` against `resolver`.
+
+    `-DnsOnly` is load-bearing: without it `Resolve-DnsName` answers from the
+    DNS client cache even when `-Server` names a healthy resolver, so one
+    failed query during boot-time warm-up is negative-cached and every later
+    attempt returns the cached failure without touching the wire — a
+    transient blip fails the whole settle window (observed as an all-window
+    `powershell exited 1` on one guest of a 19-guest build while its peers
+    resolved fine). The gate's claim is that the resolver answers from inside
+    the guest, so each attempt must be an independent wire query.
+    """
+    return [
+        "powershell",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$ErrorActionPreference='Stop'; "
+        f"Resolve-DnsName -Name {ps_quote(probe)} "
+        f"-Server {ps_quote(resolver)} "
+        "-Type A -QuickTimeout -DnsOnly | Out-Null",
+    ]
+
+
 def _settle_network(
     cids: dict[str, int],
     guest: str,
@@ -2212,16 +2236,7 @@ def _settle_network(
     if windows_resolver is not None:
         # PowerShell cold-start alone costs seconds: the exec budget is
         # windows-sized (measured: 5 s loses every attempt)
-        cmd = [
-            "powershell",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "$ErrorActionPreference='Stop'; "
-            f"Resolve-DnsName -Name {ps_quote(probe)} "
-            f"-Server {ps_quote(windows_resolver)} "
-            "-Type A -QuickTimeout | Out-Null",
-        ]
+        cmd = _windows_resolve_cmd(probe, windows_resolver)
         command_ms = 15_000
     else:
         cmd = ["getent", "hosts", probe]
