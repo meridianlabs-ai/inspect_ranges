@@ -22,10 +22,11 @@ STATUS_FILENAME = "status.json"
 """The supervisor's atomically-replaced status report under the capture volume."""
 
 
-def render_bridges_tsv(segments: dict[str, str]) -> str:
-    """The `capture/bridges.tsv` content for a plan's segment-to-bridge map."""
+def render_bridges_tsv(segments: dict[str, tuple[str, int, str]]) -> str:
+    r"""The `capture/bridges.tsv` content: one `segment\tbridge\tsnaplen\tfilter` row per opted-in segment (spec-declared capture; the filter is last so a BPF expression never has to escape anything)."""
     return "".join(
-        f"{segment}\t{bridge}\n" for segment, bridge in sorted(segments.items())
+        f"{segment}\t{bridge}\t{snaplen}\t{bpf}\n"
+        for segment, (bridge, snaplen, bpf) in sorted(segments.items())
     )
 
 
@@ -35,6 +36,7 @@ SUPERVISOR_SOURCE = '''\
 import json
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -61,9 +63,11 @@ def on_term(signum, frame):
 
 
 class Segment:
-    def __init__(self, name, bridge):
+    def __init__(self, name, bridge, snaplen, bpf):
         self.name = name
         self.bridge = bridge
+        self.snaplen = snaplen
+        self.bpf = bpf
         self.dir = os.path.join(CAPTURE_DIR, name)
         self.state = "waiting"
         self.proc = None
@@ -106,10 +110,12 @@ class Segment:
         # -U: packet-buffered output, so the active chunk holds every packet
         # captured so far (readable mid-run, and a killed tcpdump loses no
         # buffered tail)
+        argv = [TCPDUMP, "-Z", "root", "-B", "8192", "-s", str(self.snaplen),
+                "-U", "-i", self.bridge, "-C", str(CHUNK_MB), "-w", base]
+        if self.bpf:
+            argv.extend(shlex.split(self.bpf))
         self.proc = subprocess.Popen(
-            [TCPDUMP, "-Z", "root", "-B", "8192", "-s", "0", "-U",
-             "-i", self.bridge, "-C", str(CHUNK_MB), "-w", base],
-            stdout=subprocess.DEVNULL, stderr=stderr,
+            argv, stdout=subprocess.DEVNULL, stderr=stderr,
         )
         stderr.close()
         self.state = "running"
@@ -214,10 +220,12 @@ def main():
     segments = []
     with open(os.path.join(RENDER_DIR, "capture", "bridges.tsv")) as handle:
         for line in handle:
-            line = line.strip()
-            if line:
-                name, bridge = line.split("\\t")
-                segments.append(Segment(name, bridge))
+            # rstrip only the newline: an empty filter is a trailing empty
+            # field, and strip() would eat its tab and break the unpack
+            line = line.rstrip("\\n")
+            if line.strip():
+                name, bridge, snaplen, bpf = line.split("\\t", 3)
+                segments.append(Segment(name, bridge, int(snaplen), bpf))
     stop_file = os.path.join(CAPTURE_DIR, "stop")
     while not stop_requested and not os.path.exists(stop_file):
         for segment in segments:

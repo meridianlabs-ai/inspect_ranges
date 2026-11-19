@@ -593,7 +593,7 @@ class Supervisor:
         self.netdev = tmp_path / "netdev"
         for directory in (self.capture, self.render / "capture", self.netdev):
             directory.mkdir(parents=True, exist_ok=True)
-        (self.render / "capture" / "bridges.tsv").write_text("dmz\tbr-dmz\n")
+        (self.render / "capture" / "bridges.tsv").write_text("dmz\tbr-dmz\t256\t\n")
         stub = tmp_path / "tcpdump-stub"
         stub.write_text(STUB_TCPDUMP)
         stub.chmod(0o755)

@@ -401,6 +401,8 @@ class CaptureStreamer:
                 pass
 
     async def _request_and_await_stop(self, timeout_s: float) -> bool:
+        if not self._segments:
+            return True  # no sidecar was rendered; nothing to stop
         try:
             await asyncio.to_thread(self._tap.request_stop)
         except Exception as error:
@@ -443,6 +445,10 @@ class CaptureStreamer:
             logger.exception("evidence capture step %r failed (continuing)", step)
 
     async def _read_status(self) -> dict[str, Any] | None:
+        if not self._segments:
+            # no declared captures means no sidecar to ask (spec-declared
+            # pcap); consoles and stages still stream through the range tap
+            return None
         try:
             raw = await asyncio.to_thread(self._tap.read_status)
             parsed: object = json.loads(raw)

@@ -44,7 +44,10 @@ EVIDENCE_BUFFER_MB_VAR = "INSPECT_RANGES_EVIDENCE_BUFFER_MB"
 EVIDENCE_MAX_MB_VAR = "INSPECT_RANGES_EVIDENCE_MAX_MB"
 
 DEFAULT_EVIDENCE_MAX_MB = 4096
-"""Default per-writer evidence volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`). Enforced per writer identity (a sample has at most two: `driver` and `host`); breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never silent loss and never a failed sample."""
+"""Default per-writer evidence volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`) for a filesystem sink. Enforced per writer identity (a sample has at most two: `driver` and `host`); breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never silent loss and never a failed sample."""
+
+DEFAULT_EVIDENCE_MAX_MB_REMOTE = 65536
+"""The default cap when the sink is an object store: local disk is not at risk there, so the bound is a cost guard and sized accordingly. The same variable overrides both defaults."""
 
 FINALIZE_BUDGET_S = 30.0
 """The nominal `finalize evidence` budget: teardown is never hostage to a slow uplink. Enforced as the SUM of its phases (`PRODUCER_STOPS_SHARE_S`, the capture streamer's internal bounds, `SEAL_RESERVE_S`), not one outer timeout: an outer timeout would cancel the streamer's own gap-recording handlers mid-write (quality-review A6 review round)."""
@@ -89,13 +92,18 @@ def evidence_buffer_bytes() -> int:
     return _mb_env_bytes(EVIDENCE_BUFFER_MB_VAR, DEFAULT_BUFFER_CAP_BYTES)
 
 
-def evidence_max_bytes() -> int:
-    """`INSPECT_RANGES_EVIDENCE_MAX_MB` in bytes (default `DEFAULT_EVIDENCE_MAX_MB`).
+def evidence_max_bytes(location: str = "") -> int:
+    """`INSPECT_RANGES_EVIDENCE_MAX_MB` in bytes; the default scales with the sink backend (`DEFAULT_EVIDENCE_MAX_MB` on a filesystem, `DEFAULT_EVIDENCE_MAX_MB_REMOTE` on an object store).
 
     Raises:
         ValueError: The variable is set but not a positive integer.
     """
-    return _mb_env_bytes(EVIDENCE_MAX_MB_VAR, DEFAULT_EVIDENCE_MAX_MB * 1024 * 1024)
+    default_mb = (
+        DEFAULT_EVIDENCE_MAX_MB_REMOTE
+        if location.startswith("s3://")
+        else DEFAULT_EVIDENCE_MAX_MB
+    )
+    return _mb_env_bytes(EVIDENCE_MAX_MB_VAR, default_mb * 1024 * 1024)
 
 
 class EvidenceSession:
@@ -155,7 +163,7 @@ class EvidenceSession:
                 lease_id=lease_id,
                 sample_id=self.sample_id,
                 buffer_cap_bytes=evidence_buffer_bytes(),
-                max_total_bytes=evidence_max_bytes(),
+                max_total_bytes=evidence_max_bytes(self.location),
             )
             if self.capture_local and plan.requirements.evidence_capture:
                 self._host = EvidenceWriter(
@@ -164,7 +172,7 @@ class EvidenceSession:
                     lease_id=lease_id,
                     sample_id=self.sample_id,
                     buffer_cap_bytes=evidence_buffer_bytes(),
-                    max_total_bytes=evidence_max_bytes(),
+                    max_total_bytes=evidence_max_bytes(self.location),
                 )
                 # the attack-box record up() wrote is the single source of
                 # truth for which guest an external provider realized (never
@@ -190,7 +198,7 @@ class EvidenceSession:
                 self._streamer = CaptureStreamer(
                     self._host,
                     ComposeTap(project, bundle),
-                    segments=[network.name for network in plan.networks],
+                    segments=[n.name for n in plan.networks if n.pcap is not None],
                     console_guests=[guest.name for guest in plan.guests],
                     external_consoles=[external] if external is not None else [],
                     stage_recorder=self.recorder,

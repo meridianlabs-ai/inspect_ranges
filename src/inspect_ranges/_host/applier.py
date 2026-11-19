@@ -702,9 +702,10 @@ class Applier:
                 lease_id=lease.lease_id,
                 sample_id=lease.sample_id,
                 buffer_cap_bytes=evidence_buffer_bytes(),
-                max_total_bytes=evidence_max_bytes(),
+                max_total_bytes=evidence_max_bytes(lease.evidence_location),
             )
-            segments = [network.name for network in plan.networks]
+            # only opted-in segments have captures to stream (spec-declared)
+            segments = [n.name for n in plan.networks if n.pcap is not None]
             # the attack-box record up() wrote is the single source of truth
             # for which guest an external provider realized (never re-derive
             # from the ambient env, which can drift)

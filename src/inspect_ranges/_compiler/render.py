@@ -388,11 +388,22 @@ def render_bundle(
             anchor
             + "      - ${CH_VSOCK_DIR:?this range has cloud-hypervisor guests; set CH_VSOCK_DIR}:/run/ch-vsock\n",
         )
-    if plan.requirements.evidence_capture:
+    # the pcap sidecar renders only for segments that opted in (capture is
+    # a fact about which traffic is evidence, declared per network); the
+    # host writer and its console/stage streams ride evidence alone
+    if plan.requirements.evidence_capture and any(
+        n.pcap is not None for n in plan.networks
+    ):
         compose = _compose_with_capture(compose)
         write(
             f"capture/{BRIDGES_FILENAME}",
-            render_bridges_tsv({n.name: n.bridge for n in plan.networks}),
+            render_bridges_tsv(
+                {
+                    n.name: (n.bridge, n.pcap.snaplen, n.pcap.filter)
+                    for n in plan.networks
+                    if n.pcap is not None
+                }
+            ),
         )
         write(f"capture/{SUPERVISOR_FILENAME}", SUPERVISOR_SOURCE)
     if plan.requirements.probe_segments:
