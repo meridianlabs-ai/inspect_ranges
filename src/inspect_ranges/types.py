@@ -64,6 +64,7 @@ __all__ = [
     "IssueError",
     "Network",
     "Os",
+    "PcapCapture",
     "RangeMeta",
     "RangeSpec",
     "Readiness",
@@ -256,6 +257,19 @@ class EgressPolicy(_StrictModel):
         return self
 
 
+class PcapCapture(_StrictModel):
+    """Opt-in packet capture for one network when a deployment records evidence.
+
+    Declared on the segments whose traffic is evidence, not on all of them: an always-busy segment (a SIEM's ingest, a telemetry bus) fills any volume budget with chatter and starves the captures that matter. The default snaplen keeps headers and small payloads; `snaplen: 0` captures whole packets, and `filter` excludes known-noise flows at the capture itself.
+    """
+
+    filter: str = ""
+    """BPF filter for this segment's capture (tcpdump syntax); empty captures everything."""
+
+    snaplen: int = Field(default=256, ge=0)
+    """Bytes kept per packet; 0 keeps whole packets."""
+
+
 class Network(_StrictModel):
     """A layer-2 segment with its addressing and egress posture."""
 
@@ -279,6 +293,9 @@ class Network(_StrictModel):
 
     egress: EgressPolicy | None = None
     """Scoped egress allowlist; only meaningful with `mode: nat` (the hypervisor NATs exactly these flows out)."""
+
+    pcap: PcapCapture | None = None
+    """Opt-in packet capture on this segment when the deployment records evidence (`pcap: {}` accepts the defaults); undeclared segments are not captured."""
 
     @model_validator(mode="after")
     def _check_egress_mode(self) -> "Network":
@@ -307,6 +324,7 @@ class Network(_StrictModel):
             dns: DnsConfig | None = None,
             gateway: str | None = None,
             egress: EgressPolicy | None = None,
+            pcap: PcapCapture | None = None,
         ) -> None: ...
 
 

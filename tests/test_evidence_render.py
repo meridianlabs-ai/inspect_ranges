@@ -13,8 +13,19 @@ import pytest
 import yaml
 from inspect_ranges._compiler import PlanOptions, render_bundle
 from inspect_ranges._evidence.supervisor import SUPERVISOR_SOURCE
+from inspect_ranges.types import PcapCapture, RangeSpec
 
 from tests.test_compiler import nat_spec, two_segment_spec
+
+
+def captured(spec: RangeSpec, *segments: str, **pcap: object) -> RangeSpec:
+    """The fixture spec with capture declared on `segments` (pcap is opt-in now)."""
+    for i, network in enumerate(spec.networks):
+        if network.name in segments:
+            spec.networks[i] = network.model_copy(
+                update={"pcap": PcapCapture.model_validate(pcap)}
+            )
+    return spec
 
 
 @pytest.fixture()
@@ -49,9 +60,22 @@ def test_default_renders_no_capture(cache: Path, tmp_path: Path) -> None:
     assert not (out / "capture").exists()
 
 
-def test_capture_service_and_floor(cache: Path, tmp_path: Path) -> None:
+def test_capture_requires_a_declaration(cache: Path, tmp_path: Path) -> None:
+    """`evidence_capture` alone renders no sidecar: pcap is spec-declared per segment, and a spec that opts nothing in has nothing to capture. The requirement itself stays the deployment fact — the host writer's console and stage streams ride evidence alone."""
     out = tmp_path / "bundle"
     plan = render_bundle(two_segment_spec(), out, options(cache, evidence=True))
+    assert plan.requirements.evidence_capture is True
+    assert "capture" not in compose_of(out)["services"]
+    assert not (out / "capture").exists()
+
+
+def test_capture_service_and_floor(cache: Path, tmp_path: Path) -> None:
+    out = tmp_path / "bundle"
+    plan = render_bundle(
+        captured(two_segment_spec(), "dmz", "internal"),
+        out,
+        options(cache, evidence=True),
+    )
     assert plan.requirements.evidence_capture is True
     compose = compose_of(out)
 
@@ -70,7 +94,11 @@ def test_capture_service_and_floor(cache: Path, tmp_path: Path) -> None:
     from inspect_ranges._compiler.render import _COMPOSE_CAPTURE_SERVICE
 
     plain = tmp_path / "plain"
-    render_bundle(two_segment_spec(), plain, options(cache, evidence=False))
+    render_bundle(
+        captured(two_segment_spec(), "dmz", "internal"),
+        plain,
+        options(cache, evidence=False),
+    )
     with_capture = (out / "compose.yaml").read_text()
     stripped = with_capture.replace("\n" + _COMPOSE_CAPTURE_SERVICE, "", 1).replace(
         "volumes:\n  scratch:\n  capture:\n", "volumes:\n  scratch:\n"
@@ -82,12 +110,15 @@ def test_capture_service_and_floor(cache: Path, tmp_path: Path) -> None:
 
 def test_capture_bundle_files(cache: Path, tmp_path: Path) -> None:
     out = tmp_path / "bundle"
-    plan = render_bundle(two_segment_spec(), out, options(cache, evidence=True))
-    bridges = (out / "capture" / "bridges.tsv").read_text()
-    expected = {network.name: network.bridge for network in plan.networks}
-    assert bridges == "".join(
-        f"{name}\t{bridge}\n" for name, bridge in sorted(expected.items())
+    plan = render_bundle(
+        captured(two_segment_spec(), "dmz", filter="not port 9200", snaplen=0),
+        out,
+        options(cache, evidence=True),
     )
+    bridges = (out / "capture" / "bridges.tsv").read_text()
+    # one row per declared segment (internal opted out), filter field last
+    dmz = next(n for n in plan.networks if n.name == "dmz")
+    assert bridges == f"dmz\t{dmz.bridge}\t0\tnot port 9200\n"
     assert (out / "capture" / "capture.py").read_text() == SUPERVISOR_SOURCE
     manifest = json.loads((out / "manifest.json").read_text())
     assert "capture/bridges.tsv" in manifest["files"]
@@ -95,8 +126,16 @@ def test_capture_bundle_files(cache: Path, tmp_path: Path) -> None:
 
 
 def test_capture_render_is_deterministic(cache: Path, tmp_path: Path) -> None:
-    render_bundle(two_segment_spec(), tmp_path / "a", options(cache, evidence=True))
-    render_bundle(two_segment_spec(), tmp_path / "b", options(cache, evidence=True))
+    render_bundle(
+        captured(two_segment_spec(), "dmz"),
+        tmp_path / "a",
+        options(cache, evidence=True),
+    )
+    render_bundle(
+        captured(two_segment_spec(), "dmz"),
+        tmp_path / "b",
+        options(cache, evidence=True),
+    )
     assert (tmp_path / "a" / "manifest.json").read_bytes() == (
         tmp_path / "b" / "manifest.json"
     ).read_bytes()
@@ -104,7 +143,7 @@ def test_capture_render_is_deterministic(cache: Path, tmp_path: Path) -> None:
 
 def test_capture_with_uplink_template(cache: Path, tmp_path: Path) -> None:
     out = tmp_path / "bundle"
-    render_bundle(nat_spec(), out, options(cache, evidence=True))
+    render_bundle(captured(nat_spec(), "corp"), out, options(cache, evidence=True))
     compose = compose_of(out)
     assert "capture" in compose["services"]
     assert compose["services"]["capture"]["cap_add"] == ["NET_RAW"]
@@ -116,12 +155,27 @@ def test_capture_with_uplink_template(cache: Path, tmp_path: Path) -> None:
     from inspect_ranges._compiler.render import _COMPOSE_CAPTURE_SERVICE
 
     plain = tmp_path / "plain"
-    render_bundle(nat_spec(), plain, options(cache, evidence=False))
+    render_bundle(captured(nat_spec(), "corp"), plain, options(cache, evidence=False))
     with_capture = (out / "compose.yaml").read_text()
     stripped = with_capture.replace("\n" + _COMPOSE_CAPTURE_SERVICE, "", 1).replace(
         "volumes:\n  scratch:\n  capture:\n", "volumes:\n  scratch:\n"
     )
     assert stripped == (plain / "compose.yaml").read_text()
+
+
+def test_bridges_tsv_rows_carry_snaplen_and_filter() -> None:
+    """One row per opted-in segment, filter last (never escaped), empty filter kept as a trailing empty field the supervisor's parse preserves."""
+    from inspect_ranges._evidence.supervisor import render_bridges_tsv
+
+    tsv = render_bridges_tsv(
+        {
+            "dmz": ("br-x1", 0, "not port 9200 and not port 8220"),
+            "lan": ("br-x2", 256, ""),
+        }
+    )
+    assert tsv == (
+        "dmz\tbr-x1\t0\tnot port 9200 and not port 8220\nlan\tbr-x2\t256\t\n"
+    )
 
 
 def test_supervisor_source_compiles() -> None:

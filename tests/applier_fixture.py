@@ -51,13 +51,24 @@ def make_bundle(out: Path, name: str = "uds-fixture", *, evidence: bool = False)
         Interface,
         Network,
         Os,
+        PcapCapture,
         RangeMeta,
         RangeSpec,
     )
 
     spec = RangeSpec(
         meta=RangeMeta(name=name, description="applier fixture range"),
-        networks=[Network(name="lab", cidr="10.9.0.0/24", mode="isolated")],
+        # the fixture declares capture when evidence is requested: pcap is
+        # spec-declared and opt-in, and the applier's capture-stream paths
+        # (shutdown gaps among them) exist only for declared segments
+        networks=[
+            Network(
+                name="lab",
+                cidr="10.9.0.0/24",
+                mode="isolated",
+                pcap=PcapCapture() if evidence else None,
+            )
+        ],
         hosts=[
             Host(
                 name="web",

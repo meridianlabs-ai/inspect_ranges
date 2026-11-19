@@ -21,6 +21,7 @@ from ..types import (
     Host,
     Issue,
     IssueError,
+    PcapCapture,
     RangeSpec,
     Route,
     Router,
@@ -114,6 +115,8 @@ class PlannedNetwork(BaseModel):
     """The elected default gateway (router or hypervisor), when one exists."""
     hypervisor_address: IPv4Address | None
     """The reserved bridge address, when the hypervisor must be present (nat/routed gateway, dhcp/records service)."""
+    pcap: "PcapCapture | None" = None
+    """The spec's opt-in capture declaration for this segment; None renders no capture row."""
     resolvers: list[IPv4Address]
     """Resolver addresses handed to this network's guests."""
     search: str | None
@@ -858,6 +861,7 @@ def resolve_plan(spec: RangeSpec, options: PlanOptions | None = None) -> Resolve
                 probe_endpoint=allocation.probe_endpoints.get(network.name),
                 resolvers=resolvers_for(spec, allocation, network.name),
                 search=search_domain(network.name) if serves_records else None,
+                pcap=network.pcap,
             )
         )
 
