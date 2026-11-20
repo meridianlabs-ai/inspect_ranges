@@ -1,5 +1,7 @@
 ## Unreleased
 
+- The evidence buffer default quadruples to 256 MB. A 9.6 h agent run at 64 MB recorded 16 buffer-cap gaps from capture bursts outrunning delivery, and a remote (S3) sink adds upload latency the buffer must absorb. `INSPECT_RANGES_EVIDENCE_BUFFER_MB` still overrides; the cost is bounded local disk for undelivered chunks.
+
 - `range_apparatus` learns overlay networks. The phantom-address detector flagged every command touching a VPN tunnel's addresses (measured: 16 warnings in one run of a range whose entry is OpenVPN) because a tunnel subnet exists only inside guests and can never be a declared network. The scanner now takes `overlay_networks` (CIDR strings); addresses inside them count as declared. Default empty: existing behavior unchanged.
 
 ## 0.2.26 (18 November 2026)

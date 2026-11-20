@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 _CHAIN_PLACEHOLDER = "0" * 64
 """Pattern-valid filler for a record's `chain` while computing the real value (the field is excluded from its own hash, so the content never matters)."""
 
-DEFAULT_BUFFER_CAP_BYTES = 64 * 1024 * 1024
-"""Default local backpressure cap; the runtime wires `INSPECT_RANGES_EVIDENCE_BUFFER_MB` to this at construction (slice 5)."""
+DEFAULT_BUFFER_CAP_BYTES = 256 * 1024 * 1024
+"""Default local backpressure cap; the runtime wires `INSPECT_RANGES_EVIDENCE_BUFFER_MB` to this at construction (slice 5). 256 MB: a 9.6 h agent run at 64 MB recorded 16 buffer-cap gaps from capture bursts outrunning delivery, and a remote (S3) sink adds upload latency the buffer must absorb; the cost is bounded local disk for undelivered chunks."""
 
 DEFAULT_PART_INTERVAL_S = 15.0
 """Default manifest-part batching interval (chunk-2 verification finding 3): chunks still deliver on every flush (data durability is never delayed), but a manifest part is cut only when the oldest uncommitted record reaches this age, when `part_max_records` accumulate, or at seal. The trade is explicit: per-poll part objects (2 S3 objects per telemetry poll, ~29k per collector over 8h) collapse to a bounded cadence, while a crash can leave up to one interval of records committed to the in-memory chain but not yet in a delivered part, whose chunks then verify as unreferenced residue rather than referenced records. Set to 0 for cut-on-every-flush (the pre-batching behavior; unit tests pin exact part layouts with it)."""
