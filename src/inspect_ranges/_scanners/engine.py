@@ -148,6 +148,7 @@ def apparatus_findings(
     messages: Sequence[ChatMessage],
     sample_metadata: Mapping[str, Any] | None,
     spec: RangeSpec | None,
+    overlay_networks: Sequence[IPv4Network] = (),
 ) -> list[Finding]:
     """Run every detector over one sample's transcript content.
 
@@ -156,6 +157,7 @@ def apparatus_findings(
         messages: The sample's chat messages.
         sample_metadata: The sample's metadata (the challenge travels under the `challenge` key); `None` when unavailable.
         spec: The range definition for the config-aware detectors; `None` keeps them quiet.
+        overlay_networks: In-guest overlay subnets (a VPN tunnel, a container bridge) that exist at runtime but can never be declared networks; the phantom-address detector treats them as declared.
 
     Returns:
         The findings, deduped per sample; empty means no anomaly signature fired.
@@ -170,7 +172,7 @@ def apparatus_findings(
     findings += _plumbing_guesttool(events)
     if spec is not None:
         findings += _reachability_declared_unreachable(events, spec)
-        findings += _reachability_phantom_address(events, spec)
+        findings += _reachability_phantom_address(events, spec, overlay_networks)
     if challenge is not None:
         findings += _verify_goal_zero_submissions(events, store, challenge)
         findings += _verify_goal_unbound(events)
@@ -466,10 +468,12 @@ def _reachability_declared_unreachable(
 
 
 def _reachability_phantom_address(
-    events: Sequence[Event], spec: RangeSpec
+    events: Sequence[Event],
+    spec: RangeSpec,
+    overlay_networks: Sequence[IPv4Network] = (),
 ) -> list[Finding]:
-    """Private (RFC1918) addresses in exec commands that belong to no declared network, once per address (public addresses are never flagged)."""
-    networks = range_networks(spec)
+    """Private (RFC1918) addresses in exec commands that belong to no declared network, once per address (public addresses are never flagged; overlay subnets count as declared — a VPN tunnel's addresses are the task working, measured 16 false warnings per run on a range whose entry is OpenVPN)."""
+    networks = list(range_networks(spec)) + list(overlay_networks)
     flagged: dict[IPv4Address, list[str]] = {}
     for event in events:
         if isinstance(event, SandboxEvent):
