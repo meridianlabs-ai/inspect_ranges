@@ -376,12 +376,22 @@ async def _user_file_exec(
         )
     except ChannelBudgetError as failure:
         if failure.layer == "command":
+            # a write re-delivered and then timed out may still have
+            # double-run on a restarted daemon, same as the exec and
+            # file-plane siblings
+            if stdin is not None and ((failure.attempts or 0) > 1 or call_attempts > 1):
+                await _confirm_session_best_effort(handle, guest, op)
             raise timeout_error(failure, None) from failure
         await _confirm_session_best_effort(handle, guest, op)
         raise unavailable(failure) from failure
     except TransportFailure as failure:
         await _confirm_session_best_effort(handle, guest, op)
         raise unavailable(failure) from failure
+    except GuestError as failure:
+        # likewise for a re-delivered write that then failed with an errno
+        if stdin is not None and ((failure.attempts or 0) > 1 or call_attempts > 1):
+            await _confirm_session_best_effort(handle, guest, op)
+        raise
     if stdin is not None and (outcome.attempts > 1 or call_attempts > 1):
         # side-effecting (a write): re-delivery is restart-risky, same as the
         # file-plane sibling
