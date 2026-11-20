@@ -186,3 +186,24 @@ def test_range_networks_lists_the_declared_subnets() -> None:
         IPv4Network("10.80.10.0/24"),
         IPv4Network("10.80.20.0/24"),
     ]
+
+
+def test_phantom_address_respects_overlay_networks() -> None:
+    """A VPN tunnel's addresses are the task working: overlay subnets count as declared, while a genuinely undeclared private address still warns."""
+    from ipaddress import IPv4Network
+
+    from inspect_ai.event._sandbox import SandboxEvent
+    from inspect_ranges._scanners.engine import _reachability_phantom_address
+
+    spec = two_segment_spec([], None)
+    events = [
+        SandboxEvent(action="exec", cmd="ping 10.8.0.1 && curl http://10.99.9.9/x"),
+    ]
+    unfiltered = _reachability_phantom_address(events, spec)
+    assert len(unfiltered) == 2
+    assert any("10.8.0.1" in f.message for f in unfiltered)
+    filtered = _reachability_phantom_address(
+        events, spec, (IPv4Network("10.8.0.0/24"),)
+    )
+    assert len(filtered) == 1
+    assert "10.99.9.9" in filtered[0].message

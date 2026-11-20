@@ -5,6 +5,8 @@
 Use it after the fact over eval logs (`inspect_scout.scan` or `scout scan`), or online by putting it directly in a task's scorer list, where it runs as samples land and shows beside `challenge_scorer` in the normal log view. Samples produced by `challenge_dataset(range_spec=...)` carry the range definition in their metadata, which is where the config-aware detectors read it; samples without it leave those detectors quiet. Cross-scorer ordering is not a contract: when it scores before `challenge_scorer`, the scoring-integrity detectors stay quiet for that sample and the after-the-fact scan still sees everything.
 """
 
+from collections.abc import Sequence
+from ipaddress import IPv4Network
 from typing import Any, cast
 
 import yaml
@@ -44,7 +46,7 @@ def _spec_from_yaml_text(text: str) -> RangeSpec | None:
 
 
 @scanner(messages="all", events="all", metadata=True, metrics=[mean()])
-def range_apparatus() -> Scanner[Transcript]:
+def range_apparatus(overlay_networks: Sequence[str] = ()) -> Scanner[Transcript]:
     """Scan a sample's transcript for range-apparatus anomalies.
 
     The result value is the finding count (0 is healthy; the `mean()` metric reads as mean findings per sample, with no accuracy semantics). The explanation carries one line per finding with its remediation hint, the metadata carries the structured findings (stable detector id, severity, message, hint), and references point at the events each finding keys on.
@@ -52,9 +54,13 @@ def range_apparatus() -> Scanner[Transcript]:
     Detector families: PLUMBING (post-readiness channel/transport failures, repeated retries against one guest, evidence finalize/teardown errors, the in-guest tool's rc 124/125 contract), CONFIG-AWARE REACHABILITY (reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes: connectivity failures toward addresses the spec declares reachable from the foothold under its ACLs, and attempts toward private addresses no declared network holds), VERIFY_GOAL BEHAVIOR (zero recorded submissions, submissions binding to no goal, dropped candidates, completion claims over unattempted goals), and SCORING/EVIDENCE INTEGRITY (recorded validity other than `valid`, corroboration flags, the all-segment-goals-uncorroborated hint).
 
 
+    Args:
+        overlay_networks: In-guest overlay subnets in CIDR form (e.g. a VPN tunnel's `10.8.0.0/24`, a container bridge) that exist at runtime but can never be declared networks; the phantom-address detector treats them as declared instead of warning on every tunnel-addressed command.
+
     Returns:
         The scanner; pass it to `inspect_scout.scan` over eval logs, or put it directly in a task's scorer list.
     """
+    overlays = tuple(IPv4Network(block) for block in overlay_networks)
 
     async def scan(transcript: Transcript) -> Result:
         raw_metadata = transcript.metadata.get("sample_metadata")
@@ -69,7 +75,11 @@ def range_apparatus() -> Scanner[Transcript]:
             if isinstance(spec_text, str):
                 sample_spec = _spec_from_yaml_text(spec_text)
         findings = apparatus_findings(
-            transcript.events, transcript.messages, sample_metadata, sample_spec
+            transcript.events,
+            transcript.messages,
+            sample_metadata,
+            sample_spec,
+            overlays,
         )
         if not findings:
             return Result(value=0, explanation="no findings")
