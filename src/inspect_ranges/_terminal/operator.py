@@ -2,7 +2,7 @@
 
 This is the debugging surface behind `inspect-ranges shell`: the operator lands in a named tmux session inside the guest, driven entirely over the existing control channel (keystrokes ride `tmux send-keys -H` through ordinary exec; the screen rides a `pipe-pane` sink polled with short reads), so no wire verb, daemon change, or guest listener is involved. The call is the opt-in, made sound by the origin rule: a project the Inspect sandbox provider booted carries a provider origin in its owner record and is refused outright, so an eval sample can never acquire an interactive operator mid-run; only `up`-origin projects attach.
 
-Guest bytes are untrusted. Everything streamed to the operator's terminal passes `EscapeFilter`, which forwards ordinary text and display sequences (CSI, two-byte escapes, window titles) but drops OSC commands beyond titles (clipboard writes, color-palette programming) and every string-container sequence (DCS/SOS/PM/APC), because a compromised guest writing to a trusted emulator is a real injection surface. 8-bit C1 bytes are deliberately NOT filtered: under UTF-8 they are continuation bytes of ordinary text, terminals in UTF-8 mode do not interpret them as controls, and stripping them would corrupt multibyte output.
+Guest bytes are untrusted. Everything streamed to the operator's terminal passes `EscapeFilter`, which forwards ordinary text and display sequences (CSI, two-byte escapes, window titles) but drops OSC commands beyond titles (clipboard writes, color-palette programming) and every string-container sequence (DCS/SOS/PM/APC), because a compromised guest writing to a trusted emulator is a real injection surface. Bare 8-bit C1 bytes are deliberately NOT filtered: alone they are invalid UTF-8 that a terminal in UTF-8 mode renders inert, and stripping bytes above 0x7F would corrupt multibyte output. The valid two-byte encoding of a C1 control (0xC2 0x80-0x9F) is the exception — the terminal decodes before it parses, so U+009D opens an OSC there — and the filter parses it as its 7-bit ESC pair; an orphan 0xC2 is dropped so the filter's own drops can never splice one against a later C1 byte into that encoding in the output.
 
 Linux guests only (the session is tmux); the chosen guest's recorded injector decides, so a Windows guest refuses by name before anything is dialed.
 """
@@ -242,24 +242,75 @@ class EscapeFilter:
     """Streaming filter between guest output and the operator's terminal.
 
     Forwards text, CSI sequences (display control, and the query/report pairs full-screen programs need), and two-byte/intermediate escapes; forwards OSC only for the title codes in `ALLOWED_OSC`; drops DCS, SOS, PM, and APC string containers whole. Stateful because sequences split across poll reads; an unterminated sequence past `MAX_PENDING_SEQUENCE` is discarded as hostile.
+
+    Control bytes inside a sequence follow the terminal's own parser, because any divergence is a filter bypass: a byte the filter reads as ending a sequence while the terminal reads it as restarting one lets a guest smuggle an arbitrary successor past the per-sequence checks. So CAN and SUB abort the pending sequence, ESC abandons it and starts a fresh one, DEL is ignored, and the executable C0s (BEL, CR, ...) are forwarded alone with the sequence still pending — in every state, exactly as xterm does. A UTF-8-encoded C1 control (0xC2 0x80-0x9F) is parsed as its 7-bit ESC pair for the same reason: the operator's terminal dispatches the decoded codepoint as a control, so 0xC2 0x9D opens an OSC there no matter what the raw-byte filter thought. And because the terminal decodes the OUTPUT, adjacency there is what counts: an orphan 0xC2 (successor not a continuation byte) is dropped rather than forwarded, since a dropped sequence between it and a later raw C1 byte would otherwise splice the two into a valid C1 encoding the decoder reassembles.
     """
 
     _GROUND, _ESC, _CSI, _OSC, _DROP_STRING, _INTERMEDIATE = range(6)
+    # C0 bytes a terminal executes mid-sequence without disturbing it:
+    # everything below 0x20 except CAN and SUB (abort) and ESC (restart)
+    _EXEC_C0 = frozenset(range(0x20)) - {0x18, 0x1A, 0x1B}
 
     def __init__(self) -> None:
         self._state = self._GROUND
         self._pending = bytearray()
         self._drop_prev_esc = False
+        self._c2_held = False
 
     def feed(self, data: bytes) -> bytes:
         out = bytearray()
         for byte in data:
-            if self._state == self._GROUND:
-                if byte == 0x1B:
-                    self._state = self._ESC
-                    self._pending = bytearray([byte])
-                else:
-                    out.append(byte)
+            self._step(byte, out)
+        return bytes(out)
+
+    def _step(self, byte: int, out: bytearray) -> None:
+        # the operator's terminal parses decoded codepoints, so the two-byte
+        # UTF-8 form of a C1 control dispatches there like its ESC pair; hold
+        # a lone 0xC2 (multibyte text splits across reads) and translate
+        if self._c2_held:
+            self._c2_held = False
+            if 0x80 <= byte <= 0x9F:
+                self._step(0x1B, out)
+                self._step(byte - 0x40, out)
+                return
+            if 0xA0 <= byte <= 0xBF:
+                # a valid two-byte character; both bytes land in the same
+                # place (text, or the same pending sequence), so the pair the
+                # terminal decodes is the pair the guest sent
+                self._handle(0xC2, out)
+                self._handle(byte, out)
+                return
+            # orphan 0xC2: invalid UTF-8, never legitimate output — dropped,
+            # not forwarded, because the filter's own drops could otherwise
+            # splice it against a later raw C1 byte into a valid C1 encoding
+            # in the output, which the terminal's decoder would reassemble
+            self._step(byte, out)
+            return
+        if byte == 0xC2:
+            self._c2_held = True
+            return
+        self._handle(byte, out)
+
+    def _handle(self, byte: int, out: bytearray) -> None:
+        if self._state == self._GROUND:
+            if byte == 0x1B:
+                self._state = self._ESC
+                self._pending = bytearray([byte])
+            else:
+                out.append(byte)
+        elif self._state in (self._ESC, self._CSI, self._INTERMEDIATE):
+            if byte in (0x18, 0x1A):  # CAN, SUB: the sequence dies undispatched
+                self._reset()
+            elif byte == 0x1B:  # a fresh sequence starts over the dead one
+                self._reset()
+                self._state = self._ESC
+                self._pending = bytearray([byte])
+            elif byte in self._EXEC_C0:
+                # executed in place; the sequence stays pending (forwarding it
+                # as sequence text instead is the ESC BEL ] bypass)
+                out.append(byte)
+            elif byte == 0x7F:
+                pass  # DEL is ignored inside sequences
             elif self._state == self._ESC:
                 self._pending.append(byte)
                 if byte == ord("["):
@@ -280,49 +331,67 @@ class EscapeFilter:
                 if not 0x20 <= byte <= 0x2F:
                     out.extend(self._pending)
                     self._reset()
-            elif self._state == self._CSI:
+            else:  # CSI
                 self._pending.append(byte)
                 if 0x40 <= byte <= 0x7E:
                     out.extend(self._pending)
                     self._reset()
                 elif len(self._pending) > MAX_PENDING_SEQUENCE:
                     self._reset()
-            elif self._state == self._OSC:
-                # terminated by BEL, or by ST (ESC \); the ESC is held back so
-                # a non-ST successor is not lost
-                if byte == 0x07:
-                    self._pending.append(byte)
+        elif self._state == self._OSC:
+            # terminated by BEL, or by ST (ESC \); the ESC is held back so
+            # a non-ST successor is not lost
+            if byte == 0x07:
+                self._pending.append(byte)
+                out.extend(self._filtered_osc())
+                self._reset()
+            elif self._drop_prev_esc:
+                self._drop_prev_esc = False
+                if byte == ord("\\"):
+                    self._pending.extend(b"\x1b\\")
                     out.extend(self._filtered_osc())
                     self._reset()
-                elif self._drop_prev_esc:
-                    self._drop_prev_esc = False
-                    if byte == ord("\\"):
-                        self._pending.extend(b"\x1b\\")
-                        out.extend(self._filtered_osc())
-                        self._reset()
-                    else:
-                        self._pending.extend((0x1B, byte))
-                elif byte == 0x1B:
-                    self._drop_prev_esc = True
                 else:
-                    self._pending.append(byte)
-                if len(self._pending) > MAX_PENDING_SEQUENCE:
-                    # hostile buffering: drop what accumulated and keep
-                    # dropping until the string terminator, so no fragment of
-                    # the string ever reaches the terminal as text
+                    # the terminal abandons the string at the ESC and parses a
+                    # fresh sequence from it; mirror that, dropping the body
+                    # (keeping the ESC inside an allowed title is the title
+                    # smuggling bypass)
                     self._reset()
-                    self._state = self._DROP_STRING
-            elif self._state == self._DROP_STRING:
-                if self._drop_prev_esc:
-                    self._drop_prev_esc = False
-                    if byte == ord("\\"):
-                        self._reset()
-                elif byte == 0x1B:
-                    self._drop_prev_esc = True
-                elif byte == 0x07:
-                    # xterm accepts BEL as a string terminator too
+                    self._state = self._ESC
+                    self._pending = bytearray([0x1B])
+                    self._handle(byte, out)
+            elif byte == 0x1B:
+                self._drop_prev_esc = True
+            elif byte in (0x18, 0x1A):  # CAN, SUB: the string dies undispatched
+                self._reset()
+            elif byte < 0x20 or byte == 0x7F:
+                pass  # other controls are ignored inside the string
+            else:
+                self._pending.append(byte)
+            if len(self._pending) > MAX_PENDING_SEQUENCE:
+                # hostile buffering: drop what accumulated and keep
+                # dropping until the string terminator, so no fragment of
+                # the string ever reaches the terminal as text
+                self._reset()
+                self._state = self._DROP_STRING
+        elif self._state == self._DROP_STRING:
+            if self._drop_prev_esc:
+                self._drop_prev_esc = False
+                if byte == ord("\\"):
                     self._reset()
-        return bytes(out)
+                else:
+                    # same restart the terminal performs at a bare ESC
+                    self._reset()
+                    self._state = self._ESC
+                    self._pending = bytearray([0x1B])
+                    self._handle(byte, out)
+            elif byte == 0x1B:
+                self._drop_prev_esc = True
+            elif byte in (0x18, 0x1A):
+                self._reset()
+            elif byte == 0x07:
+                # xterm accepts BEL as a string terminator too
+                self._reset()
 
     def _filtered_osc(self) -> bytes:
         body = bytes(self._pending[2:])  # past ESC ]

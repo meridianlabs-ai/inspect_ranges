@@ -208,6 +208,46 @@ FILTER_CASES: list[tuple[str, bytes, bytes]] = [
     ("pm dropped whole", b"a\x1b^payload\x1b\\b", b"ab"),
     ("sos dropped whole", b"a\x1bXpayload\x1b\\b", b"ab"),
     ("dcs bel-terminated dropped", b"a\x1bPpayload\x07b", b"ab"),
+    # control bytes inside sequences follow the terminal's parser: each of
+    # these made the filter leave a state the terminal was still in (or vice
+    # versa), letting the OSC 52 through as forwarded text
+    ("esc esc restarts, osc still dropped", b"a\x1b\x1b]52;c;ZXZpbA==\x07b", b"ab"),
+    (
+        "esc inside charset escape restarts",
+        b"a\x1b(\x1b]52;c;ZXZpbA==\x07b",
+        b"ab",
+    ),
+    ("esc inside csi restarts", b"a\x1b[1\x1b]52;c;ZXZpbA==\x07b", b"ab"),
+    (
+        "bel inside escape executes alone",
+        b"a\x1b\x07]52;c;ZXZpbA==\x07b",
+        b"a\x07b",
+    ),
+    ("del inside escape is ignored", b"a\x1b\x7f]52;c;ZXZpbA==\x07b", b"ab"),
+    (
+        "esc inside allowed title aborts it",
+        b"a\x1b]0;t\x1b]52;c;ZXZpbA==\x07b",
+        b"ab",
+    ),
+    (
+        "can inside allowed title aborts it",
+        b"a\x1b]0;t\x18\x1b]52;c;ZXZpbA==\x07b",
+        b"ab",
+    ),
+    ("can aborts a csi undispatched", b"a\x1b[31\x18mb", b"amb"),
+    ("sub aborts an osc undispatched", b"a\x1b]0;t\x1ab", b"ab"),
+    (
+        "utf-8 encoded c1 osc introducer dropped",
+        b"a\xc2\x9d52;c;ZXZpbA==\x07b",
+        b"ab",
+    ),
+    (
+        "utf-8 encoded c1 st still terminates",
+        b"a\xc2\x9d52;c;ZXZpbA==\xc2\x9cb",
+        b"ab",
+    ),
+    ("utf-8 text through the c2 hold survives", "«¢»".encode(), "«¢»".encode()),
+    ("orphan c2 dropped, hold still chains", b"a\xc2\xc2\x9d52;c;x\x07b", b"ab"),
 ]
 
 
@@ -233,10 +273,43 @@ def test_filter_drops_oversized_unterminated_sequences() -> None:
     assert filt.feed(b"stillpayload\x07visible") == b"visible"
 
 
-def test_filter_osc_esc_without_st_stays_in_string() -> None:
-    """An ESC inside an OSC body that is not part of ST does not end the string (nothing hostile escapes mid-sequence)."""
+RECOMBINATION_ATTACKS = [
+    # a held 0xC2 whose successor opens a sequence the filter drops, with a
+    # raw C1 introducer right after the dropped span: forwarding the orphan
+    # 0xC2 would splice output bytes C2 9D/C2 90, which the terminal decodes
+    # to U+009D/U+0090 and dispatches as OSC/DCS
+    b"\xc2\x1b[\x18\x9d52;c;ZXZpbA==\x07",
+    b"\xc2\x1b]52;x\x07\x9d52;c;ZXZpbA==\x07",
+    b"\xc2\x1b_x\x1b\\\x9d52;c;ZXZpbA==\x07",
+    b"\xc2\x1b[\x18\x90payload\x1b\\",
+    # the same splice inside an allowed title: the orphan's successor is a
+    # control the OSC state ignores, so 0xC2 and the raw 0x9D would land
+    # adjacent in a forwarded code-0 body
+    b"\x1b]0;t\xc2\x01\x9d52;c;ZXZpbA==\x07",
+    b"\x1b]0;t\xc2\x7f\x9d52;c;ZXZpbA==\x07",
+    # and inside a CSI, via an exec C0 that leaves pending untouched
+    b"\x1b[\xc2\x05\x9d52;c;ZXZpbA==\x07",
+]
+
+
+@pytest.mark.parametrize("raw", RECOMBINATION_ATTACKS)
+def test_filter_output_never_recombines_a_c1_encoding(raw: bytes) -> None:
+    """The terminal decodes the filter's OUTPUT, so output adjacency is what counts: no split of the input may yield an output where 0xC2 directly precedes a C1 byte."""
+    for split in range(len(raw) + 1):
+        filt = EscapeFilter()
+        out = filt.feed(raw[:split]) + filt.feed(raw[split:])
+        spliced = [
+            out[i : i + 2]
+            for i in range(len(out) - 1)
+            if out[i] == 0xC2 and 0x80 <= out[i + 1] <= 0x9F
+        ]
+        assert not spliced, (raw, split, out)
+
+
+def test_filter_osc_esc_without_st_aborts_like_the_terminal() -> None:
+    """An ESC inside an OSC body that is not part of ST abandons the string, exactly as the terminal's parser does: the body never reaches the terminal, and the successor sequence stands on its own (here ESC c, then ground text)."""
     filt = EscapeFilter()
-    assert filt.feed(b"\x1b]52;c;ab\x1bcd\x07tail") == b"tail"
+    assert filt.feed(b"\x1b]52;c;ab\x1bcd\x07tail") == b"\x1bcd\x07tail"
 
 
 # -- run_shell preconditions ----------------------------------------------------
