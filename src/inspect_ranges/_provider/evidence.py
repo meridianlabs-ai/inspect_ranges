@@ -43,11 +43,11 @@ logger = logging.getLogger("inspect_ranges.provider")
 EVIDENCE_BUFFER_MB_VAR = "INSPECT_RANGES_EVIDENCE_BUFFER_MB"
 EVIDENCE_MAX_MB_VAR = "INSPECT_RANGES_EVIDENCE_MAX_MB"
 
-DEFAULT_EVIDENCE_MAX_MB = 4096
-"""Default per-writer evidence volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`) for a filesystem sink. Enforced per writer identity (a sample has at most two: `driver` and `host`); breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never silent loss and never a failed sample."""
+DEFAULT_EVIDENCE_MAX_MB = 8192
+"""Default per-writer evidence volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`) for a filesystem sink. Enforced per writer identity (a sample has at most two: `driver` and `host`); breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never silent loss and never a failed sample. 8 GiB is calibrated against measured full-length runs on a 19-guest range with filtered pcap: 3.5 GiB over 9.6 h terminal-only, and a 7.6 h run with a live C2 stack that overflowed the previous 4 GiB guard mid-run and dropped pcap and console chunks — a guard a legitimate run overflows is discarding the forensics the evidence system exists to keep."""
 
-DEFAULT_EVIDENCE_MAX_MB_REMOTE = 65536
-"""The default cap when the sink is an object store: local disk is not at risk there, so the bound is a cost guard and sized accordingly. The same variable overrides both defaults."""
+DEFAULT_EVIDENCE_MAX_MB_REMOTE = 131072
+"""The default cap when the sink is an object store: local disk is not at risk there, so the bound is a cost guard and sized accordingly. 128 GiB: packet capture is spec-declared now, so a range that deliberately declares whole-packet capture (`snaplen: 0`) on a busy segment is legitimate, and the measured unfiltered rate (4.1 GiB per 37 min) exceeds 64 GiB well inside a day-long run; 128 GiB covers that by design while still bounding a runaway writer at trivial object-store cost. The same variable overrides both defaults."""
 
 FINALIZE_BUDGET_S = 30.0
 """The nominal `finalize evidence` budget: teardown is never hostage to a slow uplink. Enforced as the SUM of its phases (`PRODUCER_STOPS_SHARE_S`, the capture streamer's internal bounds, `SEAL_RESERVE_S`), not one outer timeout: an outer timeout would cancel the streamer's own gap-recording handlers mid-write (quality-review A6 review round)."""
