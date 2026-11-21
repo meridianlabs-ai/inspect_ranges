@@ -28,7 +28,7 @@ networks:
 
 The default snaplen (256 bytes) keeps headers and small payloads; `snaplen: 0` keeps whole packets. Undeclared segments are not captured, and a spec that declares no captures renders no capture sidecar at all.
 
-The per-writer volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`) defaults by sink backend: 4 GiB to a filesystem (a disk guard), 64 GiB to an object store (a cost guard); the variable overrides both.
+The per-writer volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`) defaults by sink backend: 8 GiB to a filesystem (a disk guard), 128 GiB to an object store (a cost guard); the variable overrides both.
 
 ## Captured Streams
 
@@ -112,7 +112,7 @@ Local evidence (a local log dir, no override) is fine for development and does n
 |----|----|----|
 | `INSPECT_RANGES_EVIDENCE_SINK` | unset | Override base for evidence locations; unset derives from the eval log location (the default and the recommendation). Also enables evidence outside an eval context. |
 | `INSPECT_RANGES_EVIDENCE_BUFFER_MB` | 64 | Per-writer in-memory buffer cap; past it the oldest unstreamed chunk drops with an in-chain gap record. Joins the sample’s admission memory charge. |
-| `INSPECT_RANGES_EVIDENCE_MAX_MB` | 4096 | Per-writer volume cap (a sample has at most two writers: `driver` and `host`). Breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never a failed sample. |
+| `INSPECT_RANGES_EVIDENCE_MAX_MB` | 8192 (131072 to an object store) | Per-writer volume cap (a sample has at most two writers: `driver` and `host`). Breach yields in-chain `evidence-cap` gaps and an `incomplete` seal, never a failed sample. |
 | `INSPECT_RANGES_EXEC_WITNESS` | unset (on) | Set `0` to disable the exec witness: the per-guest poller is never constructed, so the in-guest subscriber never arms (lazy-arm makes this the complete kill switch, no image rebuild involved). |
 | `INSPECT_RANGES_CAST_STORE_CAP_MB` | 50 | Per-session cap on the asciicast copy written into the sample store (and so into the eval log) for viewer playback; an over-cap cast keeps its tail with a marker noting the cut, and the evidence copy stays complete. |
 | `CAPTURE_CHUNK_MB`, `CAPTURE_CAP_MB`, `CAPTURE_MAX_RESTARTS` | 10 / 2048 / 5 | Capture sidecar tuning, read from the environment at `up`: rotation chunk size, per-segment disk cap, tcpdump restart budget. |

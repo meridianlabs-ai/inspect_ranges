@@ -1597,7 +1597,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">snaplen</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span><span class="co">                  # whole packets</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">filter</span><span class="kw">:</span><span class="at"> not port 9200</span><span class="co">      # BPF, applied at the capture itself</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The default snaplen (256 bytes) keeps headers and small payloads; <code>snaplen: 0</code> keeps whole packets. Undeclared segments are not captured, and a spec that declares no captures renders no capture sidecar at all.</p>
-<p>The per-writer volume cap (<code>INSPECT_RANGES_EVIDENCE_MAX_MB</code>) defaults by sink backend: 4 GiB to a filesystem (a disk guard), 64 GiB to an object store (a cost guard); the variable overrides both.</p>
+<p>The per-writer volume cap (<code>INSPECT_RANGES_EVIDENCE_MAX_MB</code>) defaults by sink backend: 8 GiB to a filesystem (a disk guard), 128 GiB to an object store (a cost guard); the variable overrides both.</p>
 </section>
 <section id="captured-streams" class="level2">
 <h2 class="anchored" data-anchor-id="captured-streams">Captured Streams</h2>
@@ -1735,7 +1735,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td><code>INSPECT_RANGES_EVIDENCE_MAX_MB</code></td>
-<td>4096</td>
+<td>8192 (131072 to an object store)</td>
 <td>Per-writer volume cap (a sample has at most two writers: <code>driver</code> and <code>host</code>). Breach yields in-chain <code>evidence-cap</code> gaps and an <code>incomplete</code> seal, never a failed sample.</td>
 </tr>
 <tr class="even">
