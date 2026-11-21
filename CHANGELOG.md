@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.28 (21 November 2026)
 
 - The evidence volume cap defaults recalibrate against measured full-length runs: 4 GiB -> 8 GiB to a filesystem, 64 GiB -> 128 GiB to an object store. The old disk guard was sized before capture filtering existed; with filtered pcap, a 9.6 h terminal-only run on a 19-guest range produced 3.5 GiB of legitimate evidence, and a 7.6 h run with a live C2 stack overflowed 4 GiB mid-run and dropped pcap and console chunks — a guard a legitimate run overflows is discarding the forensics the evidence system exists to keep. The object-store bound is a cost guard, and spec-declared whole-packet capture (`snaplen: 0`) is now a legitimate configuration whose measured rate (4.1 GiB per 37 min) exceeds 64 GiB well inside a day; 128 GiB covers it at trivial cost. `INSPECT_RANGES_EVIDENCE_MAX_MB` still overrides both.
 
