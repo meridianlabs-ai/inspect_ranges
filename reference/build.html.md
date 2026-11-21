@@ -23,6 +23,7 @@ inspect-ranges build [OPTIONS] [PATH]
 | `--build-cache` | path | Builds cache where the range’s manifest lives. | None |
 | `--reverify` | boolean | Boot and verify in full even when every build key matches the recorded manifest. | `Sentinel.UNSET` |
 | `--readiness-timeout` | float | Per-guest readiness deadline in seconds (daemon answer, then cloud-init). | `300.0` |
+| `--readiness-resets` | integer range (between `0` and `3`) | Hard resets granted to an unready QEMU guest before a boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures). | `0` |
 | `--settle-probe` | text | Hostname each guest must resolve before its first recipe runs; pass ‘off’ to skip the gate (fleets whose resolver answers only internal names). | None |
 | `--settle-timeout` | float | Seconds to wait for the settle probe per guest. | None |
 | `--recipe-budget` | float | Whole-entrypoint budget per provisioning step, in seconds. | `1800.0` |

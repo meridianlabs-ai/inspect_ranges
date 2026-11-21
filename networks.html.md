@@ -741,6 +741,62 @@ attacker:
   entry: assumed-breach
 ```
 
+## Packet Capture
+
+When a deployment records evidence, segments that declare `pcap` get a packet capture on their bridge (see [Evidence](./evidence.html.md)); undeclared segments are not captured. `pcap: {}` accepts the defaults (snaplen 256, no filter); `snaplen: 0` keeps whole packets, and `filter` applies a BPF expression at the capture itself:
+
+``` yaml
+range:
+  name: capture-declared
+  description: Packet capture on the segment whose traffic is evidence.
+
+networks:
+  - name: lab
+    cidr: 10.10.10.0/24
+    mode: isolated
+    pcap: { snaplen: 0, filter: not port 9200 }
+  - name: ops
+    cidr: 10.10.20.0/24
+    mode: isolated
+
+hosts:
+  - name: web
+    os: { type: linux }
+    image: acme/web-golden
+    interfaces: [{ network: lab }]
+
+attacker:
+  interfaces: [{ network: lab }]
+  entry: external
+```
+
+``` python
+capture_declared = RangeSpec(
+    meta=RangeMeta(
+        name="capture-declared",
+        description="Packet capture on the segment whose traffic is evidence.",
+    ),
+    networks=[
+        Network(
+            name="lab",
+            cidr="10.10.10.0/24",
+            mode="isolated",
+            pcap=PcapCapture(snaplen=0, filter="not port 9200"),
+        ),
+        Network(name="ops", cidr="10.10.20.0/24", mode="isolated"),
+    ],
+    hosts=[
+        Host(
+            name="web",
+            os=Os(type="linux"),
+            image="acme/web-golden",
+            interfaces=[Interface(network="lab")],
+        )
+    ],
+    attacker=Attacker(interfaces=[Interface(network="lab")], entry="external"),
+)
+```
+
 ## Attacker
 
 The attacker either boots as a dedicated attack box (declare `interfaces`, optionally `name`, `image`, `resources`, and `vmm`) or starts from a foothold on a declared host (assumed breach):

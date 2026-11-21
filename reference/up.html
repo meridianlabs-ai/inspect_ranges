@@ -1583,18 +1583,24 @@ ul.task-list li input[type="checkbox"] {
 <td><code>300.0</code></td>
 </tr>
 <tr class="even">
+<td><code>--readiness-resets</code></td>
+<td>integer range (between <code>0</code> and <code>3</code>)</td>
+<td>Hard resets granted to an unready QEMU guest before the boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures).</td>
+<td><code>0</code></td>
+</tr>
+<tr class="odd">
 <td><code>--keep</code></td>
 <td>boolean</td>
 <td>Keep a failed range running for inspection instead of tearing it down.</td>
 <td><code>Sentinel.UNSET</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>--uplink-network</code></td>
 <td>text</td>
 <td>Deployment-supplied uplink network, for ranges that request egress.</td>
 <td>None</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>--help</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>

@@ -1694,6 +1694,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>The deployment-supplied docker network a spec-declared egress range NATs through (<code>mode: nat</code> networks, attacker <code>egress:</code>). Required to boot such a range; egress-free ranges ignore it. Read where realization runs, like <code>INSPECT_RANGES_ATTACK_BOX</code>: the eval process under <code>local</code>, the applier’s own environment under a separated backend (see <a href="./topology.html">Range Host</a>).</td>
 </tr>
 <tr class="odd">
+<td><code>INSPECT_RANGES_READINESS_TIMEOUT</code></td>
+<td>300</td>
+<td>Per-guest readiness window for sample boots, in seconds (the build CLI’s <code>--readiness-timeout</code> equivalent). A spec-declared <code>boot.readiness_timeout</code> extends this for its guest; the env can widen, never narrow, a declaration. Read where realization runs. A malformed value refuses the boot.</td>
+</tr>
+<tr class="even">
+<td><code>INSPECT_RANGES_READINESS_RESETS</code></td>
+<td>0</td>
+<td>Hard resets granted to an unready QEMU guest inside one sample boot (the CLI’s <code>--readiness-resets</code> equivalent), each followed by a fresh readiness window — the intra-boot sibling of <code>INSPECT_RANGES_RETRY_UP_ATTEMPTS</code>, for the boot lotteries a reboot cures. A spec-declared <code>boot.resets</code> grants its guest an allowance; the env widens the whole fleet’s, never narrows a declaration. Read where realization runs. A malformed value refuses the boot.</td>
+</tr>
+<tr class="odd">
 <td><code>INSPECT_RANGES_RETRY_EXEC_ATTEMPTS</code></td>
 <td>3</td>
 <td>Retry attempts for <code>exec</code>.</td>

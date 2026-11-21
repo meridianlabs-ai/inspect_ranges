@@ -14,12 +14,15 @@ The result value is the finding count (0 is healthy; the [mean()](https://inspec
 
 Detector families: PLUMBING (post-readiness channel/transport failures, repeated retries against one guest, evidence finalize/teardown errors, the in-guest tool’s rc 124/125 contract), CONFIG-AWARE REACHABILITY (reading the range definition from the sample metadata `challenge_dataset(range_spec=...)` writes: connectivity failures toward addresses the spec declares reachable from the foothold under its ACLs, and attempts toward private addresses no declared network holds), VERIFY_GOAL BEHAVIOR (zero recorded submissions, submissions binding to no goal, dropped candidates, completion claims over unattempted goals), and SCORING/EVIDENCE INTEGRITY (recorded validity other than `valid`, corroboration flags, the all-segment-goals-uncorroborated hint).
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/fc32484f22ebbc82b461a6987bc9afc29245796a/src/inspect_ranges/scanners.py#L46)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/d918978b0cb708ad6819054f218a6a25aacc0659/src/inspect_ranges/scanners.py#L48)
 
 ``` python
 @scanner(messages="all", events="all", metadata=True, metrics=[mean()])
-def range_apparatus() -> Scanner[Transcript]
+def range_apparatus(overlay_networks: Sequence[str] = ()) -> Scanner[Transcript]
 ```
+
+`overlay_networks` Sequence\[str\]  
+In-guest overlay subnets in CIDR form (e.g. a VPN tunnel’s `10.8.0.0/24`, a container bridge) that exist at runtime but can never be declared networks; the phantom-address detector treats them as declared instead of warning on every tunnel-addressed command.
 
 ### range_friction
 
@@ -31,7 +34,7 @@ The result value carries the findings (`{"findings": [...]}`), each with a categ
 
 Costs a model call per transcript, so this is an after-the-fact audit over eval logs (`inspect_scout.scan` or `scout scan`) rather than something to put in a scorer list.
 
-[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/fc32484f22ebbc82b461a6987bc9afc29245796a/src/inspect_ranges/scanners.py#L98)
+[Source](https://github.com/meridianlabs-ai/inspect_ranges/blob/d918978b0cb708ad6819054f218a6a25aacc0659/src/inspect_ranges/scanners.py#L108)
 
 ``` python
 @scanner(messages="all", metadata=True)

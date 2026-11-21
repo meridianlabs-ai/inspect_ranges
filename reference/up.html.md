@@ -19,6 +19,7 @@ inspect-ranges up [OPTIONS] [BUNDLE]
 | `--image-cache` | path | Image cache the bundle’s image digests re-verify against. | None |
 | `--cid-base` | integer range (`3` and above) | First vsock CID when rendering `--from-spec`; by default a block is leased from the host allocator so parallel ranges never collide (released by `down`). | None |
 | `--readiness-timeout` | float | Per-guest readiness deadline in seconds (daemon answer, then cloud-init). | `300.0` |
+| `--readiness-resets` | integer range (between `0` and `3`) | Hard resets granted to an unready QEMU guest before the boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures). | `0` |
 | `--keep` | boolean | Keep a failed range running for inspection instead of tearing it down. | `Sentinel.UNSET` |
 | `--uplink-network` | text | Deployment-supplied uplink network, for ranges that request egress. | None |
 | `--help` | boolean | Show this message and exit. | `Sentinel.UNSET` |

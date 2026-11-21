@@ -1607,24 +1607,30 @@ ul.task-list li input[type="checkbox"] {
 <td><code>300.0</code></td>
 </tr>
 <tr class="even">
+<td><code>--readiness-resets</code></td>
+<td>integer range (between <code>0</code> and <code>3</code>)</td>
+<td>Hard resets granted to an unready QEMU guest before a boot fails, each followed by a fresh readiness window (for the boot lotteries a reboot cures).</td>
+<td><code>0</code></td>
+</tr>
+<tr class="odd">
 <td><code>--settle-probe</code></td>
 <td>text</td>
 <td>Hostname each guest must resolve before its first recipe runs; pass ‘off’ to skip the gate (fleets whose resolver answers only internal names).</td>
 <td>None</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>--settle-timeout</code></td>
 <td>float</td>
 <td>Seconds to wait for the settle probe per guest.</td>
 <td>None</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>--recipe-budget</code></td>
 <td>float</td>
 <td>Whole-entrypoint budget per provisioning step, in seconds.</td>
 <td><code>1800.0</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>--help</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>

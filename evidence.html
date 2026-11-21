@@ -1537,6 +1537,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#packet-capture" id="toc-packet-capture" class="nav-link" data-scroll-target="#packet-capture">Packet Capture</a></li>
   <li><a href="#captured-streams" id="toc-captured-streams" class="nav-link" data-scroll-target="#captured-streams">Captured Streams</a></li>
   <li><a href="#storage" id="toc-storage" class="nav-link" data-scroll-target="#storage">Storage</a></li>
   <li><a href="#tamper-evidence" id="toc-tamper-evidence" class="nav-link" data-scroll-target="#tamper-evidence">Tamper Evidence</a></li>
@@ -1581,6 +1582,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Scoring consumes the record through the oracle’s read-only accessors: <a href="./goals.html#the-oracle-surface">Custom Goals</a> covers reading it from a goal type, and <a href="./goals.html#corroborating-against-evidence">Corroborating Against Evidence</a> is the worked pattern.</p>
 <p>Evidence is on by default inside an eval: when a sample runs under Inspect, the provider derives a location beside the eval log and records automatically. Outside an eval context (CLI experiments, batteries), set <code>INSPECT_RANGES_EVIDENCE_SINK</code> to enable it; with neither, evidence is off and one INFO line says so.</p>
 </section>
+<section id="packet-capture" class="level2">
+<h2 class="anchored" data-anchor-id="packet-capture">Packet Capture</h2>
+<p>Packet capture is opt-in per segment: the spec declares which traffic is evidence, so an always-busy segment (a SIEM’s ingest, a telemetry bus) does not fill the volume budget with chatter and starve the captures that matter.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">networks</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> dmz</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.80.10.0/24</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">pcap</span><span class="kw">:</span><span class="at"> </span><span class="kw">{}</span><span class="co">                      # capture with the defaults (snaplen 256)</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> corp</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">cidr</span><span class="kw">:</span><span class="at"> 10.80.20.0/24</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mode</span><span class="kw">:</span><span class="at"> isolated</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">pcap</span><span class="kw">:</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">snaplen</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span><span class="co">                  # whole packets</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">filter</span><span class="kw">:</span><span class="at"> not port 9200</span><span class="co">      # BPF, applied at the capture itself</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The default snaplen (256 bytes) keeps headers and small payloads; <code>snaplen: 0</code> keeps whole packets. Undeclared segments are not captured, and a spec that declares no captures renders no capture sidecar at all.</p>
+<p>The per-writer volume cap (<code>INSPECT_RANGES_EVIDENCE_MAX_MB</code>) defaults by sink backend: 4 GiB to a filesystem (a disk guard), 64 GiB to an object store (a cost guard); the variable overrides both.</p>
+</section>
 <section id="captured-streams" class="level2">
 <h2 class="anchored" data-anchor-id="captured-streams">Captured Streams</h2>
 <table class="caption-top table">
@@ -1593,7 +1611,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td><code>pcap/&lt;segment&gt;</code></td>
-<td>One packet capture per bridge, full snaplen, rotated and shipped live. It runs in a <code>NET_RAW</code>-only sidecar sharing the range’s network namespace, so nothing is added to any guest.</td>
+<td>One packet capture per <strong>declared</strong> segment (<code>pcap:</code> on the network), rotated and shipped live. It runs in a <code>NET_RAW</code>-only sidecar sharing the range’s network namespace, so nothing is added to any guest.</td>
 </tr>
 <tr class="even">
 <td><code>console/&lt;guest&gt;</code></td>
@@ -1673,15 +1691,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="verifying-a-record" class="level2">
 <h2 class="anchored" data-anchor-id="verifying-a-record">Verifying a Record</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># internal consistency: replay every chain, report coverage and gaps</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify ./logs/mytask.evidence/sample1_1_1</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the full guarantee: anchor each writer's seal to its digest from</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># the eval log's binding (store key inspect_ranges:evidence); the</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># digests are bare hex, exactly as the binding and INFO line show</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify <span class="dt">\</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  s3://bucket/logs/run.evidence/sample1_1_1 <span class="dt">\</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--expect-seal</span> driver=4f8b21... <span class="at">--expect-seal</span> host=9d03ce...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash fragment code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># internal consistency: replay every chain, report coverage and gaps</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify ./logs/mytask.evidence/sample1_1_1</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the full guarantee: anchor each writer's seal to its digest from</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># the eval log's binding (store key inspect_ranges:evidence); the</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># digests are bare hex, exactly as the binding and INFO line show</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="ex">inspect-ranges</span> evidence verify <span class="dt">\</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  s3://bucket/logs/run.evidence/sample1_1_1 <span class="dt">\</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--expect-seal</span> driver=4f8b21... <span class="at">--expect-seal</span> host=9d03ce...</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Output names the first chain break with its neighborhood, per-stream coverage spans, the gap inventory, and each seal’s claimed lease and sample ids; <code>--json</code> emits the report for tooling. Exit status is 0 only when every chain replays and every supplied binding matches. Timestamps come from both clocks: capture records carry the range host’s clocks, driver records carry the driver’s, and paired records around stage reports bound the offset between them, so cross-clock comparisons carry a tolerance.</p>
 </section>
 <section id="deployment-guidance-store-side-prevention" class="level2">

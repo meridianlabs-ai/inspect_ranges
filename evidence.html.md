@@ -8,11 +8,33 @@ Scoring consumes the record through the oracle’s read-only accessors: [Custom 
 
 Evidence is on by default inside an eval: when a sample runs under Inspect, the provider derives a location beside the eval log and records automatically. Outside an eval context (CLI experiments, batteries), set `INSPECT_RANGES_EVIDENCE_SINK` to enable it; with neither, evidence is off and one INFO line says so.
 
+## Packet Capture
+
+Packet capture is opt-in per segment: the spec declares which traffic is evidence, so an always-busy segment (a SIEM’s ingest, a telemetry bus) does not fill the volume budget with chatter and starve the captures that matter.
+
+``` yaml
+networks:
+  - name: dmz
+    cidr: 10.80.10.0/24
+    mode: isolated
+    pcap: {}                      # capture with the defaults (snaplen 256)
+  - name: corp
+    cidr: 10.80.20.0/24
+    mode: isolated
+    pcap:
+      snaplen: 0                  # whole packets
+      filter: not port 9200      # BPF, applied at the capture itself
+```
+
+The default snaplen (256 bytes) keeps headers and small payloads; `snaplen: 0` keeps whole packets. Undeclared segments are not captured, and a spec that declares no captures renders no capture sidecar at all.
+
+The per-writer volume cap (`INSPECT_RANGES_EVIDENCE_MAX_MB`) defaults by sink backend: 4 GiB to a filesystem (a disk guard), 64 GiB to an object store (a cost guard); the variable overrides both.
+
 ## Captured Streams
 
 | Stream | Contents |
 |----|----|
-| `pcap/<segment>` | One packet capture per bridge, full snaplen, rotated and shipped live. It runs in a `NET_RAW`-only sidecar sharing the range’s network namespace, so nothing is added to any guest. |
+| `pcap/<segment>` | One packet capture per **declared** segment (`pcap:` on the network), rotated and shipped live. It runs in a `NET_RAW`-only sidecar sharing the range’s network namespace, so nothing is added to any guest. |
 | `console/<guest>` | Each guest’s serial console, streamed continuously (not only on failure). |
 | `capture-stderr/<segment>` | The capture tool’s own diagnostics, including the kernel-drop summaries tcpdump prints on exit. |
 | `stages`, `verify` | The realization stage stream (with host emit clocks) and the readiness/verification results. |

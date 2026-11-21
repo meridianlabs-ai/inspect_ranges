@@ -89,7 +89,7 @@ Python definitions import from `inspect_ranges.types` (shown once above, later P
 
 `name` is how everything else refers to the guest: `sandbox("dc01")` in evaluations, ACL endpoints, DNS `authoritative` lists. `hostname` is only needed when the in-guest name should differ, and `fqdn` matters for domain-joined ranges. `os` records the platform (`type: linux | windows`, with `distro` or `version` detail); `interfaces` are covered in [Networks](./networks.html.md).
 
-The in-guest hostname is the declared `hostname:` when one is present, else a hostname-safe form of `name`: invalid characters such as underscores and dots become hyphens, and Windows names truncate to the 15-character NetBIOS limit. Two guests whose rendered hostnames collide refuse at planning. `fqdn` is set at build time by the Active Directory recipes, so a range declaring it refuses to run until a build has produced that content and recorded it in the build manifest (see [Building Ranges](./building.html.md)).
+The in-guest hostname is the declared `hostname:` when one is present, else a hostname-safe form of `name`: invalid characters such as underscores and dots become hyphens, and Windows names truncate to the 15-character NetBIOS limit. Two guests that share a network and whose rendered hostnames collide refuse at planning; guests with no network in common may reuse a hostname (one `dc1` per AD forest, each addressed by its FQDN). `fqdn` is set at build time by the Active Directory recipes, so a range declaring it refuses to run until a build has produced that content and recorded it in the build manifest (see [Building Ranges](./building.html.md)).
 
 `roles` tags a host’s function, such as `roles: [domain-controller, dns]` or `[member-server]`. The tags tell the build what a host is for and give scoring a way to refer to hosts by function rather than by name. Roles take effect through the host’s provisioning recipes at build time; a host declaring roles but no recipe refuses at planning (`realized-section-unconsumed`).
 
@@ -232,6 +232,12 @@ Opaque is a contract, enforced fail-closed on both sides:
 
 - **Readiness is observed, not reported.** With no daemon handshake, `readiness` says how `up` decides the guest is ready: `{tcp: <port>}` probes a TCP connect against the first declared address, and `process` (the default) means the VM process runs. An appliance whose stack boots slowly declares its budget alongside the port (`{tcp: 830, timeout: 1200}`), extending the shared window for that guest. `readiness` on a non-opaque guest refuses.
 
+A router can be opaque too, putting the sealed appliance in the gateway seat; see [Routers](#routers-are-guests-too).
+
+## Boot budgets
+
+A guest’s boot behavior is a fact about its image, like its addresses: a large adopted disk that reaches readiness in five minutes under a cold fleet boots that way everywhere. A managed guest (or the dedicated attack box) declares that fact with `boot: { readiness_timeout: 900, resets: 2 }` — `readiness_timeout` extends the deployment’s per-guest readiness window for this guest (never shrinking it), and `resets` grants the guest hard resets (`virsh reset`) when it misses its window, each awaited on a fresh window of its own size, for images whose boot occasionally wedges pre-daemon or misses its cloud-init seed. `resets` needs a QEMU guest (`boot-resets-requires-qemu`); an opaque guest refuses `boot:` and declares its budget on `readiness: {tcp:, timeout:}` instead (`boot-budget-opaque`). Deployments can widen either value (`--readiness-timeout` / `--readiness-resets`, or `INSPECT_RANGES_READINESS_TIMEOUT` / `_RESETS` for sample boots), never narrow a declaration.
+
 ## Routers
 
 A router is an ordinary guest with one interface per joined segment, running a generated firewall that a defender inside the range can inspect. `os` and `image` are optional; when omitted, the backend’s default router appliance is used. A router can also be a target in its own right: it takes [`users`](#users) and `provisioning` like a host, built and captured on the same path as host content ([Building Ranges](./building.html.md)). A router declaring content must declare `image` as well (`router-image-required`), since the appliance default is a backend resolution its build key cannot pin. For example:
@@ -313,6 +319,32 @@ router_guest = RangeSpec(
 ```
 
 Policy (`acl`) and routing (`routes`, gateway election) are covered in [Networks](./networks.html.md).
+
+A router can also be a sealed appliance: declare `opaque: true` and the engine boots its [imported image](./images.html.md#imported-images) as-is, under the same [opaque contract](#appliances) as a host. The appliance’s own stack carries the forwarding policy and routing, so `acl`, `routes`, and `provisioning` all refuse (`opaque-content-not-supported`). A declared `image` is required (`opaque-image-required`), and every interface declares the `ip` the image carries on that segment. Gateway election hands that declared address to the segment’s other guests. The tcp readiness probe connects to the first declared interface’s address, so list the interface that answers it first. `users` stays legal as documentation of baked-in accounts:
+
+``` yaml
+routers:
+  - name: fw
+    image: acme-fw
+    opaque: true
+    readiness: { tcp: 443 }
+    interfaces:
+      - { network: dmz, ip: 10.80.10.1 }
+      - { network: internal, ip: 10.80.20.1 }
+```
+
+``` python
+Router(
+    name="fw",
+    image="acme-fw",
+    opaque=True,
+    readiness=TcpReadiness(tcp=443),
+    interfaces=[
+        Interface(network="dmz", ip="10.80.10.1"),
+        Interface(network="internal", ip="10.80.20.1"),
+    ],
+)
+```
 
 ## Attacker
 
@@ -433,7 +465,7 @@ Beyond identity and sizing, a definition declares what a guest contains: account
 
 ## Users
 
-`users` declares a guest’s local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). Domain accounts belong in [`active_directory`](#active-directory), not here:
+`users` declares a guest’s local accounts: the recipe creates them, and the declaration records the converged state. Routers take `users` the same way, realized by their own `provisioning` recipes (a managed router declaring users without a recipe refuses at planning, `realized-section-unconsumed`, because nothing would realize them). On an [opaque](#appliances) guest, users instead document accounts baked into the sealed image. Domain accounts belong in [`active_directory`](#active-directory), not here:
 
 ``` yaml
 range:
