@@ -22,6 +22,7 @@ networks:
   - name: lab
     cidr: 10.10.10.0/24        # default: upstream uses the docker default bridge
     mode: isolated             # default: no egress needed post-provisioning
+    pcap: {}
     dns:
       # upstream services resolve each other by name (docker DNS); replicate as records
       records: [{ name: server }, { name: agent }, { name: mysql }, { name: web }]

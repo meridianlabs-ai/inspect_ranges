@@ -215,3 +215,28 @@ Pin digest: `sha256:84bbef41c30ec5eb7541e5fbc4abd859f9fdcbd97d4b3da7aa8870261315
 Why a republish: 0.2.13 realizes `tpm: true`, and the range container's libvirt manages the per-guest swtpm, so the image gains `swtpm`/`swtpm-tools`, the in-place qemu.conf swtpm identity pins (`swtpm_user`/`swtpm_group` to `libvirt-qemu:kvm`, build-time self-asserted), and the local-CA statedir ownership. A pinned deployment on the previous image fails TPM-bearing bundles at domain start, so fleets move their `INSPECT_RANGES_RANGE_IMAGE` pin to the digest above.
 
 Content verified pre-push (swtpm present, qemu.conf pins active in the built image); anonymous pullability verified post-push with a credential-free registry token (HTTP 200 on the manifest; the repo predates the org's private-by-default change and stays public). Pushed via skopeo per the runbook (org tokens cannot grant docker push's cross-repo mount scope).
+
+## 2026-11-23 — full catalog republish (daemon 3.7.0)
+
+Published to `docker.io/meridianlabsai/inspect-ranges` in-session at the user's request ("build and publish as you suggested so dockerhub is completely up to date"), from the `example-pcap-declarations` branch (PR #122, merge pending at publish time; the three changed specs and the regenerated pin file ride that PR).
+
+Why: the hub had drifted behind the repo on the in-guest side. The published goldens and the attack image embedded daemon 3.3.0 (derived 2026-10-23) and the `daemon-bundle` ref served 3.6.0, while the repo mints 3.7.0 (PR #104: exec output pipes drain instead of closing on background holders). Everything republished so every artifact embeds 3.7.0.
+
+| Name | Kind | Root digest |
+|---|---|---|
+| `daemon-bundle` | reserved ref | `sha256:fbd74ed08642efb71a50c74f0dcd4320ef3d01c6667f3e658f5a0b4d44d5d269` (v3.7.0, bundle `sha256:ec779eb9bc026bd01f55985735e709d697c8b161a02065f44be9041a70922706`) |
+| `ubuntu-focal` | image | `sha256:4477678432bda912f4eabf55f4c992f20466c663575c7d4335ac32a1b465f9b8` |
+| `ubuntu-noble` | image | `sha256:f83b9e650eaaee92d9d4ec03010413e68f95dbf2bf698a463da839c417005cbe` |
+| `attack` | image | `sha256:74d7556626a58632a0dea43f3798b66cb93c8a7101885f4cdf228de8efa634e5` |
+| `cyris-basic` | range | `sha256:2387d823954af2e1560d517874c9494d97f80096c8a58556e863257dfcf10b6d` |
+| `defender-ops` | range | `sha256:b0fae6579bf51143825594c253740959f91829896bc210fd7260e74649878b41` |
+| `dmz-pivot` | range | `sha256:91e02370388f1f68918dbff000cb8ccc083c5d5aaf88f43d11525d928b1ca665` |
+| `equifax` | range | `sha256:67733fb7b72832b87a49052e78cffeb513776db36c4ed9f7c2a37de06c70a23d` |
+| `kypo-demo` | range | `sha256:0da24bf334dbef1571ca24542a59a1240011687808a5fd3be99e796ad178fbee` |
+| `vulhub-zabbix` | range | `sha256:5874e3ec816bcb5a927c7a4052d348e9b06fef5f6e4a09245e32c23af36b55d7` |
+
+Images supersede `attack` `626b43aa…`, `ubuntu-focal` `e85b3f39…`, `ubuntu-noble` `80282f62…`; old roots stay served by digest. Goldens re-derived from the unchanged vendor pins with the 3.7.0 bundle; the attack image rebuilt from `catalog/attack` on the new noble golden.
+
+Three ranges moved their spec hashes: PR #114 made packet capture spec-declared and opt-in but did not update the examples, so the examples whose goals corroborate against a segment capture built refused (reference 1.00 valid, beacons `uncorroborated`). The PR declares `pcap: {}` on the scoring-relevant networks: `dmz-pivot` spec `780a54c5…` (was `266f6fb0…`), `vulhub-zabbix` spec `3862cd55…` (was `9b92944f…`), `defender-ops` spec `1ad6a91a…` (was `2d2ba44b…`). `cyris-basic`, `kypo-demo`, and `equifax` specs are unchanged; their republish refreshes the embedded daemon only.
+
+Proof behind the push: all seven builds (attack factory plus six examples) built and proved in-session on the re-derived goldens, every declaration verified against live guests and every behavioral trio green at the pushed roots. Verified post-push with the publishing credential: all nine names' roots read back as above, all six range spec hashes match the working tree, both golden sidecars and the attack chain record daemon 3.7.0, and `images pin --from` wrote exactly the three image pins (committed as `pins.json` on the PR). The typed nine-name list read back credential-free (fresh empty `DOCKER_CONFIG`); a full anonymous materialization was not run this day (anonymous pulls were rate-limited mid-session; no new hub repos were created, so visibility is unchanged).

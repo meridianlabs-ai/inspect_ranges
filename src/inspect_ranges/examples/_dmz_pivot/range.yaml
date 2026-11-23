@@ -21,9 +21,11 @@ networks:
   - name: dmz
     cidr: 10.80.10.0/24
     mode: isolated
+    pcap: {}
   - name: internal
     cidr: 10.80.20.0/24
     mode: isolated
+    pcap: {}
 
 routers:
   - name: router

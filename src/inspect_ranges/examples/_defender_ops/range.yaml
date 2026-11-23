@@ -45,6 +45,7 @@ networks:
   - name: ops
     cidr: 10.90.20.0/24
     mode: isolated
+    pcap: {}
   - name: mgmt
     cidr: 10.90.30.0/24
     mode: isolated
