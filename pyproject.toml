@@ -140,7 +140,9 @@ ignore = ["E203", "E501", "D10", "D212", "D415"]
 convention = "google"
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+# "." lets the breakout CTF tests import the harness under evals/ctf (the eval
+# code is not part of the shipped package, so it is not on the src path)
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 addopts = "-n auto"
 
