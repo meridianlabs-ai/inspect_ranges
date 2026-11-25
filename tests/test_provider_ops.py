@@ -3,6 +3,7 @@
 import asyncio
 import os
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from inspect_ai.util import OutputLimitExceededError, SandboxEnvironmentLimits
@@ -701,5 +702,72 @@ def test_write_file_as_user_creates_parents(tmp_path: Path) -> None:
         assert await env.read_file("deep/nest/f.txt") == "payload"
         await env.write_file("deep/nest/b.bin", b"\x00\x01", user=me)
         assert await env.read_file("deep/nest/b.bin", text=False) == b"\x00\x01"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("errno", "layer"),
+    [("EMFILE", None), ("ETIME", "command")],
+    ids=["errno", "command-timeout"],
+)
+def test_user_write_retry_across_restart_confirms_even_on_failure(
+    tmp_path: Path,
+    errno: Literal["EMFILE", "ETIME"],
+    layer: Literal["command"] | None,
+) -> None:
+    """A user-enforced write rides the exec plane, so an ESTALE across a daemon restart followed by a failed fresh-id retry (an errno, or a command-layer timeout) must still surface `SessionChangedError`, as it does for exec and the file-plane write."""
+
+    class EstaleThenErrno(LocalEndpoint):
+        """First exec answers ESTALE and the daemon restarts; the fresh-id retry then fails with the parametrized reply."""
+
+        def __init__(self, name: str, root: Path) -> None:
+            super().__init__(name, root)
+            self.execs = 0
+
+        async def handle(self, message: Message, bulk: bytes | None) -> _StoredReply:
+            if not isinstance(message, ExecRequest):
+                return await super().handle(message, bulk)
+            self.execs += 1
+            if self.execs == 1:
+                self.restart()
+                return _StoredReply(
+                    ErrorReply(
+                        id=message.id,
+                        errno="ESTALE",
+                        message="executed, result lost before acknowledgement",
+                    ),
+                    None,
+                )
+            return _StoredReply(
+                ErrorReply(
+                    id=message.id,
+                    errno=errno,
+                    layer=layer,
+                    message="the retry failed",
+                ),
+                None,
+            )
+
+    async def scenario() -> None:
+        transport = LoopbackTransport(guests=())
+        endpoint = EstaleThenErrno("box", tmp_path)
+        transport.guests["box"] = endpoint
+        channel = MessageChannel(transport, label="user-write-errno")
+        handle = SampleHandle(
+            project="ir-user-write-errno",
+            task_name="ops",
+            staging=tmp_path / "staging",
+            totals=Totals(guests=1, cpus=1, memory_mb=256),
+            cid_base=10_000,
+            guest_cids={"box": 10_000},
+            channel=channel,
+            retry=FAST_RETRY,
+        )
+        handle.sessions["box"] = endpoint.session
+        env = RangeSandboxEnvironment("box", handle)
+        with pytest.raises(SessionChangedError):
+            await env.write_file("note.txt", "contents", user="agent")
+        assert endpoint.execs == 2
 
     asyncio.run(scenario())

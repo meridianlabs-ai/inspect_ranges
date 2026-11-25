@@ -1,3 +1,7 @@
+## Unreleased
+
+- A user-enforced `write_file` re-checks the daemon session when a re-delivered write fails. `write_file(..., user=...)` runs on the exec plane, and a daemon restart between the first delivery and its fresh-id retry could double-run the write. When the retry then failed with an errno (`EMFILE` at spawn, say) or with a command-layer timeout, the call raised a plain `GuestError` or `TimeoutError` and left the session pin stale. It now raises `SessionChangedError`, as `exec` and the file-plane `write_file` already do for the same sequences.
+
 ## 0.2.29 (22 November 2026)
 
 - Update examples to include `pcap: {}` evidence entry.
