@@ -1,6 +1,7 @@
 """The operator shell: origin refusal, guest resolution, command builders, and the guest-bytes filter."""
 
 import asyncio
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -16,6 +17,7 @@ from inspect_ranges._terminal.operator import (
     SESSION_GONE_RC,
     EscapeFilter,
     OperatorShellError,
+    _CastRecorder,
     operator_sink_path,
     read_sink_command,
     require_operator_origin,
@@ -310,6 +312,32 @@ def test_filter_osc_esc_without_st_aborts_like_the_terminal() -> None:
     """An ESC inside an OSC body that is not part of ST abandons the string, exactly as the terminal's parser does: the body never reaches the terminal, and the successor sequence stands on its own (here ESC c, then ground text)."""
     filt = EscapeFilter()
     assert filt.feed(b"\x1b]52;c;ab\x1bcd\x07tail") == b"\x1bcd\x07tail"
+
+
+# -- cast recording -------------------------------------------------------------
+
+
+def test_cast_keeps_characters_split_across_reads(tmp_path: Path) -> None:
+    """Poll reads split anywhere, including inside a multibyte character; the cast must replay the text the guest printed."""
+    raw = "┌─┐\r\n│é│\r\n".encode()
+    for split in range(1, len(raw)):
+        cast = _CastRecorder(width=80, height=24)
+        cast.record(raw[:split])
+        cast.record(raw[split:])
+        path = tmp_path / f"{split}.cast"
+        cast.write(path, title="t")
+        events = [json.loads(line) for line in path.read_text().splitlines()[1:]]
+        assert "".join(text for _, _, text in events) == raw.decode(), split
+
+
+def test_cast_keeps_trailing_partial_character_as_replacement(tmp_path: Path) -> None:
+    """Output that ends inside a multibyte character still records it, as U+FFFD."""
+    cast = _CastRecorder(width=80, height=24)
+    cast.record(b"ok\r\n\xe2\x94")
+    path = tmp_path / "a.cast"
+    cast.write(path, title="t")
+    events = [json.loads(line) for line in path.read_text().splitlines()[1:]]
+    assert "".join(text for _, _, text in events) == "ok\r\n\ufffd"
 
 
 # -- run_shell preconditions ----------------------------------------------------

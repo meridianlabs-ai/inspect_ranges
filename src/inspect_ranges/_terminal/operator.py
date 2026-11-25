@@ -10,6 +10,7 @@ Linux guests only (the session is tmux); the chosen guest's recorded injector de
 from __future__ import annotations
 
 import asyncio
+import codecs
 import json
 import os
 import shutil
@@ -430,10 +431,15 @@ class _CastRecorder:
             "title": title,
         }
         lines = [json.dumps(header)]
-        lines.extend(
-            json.dumps([round(ts, 6), "o", data.decode("utf-8", errors="replace")])
-            for ts, data in self.events
-        )
+        # sink reads end at arbitrary bytes, so a multibyte character can
+        # straddle two chunks: decode the stream, not each chunk on its own
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        for ts, data in self.events:
+            if text := decoder.decode(data):
+                lines.append(json.dumps([round(ts, 6), "o", text]))
+        # a stream that ends inside a character still shows it, as U+FFFD
+        if tail := decoder.decode(b"", final=True):
+            lines.append(json.dumps([round(self.events[-1][0], 6), "o", tail]))
         path.write_text("\n".join(lines) + "\n")
 
 

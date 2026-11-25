@@ -1,3 +1,7 @@
+## Unreleased
+
+- `inspect-ranges shell --cast` keeps multibyte characters whole. The recorder decoded each sink read on its own, and a read can end inside a UTF-8 character (box-drawing borders, accented text), so the recording replaced that character with U+FFFD replacement characters. The recorder now decodes the output as one stream. The live terminal was never affected; only the recording was.
+
 ## 0.2.29 (22 November 2026)
 
 - Update examples to include `pcap: {}` evidence entry.
