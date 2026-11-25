@@ -763,6 +763,9 @@ def check_evidence(
     # location.py); doctor must evaluate the same sink the runtime will
     sink_override = sink_override or None
     log_dir = log_dir or None
+    # the cap's default scales with the sink backend, so read it for the base
+    # the runtime roots evidence under
+    location = sink_override or log_dir or ""
 
     results: list[CheckResult] = []
     # each knob in its own try, naming its variable: int() errors carry no
@@ -771,7 +774,7 @@ def check_evidence(
     values: dict[str, int] = {}
     for var, read in (
         (EVIDENCE_BUFFER_MB_VAR, evidence_buffer_bytes),
-        (EVIDENCE_MAX_MB_VAR, evidence_max_bytes),
+        (EVIDENCE_MAX_MB_VAR, lambda: evidence_max_bytes(location)),
     ):
         try:
             values[var] = read() // (1024 * 1024)

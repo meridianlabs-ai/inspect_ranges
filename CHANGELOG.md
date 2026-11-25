@@ -1,3 +1,7 @@
+## Unreleased
+
+- `inspect-ranges doctor` reports the per-writer evidence cap for the sink it resolves. The Evidence knobs row read the cap without a location, so with an `s3://` sink override or log dir and `INSPECT_RANGES_EVIDENCE_MAX_MB` unset it showed the 8192 MB filesystem default while the runtime applies the 131072 MB object-store default. The row now reads the cap for the same location the runtime roots evidence under. Its ok/fail verdict is unchanged.
+
 ## 0.2.29 (22 November 2026)
 
 - Update examples to include `pcap: {}` evidence entry.
