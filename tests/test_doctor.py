@@ -21,6 +21,10 @@ from inspect_ranges._doctor.checks import (
     check_virtualization,
     parse_version,
 )
+from inspect_ranges._provider.evidence import (
+    DEFAULT_EVIDENCE_MAX_MB,
+    DEFAULT_EVIDENCE_MAX_MB_REMOTE,
+)
 
 
 def _completed(
@@ -754,6 +758,22 @@ def test_check_evidence_defaults(
     assert "derived from the eval log location" in results["sink"].detail
     assert results["off-instance"].status == "warn"
     assert results["off-instance"].fix is not None
+
+
+def test_check_evidence_cap_follows_sink_backend(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The knobs row reports the per-writer cap the runtime applies, whose default scales with the sink backend; the override wins over the log dir."""
+    monkeypatch.delenv("INSPECT_RANGES_EVIDENCE_BUFFER_MB", raising=False)
+    monkeypatch.delenv("INSPECT_RANGES_EVIDENCE_MAX_MB", raising=False)
+    for sink_override, log_dir, cap_mb in (
+        (None, None, DEFAULT_EVIDENCE_MAX_MB),
+        (None, "s3://bucket/logs", DEFAULT_EVIDENCE_MAX_MB_REMOTE),
+        (str(tmp_path / "evidence"), "s3://bucket/logs", DEFAULT_EVIDENCE_MAX_MB),
+    ):
+        knobs = _evidence_results(sink_override, log_dir)["knobs"]
+        assert knobs.status == "ok"
+        assert f"per-writer cap {cap_mb} MB" in knobs.detail, (sink_override, log_dir)
 
 
 def test_check_evidence_bad_knob_fails(
